@@ -1,0 +1,109 @@
+#!/bin/bash
+function svg-test-to-stdout(){
+  (svg-header;
+   svg-definitions;
+   svg-rect;
+   svg-circle;
+   svg-arrow $1;
+   svg-footer)
+}
+
+function svg-gen-params(){
+  local testparams='
+arrow-1.mag=3
+arrow-1.phase=45
+arrow-2.mag=5
+arrow-2.phase=25
+'
+  printf '%s' "$testparams"
+
+}
+
+function svg-params-to-svg(){
+  while IFS= read -re line; do
+    echo "Got: $line"
+  done 
+}
+
+function svg-engine(){
+  svg-display 2>&1 /dev/null  &
+  pid=$!
+  echo "svg-display pid: $pid"
+  while true; do 
+    svg-to-png out.svg out.png 2>&1 /dev/null
+    sleep .08
+  done
+}
+
+function svg-display(){
+  feh -R .10 out.png 2>&1 > /dev/null &
+}
+
+function svg-to-png(){
+  inkscape -z $1 -e $2
+}
+
+function svg-header(){
+  echo '<svg version="1.1"
+     baseProfile="full"
+     width="300" height="200"
+     xmlns="http://www.w3.org/2000/svg">
+'
+}
+
+function svg-definitions(){
+  echo '
+  <defs>
+    <!-- arrowhead marker definition -->
+    <marker id="arrow" 
+            viewBox="0 0 10 10" 
+            refX="5" 
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+    >
+      <path d="M 0 0 L 10 5 L 0 10 z" />
+    </marker>
+
+    <!-- simple dot marker definition -->
+    <marker id="dot" viewBox="0 0 10 10" refX="5" refY="5"
+        markerWidth="5" markerHeight="5">
+      <circle cx="5" cy="5" r="5" fill="red" />
+    </marker>
+  </defs>
+'
+}
+
+function svg-rect(){
+  echo ' <rect width="100%" height="100%" fill="red" />'
+}
+
+function svg-circle(){
+  echo '<circle cx="150" cy="100" r="80" fill="green" />'
+}
+
+function svg-text(){
+  echo '<text x="150" y="125" font-size="60"
+       text-anchor="middle" fill="white">SVG</text>
+'
+}
+
+function svg-arrow(){
+  echo '<polyline fill="none" 
+         stroke="black"
+         stroke-width="'"$1"'"
+         points=" 150 100 200 150" 
+         marker-start="url(#arrow)" 
+         marker-end="url(#arrow)" /> 
+'
+}
+
+function svg-footer(){
+  echo '</svg>'
+}
+
+# Take from standard input
+function svg-stdin-to-png(){
+  inkscape -z - -e "$1" 1> out.stdout 2>  out.stderr 
+}

@@ -1,0 +1,232 @@
+<html>
+<head>
+<style>
+html{
+    margin:.5em 4em .5em 2em;
+}
+li{
+    margin-left:4em;
+    padding-left:4em;
+}
+.canvas-container{
+    float:left;
+    height:100%;
+}
+.footnotes{
+    font-size:x-small;
+    font-style:italic;
+    margin:0;
+    padding:0; 
+}
+a{
+    text-decoration:none;
+}
+input[type=range][orient=vertical]
+{
+    writing-mode: bt-lr; /* IE */
+    -webkit-appearance: slider-vertical; /* WebKit */
+    width: 8px;
+    height: 175px;
+    padding: 0 5px;
+}
+
+</style>
+</head>
+<h1>Poincairé Disk Model</h1>
+<div class="canvas-container">
+<canvas 
+    style="
+    margin-left:1em"
+    id="disk_canvas" 
+    width="200", 
+    height="200"
+>
+</canvas>
+</div> <!-- canvas-container -->
+
+<p> In geometry, the Poincaré disk model, also called the
+conformal disk model, is a model of 2-dimensional hyperbolic
+geometry in which the points of the geometry are inside the
+unit disk, and the straight lines consist of all circular arcs
+contained within that disk that are orthogonal to the boundary
+of the disk, plus all diameters of the disk.  </p>
+
+<p> The isometry group of the disk model is given by the special
+unitary group SU(1,1).  </p>
+
+<p> Along with the Klein model and the Poincaré half-space
+model, it was proposed by Eugenio Beltrami who used these
+models to show that hyperbolic geometry was equiconsistent with
+Euclidean geometry. It is named after Henri Poincaré, because
+his rediscovery of this representation fourteen years later
+became better known than the original work of Beltrami.  </p>
+
+<form>
+<input id="input" value="rgb(200,100,0)">
+<input type="submit" id="submit-button" value="submit"></input>
+<input type="button" id="stop" value="stop">
+<input type="button" id="start" value="start">
+<br>
+<input type="range" id="xPos"  min="0" max="200" value="50">
+<br>
+<input type="range" id="yPos"  min="0" max="200" value="50">
+<br>
+<input type="range" id="size"  min="0" max="200" value="50">
+</input>
+</form>
+<div id="debug">debug info</div>
+
+<div class="footnotes">
+<hr style="width:30%; text-align:left; margin-left:0"></hr>
+Technical notes:
+<ul style="list-style-type: none;">
+<li>
+<a href=https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input>
+Element input
+</a></li>
+<li>
+<a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame">
+RequestAnimationFrame
+</a></li>
+</ul>
+</div><!-- footnotes -->
+
+<!-- 
+https://cdnjs.com/libraries/raphael
+<script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.3.0/raphael.js">
+</script>
+-->
+
+<script>
+
+function debug(str){
+    console.log(str);
+    document.getElementById("debug").innerHTML = str;
+}
+
+function change(evt){
+    console.log(evt.target.value);
+    debug(evt.target.value);
+
+    if(evt.target.id == "xPos"){
+        params.xpos=evt.target.value;
+    }
+    if(evt.target.id == "yPos"){
+        params.ypos=evt.target.value;
+    }
+    if(evt.target.id == "size"){
+        params.size=evt.target.value;
+    }
+    if(evt.target.id == "stop"){
+        window.cancelAnimationFrame(params.reqId);
+    }
+    if(evt.target.id == "start"){
+        params.reqId=window.requestAnimationFrame(step);
+    }
+}
+
+function init() {
+    document.getElementById("xPos").addEventListener("input", change);
+    document.getElementById("yPos").addEventListener("input", change);
+    document.getElementById("size").addEventListener("input", change);
+    document.getElementById("stop").addEventListener("click", change);
+    document.getElementById("start").addEventListener("click", change);
+
+    /* Prevent submit to send a POST request on all forms on page.*/ 
+    Array.prototype.map.call(document.forms, function(form) { 
+         form.addEventListener("submit",
+                    function (event) {
+                        event.preventDefault();
+                        eval(document.getElementById("input").value);
+                        //sendData();
+                                     });
+       return form;});
+
+    params.reqId = window.requestAnimationFrame(step);
+}
+
+let params = {
+    reqId:0,
+    fillStyle:"rgb(200,100,50)",
+    xpos:50,
+    ypos:50,
+    size:50
+}
+
+var start =0;
+var progress =0;
+function step(timestamp){
+    debugString=`${timestamp}: `;
+    if(!start) start = timestamp;
+    progress = timestamp - start;
+    modulate(sines,timestamp);
+    params.xpos=sines[0].value;
+    params.ypos=sines[1].value;
+    debugString += params.xpos.toFixed(2);
+    debug(debugString);
+    draw(params);
+    if (progress > 200 ) {
+        progress=0;
+    }
+     params.reqId = window.requestAnimationFrame(step);
+}
+
+function buttonHandler(evt){
+    console.log("Event:", evt);
+    let input = document.getElementById("input");
+    let inputHtml = input.innerHTML;
+    //debug(JSON.stringify(evt));
+    console.log("Input DOM element:", input);
+    debug(inputHtml);
+    params.fillStyle = input.value;
+    draw(params);
+}
+
+function draw(options){
+    width=200;
+    height=200;
+    var canvas=document.getElementById("disk_canvas");
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = options.fillStyle; 
+    ctx.fillRect(options.xpos,
+                 options.ypos,
+                 options.size,
+                 options.size);
+}
+
+var sines = [
+{
+    amp:100.0,
+    freq:2.0,
+    value:0,
+    offset:1.0,
+    time:0,
+    phase:0
+},
+{
+    amp:100.0,
+    freq:2.0,
+    value:0,
+    offset:1.0,
+    time:0,
+    phase:0
+}
+
+
+];
+
+function modulate(sines, timeMs) {
+    sines.map( function(sine) {
+        sine.time = timeMs;
+        sine.value= sine.amp* (sine.offset +
+                     Math.sin(2*Math.PI*sine.freq*sine.time/1000 + sine.phase));
+        });
+}
+
+window.onload = function() {
+  init();
+  //draw(params);
+};
+</script>
+</html>

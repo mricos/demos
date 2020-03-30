@@ -1,0 +1,422 @@
+<html>
+<head>
+<style>
+html{
+    margin:.5em 4em .5em 2em;
+}
+li{
+    margin-left:4em;
+    padding-left:4em;
+}
+
+.debug-container {
+  padding:0px;
+  margin:0px;
+  font-size:x-small;
+    margin-left:35px;
+}
+#canvas-container{
+    float:left;
+    width:250px;
+    height:250px;
+    margin-left:1em;
+    margin-bottom:1em;
+    margin-right:2em;
+    padding:0;
+}
+#disk-canvas{
+    border: 2px solid blue;
+}
+.footnotes{
+    font-size:x-small;
+    font-style:italic;
+    margin:0;
+    padding:0; 
+}
+a{
+    text-decoration:none;
+}
+
+
+#yPos{
+    height: 200px;
+    width : 30px;
+    -webkit-appearance: slider-vertical;
+}
+#xPos{
+    width: 200px;
+    height : 2em;
+    margin-left:35px;
+}
+
+.controls{
+    text-align:center;
+    padding:0;
+    padding-top:.5em;
+    background:#ABA;
+    background:#EFE;
+    border: 2px solid #aaa;
+    width:300px;
+    float:left;
+    font-size:small;
+    padding-bottom:1em;
+}
+
+.controls input[type=range] {
+    width:80%;
+}
+
+.controls button, input[type=button] {
+    background:none;
+    line-height:1em;
+    font-size:small;
+    border:1px solid #333;
+    border-radius:3px;
+    margin-bottom:1em;
+}
+
+
+.console {
+  display:none;
+  background:#dcd;
+  width:300px;
+  padding:0;
+  float:left;
+  line-height:.5em;
+  padding-top:2em;
+  padding-left:.5em;
+  margin:0em;
+  margin-block-end: 0em;
+
+}
+.console input[type=text] {
+    margin:0em;
+    width:85%;
+    text-align:left;
+    background:#dcd; 
+    border: 1px solid #a8a;
+    margin-left:.5em;
+    margin-top:0em;
+    padding-left:.5em;
+    line-height:1.3em;
+}
+.console input[type=submit] {
+    width:20%;
+    margin-right:1em;
+    float:right;
+    background:#dcd; 
+    border: 1px solid black;
+}
+
+.console-output{
+   font-size:x-small;
+   margin-left:1.5em;
+   margin-top:0em;
+   padding-top:0em;
+} 
+
+</style>
+</head>
+<h1>Poincairé Disk Model</h1>
+<div id="canvas-container">
+  <input style="display:inline" type="range" 
+        id="yPos"  min="0" max="200" value="50">
+  <canvas 
+    id="disk-canvas" 
+    width="200", 
+    height="200"
+  >
+  </canvas>
+  <br>
+  <input type="range" 
+         id="xPos"  
+         min="0" 
+         max="200"
+         value="50">
+  <div class="debug-container">
+    <hr style="width:30%; text-align:left; margin-left:0"></hr>
+    <div id="debug">
+      debug info
+    </div>
+  </div>
+</div> <!-- canvas-container -->
+
+
+<div id="summary" onclick='change(event)' >
+<p> In geometry, the Poincaré disk model, also called the
+conformal disk model, is a model of 2-dimensional hyperbolic
+geometry in which the points of the geometry are inside the
+unit disk, and the straight lines consist of all circular arcs
+contained within that disk that are orthogonal to the boundary
+of the disk, plus all diameters of the disk.  </p>
+
+<p> The isometry group of the disk model is given by the special
+unitary group SU(1,1).  </p>
+
+<p> Along with the Klein model and the Poincaré half-space
+model, it was proposed by Eugenio Beltrami who used these
+models to show that hyperbolic geometry was equiconsistent with
+Euclidean geometry. It is named after Henri Poincaré, because
+his rediscovery of this representation fourteen years later
+became better known than the original work of Beltrami.  </p>
+</div> <!-- summary -->
+
+
+<div class="notes" style="display:none">
+Technical notes:
+<ul style="list-style-type: none;">
+<li>
+<a href=https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input>
+Element input
+</a></li>
+<li>
+<a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame">
+RequestAnimationFrame
+</a></li>
+</ul>
+</div><!-- footnotes -->
+
+<div id="controls" class="controls">
+     <input type="button" id="stop" value="stop"></input>
+     <input type="button"  id="toggleConsole" value="console" > </input> 
+     <input  type="button" name="start" id="start" value="start">
+    <input orientation type="range" id="xFreq"  min="0" max="20" value="1">
+    <br>
+    <input type="range" id="yFreq"  min="0" max="20" value="1">
+    <br>
+    <input type="range" id="size"  min="0" max="200" value="50">
+    </input>
+</div> <!-- controls -->
+
+
+<div style="margin-top:1em;" class="console" id="console">
+     <div class="console-output">type start</div>
+     <input type="text" id="console-input"  
+            value="props.fillStyle='rgb(199,100,0)'">
+
+</div>
+<!-- 
+https://cdnjs.com/libraries/raphael
+<script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.3.0/raphael.js">
+</script>
+-->
+
+<script>
+/*
+  Basic idea: each element has a current state and N-1 previous
+states. A step function recursively updates all N-1 previous
+states each call to update() which calls draw(state) which 
+maps over all entries and renders objects with a type attribute
+of {square, circle, triangle}. 
+
+update(timestamp) {
+  state=filter(state,transition)
+  render(state)
+}
+
+transition(state){
+  state[0].opacity = state[0].opacity - .5 * state[1]
+}
+*/
+function debug(str){
+    //console.log(str);
+    document.getElementById("debug").innerHTML = str;
+}
+
+function start() {
+   change({target:{id:"start"}});
+}
+function stop(){
+   change({target:{id:"stop"}});
+}
+
+function change(evt){
+    debugString = `${evt.target.id}: ${evt.target.value}`;
+    //console.log(evt.target.id, evt.target.value);
+    debug(debugString);
+
+    if(evt.target.id == "xPos"){
+        props.xpos=evt.target.value;
+    }
+    if(evt.target.id == "yPos"){
+        props.ypos=evt.target.value;
+    }
+    if(evt.target.id == "xFreq"){
+        props.xFreq=20*(evt.target.value)/200; // [0-20]Hz
+    }
+    if(evt.target.id == "yFreq"){
+        props.yFreq=20*evt.target.value/200;
+    }
+    if(evt.target.id == "size"){
+        props.size=evt.target.value;
+    }
+    if(evt.target.id == "stop"){
+        props.isRunning=false;
+        window.cancelAnimationFrame(props.reqId);
+    }
+    if(evt.target.id == "start"){
+        props.isRunning=true;
+        props.reqId=window.requestAnimationFrame(step);
+    }
+    if(evt.target.id == "toggleConsole"){
+        var c=document.getElementById("console");
+        if(c.style.display==="none"){
+            c.style.display="block";
+        }
+        else{
+            c.style.display="none";
+
+        }
+    }
+    if(evt.target.id == "summary"){
+        document.getElementById("summary").style.display="none";
+    }
+
+    if(props.isRunning == false){
+        draw(props); 
+    }
+
+    //document.getElementById("canvas-container").style.height="100%";
+}
+/* 
+In Init: prevent submit to send a POST request on all forms on page.
+This would be much easier if we limit one and only one 
+form per page. The scope of the form in the larger context 
+of UI can be disussed here.
+
+"UI is the brains behind the DOM."
+"UI is a triad between the user, the programmer, and the interface."
+"UI is a triad of an Event System, a DOM, display rules"
+UI rules can be modeled as  state transition table.
+
+var ui = UI();
+ui.form.submit= (evt) => uiFormSubmit(evt);
+uiFormSubmit(evt) {
+  // Do UI and DOM manipulation here.
+}
+*/
+function init() {
+    for (var el of document.getElementsByTagName('input')) {
+       el.addEventListener("input", change);
+       el.addEventListener("click", change);
+       console.log(el);
+    }
+    document.getElementById('console-input').removeEventListener("input", change);
+    document.getElementById('console-input').removeEventListener("click", change);
+ 
+    Array.prototype.map.call(document.forms, function(form) { 
+         form.addEventListener("submit",
+                    function (event) {
+                        event.preventDefault();
+                        var conin = document.getElementById("console-input");
+                        var conout = 
+                           document.getElementsByClassName("console-output")[0];
+                        var cmd=conin.value;
+                        res=eval(cmd);
+                        conin.value="";
+                        conout.textContent=res;
+                        conout.textContent="GOT HERE";
+                        
+                        //sendData();
+                                     });
+       return form;});
+
+    //props.reqId = window.requestAnimationFrame(step);
+}
+
+let props = {
+    isRunning:false,
+    reqId:0,
+    fillStyle:"rgb(200,100,50)",
+    xpos:50,
+    ypos:50,
+    xFreq: .5,
+    yFreq: .5,
+    size:50
+}
+
+function State(props) {
+   // State is an array of arrays: current plus N-1 back in time
+   // In this case three objects represented now and one step 
+   // back in time
+   return [[props,props, props], [props, props, props]]; 
+}
+var state = State(props);
+
+var started =0;
+var progress =0;
+function step(timestamp){
+    debugString=`${timestamp}: `;
+    if(!started) started = timestamp;
+    progress = timestamp - started;
+    sines[0].freq=props.xFreq;
+    sines[1].freq=props.yFreq;
+    modulate(sines,progress);
+    props.xpos=sines[0].value;
+    props.ypos=sines[1].value;
+    debugString += props.xpos.toFixed(2);
+    //debug(debugString);
+    draw(props);
+    if (progress > 200 ) {
+        progress=0;
+    }
+     props.reqId = window.requestAnimationFrame(step);
+}
+
+function draw(props){
+    width=200;
+    height=200;
+    var canvas=document.getElementById("disk-canvas");
+    var ctx = canvas.getContext('2d');
+    var entireCanvas=[0, 0, canvas.width, canvas.height];
+    ctx.strokeStyle = "#FF0000";
+    //ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(...entireCanvas);
+    ctx.fillStyle = props.fillStyle; 
+    ctx.strokeStyle = "#FF0000";
+    ctx.arc(100, 100,100,0,2*Math.PI,1);
+    ctx.stroke();
+    ctx.fillRect(props.xpos -props.size/2,
+                 props.ypos -props.size/2,
+                 props.size,
+                 props.size);
+   document.getElementById('xPos').value=props.xpos;
+   document.getElementById('yPos').value=props.ypos;
+}
+
+var sines = [
+{
+    amp:100.0,
+    freq:2.0,
+    value:0,
+    offset:1.0,
+    time:0,
+    phase:0
+},
+{
+    amp:100.0,
+    freq:2.0,
+    value:0,
+    offset:1.0,
+    time:0,
+    phase:-Math.PI/2
+}
+
+
+];
+
+function modulate(sines, timeMs) {
+    sines.map( function(sine) {
+        sine.time = timeMs;
+        sine.value = sine.amp*(sine.offset +
+                     Math.sin(2*Math.PI*sine.freq*sine.time/1000 
+                              + sine.phase));
+        });
+}
+
+window.onload = function() {
+  init();
+  //draw(params);
+};
+</script>
+</html>
