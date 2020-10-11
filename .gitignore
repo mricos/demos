@@ -1,6 +1,13 @@
 #
 *.pyc
 
+# media files
+*.raw
+*.wav
+*.mp3
+*.mov
+*.ac3
+
 # Logs
 logs
 *.log
