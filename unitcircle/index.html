@@ -1,3 +1,8 @@
+<!DOCTYPE html>
+<!--
+ver001: unitcircle/index.html
+Single file demo of Animated unit circle.
+-->
 <html>
 <head>
 <style>
@@ -158,7 +163,7 @@ button {
 
 </style>
 </head>
-<h1>Unit Circle</h1>
+<h1>Unit circle</h1>
 <div id="canvas-container">
   <input style="display:inline" type="range" 
         id="yPos"  min="0" max="200" value="50">
@@ -183,22 +188,31 @@ button {
 
 </div> <!-- canvas-container -->
 
-<div style="display:none" id="summary">
-<p> 
-of the disk, plus all diameters of the disk. 
+<div
+id="summary"
+style="
+display:none;
+margin-left:1em;"
+>
 
- </p>
 
-<p> The isometry group of the disk model is given by the special
-unitary group SU(1,1).  </p>
+<div id="summary-image" style="float:left;">
+<img style="width:200px"
+src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Sinus_und_Kosinus_am_Einheitskreis_1.svg/800px-Sinus_und_Kosinus_am_Einheitskreis_1.svg.png">
+</div> <!-- summary-image -->
 
-<p> Along with the Klein model and the Poincaré half-space
-model, it was proposed by Eugenio Beltrami who used these
-models to show that hyperbolic geometry was equiconsistent with
-Euclidean geometry. It is named after Henri Poincaré, because
-his rediscovery of this representation fourteen years later
-became better known than the original work of Beltrami.
+
+<div id="summary-text" style="float:left; width:40%;">
+<p>
+A unit circle is a circle of 
+unit radius—that is, a radius of 1.
 </p>
+<p>
+If (x, y) is a point on the unit circle's circumference, then
+|x| = cos(&Theta;) and |y| = sin(&Theta;) are the lengths of 
+the legs of a right triangle whose hypotenuse has length 1.
+</p>
+</div> <!-- summary-text -->
 </div> <!-- summary -->
 
 <div class="notes" style="display:none">
@@ -383,7 +397,7 @@ function init() {
                         res=eval(cmd);
                         conin.value="";
                         conout.textContent=res;
-                        draw(props); 
+                        //drawRing(props); 
                         //sendData();
                                      });
        return form;});
@@ -399,7 +413,7 @@ let props = {
     ypos:50,
     xFreq: .5,
     yFreq: .5,
-    size:50
+    size:10
 }
 
 function State(props) {
@@ -551,7 +565,7 @@ var sines = [
     value:0,
     offset:1.0,
     time:0,
-    phase:-Math.PI/2
+    phase:+Math.PI/2
 }
 
 
