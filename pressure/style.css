@@ -1,5 +1,27 @@
-#blackboard{
+main{
+  border: 2px solid green;
+  display:flex;
+  justify-content:  space-between;; 
+  height:200px;
+}
+menu{
+  border: 2px solid orange;
+}
+#input{
   border: 2px solid black;
-  height:300px;
-  width:400px; 
+  width: 200px; 
+}
+
+#mapper{
+    width:30%;
+    margin:0;
+    padding:0;
+    background-color:orange;
+    border: 2px solid red;
+    font-family:monospace;
+    white-space:pre;
+}
+
+#output{
+  border: 2px solid blue;
 }
