@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Real-time Video Processing</title>
+    <script src="./opencv.js"></script>
+  </head>
+  <body>
+    <video id="video"></video>
+    <canvas id="canvas"></canvas>
+    <script>
+      // Create a video element and set its source to the webcam
+      var video = document.getElementById('video');
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          video.srcObject = stream;
+          video.play();
+        });
+
+      // Create a canvas element to draw the video frame
+      var canvas = document.getElementById('canvas');
+      var ctx = canvas.getContext('2d');
+
+      // Set canvas dimensions to match video dimensions
+      video.addEventListener('loadedmetadata', function() {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+      });
+
+      // Draw the video frame to the canvas and process it
+      function processFrame() {
+        ctx.drawImage(video, 0, 0);
+        var frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        // Perform video processing here
+        // ...
+        requestAnimationFrame(processFrame);
+      }
+      requestAnimationFrame(processFrame);
+    </script>
+  </body>
+</html>
+
