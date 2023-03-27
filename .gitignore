@@ -3,6 +3,9 @@ log.txt
 #
 *.pyc
 
+.DS*
+env.sh
+
 # media files
 *.raw
 *.wav
