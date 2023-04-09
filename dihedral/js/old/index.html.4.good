@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Kaleidoscope</title>
+  <link rel="stylesheet" href="styles.css">
+
+
+  <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@latest/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@latest/examples/jsm/"
+    }
+  }
+</script>
+
+</head>
+<body>
+  <div id="ui-container">
+    <h1>3D Kaleidoscope</h1>
+    <label for="reflectivity">Reflectivity:</label>
+    <input type="range" id="reflectivity" name="reflectivity" min="0" max="1" step="0.01" value="0.5">
+    <label for="lightIntensity">Light Intensity:</label>
+    <input type="range" id="lightIntensity" name="lightIntensity" min="0" max="2" step="0.01" value="1">
+
+      <div>
+    <label for="lightX">Light X:</label>
+    <input type="range" id="lightX" min="-10" max="10" step="0.1" value="0">
+  </div>
+  <div>
+    <label for="lightY">Light Y:</label>
+    <input type="range" id="lightY" min="-10" max="10" step="0.1" value="0">
+  </div>
+  <div>
+    <label for="lightZ">Light Z:</label>
+    <input type="range" id="lightZ" min="-10" max="10" step="0.1" value="0">
+   <div>
+    <label for="planeZ">Plane Z:</label>
+    <input type="range" id="planeZ" min="-10" max="10" step="0.1" value="0">
+  </div>
+
+  <div id="stage" data-ball="2" style="position: relative; width:200px; height:200px; background-color: #222;">
+  <div id="cursor" style="position: absolute; width: 20px; height: 20px; border-radius: 50%; border: 1px solid #fff; left: 50%; top: 50%; transform: translate(-50%, -50%);"></div>
+</div>
+ </div>
+
+
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
