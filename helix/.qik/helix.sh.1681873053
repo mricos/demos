@@ -1,0 +1,122 @@
+helix-help(){
+cat <<EOF
+  Helix explores the grammar of helixical structures
+  over minimal error surfaces. Requires Node.JS env.
+
+helix/
+│
+├── node_modules/
+│
+├── public/
+│   ├── index.html
+│   └── styles.css (generated after running 'npm run build')
+│
+├── src/
+│   └── styles.css
+│
+├── postcss.config.js
+├── tailwind.config.js
+└── package.json
+
+EOF
+}
+
+helix-install(){
+  npm init -y
+  [ -d ./package.json ] && npm init -y
+  npm install tailwindcss postcss autoprefixer
+  npm install --save-dev postcss-cli
+  npm install -g serve
+}
+
+helix-clean(){
+  read -p "Deleting src, public, <ret> to continue, ctrl-c to quit."
+  rm -rf ./src
+  rm -rf ./public
+  rm ./tailwind.config.js
+  rm ./postcss.config.js
+}
+helix-create-files(){
+  [ -d ./src ] && echo "src dir exists, exiting" && return 0;
+  mkdir ./src
+
+  cat<<EOF > ./tailwind.config.js
+module.exports = {
+  purge: ['./public/**/*.html'],
+  darkMode: false,
+  theme: {
+    extend: {
+      fontFamily: {
+        'body': ['Roboto', 'sans-serif']
+      }
+    },
+  },
+  variants: {
+    extend: {},
+  },
+  plugins: [],
+}
+
+EOF
+
+
+  cat<<EOF > ./postcss.config.js
+module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+EOF
+
+  cat <<EOF > ./src/styles.css
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+EOF
+
+  mkdir ./public
+  cat <<EOF > ./public/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helix</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="bg-gray-900 text-red-300 font-body min-h-screen flex flex-col">
+    <header class="bg-gray-800 p-4">
+        <!-- Header content -->
+    </header>
+
+    <main class="flex-1 flex items-center justify-center">
+        <h1 class="text-4xl">Helix</h1>
+    </main>
+
+    <footer class="bg-gray-800 p-4">
+        <!-- Footer content -->
+    </footer>
+</body>
+</html>
+EOF
+
+cat <<EOF
+
+Add build cmd to  package.json:
+  "scripts": {
+    "build": "npx postcss src/styles.css -o public/styles.css"
+   }
+
+EOF
+}
+
+helix-build(){
+  npm run build
+}
+
+helix-serve(){
+  serve public
+
+}
