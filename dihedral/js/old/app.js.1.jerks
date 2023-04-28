@@ -1,0 +1,160 @@
+// Declare shared variables at the top of your script file
+let renderer, scene, camera;
+let plane1, plane2, plane3;
+let pointlight;
+let prevMouseX = null, prevMouseY = null; // Initialize to null
+
+
+function init(){
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+
+    plane1Geometry = new THREE.PlaneGeometry(3, 3);
+    plane2Geometry = new THREE.PlaneGeometry(3, 3);
+    plane3Geometry = new THREE.PlaneGeometry(3, 3);
+
+    reflectiveMaterial = new THREE.MeshStandardMaterial({
+      color: 0x00ff00,
+      metalness: 0.9,
+      roughness: 0.1,
+    });
+
+    plane1 = new THREE.Mesh(plane1Geometry, reflectiveMaterial);
+    plane2 = new THREE.Mesh(plane2Geometry, reflectiveMaterial);
+    plane3 = new THREE.Mesh(plane3Geometry, reflectiveMaterial);
+
+    scene.add(plane1);
+    scene.add(plane2);
+    scene.add(plane3);
+
+    // Create a point light
+    pointLight = new THREE.PointLight(0xffffff, 1);
+    pointLight.position.set(0, 0, 10);
+    scene.add(pointLight);
+
+    // Create an ambient light for overall scene illumination
+    ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+
+    // Position and rotate plane1
+    plane1.position.set(0, 0, 0);
+    plane1.rotation.set(0, Math.PI / 2, 0);
+
+    // Position and rotate plane2
+    plane2.position.set(0, 0, 0);
+    plane2.rotation.set(0, 0, 0);
+
+    // Position and rotate plane3
+    plane3.position.set(0, 1, 0);
+    plane3.rotation.set(Math.PI / 4, 0, 0);
+
+
+    camera.position.z = 5;
+
+    document.addEventListener('mousemove', onMouseMove);
+    // Reflectivity input event listener
+    document.getElementById('reflectivity').
+        addEventListener('input', onReflectivityChange);
+
+    // Light intensity input event listener
+    document.getElementById('lightIntensity').
+        addEventListener('input', onLightIntensityChange);
+
+    document.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+    });
+
+    animate();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+
+
+function onMouseMove(event) {
+
+  // Check if the mouse is within the ui-container div
+  const uiContainer = document.getElementById('ui-container');
+  const rect = uiContainer.getBoundingClientRect();
+  if (
+    event.clientX >= rect.left &&
+    event.clientX <= rect.right &&
+    event.clientY >= rect.top &&
+    event.clientY <= rect.bottom
+  ) {
+    // If the mouse is within the ui-container, do not update the third plane or the camera
+    return;
+  }
+
+  // Calculate normalized mouse coordinates (-1 to 1)
+  const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+  const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  // Check if the left mouse button is pressed
+  if (event.buttons === 1) {
+    // Update the third plane's position and rotation
+    updateThirdPlane(mouseX, mouseY);
+  }
+
+  // Check if the right mouse button is pressed
+  if (event.buttons === 2) {
+    // Update the camera position
+    updateCameraPosition(mouseX, mouseY);
+    // Store the previous mouse coordinates
+    prevMouseX = mouseX;
+    prevMouseY = mouseY;
+
+  }
+}
+
+function updateCameraPosition(mouseX, mouseY) {
+  if (prevMouseX !== null && prevMouseY !== null) {
+    // Calculate the difference in mouse coordinates
+    const deltaX = (mouseX - prevMouseX) * 5;
+    const deltaY = (mouseY - prevMouseY) * 5;
+
+    // Update the camera position based on the calculated difference
+    camera.position.x += deltaX;
+    camera.position.y += deltaY;
+  }
+
+  // Make the camera look at the center of the scene
+  camera.lookAt(scene.position);
+
+  // Update the previous mouse coordinates
+  prevMouseX = mouseX;
+  prevMouseY = mouseY;
+}
+
+function updateThirdPlane(mouseX, mouseY) {
+  // Set the position and rotation of the third plane
+  // based on the normalized mouse coordinates
+  plane3.position.y = mouseY * 2;
+  plane3.rotation.x = Math.PI / 4 + mouseX * Math.PI / 2;
+}
+
+function onReflectivityChange(event) {
+  const reflectivity = parseFloat(event.target.value);
+
+  // Update the reflectivity of the material
+  plane1.material.metalness = reflectivity;
+  plane2.material.metalness = reflectivity;
+  plane3.material.metalness = reflectivity;
+}
+
+function onLightIntensityChange(event) {
+  const lightIntensity = parseFloat(event.target.value);
+
+  // Update the intensity of the point light
+  pointLight.intensity = lightIntensity;
+}
+

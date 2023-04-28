@@ -1,0 +1,44 @@
+// mirror.js
+import * as THREE from 'three';
+import { Reflector } from 'three/addons/objects/Reflector.js';
+
+
+function createMirror() {
+  const planeGeometry = new THREE.PlaneGeometry(3, 3);
+
+  const reflectivePlane = new Reflector(planeGeometry, {
+    clipBias: 0.003,
+    textureWidth: window.innerWidth * window.devicePixelRatio,
+    textureHeight: window.innerHeight * window.devicePixelRatio,
+    color: 0x777777,
+  });
+
+  const solidColorMaterial = new THREE.MeshBasicMaterial({
+    color: 0x0000ff, // Solid blue color
+    side: THREE.BackSide,
+  });
+
+  // Create border geometry and material
+  const borderGeometry = new THREE.BoxGeometry(3.2, 3.2, 0.05);
+  const borderMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  // Create border mesh and position it slightly behind the reflective plane
+  const border = new THREE.Mesh(borderGeometry, borderMaterial);
+  border.position.z -= 0.02;
+
+  const solidColorPlane = new THREE.Mesh(planeGeometry, solidColorMaterial);
+
+  // Position the solid color plane slightly behind the reflective plane
+  solidColorPlane.position.z -= 0.01;
+
+  const mirrorGroup = new THREE.Group();
+  mirrorGroup.add(reflectivePlane);
+  mirrorGroup.add(solidColorPlane);
+  mirrorGroup.add(border);
+  //mirrorGroup.userData.border.visible = false;
+  //mirrorGroup.userData.border = border;
+
+
+  return {mirrorGroup};
+}
+
+export { createMirror };

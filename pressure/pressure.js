@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', event => {
   button.addEventListener('click', async() => {
     let device
     const VENDOR_ID = 0x056a
-    
     try {
       device = await navigator.usb.requestDevice({
         filters: [{
@@ -22,10 +21,20 @@ document.addEventListener('DOMContentLoaded', event => {
   })
 })
 
+
+mapper=document.getElementById("mapper");
+function eventToHtml(e){
+  return `{
+  offsetX: ${e.offsetX.toFixed(2)},
+  offsetY: ${e.offsetY.toFixed(2)}
+}`;
+    
+}
 handlePointerMove = (e) => {
   console.log(e);
+  mapper.innerHTML=eventToHtml(e);
 }
 
-document.getElementById("blackboard").addEventListener(
+document.getElementById("input").addEventListener(
 		'pointermove',handlePointerMove);
 

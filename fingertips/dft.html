@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Real-time Video Processing with DFT</title>
+  </head>
+  <body>
+    <video id="video"></video>
+    <canvas id="canvas"></canvas>
+    <canvas id="dft"></canvas>
+    <script>
+
+    var Module = {
+    onRuntimeInitialized() {
+        //document.getElementById('status').innerHTML = 'OpenCV.js is ready.';
+        // Create a video element and set its source to the webcam
+        var video = document.getElementById('video');
+        navigator.mediaDevices.getUserMedia({ video: true })
+           .then(stream => {
+              video.srcObject = stream;
+              video.play();
+            });
+
+        // Create a canvas element to draw the video frame
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+
+        // Create a canvas element to display the DFT
+        var dftCanvas = document.getElementById('dft');
+        var dftCtx = dftCanvas.getContext('2d');
+
+        // Set canvas dimensions to match video dimensions
+        video.addEventListener('loadedmetadata', function() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            dftCanvas.width = video.videoWidth;
+            dftCanvas.height = video.videoHeight;
+        });
+
+        // Draw the video frame to the canvas and process it
+        function processFrame() {
+            ctx.drawImage(video, 0, 0);
+            var frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            // Perform DFT here
+            var src = cv.matFromImageData(frame);
+            var dst = new cv.Mat();
+            cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+            cv.dft(src, dst, cv.DFT_SCALE | cv.DFT_ROWS);
+            var dft = new ImageData(new Uint8ClampedArray(dst.data),
+                                    dst.cols, dst.rows);
+  
+            // Draw the DFT to the dftCanvas
+            dftCtx.putImageData(dft, canvas.width, 0);
+            src.delete(); dst.delete();
+            requestAnimationFrame(processFrame);
+        }
+
+        requestAnimationFrame(processFrame);
+     }
+};
+    </script>
+    <script async src="opencv.js" type="text/javascript"></script>
+  </body>
+</html>

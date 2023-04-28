@@ -1,0 +1,32 @@
+// mirror.js
+import * as THREE from 'three';
+
+function createMirror(scene) {
+  const reflectiveMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    envMap: scene.background,
+    side: THREE.FrontSide,
+    reflectivity: 1,
+  });
+
+  const solidColorMaterial = new THREE.MeshBasicMaterial({
+    color: 0x0000ff, // Solid blue color
+    side: THREE.BackSide,
+  });
+
+  const planeGeometry = new THREE.PlaneGeometry(3, 3);
+
+  const reflectivePlane = new THREE.Mesh(planeGeometry, reflectiveMaterial);
+  const solidColorPlane = new THREE.Mesh(planeGeometry, solidColorMaterial);
+
+  // Position the solid color plane slightly behind the reflective plane
+  solidColorPlane.position.z -= 0.01;
+
+  const mirrorGroup = new THREE.Group();
+  mirrorGroup.add(reflectivePlane);
+  mirrorGroup.add(solidColorPlane);
+  return mirrorGroup;
+}
+
+export { createMirror };
+
