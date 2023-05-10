@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="styles.css">
-    <title>ChatGPT Clone</title>
+    <link rel="stylesheet" href="./style.css">
+    <title>devChat</title>
 </head>
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            autoChat 
+            devChat 
         </div>
         <div class="chat-messages" id="chat-messages">
         </div>
@@ -18,6 +18,10 @@
             <!-- Using a special character as a send icon -->
             <button type="submit">&#x279C;</button>
         </form>
+        <a href="#" id="toggle-api-response" class="toggle-link">API Response &#x25BC;</a>
+
+<div class="api-response-container" id="api-response-container"></div>
+
     </div>
     <script src="app.js"></script>
 </body>

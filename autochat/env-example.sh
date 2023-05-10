@@ -1,1 +1,0 @@
-export CHATGPT_APIKEY=xx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
