@@ -1,0 +1,70 @@
+#chatPill {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  background: var(--color2);
+  padding: 10px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 5;
+}
+
+#chatRow1, #chatRow2 {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+}
+
+#chatRow1 {
+  align-items: center;
+}
+
+#chatRow2 {
+  align-items: center;
+}
+
+#chatInput {
+  flex: 3;
+  padding: 5px;
+  border: 1px solid var(--color5);
+  border-radius: 5px;
+  background: var(--color1);
+  color: var(--color8);
+  font-family: monospace;
+}
+
+#chatStatus {
+  flex: 1;
+  text-align: center;
+  padding: 5px;
+  background: var(--color4);
+  color: var(--color1);
+  border-radius: 5px;
+  font-family: monospace;
+}
+
+#chatOutput {
+  flex: 4;
+  min-height: 20px;
+  border: 1px solid var(--color5);
+  padding: 5px;
+  background: var(--color1);
+  color: var(--color8);
+  overflow-y: auto;
+  font-family: monospace;
+}
+
+#chatSendBtn {
+  flex: 1;
+  cursor: pointer;
+  background: var(--color5);
+  color: var(--color1);
+  border-radius: 5px;
+  padding: 5px;
+  text-align: center;
+  font-family: monospace;
+}

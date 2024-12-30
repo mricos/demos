@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Refactored Diagram App</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles/chat-area.css">
+</head>
+<body>
+  <div id="content">
+    <div id="diagram"></div>
+    <div id="configToggle"></div>
+    <div id="configPanel"></div>
+    <div id="jsonViewer"></div>
+  </div>
+  <script>
+    window.appState = "hydrating";
+    const pubsub = {
+      events: {},
+      subscribe(event, callback) {
+        if (!this.events[event]) this.events[event] = [];
+        this.events[event].push(callback);
+      },
+      publish(event, data) {
+        if (this.events[event]) this.events[event].forEach(callback => callback(data));
+      },
+    };
+
+    // Fetch chat pill dynamically
+    fetch("./html/chat-area.html")
+      .then(r => {
+        if (!r.ok) throw new Error("Failed to load chat area");
+        return r.text();
+      })
+      .then(html => {
+        const container = document.createElement("div");
+        container.innerHTML = html;
+        document.getElementById("content").appendChild(container);
+        const s = document.createElement("script");
+        s.src = "./js/chat-area.js";
+        document.body.appendChild(s);
+      })
+      .catch(e => console.error("Error loading chat area:", e));
+
+    // Initialize diagram and control panel
+    fetch("./js/script.js").then(() => {
+      if (typeof UIInteraction !== "undefined") {
+        UIInteraction.init(pubsub);
+        window.appState = "hydrated";
+      }
+    });
+  </script>
+</body>
+</html>

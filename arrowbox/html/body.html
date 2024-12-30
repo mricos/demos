@@ -1,0 +1,28 @@
+<div id="diagram"></div>
+<div id="configToggle"></div>
+<div id="configPanel">
+  <div class="configField">
+    <label>Box Count</label>
+    <input id="boxCount" type="number" value="5" min="1" max="50">
+  </div>
+  <div class="configField">
+    <label>Arrow Count</label>
+    <input id="arrowCount" type="number" value="5" min="1" max="50">
+  </div>
+  <div class="configField">
+    <label>Arrow-Z (0-7)</label>
+    <input id="arrowZSlider" type="range" min="0" max="7" value="0">
+  </div>
+  <div class="configField">
+    <label>Box Spread (px)</label>
+    <input id="boxSpread" type="number" value="200" min="50" max="1000">
+  </div>
+  <div class="configField">
+    <label>Arrow Length Factor</label>
+    <input id="arrowLengthFactor" type="number" value="1.0" step="0.1" min="0.1" max="5">
+  </div>
+  <button id="applyBtn">Re-generate</button>
+  <button id="showModelBtn">Show Model JSON</button>
+</div>
+
+<div id="chatPill"></div>
