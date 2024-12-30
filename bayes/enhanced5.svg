@@ -1,0 +1,139 @@
+Certainly! Below is a revised version of the SVG code that includes a more sophisticated two-paragraph description of evidence in the Bayesian sense. I also made adjustments to place the evidence popup below its original position, aligning it with the middle line of the page.
+
+```xml
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 750" preserveAspectRatio="xMidYMid meet" style="font-family:Arial,sans-serif;" onload="setupInteractivity()">
+  <style>
+    .popup {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .popup.show {
+      opacity: 1;
+    }
+    .pill {
+      transition: opacity 0.3s;
+      cursor: grab;
+    }
+    .pill.faded {
+      opacity: 0.3;
+    }
+    .notes {
+      display: none;
+      font-size: 14px;
+      fill: black;
+    }
+    .notes.show {
+      display: block;
+    }
+  </style>
+  <script>
+    const PopupManager = (function () {
+      const createPopup = (id, content, options = {}) => {
+        const svg = document.querySelector('svg');
+        const popup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        popup.setAttribute('id', id);
+        popup.setAttribute('class', 'popup');
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('rx', options.rx || 10);
+        rect.setAttribute('fill', options.fill || '#ffe6d5');
+        rect.setAttribute('stroke', options.stroke || '#cc3300');
+        rect.setAttribute('stroke-width', options.strokeWidth || 1);
+        popup.appendChild(rect);
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', 5);
+        text.setAttribute('y', 15);
+        text.setAttribute('font-size', options.fontSize || '0.8em');
+        text.setAttribute('fill', options.textColor || '#000');
+        text.textContent = content;
+        popup.appendChild(text);
+        svg.appendChild(popup);
+        updatePopupDimensions(popup);
+      };
+      const updatePopupDimensions = (popup) => {
+        const text = popup.querySelector('text');
+        const rect = popup.querySelector('rect');
+        const bbox = text.getBBox();
+        rect.setAttribute('width', bbox.width + 10);
+        rect.setAttribute('height', bbox.height + 10);
+        rect.setAttribute('x', 0);
+        rect.setAttribute('y', 0);
+      };
+      const showPopup = (id, x, y) => {
+        const popup = document.getElementById(id);
+        popup.style.display = 'block';
+        const rect = popup.querySelector('rect');
+        const popupWidth = parseFloat(rect.getAttribute('width'));
+        const popupHeight = parseFloat(rect.getAttribute('height'));
+        const boundedX = Math.max(10, Math.min(x - popupWidth / 2, 1100 - popupWidth - 10));
+        const boundedY = Math.max(10, Math.min(y - popupHeight - 10, 700 - popupHeight - 10));
+        popup.setAttribute('transform', `translate(${boundedX}, ${boundedY})`);
+        popup.classList.add('show');
+      };
+      const hidePopup = (id) => {
+        const popup = document.getElementById(id);
+        if (popup) {
+          popup.classList.remove('show');
+          popup.style.display = 'none';
+        }
+      };
+      return { createPopup, showPopup, hidePopup };
+    })();
+    
+    function setupInteractivity() {
+      const pills = document.querySelectorAll('.pill');
+      pills.forEach(pill => {
+        const popupId = pill.dataset.popup;
+        pill.addEventListener('mouseenter', (event) => {
+          const bbox = pill.getBoundingClientRect();
+          const svg = document.querySelector('svg');
+          const pt = svg.createSVGPoint();
+          pt.x = bbox.x + bbox.width / 2;
+          pt.y = bbox.y;
+          const svgPoint = pt.matrixTransform(svg.getScreenCTM().inverse());
+          PopupManager.showPopup(popupId, svgPoint.x, svgPoint.y);
+          fadeOthers(pill, true);
+        });
+        pill.addEventListener('mouseleave', () => {
+          PopupManager.hidePopup(popupId);
+          fadeOthers(pill, false);
+        });
+        pill.addEventListener('mousedown', () => {
+          pill.style.cursor = 'grabbing';
+          const movePill = (moveEvent) => {
+            pill.setAttribute('transform', `translate(${moveEvent.clientX - 50}, ${moveEvent.clientY - 20})`);
+          };
+          const releasePill = () => {
+            document.removeEventListener('mousemove', movePill);
+            document.removeEventListener('mouseup', releasePill);
+            pill.style.cursor = 'grab';
+          };
+          document.addEventListener('mousemove', movePill);
+          document.addEventListener('mouseup', releasePill);
+        });
+      });
+      const posterior = document.querySelector('#posterior');
+      posterior.addEventListener('click', () => {
+        const notes = document.querySelector('.notes');
+        notes.classList.toggle('show');
+      });
+    }
+    
+    function fadeOthers(target, fade) {
+      document.querySelectorAll('.pill').forEach(pill => {
+        if (pill !== target) {
+          pill.classList.toggle('faded', fade);
+        }
+      });
+    }
+
+    // Create popups
+    PopupManager.createPopup('popup-likelihood', 'Likelihood: How well evidence matches the hypothesis.', { fill: '#ffe6d5', stroke: '#cc3300' });
+    PopupManager.createPopup('popup-prior', 'Prior: Initial beliefs before evidence.', { fill: '#e6ffe6', stroke: '#006600' });
+    PopupManager.createPopup('popup-evidence', 'Evidence: Provides a foundation for decision-making in Bayesian inference.', { fill: '#fff0b3', stroke: '#b38f00', fontSize: '0.8em' });
+
+    // Expanded information regarding evidence in Bayesian context
+    PopupManager.createPopup('popup-evidence-details', 'Evidence in the Bayesian framework serves as a quantitative standard that governs the way in which we update our beliefs based on new information. It plays a crucial role in defining the credibility of our parameters and leads us to select appropriate sampling methods based on the type of evidence we obtain. By establishing the reliability of evidence, we can delineate how it influences our prior beliefs and its significance in deriving posterior probabilities.', {fill: '#fff0b3', stroke: '#b38f00', fontSize: '0.8em', rx: 5});
+    
+    // Additional process for evidence as parameters and sampling
+    PopupManager.createPopup('popup-evidence-sampling', 'In Bayesian statistics, the nature of the evidence often guides the choice of sampling methods. For instance, if the evidence is obtained from a random sample, Bayesian inference may use techniques such as Markov Chain Monte Carlo (MCMC) to estimate complex posterior distributions. Alternatively, evidence from stratified samples may lead to tailored sampling strategies that capture

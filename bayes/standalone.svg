@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 700" preserveAspectRatio="xMidYMid meet">
+  <style>
+    svg {
+      font-family: Arial, sans-serif;
+    }
+
+    .popup {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    .popup.show {
+      opacity: 1;
+    }
+
+    .pill {
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    .pill.faded {
+      opacity: 0.3;
+    }
+
+    .mermaid {
+      font-family: Arial, sans-serif;
+    }
+  </style>
+
+  <!-- Midlines -->
+  <line x1="550" y1="0" x2="550" y2="700" stroke="gray" stroke-width="1" stroke-dasharray="5,5" opacity="0.3" />
+  <line x1="50" y1="350" x2="1050" y2="350" stroke="gray" stroke-width="1" stroke-dasharray="5,5" opacity="0.3" />
+
+  <!-- Equal Sign -->
+  <text class="title" x="550" y="350" font-size="28" fill="black" text-anchor="middle">=</text>
+
+  <!-- Likelihood -->
+  <g class="pill" data-popup="popup-likelihood">
+    <rect x="600" y="310" width="80" height="40" fill="#ffe6d5" stroke="#cc3300" stroke-width="2" rx="10" />
+    <text x="640" y="335" text-anchor="middle" font-size="14" fill="#cc3300">P(E | H)</text>
+  </g>
+
+  <!-- Prior -->
+  <g class="pill" data-popup="popup-prior">
+    <rect x="720" y="310" width="80" height="40" fill="#e6ffe6" stroke="#006600" stroke-width="2" rx="10" />
+    <text x="760" y="335" text-anchor="middle" font-size="14" fill="#006600">P(H)</text>
+  </g>
+
+  <!-- Evidence -->
+  <g class="pill" data-popup="popup-evidence">
+    <rect x="650" y="340" width="100" height="40" fill="#fff0b3" stroke="#b38f00" stroke-width="2" rx="10" />
+    <text x="700" y="365" text-anchor="middle" font-size="14" fill="#b38f00">P(E)</text>
+  </g>
+
+  <!-- Mermaid Markdown Description -->
+  <foreignObject x="50" y="400" width="1000" height="300">
+    <div xmlns="http://www.w3.org/1999/xhtml">
+      <div class="mermaid">
+        ```mermaid
+        classDiagram
+          Hypothesis "1" --> "1" Evidence : produces
+          Evidence: "Normalizes probabilities"
+          class Evidence {
+            + P(E) = P(E|H1) + P(E|H2) + P(E|H3)
+            + Normalization ensures probabilities sum to 1
+            + Often approximated via methods like MCMC
+          }
+        ```
+      </div>
+    </div>
+  </foreignObject>
+
+  <script>
+    // Dynamically load the Mermaid library
+    const script = document.createElement('script');
+    script.src = "https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js";
+    script.onload = () => {
+      mermaid.initialize({ startOnLoad: true });
+    };
+    document.body.appendChild(script);
+  </script>
+</svg>

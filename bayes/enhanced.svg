@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 750" preserveAspectRatio="xMidYMid meet" style="font-family:Arial,sans-serif;" onload="setupPopups()">
+  <style>
+    .popup {
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .popup.show {
+      opacity: 1;
+    }
+  </style>
+  <script>
+    function setupPopups() {
+      const pills = document.querySelectorAll('.pill');
+      pills.forEach(pill => {
+        pill.addEventListener('mouseenter', event => showPopup(event, pill.dataset.popup));
+        pill.addEventListener('mouseleave', () => hidePopup(pill.dataset.popup));
+      });
+    }
+
+    function showPopup(event, popupId) {
+      const popup = document.getElementById(popupId);
+      popup.setAttribute('transform', `translate(${event.clientX - 60}, ${event.clientY - 40})`);
+      popup.classList.add('show');
+    }
+
+    function hidePopup(popupId) {
+      const popup = document.getElementById(popupId);
+      popup.classList.remove('show');
+    }
+  </script>
+
+  <!-- Title -->
+  <text x="550" y="20" text-anchor="middle" font-size="24" font-weight="bold">Bayes' Rule with MCMC Example</text>
+
+  <!-- Midlines -->
+  <line x1="550" y1="50" x2="550" y2="700" stroke="gray" stroke-width="0.5" stroke-dasharray="5,5" opacity="0.3" />
+  <line x1="50" y1="300" x2="1050" y2="300" stroke="gray" stroke-width="0.5" stroke-dasharray="5,5" opacity="0.3" />
+
+  <!-- Equation Layout -->
+  <!-- Posterior -->
+  <text x="400" y="290" text-anchor="middle" font-size="28" font-weight="bold" fill="#003366">P(H | E)</text>
+  <text x="400" y="320" text-anchor="middle" font-size="16" font-weight="bold" fill="#003366">Posterior</text>
+
+  <!-- Equal Sign -->
+  <text x="550" y="290" text-anchor="middle" font-size="28" fill="black">=</text>
+
+  <!-- Likelihood -->
+  <g class="pill" data-popup="popup-likelihood">
+    <rect x="600" y="250" width="100" height="40" fill="#ffe6d5" stroke="#cc3300" stroke-width="2" rx="20">
+      <title>The likelihood describes how well evidence matches the hypothesis.</title>
+    </rect>
+    <text x="650" y="275" text-anchor="middle" font-size="18" fill="#cc3300">P(E | H)</text>
+    <text x="650" y="230" text-anchor="middle" font-size="14" fill="#cc3300">Likelihood</text>
+  </g>
+
+  <!-- Prior -->
+  <g class="pill" data-popup="popup-prior">
+    <rect x="720" y="250" width="80" height="40" fill="#e6ffe6" stroke="#006600" stroke-width="2" rx="20">
+      <title>The prior represents initial beliefs before considering evidence.</title>
+    </rect>
+    <text x="760" y="275" text-anchor="middle" font-size="18" fill="#006600">P(H)</text>
+    <text x="760" y="230" text-anchor="middle" font-size="14" fill="#006600">Prior</text>
+  </g>
+
+  <!-- Evidence -->
+  <g class="pill" data-popup="popup-evidence">
+    <rect x="650" y="310" width="100" height="40" fill="#fff0b3" stroke="#b38f00" stroke-width="2" rx="20">
+      <title>The evidence normalizes probabilities to ensure validity.</title>
+    </rect>
+    <text x="700" y="335" text-anchor="middle" font-size="18" fill="#b38f00">P(E)</text>
+    <text x="700" y="370" text-anchor="middle" font-size="14" fill="#b38f00">Evidence</text>
+  </g>
+
+  <!-- Popups -->
+  <g id="popup-likelihood" class="popup">
+    <rect x="0" y="0" width="200" height="40" fill="#ffe6d5" stroke="#cc3300" stroke-width="1" rx="10" />
+    <text x="100" y="25" text-anchor="middle" font-size="14" fill="#cc3300">The likelihood describes how well evidence matches the hypothesis.</text>
+  </g>
+
+  <g id="popup-prior" class="popup">
+    <rect x="0" y="0" width="200" height="40" fill="#e6ffe6" stroke="#006600" stroke-width="1" rx="10" />
+    <text x="100" y="25" text-anchor="middle" font-size="14" fill="#006600">The prior represents initial beliefs before considering evidence.</text>
+  </g>
+
+  <g id="popup-evidence" class="popup">
+    <rect x="0" y="0" width="200" height="40" fill="#fff0b3" stroke="#b38f00" stroke-width="1" rx="10" />
+    <text x="100" y="25" text-anchor="middle" font-size="14" fill="#b38f00">The evidence normalizes probabilities to ensure validity.</text>
+  </g>
+</svg>

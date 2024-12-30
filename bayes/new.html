@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bayes Rule Visualization</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <svg id="bayes-equation" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 700" preserveAspectRatio="xMidYMid meet"></svg>
+
+  <script>
+    const bayesEquationModel = {
+      midlines: [
+        { x1: 550, y1: 0, x2: 550, y2: 700, style: { stroke: 'gray', 'stroke-width': 1, 'stroke-dasharray': '5,5', opacity: 0.3 } },
+        { x1: 50, y1: 350, x2: 1050, y2: 350, style: { stroke: 'gray', 'stroke-width': 1, 'stroke-dasharray': '5,5', opacity: 0.3 } },
+      ],
+      components: [
+        {
+          type: 'text',
+          id: 'posterior',
+          text: 'P(H | E)',
+          x: 400,
+          y: 320,
+          style: { class: 'title' },
+          popup: { content: 'Posterior: Updated belief using evidence.', offsetX: 0, offsetY: 50 },
+        },
+        {
+          type: 'pill',
+          id: 'likelihood',
+          text: 'P(E | H)',
+          x: 600,
+          y: 310,
+          width: 80,
+          height: 40,
+          fill: '#ffe6d5',
+          stroke: '#cc3300',
+          popup: { content: 'Likelihood: Probability of evidence given the hypothesis.', offsetX: 0, offsetY: -50 },
+        },
+        {
+          type: 'pill',
+          id: 'prior',
+          text: 'P(H)',
+          x: 720,
+          y: 310,
+          width: 80,
+          height: 40,
+          fill: '#e6ffe6',
+          stroke: '#006600',
+          popup: { content: 'Prior: Initial belief before evidence.', offsetX: 0, offsetY: -50 },
+        },
+        {
+          type: 'pill',
+          id: 'evidence',
+          text: 'P(E)',
+          x: 650,
+          y: 340,
+          width: 100,
+          height: 40,
+          fill: '#fff0b3',
+          stroke: '#b38f00',
+          popup: { content: 'Evidence: Normalizes probabilities to ensure valid posteriors.', offsetX: 0, offsetY: 50 },
+        },
+      ],
+    };
+
+    const createSVGElement = (type, attributes = {}, styles = {}) => {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', type);
+      Object.keys(attributes).forEach(attr => el.setAttribute(attr, attributes[attr]));
+      Object.keys(styles).forEach(style => el.style[style] = styles[style]);
+      return el;
+    };
+
+    const renderPopup = (popup, parent, svgContainer) => {
+      const popupGroup = createSVGElement('g', { class: 'popup', id: `${parent.id}-popup` });
+      const rect = createSVGElement('rect', {
+        x: popup.offsetX,
+        y: popup.offsetY,
+        width: 200,
+        height: 50,
+        fill: '#f9f9f9',
+        stroke: '#666',
+        'stroke-width': 1,
+      });
+      const text = createSVGElement('text', {
+        x: popup.offsetX + 10,
+        y: popup.offsetY + 20,
+        'font-size': 12,
+        fill: '#000',
+      });
+      text.textContent = popup.content;
+
+      popupGroup.appendChild(rect);
+      popupGroup.appendChild(text);
+
+      svgContainer.appendChild(popupGroup);
+
+      parent.addEventListener('mouseenter', () => {
+        popupGroup.classList.add('show');
+      });
+      parent.addEventListener('mouseleave', () => {
+        popupGroup.classList.remove('show');
+      });
+    };
+
+    const renderBayesEquation = (model, svgContainer) => {
+      model.midlines.forEach(line => {
+        const midline = createSVGElement('line', {
+          x1: line.x1,
+          y1: line.y1,
+          x2: line.x2,
+          y2: line.y2,
+        }, line.style);
+        svgContainer.appendChild(midline);
+      });
+
+      model.components.forEach(comp => {
+        let element;
+        if (comp.type === 'text') {
+          element = createSVGElement('text', { x: comp.x, y: comp.y, class: comp.style.class });
+          element.textContent = comp.text;
+        } else if (comp.type === 'pill') {
+          const group = createSVGElement('g', { class: 'pill', id: comp.id });
+          const rect = createSVGElement('rect', {
+            x: comp.x - comp.width / 2,
+            y: comp.y - comp.height / 2,
+            width: comp.width,
+            height: comp.height,
+            rx: 10,
+            fill: comp.fill,
+            stroke: comp.stroke,
+            'stroke-width': 2,
+          });
+          const text = createSVGElement('text', {
+            x: comp.x,
+            y: comp.y + 5,
+            'text-anchor': 'middle',
+            'font-size': 14,
+            fill: '#000',
+          });
+          text.textContent = comp.text;
+          group.appendChild(rect);
+          group.appendChild(text);
+          svgContainer.appendChild(group);
+          element = group;
+        }
+
+        if (comp.popup) {
+          renderPopup(comp.popup, element, svgContainer);
+        }
+
+        svgContainer.appendChild(element);
+      });
+    };
+
+    const svgContainer = document.getElementById('bayes-equation');
+    renderBayesEquation(bayesEquationModel, svgContainer);
+  </script>
+</body>
+</html>
