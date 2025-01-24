@@ -1,0 +1,114 @@
+{
+    "git.openRepositoryInParentFolders": "always",
+    "[python]": {
+        "editor.formatOnType": true
+    },
+    "editor.inlineSuggest.enabled": true,
+    "editor.minimap.enabled": false,
+    "github.copilot.editor.enableAutoCompletions": true,
+    "cursor.composer.collapsePaneInputBoxPills": true,
+    "cursor.composer.renderPillsInsteadOfBlocks": true,
+    "terminal.integrated.enableMultiLinePasteWarning": false,
+    "svelte.enable-ts-plugin": true,
+    "javascript.updateImportsOnFileMove.enabled": "always",
+    "workbench.editorAssociations": {
+        "*.json": "default"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "cursor.cpp.disabledLanguages": [
+        "plaintext"
+    ],
+    "[typst]": {
+        "editor.wordSeparators": "`~!@#$%^&*()=+[{]}\\|;:'\",.<>/?"
+    },
+    "[typst-code]": {
+        "editor.wordSeparators": "`~!@#$%^&*()=+[{]}\\|;:'\",.<>/?"
+    },
+    
+"latex-workshop.latex.tools": [
+ {
+  "name": "latexmk",
+  "command": "latexmk",
+  "args": [
+   "-synctex=1",
+   "-interaction=nonstopmode",
+   "-file-line-error",
+   "-pdf",
+   "-outdir=%OUTDIR%",
+   "%DOC%"
+  ],
+  "env": {}
+ },
+ {
+  "name": "xelatex",
+  "command": "xelatex",
+  "args": [
+   "-synctex=1",
+   "-interaction=nonstopmode",
+   "-file-line-error",
+   "%DOC%"
+  ],
+  "env": {}
+ },
+ {
+  "name": "pdflatex",
+  "command": "pdflatex",
+  "args": [
+   "-synctex=1",
+   "-interaction=nonstopmode",
+   "-file-line-error",
+   "%DOC%"
+  ],
+  "env": {}
+ },
+ {
+  "name": "bibtex",
+  "command": "bibtex",
+  "args": [
+   "%DOCFILE%"
+  ],
+  "env": {}
+ }
+],
+
+"latex-workshop.latex.recipes": [
+ {
+  "name": "pdfLaTeX",
+  "tools": [
+   "pdflatex"
+  ]
+ },
+ {
+  "name": "latexmk 🔃",
+  "tools": [
+   "latexmk"
+  ]
+ },
+ {
+  "name": "xelatex",
+  "tools": [
+   "xelatex"
+  ]
+ },
+ {
+  "name": "pdflatex ➞ bibtex ➞ pdflatex`×2",
+  "tools": [
+   "pdflatex",
+   "bibtex",
+   "pdflatex",
+   "pdflatex"
+  ]
+ },
+ {
+ "name": "xelatex ➞ bibtex ➞ xelatex`×2",
+ "tools": [
+   "xelatex",
+   "bibtex",
+   "xelatex",
+   "xelatex"
+  ]
+ }
+]
+} 
