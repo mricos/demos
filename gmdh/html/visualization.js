@@ -257,13 +257,13 @@ function stepTraining() {
                 for (let modelIndex = 0; modelIndex < gmdh.modelsPerLayer; modelIndex++) {
                     // Check if this layer exists and has models
                     const isActive = layerIndex < gmdh.layers.length;
+                    const modelData = isActive ? gmdh.layers[layerIndex][modelIndex] : null;
                     
                     layerModels.push({
                         layer: layerIndex + 1,
                         model: modelIndex + 1,
-                        active: isActive,
-                        // Use validation error from gmdh.validationErrors if available
-                        valMSE: isActive ? gmdh.validationErrors[layerIndex * gmdh.modelsPerLayer + modelIndex] : null
+                        active: !!modelData,
+                        valMSE: modelData?.valMSE || null  // Use actual model data
                     });
                 }
                 

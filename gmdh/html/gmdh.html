@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GMDH Technical Overview</title>
+
+    <!-- Include MathJax -->
+    <script id="MathJax-script" async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+    </script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .log-wrapper {
+            margin-bottom: 30px;
+        }
+        .paper-section h1, .paper-section h2, .paper-section h3 {
+            margin-top: 1.5em;
+        }
+        .parameter-table {
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .parameter-table th,
+        .parameter-table td {
+            border: 1px solid #ccc;
+            padding: 8px 12px;
+        }
+        .heatmap-explanation {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        code {
+            background-color: #eee;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="log-wrapper">
+    <!-- The log output -->
+    <div id="logOutput"></div>
+</div>
+
+<div class="paper-section">
+    <h1>Group Method of Data Handling (GMDH)</h1>
+
+    <h2>Historical Background</h2>
+    <p>
+        The Group Method of Data Handling (GMDH) was developed in the 1960s by Soviet scientist 
+        Alexey G. Ivakhnenko as a self-organizing approach to modeling complex systems. Originally 
+        designed for aerodynamics applications, it addressed the challenge of automatically 
+        discovering mathematical relationships in empirical data without human bias.
+    </p>
+    <div class="history-explanation">
+        <h3>Key Innovations</h3>
+        <ul>
+            <li>Self-organizing algorithm that automatically selects optimal model complexity</li>
+            <li>Evolutionary approach to generating and selecting polynomial models</li>
+            <li>Built-in validation to prevent overfitting</li>
+            <li>Precursor to modern machine learning techniques</li>
+        </ul>
+
+        <h3>Original Motivation</h3>
+        <p>
+            GMDH was created to solve two critical challenges in system modeling:
+        </p>
+        <ul>
+            <li>The need to model complex systems without pre-defined assumptions about data structures</li>
+            <li>The challenge of selecting appropriate model complexity (polynomial degree) automatically</li>
+        </ul>
+    </div>
+
+    <hr/>
+
+    <p>
+        The Group Method of Data Handling (GMDH) is an algorithmic approach
+        where polynomial models are iteratively generated and selected based on 
+        performance on validation data, thereby "growing" a layered structure. 
+        In this simulation, each "layer" corresponds to a fresh set of candidate 
+        polynomial regressions, and we select only the models that yield the best 
+        performance until we either reach a specified layer limit or no further 
+        improvement can be gained.
+    </p>
+
+    <hr/>
+
+    <h2>Mathematical Formulation</h2>
+    <p>    
+        Our polynomial model for a single layer is based on transforming the input 
+        data <em>X</em> into polynomial features of degree <em>d</em>. If we let
+        <em>X</em> be the input vector, then the polynomial expansion 
+        (including constant term) can be represented as:
+    </p>
+
+    <p>
+        \[
+            \phi(X) = \left[ 1, X, X^2, \ldots, X^d \right],
+        \]
+    </p>
+    <p>
+        where \(\phi(X)\) leads to features used in a multiple linear regression. 
+        We apply Ridge Regression to these expanded features, solving:
+    </p>
+    <p>
+        \[
+            \min_{w} \left\| y - \Phi(X) w \right\|^2 
+            + \alpha \left\| w \right\|^2,
+        \]
+    </p>
+    <p>
+        where \(\alpha\) is the regularization coefficient, and 
+        \( w \) is the vector of model coefficients.
+    </p>
+
+    <hr/>
+
+    <h2>Parameters Description</h2>
+    <p>
+        The table below lists the key parameters in our GMDH simulation and 
+        explains their roles in the algorithm.
+    </p>
+
+    <table class="parameter-table">
+        <thead>
+            <tr>
+                <th>Parameter</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>maxLayers</code></td>
+                <td>
+                    The maximum number of layers (iterations) the GMDH 
+                    algorithm will attempt to build before stopping.
+                </td>
+            </tr>
+            <tr>
+                <td><code>degree</code></td>
+                <td>
+                    The degree of polynomial expansion. Higher degrees can 
+                    capture more complex relationships, but risk overfitting.
+                </td>
+            </tr>
+            <tr>
+                <td><code>modelsPerLayer</code></td>
+                <td>
+                    The number of candidate polynomial models that are tested 
+                    in each new layer. Only the best models (based on 
+                    validation error) survive.
+                </td>
+            </tr>
+            <tr>
+                <td><code>alpha</code></td>
+                <td>
+                    The ridge regularization parameter. Higher values of 
+                    <code>alpha</code> help reduce overfitting by penalizing 
+                    large coefficient magnitudes.
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <hr/>
+
+    <h2>Connection to the Simulation</h2>
+    <p>
+        Each layer in this simulation:
+    </p>
+    <ol>
+        <li>Takes the training data <em>X</em> and <em>y</em>, and a set of best 
+        models from the previous layer (or the raw inputs for the first layer).</li>
+        <li>Generates polynomial expansions of the selected inputs.</li>
+        <li>Trains regression models using the expanded features.</li>
+        <li>Evaluates each model on the validation set and picks the top 
+        performers.</li>
+        <li>These top models are then used to feed predictions into the next layer.</li>
+    </ol>
+    <p>
+        At any point, if no better model can be found or a maximum number of 
+        layers is reached, training terminates. The process is driven by 
+        performance metrics (mean squared error) that are visualized 
+        (training, validation) in real time.
+    </p>
+
+    <hr/>
+
+    <h2>Heat Map Visualization</h2>
+    <p>
+        The heat map provides a grid visualization of model performance across 
+        different layers of the GMDH network. This visualization helps track 
+        the evolution and performance of models throughout the training process.
+    </p>
+    <div class="heatmap-explanation">
+        <p>
+            The visualization is organized as follows:
+        </p>
+        <ul>
+            <li>Each <strong>row</strong> represents a different layer in the GMDH network</li>
+            <li>Each <strong>column</strong> represents a different model within that layer</li>
+            <li>The <strong>color intensity</strong> (using the Viridis colormap) represents the validation Mean Squared Error (MSE):
+                <ul>
+                    <li>Darker colors indicate better performing models (lower MSE)</li>
+                    <li>Lighter colors indicate higher MSE values</li>
+                    <li>Gray cells indicate inactive or invalid models</li>
+                </ul>
+            </li>
+            <li>Each cell displays the actual MSE value in scientific notation</li>
+        </ul>
+        <p>
+            Interactive features include:
+        </p>
+        <ul>
+            <li>Hover over any cell to see detailed information:
+                <ul>
+                    <li>Layer number</li>
+                    <li>Model number</li>
+                    <li>MSE value</li>
+                    <li>Model status (Active/Inactive)</li>
+                </ul>
+            </li>
+        </ul>
+        <p>
+            This visualization helps you understand:
+        </p>
+        <ul>
+            <li>How model performance evolves through layers</li>
+            <li>Which models are performing better in each layer</li>
+            <li>The distribution of model performance across the network</li>
+            <li>The number of active models in each layer</li>
+        </ul>
+    </div>
+
+    <hr/>
+
+    <h2>Layer Structure</h2>
+    <p>
+        The GMDH algorithm builds a network structure layer by layer, visualized as a directed graph 
+        where each layer contains multiple polynomial models. The structure shows both the progression 
+        of training and the connections between layers.
+    </p>
+    <div class="layer-explanation">
+        <h3>Visual Elements</h3>
+        <ul>
+            <li>Model Nodes:
+                <ul>
+                    <li>Green circles (✓): Accepted models (top 50% by validation MSE)</li>
+                    <li>Red circles (✗): Rejected models</li>
+                    <li>Yellow circles (⟳): Currently evaluating</li>
+                    <li>Gray circles (?): Not yet evaluated</li>
+                </ul>
+            </li>
+            <li>Node Information:
+                <ul>
+                    <li>Number inside circle: Model index within layer</li>
+                    <li>Number below circle: Validation MSE (when available)</li>
+                </ul>
+            </li>
+            <li>Connections:
+                <ul>
+                    <li>Gray lines show connections from accepted models to the next layer</li>
+                    <li>Only top-performing models (lowest validation MSE) connect to the next layer</li>
+                    <li>Connection opacity indicates the strength of the relationship</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>Layer-to-Layer Information Transfer</h3>
+        <p>
+            Information flows between layers in the following way:
+        </p>
+        <ol>
+            <li>For the first layer:
+                <ul>
+                    <li>Input is the raw training data X</li>
+                    <li>Features are created by polynomial expansion: [1, X, X², ..., Xᵈ]</li>
+                    <li>Each model learns coefficients for these polynomial features</li>
+                </ul>
+            </li>
+            <li>For subsequent layers:
+                <ul>
+                    <li>Input becomes the <em>predictions</em> from the best model of the previous layer</li>
+                    <li>Specifically: X_next = predict(X_current, best_model_coefficients)</li>
+                    <li>These predictions are then used to create new polynomial features</li>
+                </ul>
+            </li>
+        </ol>
+
+        <p>
+            This can be seen in the code where predictions become new inputs:
+        </p>
+        <pre><code>
+            // Get predictions from best model
+            const nextX_train = bestModels.map(model => 
+                predict(polyX_train.map(row => model.features.map(i => row[i])), model.model)
+            );
+            
+            // Use these predictions as input for next layer
+            X_train = nextX_train[0];  // Use predictions from best model
+        </code></pre>
+
+        <h3>Training Process</h3>
+        <p>
+            The network grows progressively:
+        </p>
+        <ol>
+            <li>Each layer evaluates <code>modelsPerLayer</code> candidate models</li>
+            <li>Models are evaluated one at a time (shown in yellow during evaluation)</li>
+            <li>After layer completion:
+                <ul>
+                    <li>Top 50% of models (by validation MSE) are accepted (green)</li>
+                    <li>Remaining models are rejected (red)</li>
+                    <li>Accepted models feed their predictions to all models in the next layer</li>
+                </ul>
+            </li>
+            <li>Process continues until:
+                <ul>
+                    <li>Maximum number of layers is reached (<code>maxLayers</code>)</li>
+                    <li>Or no further improvement in validation error is found</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <hr/>
+</div>
+
+</body>
+</html> 

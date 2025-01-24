@@ -23,14 +23,19 @@ function drawHeatmap(layerData) {
     const contentWidth = width - margin.left - margin.right;
     const contentHeight = height - margin.top - margin.bottom;
 
-    // Fixed dimensions
-    const numLayers = 5;
-    const numModels = 7;
+    // Dynamic dimensions based on actual data
+    const numLayers = layerData.length;
+    const numModels = layerData[0]?.length || 0;
+
+    if (numLayers === 0 || numModels === 0) {
+        console.warn("No data to display in heatmap");
+        return;
+    }
 
     // Create grid data structure
     const data = [];
     
-    // Fill grid with values
+    // Fill grid with values from actual data
     for (let layer = 0; layer < numLayers; layer++) {
         const layerModels = layerData[layer] || [];
         
@@ -45,7 +50,7 @@ function drawHeatmap(layerData) {
         }
     }
 
-    // Create scales
+    // Create scales based on actual dimensions
     const xScale = d3.scaleBand()
         .domain(d3.range(1, numModels + 1))
         .range([0, contentWidth])
@@ -63,8 +68,8 @@ function drawHeatmap(layerData) {
     
     const mseExtent = d3.extent(validMSEs);
     const colorScale = d3.scaleSequential()
-        .domain([mseExtent[1], mseExtent[0]]) // Reverse domain for darker = better
-        .interpolator(d3.interpolateTurbo);
+        .domain([mseExtent[1], mseExtent[0]])  // Reverse domain for darker = better
+        .interpolator(d3.interpolateViridis);  // Better colormap for MSE values
 
     // Helper function to determine text color based on background
     function getTextColor(d) {
@@ -90,23 +95,28 @@ function drawHeatmap(layerData) {
     const g = svg.append("g")
         .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-    // Draw grid cells
-    g.selectAll("rect")
-        .data(data)
-        .enter()
+    // Draw grid cells with transitions (only color transitions, no resizing)
+    const cells = g.selectAll("rect")
+        .data(data);
+        
+    cells.enter()
         .append("rect")
         .attr("x", d => xScale(d.model))
         .attr("y", d => yScale(d.layer))
         .attr("width", xScale.bandwidth())
         .attr("height", yScale.bandwidth())
-        .attr("fill", d => d.active && d.valMSE !== null ? colorScale(d.valMSE) : "#eee")
         .attr("stroke", "white")
-        .attr("stroke-width", 1);
+        .attr("stroke-width", 1)
+        .merge(cells)
+        .transition()
+        .duration(500)
+        .attr("fill", d => d.active && d.valMSE !== null ? colorScale(d.valMSE) : "#eee");
 
-    // Add MSE values with proper null checking
-    g.selectAll("text.mse")
-        .data(data)
-        .enter()
+    // Add MSE values with proper formatting (no transitions)
+    const texts = g.selectAll("text.mse")
+        .data(data);
+        
+    texts.enter()
         .append("text")
         .attr("class", "mse")
         .attr("x", d => xScale(d.model) + xScale.bandwidth()/2)
@@ -114,8 +124,11 @@ function drawHeatmap(layerData) {
         .attr("text-anchor", "middle")
         .attr("dominant-baseline", "middle")
         .style("font-size", "10px")
-        .style("fill", getTextColor)  // Dynamic text color
-        .text(d => d.active && typeof d.valMSE === 'number' ? d.valMSE.toFixed(3) : "");
+        .merge(texts)
+        .style("fill", d => d.active ? getTextColor(d) : "#999")
+        .text(d => d.active && typeof d.valMSE === 'number' 
+            ? d.valMSE.toExponential(2)  // Scientific notation for better readability
+            : "");
 
     // Add axes with improved labels
     // Y-axis
@@ -193,7 +206,7 @@ function drawHeatmap(layerData) {
     // Add legend axis
     const legendAxis = d3.axisRight(legendScale)
         .ticks(5)
-        .tickFormat(d3.format(".2f"));
+        .tickFormat(d3.format(".2e"));  // Scientific notation for MSE values
 
     legend.append("g")
         .attr("transform", `translate(${legendWidth}, 0)`)
@@ -206,6 +219,50 @@ function drawHeatmap(layerData) {
         .attr("text-anchor", "middle")
         .style("font-size", "12px")
         .text("MSE");
+
+    // Add tooltip div if not exists
+    const tooltip = d3.select("body").selectAll(".gmdh-tooltip").data([0])
+        .enter()
+        .append("div")
+        .attr("class", "gmdh-tooltip")
+        .style("opacity", 0)
+        .style("position", "absolute")
+        .style("background", "white")
+        .style("padding", "8px")
+        .style("border", "1px solid #ddd")
+        .style("border-radius", "4px");
+
+    // Add hover interactions
+    g.selectAll("rect")
+        .on("mouseover", function(event, d) {
+            d3.select(this)
+                .transition()
+                .duration(200)
+                .style("opacity", 0.8);
+            
+            tooltip.transition()
+                .duration(200)
+                .style("opacity", .9);
+            
+            tooltip.html(`
+                Layer: ${d.layer}<br/>
+                Model: ${d.model}<br/>
+                MSE: ${d.active ? d.valMSE.toExponential(3) : 'N/A'}<br/>
+                Status: ${d.active ? 'Active' : 'Inactive'}
+            `)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 28) + "px");
+        })
+        .on("mouseout", function() {
+            d3.select(this)
+                .transition()
+                .duration(500)
+                .style("opacity", 1);
+            
+            tooltip.transition()
+                .duration(500)
+                .style("opacity", 0);
+        });
 }
 
 // Export for use in other files

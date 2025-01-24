@@ -1,0 +1,222 @@
+/* styles.css */
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    padding: 20px;
+    background-color: #f4f4f4;
+}
+
+h1 {
+    color: #333;
+    text-align: center;
+}
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+label {
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+input {
+    width: 50px;
+    text-align: center;
+}
+
+button {
+    cursor: pointer;
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+}
+
+button:hover {
+    background: #0056b3;
+}
+
+.grid-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.grid-item {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.grid-item.collapsed {
+    height: 40px;
+    overflow: hidden;
+}
+
+.grid-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    cursor: grab;
+    padding: 5px;
+    border-radius: 4px;
+    user-select: none;
+}
+
+.grid-item-header:hover {
+    background: #f5f5f5;
+}
+
+.grid-item-header:active {
+    cursor: grabbing;
+}
+
+.grid-item-header h3 {
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    flex-grow: 1;
+    text-align: center;
+}
+
+.grid-item-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.grid-item-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: #666;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.grid-item-button:hover {
+    color: #333;
+}
+
+.grid-item.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+.grid-item-content {
+    transition: all 0.3s ease;
+}
+
+/* Placeholder for drag and drop */
+.grid-item-placeholder {
+    border: 2px dashed #ccc;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+
+/* Add button styling */
+#trainModel {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#trainModel.running {
+    background-color: #f44336;
+}
+
+#trainModel:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.log-entry {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    font-family: monospace;
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+
+.log-entry:not(.tick-entry) {
+    margin-top: 8px;
+}
+
+.log-header {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.log-timestamp {
+    color: #666;
+}
+
+.log-state {
+    color: #0066cc;
+}
+
+.log-message {
+    color: #333;
+}
+
+.tick-count {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.log-data {
+    margin: 4px 0 0 24px;
+    padding: 4px 8px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-size: 0.9em;
+    white-space: pre-wrap;
+}
+
+.tick-entry {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.logs-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin: 20px 0;
+    background: white;
+    display: flex;
+    flex-direction: column;
+}
+
+.model-update {
+    background-color: #f8f9fa;
+    border-left: 3px solid #007bff;
+}
+
+.model-update .log-data {
+    font-family: 'Consolas', monospace;
+    color: #0066cc;
+}
+ 

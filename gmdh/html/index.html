@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMDH Model Visualization</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+    <script src="https://unpkg.com/d3-sankey@0.12.3"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pubsub-js/1.9.4/pubsub.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+
+    <script defer src="stateMachine.js"></script>
+    <script defer src="logger.js"></script>
+    <script defer src="gmdh.js"></script>
+    <script defer src="visualization.js"></script>
+    <script defer src="index.js"></script>
+    <script defer src="layerViz.js"></script>
+    <script defer src="alphaViz.js"></script>
+    <script defer src="heatmap.js"></script>
+    <script defer src="sankey.js"></script>
+    <script defer src="gridManager.js"></script>
+
+</head>
+<body>
+    <h1>GMDH Model Training</h1>
+
+    <div class="controls">
+        <label>Max Layers: 
+            <button onclick="window.adjustParam('maxLayers', -1)">-</button>
+            <input type="number" id="maxLayers" value="5" min="1" max="10">
+            <button onclick="window.adjustParam('maxLayers', 1)">+</button>
+        </label>
+
+        <label>Polynomial Degree: 
+            <button onclick="window.adjustParam('degree', -1)">-</button>
+            <input type="number" id="degree" value="4" min="1" max="10">
+            <button onclick="window.adjustParam('degree', 1)">+</button>
+        </label>
+
+        <label>Models Per Layer: 
+            <button onclick="window.adjustParam('modelsPerLayer', -1)">-</button>
+            <input type="number" id="modelsPerLayer" value="7" min="1" max="20">
+            <button onclick="window.adjustParam('modelsPerLayer', 1)">+</button>
+        </label>
+
+        <label>Alpha: 
+            <button onclick="window.adjustParam('alpha', -0.01)">-</button>
+            <input type="number" id="alpha" value="0.05" step="0.01" min="0.01" max="1">
+            <button onclick="window.adjustParam('alpha', 0.01)">+</button>
+        </label>
+
+        <button id="trainModel">Run</button>
+    </div>
+
+    <!-- MathJax Equation Display -->
+    <div id="equationDisplay" style="margin: 20px 0; text-align: center;">
+        <h3>Current Model Equation</h3>
+        <p>
+            \[
+            y = w_0 + w_1 x + w_2 x^2 + \ldots + w_d x^d
+            \]
+        </p>
+        <p id="dynamicEquation">
+            <!-- Dynamic equation will be updated here -->
+        </p>
+    </div>
+
+    <div class="grid-layout">
+        <div class="grid-item">
+            <h3>Loss Chart</h3>
+            <canvas id="lossChart" width="500" height="300"></canvas>
+        </div>
+        <div class="grid-item">
+            <h3>Training Data</h3>
+            <canvas id="dataChart" width="500" height="300"></canvas>
+        </div>
+        <div class="grid-item">
+            <h3>Model Predictions</h3>
+            <canvas id="predictionChart" width="500" height="300"></canvas>
+        </div>
+        <div class="grid-item">
+            <h3>Layer Structure</h3>
+            <div id="layerVisualization"></div>
+        </div>
+        <div class="grid-item">
+            <h3>Ridge Regularization</h3>
+            <div id="alphaVisualization"></div>
+        </div>
+        <div class="grid-item">
+            <h3>Heatmap of Weights</h3>
+            <div id="heatmap"></div>
+        </div>
+
+    </div>
+
+    <div class="logs-container">
+        <h3>Training Log</h3>
+        <div id="logOutput"></div>
+    </div>
+
+    <!-- Add the GMDH Technical Overview section -->
+    <iframe src="gmdh.html" style="width: 100%; height: 800px; border: none;"></iframe>
+</body>
+</html>
