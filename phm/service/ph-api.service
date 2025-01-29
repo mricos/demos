@@ -1,0 +1,16 @@
+[Unit]
+Description=PH API Service
+After=network.target
+
+[Service]
+ExecStart=/var/www/phm/go/main
+WorkingDirectory=/var/www/phm
+Restart=always
+User=www-data
+Group=www-data
+Environment="PH_API_KEY=iamthat"
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
