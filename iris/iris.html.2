@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Iris Model UI</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.13.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+  <style>
+    body { font-family: sans-serif; background: #111; color: #eee; padding: 1rem; }
+    .container { display: flex; gap: 1rem; margin-bottom: 1rem; }
+    canvas { background: #000; border: 1px solid #333; }
+    .log { font-family: monospace; white-space: pre-wrap; background: #222; padding: 1rem; max-height: 200px; overflow-y: auto; }
+    #confusion, #metrics { background: #222; padding: 1rem; }
+    form label { display: block; margin-top: 0.5rem; }
+    input { width: 100%; padding: 0.25rem; }
+    button { margin-top: 1rem; padding: 0.5rem 1rem; }
+    .section { margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>Iris Reversible Model (with Controls)</h1>
+
+  <form id="controls">
+    <label>Epochs <input name="epochs" type="number" value="50" /></label>
+    <label>Batch Size <input name="batch" type="number" value="32" /></label>
+    <label>Learning Rate <input name="lr" type="number" value="0.01" step="0.001" /></label>
+    <label>Latent Size <input name="latent" type="number" value="8" /></label>
+    <label>Garbage Bits <input name="garbage" type="number" value="2" /></label>
+    <label>Reconstruction Weight λ <input name="lambda" type="number" value="0.1" step="0.01" /></label>
+    <button type="submit">Train</button>
+  </form>
+
+  <div class="container">
+    <canvas id="chart" width="600" height="300"></canvas>
+    <div id="confusion"></div>
+  </div>
+
+  <div id="metrics"></div>
+  <div class="log" id="log">Adjust parameters and press Train...</div>
+<div class="section">
+  <h2>Glossary of Terms</h2>
+  <ul>
+    <li><b>Loss</b>: The value minimized during training. Includes classification and reconstruction loss.</li>
+    <li><b>Accuracy</b>: Fraction of correctly predicted labels.</li>
+    <li><b>Precision</b>: True positives / (True positives + False positives).</li>
+    <li><b>Recall</b>: True positives / (True positives + False negatives).</li>
+    <li><b>F1-Score</b>: Harmonic mean of precision and recall.</li>
+    <li><b>Reconstruction MSE</b>: Mean squared error between input and decoder output. Lower means more invertible.</li>
+  </ul>
+</div>
+
+<script type="module">
+  const logEl = document.getElementById('log');
+  const chart = document.getElementById('chart');
+  const ctx = chart.getContext('2d');
+  const confusionDiv = document.getElementById('confusion');
+  const metricsDiv = document.getElementById('metrics');
+
+  const log = (msg) => {
+    logEl.textContent += msg + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+
+  const drawChart = (losses, accs) => {
+    ctx.clearRect(0, 0, chart.width, chart.height);
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, chart.width, chart.height);
+    ctx.strokeStyle = '#666';
+    ctx.beginPath(); ctx.moveTo(40, 0); ctx.lineTo(40, 300); ctx.moveTo(40, 290); ctx.lineTo(600, 290); ctx.stroke();
+    ctx.fillStyle = 'white'; ctx.fillText("Loss/Accuracy", 10, 10);
+
+    ctx.strokeStyle = 'lime'; ctx.beginPath();
+    losses.forEach((l, i) => ctx.lineTo(40 + i * 560 / losses.length, 290 - l * 100)); ctx.stroke();
+
+    ctx.strokeStyle = 'orange'; ctx.beginPath();
+    accs.forEach((a, i) => ctx.lineTo(40 + i * 560 / accs.length, 290 - a * 100)); ctx.stroke();
+  };
+
+  const computeMetrics = (cm) => {
+    const precision = [], recall = [], f1 = [];
+    for (let i = 0; i < 3; i++) {
+      const tp = cm[i][i];
+      const fp = cm.reduce((s, r, j) => j !== i ? s + r[i] : s, 0);
+      const fn = cm[i].reduce((s, x, j) => j !== i ? s + x : s, 0);
+      const p = tp / (tp + fp || 1);
+      const r = tp / (tp + fn || 1);
+      const f = 2 * p * r / (p + r || 1);
+      precision.push(p); recall.push(r); f1.push(f);
+    }
+    return { precision, recall, f1 };
+  };
+
+  const renderConfusion = (cm) => {
+    const total = cm.flat().reduce((a, b) => a + b, 0);
+    const labels = ['setosa', 'versicolor', 'virginica'];
+    const data = [];
+    for (let i = 0; i < 3; i++)
+      for (let j = 0; j < 3; j++) {
+        const count = cm[i][j];
+        const rowSum = cm[i].reduce((a, b) => a + b, 0);
+        const pct = rowSum > 0 ? (100 * count / rowSum).toFixed(1) + '%' : '0%';
+        data.push({ actual: labels[i], predicted: labels[j], count, text: `${count} (${pct})` });
+      }
+
+    const spec = {
+      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      width: 300, height: 300,
+      data: { values: data },
+      mark: 'rect',
+      encoding: {
+        x: { field: 'predicted', type: 'nominal' },
+        y: { field: 'actual', type: 'nominal' },
+        color: { field: 'count', type: 'quantitative' }
+      },
+      layer: [
+        { mark: 'rect' },
+        {
+          mark: { type: 'text', color: 'white', fontSize: 14 },
+          encoding: { text: { field: 'text', type: 'nominal' } }
+        }
+      ]
+    };
+    vegaEmbed(confusionDiv, spec, { actions: false });
+  };
+
+  const form = document.getElementById('controls');
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    logEl.textContent = 'Training...\n';
+    confusionDiv.innerHTML = ''; metricsDiv.innerHTML = '';
+
+    const params = Object.fromEntries(new FormData(form).entries());
+    const epochs = +params.epochs, batch = +params.batch;
+    const lr = +params.lr, latent = +params.latent;
+    const garbageBits = +params.garbage, lambda = +params.lambda;
+
+    const raw = await fetch('https://raw.githubusercontent.com/uiuc-cse/data-fa14/gh-pages/data/iris.csv')
+      .then(r => r.text()).then(t => t.trim().split('\n').slice(1).map(l => l.split(',')));
+
+    const labels = ['setosa', 'versicolor', 'virginica'];
+    const feats = raw.map(r => r.slice(0, 4).map(Number));
+    const y = raw.map(r => labels.indexOf(r[4]));
+    const noise = tf.randomNormal([feats.length, garbageBits]).arraySync();
+    const X = tf.tensor2d(feats.map((x, i) => [...x, ...noise[i]]));
+    const yTrue = tf.tensor1d(y, 'int32');
+    const yOneHot = tf.oneHot(yTrue, 3);
+
+    const input = tf.input({ shape: [4 + garbageBits] });
+    let enc = tf.layers.dense({ units: latent, activation: 'relu' }).apply(input);
+    const decoded = tf.layers.dense({ units: 4 + garbageBits, name: 'reconstruction' }).apply(enc);
+    const classed = tf.layers.dense({ units: 3, activation: 'softmax', name: 'classout' }).apply(enc);
+    const model = tf.model({ inputs: input, outputs: [classed, decoded] });
+
+    model.compile({
+      optimizer: tf.train.adam(lr),
+      loss: {
+        classout: tf.losses.softmaxCrossEntropy,
+        reconstruction: tf.losses.meanSquaredError
+      },
+      lossWeights: { classout: 1.0, reconstruction: lambda },
+      metrics: { classout: ['accuracy'] }
+    });
+
+    const losses = [], accs = [];
+
+    await model.fit(X, { classout: yOneHot, reconstruction: X }, {
+      epochs, batchSize: batch,
+      callbacks: {
+        onEpochEnd: async (ep, logs) => {
+          const loss = logs.loss.toFixed(4);
+          const acc = (logs['classout_accuracy'] ?? logs['classout_acc'] ?? 0).toFixed(4);
+          log(`Epoch ${ep + 1} - loss: ${loss}, acc: ${acc}`);
+          losses.push(+loss); accs.push(+acc);
+          drawChart(losses, accs);
+
+          const outputs = model.predict(X);
+          const yPred = Array.isArray(outputs) ? outputs[0] : outputs;
+          const preds = yPred.argMax(-1);
+          const cm = await tf.math.confusionMatrix(yTrue, preds, 3).array();
+          renderConfusion(cm);
+        }
+      }
+    });
+
+    const yPred = model.predict(X)[0].argMax(-1);
+    const cm = await tf.math.confusionMatrix(yTrue, yPred, 3).array();
+    const { precision, recall, f1 } = computeMetrics(cm);
+    const mse = (await tf.losses.meanSquaredError(X, model.predict(X)[1]).mean().data())[0];
+
+    metricsDiv.innerHTML = `
+      <h2>Final Metrics</h2>
+      <table>
+        <tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th></tr>
+        ${['setosa', 'versicolor', 'virginica'].map((label, i) =>
+          `<tr><td>${label}</td><td>${precision[i].toFixed(2)}</td><td>${recall[i].toFixed(2)}</td><td>${f1[i].toFixed(2)}</td></tr>`).join('')}
+      </table>
+      <p><b>Reconstruction MSE:</b> ${mse.toFixed(6)}</p>
+    `;
+  };
+</script>
+</body>
+</html>

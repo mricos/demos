@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Iris Reversible Model</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.13.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-200 p-4 text-sm">
+  <div class="max-w-6xl mx-auto">
+    <div id="form-container" class="mb-6"></div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <canvas id="chart" width="600" height="300"></canvas>
+      <div id="confusion" class="bg-gray-900 p-4 border border-gray-700"></div>
+    </div>
+
+    <div id="metrics" class="mt-6"></div>
+    <div id="log" class="bg-gray-900 p-4 mt-6 border border-gray-700 max-h-64 overflow-y-auto text-xs whitespace-pre-wrap">
+      Adjust parameters and press Train...
+    </div>
+  </div>
+
+  <script type="module">
+    const formContainer = document.getElementById('form-container');
+    const logEl = document.getElementById('log');
+    const chart = document.getElementById('chart');
+    const ctx = chart.getContext('2d');
+    const confusionDiv = document.getElementById('confusion');
+    const metricsDiv = document.getElementById('metrics');
+
+    const log = msg => {
+      logEl.textContent += msg + '\n';
+      logEl.scrollTop = logEl.scrollHeight;
+    };
+
+    const drawChart = (losses, accs) => {
+      ctx.clearRect(0, 0, chart.width, chart.height);
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, chart.width, chart.height);
+      ctx.strokeStyle = '#666';
+      ctx.beginPath(); ctx.moveTo(40, 0); ctx.lineTo(40, 300); ctx.moveTo(40, 290); ctx.lineTo(600, 290); ctx.stroke();
+      ctx.fillStyle = 'white'; ctx.fillText("Loss/Accuracy", 10, 10);
+
+      ctx.strokeStyle = 'lime'; ctx.beginPath();
+      losses.forEach((l, i) => ctx.lineTo(40 + i * 560 / losses.length, 290 - l * 100)); ctx.stroke();
+
+      ctx.strokeStyle = 'orange'; ctx.beginPath();
+      accs.forEach((a, i) => ctx.lineTo(40 + i * 560 / accs.length, 290 - a * 100)); ctx.stroke();
+    };
+
+    const computeMetrics = (cm) => {
+      const precision = [], recall = [], f1 = [];
+      for (let i = 0; i < 3; i++) {
+        const tp = cm[i][i];
+        const fp = cm.reduce((s, r, j) => j !== i ? s + r[i] : s, 0);
+        const fn = cm[i].reduce((s, x, j) => j !== i ? s + x : s, 0);
+        const p = tp / (tp + fp || 1);
+        const r = tp / (tp + fn || 1);
+        const f = 2 * p * r / (p + r || 1);
+        precision.push(p); recall.push(r); f1.push(f);
+      }
+      return { precision, recall, f1 };
+    };
+
+    const renderConfusion = (cm) => {
+      const labels = ['setosa', 'versicolor', 'virginica'];
+      const data = [];
+      for (let i = 0; i < 3; i++) {
+        const rowSum = cm[i].reduce((a, b) => a + b, 0);
+        for (let j = 0; j < 3; j++) {
+          const count = cm[i][j];
+          const pct = rowSum > 0 ? (100 * count / rowSum).toFixed(1) + '%' : '0%';
+          data.push({ actual: labels[i], predicted: labels[j], count, text: `${count} (${pct})` });
+        }
+      }
+      const spec = {
+        $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+        width: 300, height: 300,
+        data: { values: data },
+        mark: 'rect',
+        encoding: {
+          x: { field: 'predicted', type: 'nominal' },
+          y: { field: 'actual', type: 'nominal' },
+          color: { field: 'count', type: 'quantitative' }
+        },
+        layer: [
+          { mark: 'rect' },
+          {
+            mark: { type: 'text', color: 'white', fontSize: 14 },
+            encoding: { text: { field: 'text', type: 'nominal' } }
+          }
+        ]
+      };
+      vegaEmbed(confusionDiv, spec, { actions: false });
+    };
+
+    async function trainIrisModel({ epochs, batchSize, learningRate, latentSize, garbageBits, lambda }) {
+      const raw = await fetch('https://raw.githubusercontent.com/uiuc-cse/data-fa14/gh-pages/data/iris.csv')
+        .then(r => r.text()).then(t => t.trim().split('\n').slice(1).map(l => l.split(',')));
+
+      const labels = ['setosa', 'versicolor', 'virginica'];
+      const feats = raw.map(r => r.slice(0, 4).map(Number));
+      const y = raw.map(r => labels.indexOf(r[4]));
+      const noise = tf.randomNormal([feats.length, garbageBits]).arraySync();
+      const X = tf.tensor2d(feats.map((x, i) => [...x, ...noise[i]]));
+      const yTrue = tf.tensor1d(y, 'int32');
+      const yOneHot = tf.oneHot(yTrue, 3);
+
+      const input = tf.input({ shape: [4 + garbageBits] });
+      let enc = tf.layers.dense({ units: latentSize, activation: 'relu' }).apply(input);
+      const decoded = tf.layers.dense({ units: 4 + garbageBits, name: 'reconstruction' }).apply(enc);
+      const classed = tf.layers.dense({ units: 3, activation: 'softmax', name: 'classout' }).apply(enc);
+      const model = tf.model({ inputs: input, outputs: [classed, decoded] });
+
+      model.compile({
+        optimizer: tf.train.adam(learningRate),
+        loss: {
+          classout: tf.losses.softmaxCrossEntropy,
+          reconstruction: tf.losses.meanSquaredError
+        },
+        lossWeights: { classout: 1.0, reconstruction: lambda },
+        metrics: { classout: ['accuracy'] }
+      });
+
+      const losses = [], accs = [];
+      await model.fit(X, { classout: yOneHot, reconstruction: X }, {
+        epochs, batchSize,
+        callbacks: {
+          onEpochEnd: async (ep, logs) => {
+            const loss = logs.loss.toFixed(4);
+            const acc = (logs['classout_accuracy'] ?? logs['classout_acc'] ?? 0).toFixed(4);
+            log(`Epoch ${ep + 1} - loss: ${loss}, acc: ${acc}`);
+            losses.push(+loss); accs.push(+acc);
+            drawChart(losses, accs);
+
+            const outputs = model.predict(X);
+            const ypred = Array.isArray(outputs) ? outputs[0] : outputs;
+            const preds = ypred.argMax(-1);
+            const cm = await tf.math.confusionMatrix(yTrue, preds, 3).array();
+            renderConfusion(cm);
+          }
+        }
+      });
+
+      const finalPred = model.predict(X)[0].argMax(-1);
+      const cm = await tf.math.confusionMatrix(yTrue, finalPred, 3).array();
+      const { precision, recall, f1 } = computeMetrics(cm);
+      const mse = (await tf.losses.meanSquaredError(X, model.predict(X)[1]).mean().data())[0];
+
+      metricsDiv.innerHTML = `
+        <h2 class="text-base font-bold">Final Metrics</h2>
+        <table class="mt-2 text-xs">
+          <thead><tr><th class="pr-4">Class</th><th>Precision</th><th>Recall</th><th>F1</th></tr></thead>
+          <tbody>
+            ${['setosa', 'versicolor', 'virginica'].map((label, i) =>
+              `<tr><td class="pr-4">${label}</td><td>${precision[i].toFixed(2)}</td><td>${recall[i].toFixed(2)}</td><td>${f1[i].toFixed(2)}</td></tr>`).join('')}
+          </tbody>
+        </table>
+        <p class="mt-2">Reconstruction MSE: <b>${mse.toFixed(6)}</b></p>
+      `;
+    }
+
+    // Inject form.html and bind form
+    const res = await fetch('form.html');
+    formContainer.innerHTML = await res.text();
+    const form = document.querySelector('#controls');
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const params = Object.fromEntries(new FormData(form).entries());
+      const args = {
+        epochs: +params.epochs,
+        batchSize: +params.batch,
+        learningRate: +params.lr,
+        latentSize: +params.latent,
+        garbageBits: +params.garbage,
+        lambda: +params.lambda
+      };
+      logEl.textContent = '';
+      confusionDiv.innerHTML = '';
+      metricsDiv.innerHTML = '';
+      await trainIrisModel(args);
+    };
+  </script>
+</body>
+</html>

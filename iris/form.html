@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Model Params</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    input, label { font-family: inherit; }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-200 p-4 text-sm">
+  <div class="max-w-3xl mx-auto bg-gray-900 border border-gray-700 p-4 space-y-4">
+    <h1 class="text-base font-bold tracking-tight text-white">Model Hyperparameters</h1>
+    <form id="controls" class="grid grid-cols-2 gap-4 items-center">
+      <label for="epochs">Epochs</label>
+      <input name="epochs" id="epochs" type="number" value="50" class="bg-gray-800 border border-gray-600 px-2 py-1 w-full text-white" />
+
+      <label for="batch">Batch Size</label>
+      <input name="batch" id="batch" type="number" value="32" class="bg-gray-800 border border-gray-600 px-2 py-1 w-full text-white" />
+
+      <label for="lr">Learning Rate</label>
+      <input name="lr" id="lr" type="number" step="0.001" value="0.01" class="bg-gray-800 border border-gray-600 px-2 py-1 w-full text-white" />
+
+      <label for="latent">Latent Size</label>
+      <input name="latent" id="latent" type="number" value="8" class="bg-gray-800 border border-gray-600 px-2 py-1 w-full text-white" />
+
+      <label for="garbage">Garbage Bits</label>
+      <input name="garbage" id="garbage" type="number" value="2" class="bg-gray-800 border border-gray-600 px-2 py-1 w-full text-white" />
+
+      <label for="lambda">Recon Weight (λ)</label>
+      <input name="lambda" id="lambda" type="number" step="0.01" value="0.1" class="bg-gray-800 border border-gray-600 px-2 py-1 w-full text-white" />
+
+      <div></div>
+      <button type="submit" class="bg-gray-800 border border-gray-600 px-4 py-1 text-white tracking-tight hover:bg-gray-700">
+        Train Model
+      </button>
+    </form>
+  </div>
+</body>
+</html>
