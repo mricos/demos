@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Calabi-Yau Shape (No Tailwind)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- Base and Body Styles --- */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+            color: #E5E7EB;
+            overflow: hidden;
+            margin: 0;
+            display: flex;
+            flex-direction: column; /* Default for mobile */
+            align-items: center;
+            justify-content: center;
+            width: 100vw;
+            height: 100vh;
+            padding: 1rem; /* p-4 */
+            box-sizing: border-box;
+        }
+
+        /* --- Main Layout for Medium Screens and Up --- */
+        @media (min-width: 768px) {
+            body {
+                flex-direction: row; /* md:flex-row */
+            }
+        }
+
+        /* --- Canvas Styles --- */
+        canvas {
+            background: radial-gradient(circle, #1F2937 0%, #111827 100%);
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); /* shadow-2xl */
+        }
+        @media (min-width: 768px) {
+            canvas {
+                width: 66.666667%; /* md:w-2/3 */
+            }
+        }
+
+        /* --- Controls Panel Styles --- */
+        #controls {
+            background-color: rgba(31, 41, 55, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(55, 65, 81, 0.5);
+            width: 100%;
+            max-width: 24rem; /* max-w-sm */
+            margin-top: 1rem; /* mt-4 */
+            padding: 1.5rem; /* p-6 */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+            box-sizing: border-box;
+        }
+        @media (min-width: 768px) {
+            #controls {
+                margin-top: 0;
+                margin-left: 1.5rem; /* md:ml-6 */
+                width: 33.333333%; /* md:w-1/3 */
+            }
+        }
+
+        /* --- Typography and Element Styles within Controls --- */
+        #controls h1 {
+            font-size: 1.5rem; /* text-2xl */
+            line-height: 2rem;
+            font-weight: 700; /* font-bold */
+            color: #ffffff;
+            text-align: center;
+            margin-bottom: 1.5rem; /* mb-6 */
+        }
+        .control-group {
+            margin-bottom: 1.5rem; /* space-y-6 */
+        }
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 0.5rem; /* mb-2 */
+            font-size: 0.875rem; /* text-sm */
+            line-height: 1.25rem;
+            font-weight: 500; /* font-medium */
+            color: #D1D5DB; /* text-gray-300 */
+        }
+        .button-container {
+            text-align: center;
+            margin-top: 2rem; /* mt-8 */
+        }
+        #resetButton {
+            background-color: #0ea5e9; /* bg-sky-500 */
+            color: #ffffff;
+            font-weight: 700; /* font-bold */
+            padding: 0.5rem 1rem; /* py-2 px-4 */
+            border-radius: 0.5rem; /* rounded-lg */
+            transition: background-color 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        #resetButton:hover {
+            background-color: #0284c7; /* hover:bg-sky-600 */
+        }
+
+        /* --- Custom Slider Styles (Unchanged) --- */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #374151;
+            border-radius: 5px;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type="range"]:hover {
+            opacity: 1;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #38BDF8;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #111827;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #38BDF8;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #111827;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Canvas for drawing the shape -->
+    <canvas id="canvas"></canvas>
+
+    <!-- Controls Panel -->
+    <div id="controls">
+        <h1>Controls</h1>
+        
+        <div class="control-group">
+            <label for="complexity">Complexity (<span id="complexityValue">5</span>)</label>
+            <input id="complexity" type="range" min="2" max="10" value="5" step="1">
+        </div>
+        <div class="control-group">
+            <label for="speed">Animation Speed (<span id="speedValue">1</span>)</label>
+            <input id="speed" type="range" min="0.1" max="5" value="1" step="0.1">
+        </div>
+        <div class="control-group">
+            <label for="zoom">Zoom (<span id="zoomValue">1</span>)</label>
+            <input id="zoom" type="range" min="0.5" max="2" value="1" step="0.05">
+        </div>
+        <div class="control-group">
+            <label for="thickness">Line Thickness (<span id="thicknessValue">2</span>)</label>
+            <input id="thickness" type="range" min="0.5" max="10" value="2" step="0.5">
+        </div>
+        
+        <div class="button-container">
+            <button id="resetButton">Reset to Default</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Canvas and Context Setup ---
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- DOM Elements for Controls ---
+        const complexitySlider = document.getElementById('complexity');
+        const speedSlider = document.getElementById('speed');
+        const zoomSlider = document.getElementById('zoom');
+        const thicknessSlider = document.getElementById('thickness');
+
+        const complexityValue = document.getElementById('complexityValue');
+        const speedValue = document.getElementById('speedValue');
+        const zoomValue = document.getElementById('zoomValue');
+        const thicknessValue = document.getElementById('thicknessValue');
+        
+        const resetButton = document.getElementById('resetButton');
+
+        // --- State Variables ---
+        let time = 0;
+        let params = {
+            complexity: 5,
+            speed: 1,
+            zoom: 1,
+            thickness: 2
+        };
+
+        // --- Canvas Sizing ---
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+
+        // --- Drawing Logic ---
+        function drawShape() {
+            // Clear the canvas for the new frame
+            const dpr = window.devicePixelRatio || 1;
+            ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+            
+            const centerX = canvas.getBoundingClientRect().width / 2;
+            const centerY = canvas.getBoundingClientRect().height / 2;
+            const baseRadius = Math.min(centerX, centerY) * 0.7 * params.zoom;
+
+            // This simplified shape is created by overlaying several Lissajous-like curves
+            for (let i = 0; i < params.complexity; i++) {
+                ctx.beginPath();
+                
+                // Use HSL color model for smooth, vibrant color transitions
+                const hue = (time * 10 + i * (360 / params.complexity)) % 360;
+                ctx.strokeStyle = `hsl(${hue}, 100%, 60%)`;
+                ctx.lineWidth = params.thickness;
+                ctx.shadowColor = `hsl(${hue}, 100%, 50%)`;
+                ctx.shadowBlur = 10;
+
+                // Parametric equations for the shape
+                // These equations create complex, looping patterns
+                for (let angle = 0; angle <= Math.PI * 2.01; angle += 0.01) {
+                    const x = centerX + baseRadius * Math.cos(angle * (i + 1)) * Math.sin(angle * (params.complexity - i) + time / 20);
+                    const y = centerY + baseRadius * Math.sin(angle * (i + 1)) * Math.cos(angle * (params.complexity - i) + time / 20);
+                    
+                    if (angle === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+            }
+            // Reset shadow for other elements
+            ctx.shadowBlur = 0;
+        }
+
+        // --- Animation Loop ---
+        function animate() {
+            drawShape();
+            time += 0.01 * params.speed;
+            requestAnimationFrame(animate);
+        }
+
+        // --- Event Listeners ---
+        function setupEventListeners() {
+            complexitySlider.addEventListener('input', (e) => {
+                params.complexity = parseInt(e.target.value);
+                complexityValue.textContent = params.complexity;
+            });
+            speedSlider.addEventListener('input', (e) => {
+                params.speed = parseFloat(e.target.value);
+                speedValue.textContent = params.speed.toFixed(1);
+            });
+            zoomSlider.addEventListener('input', (e) => {
+                params.zoom = parseFloat(e.target.value);
+                zoomValue.textContent = params.zoom.toFixed(2);
+            });
+            thicknessSlider.addEventListener('input', (e) => {
+                params.thickness = parseFloat(e.target.value);
+                thicknessValue.textContent = params.thickness.toFixed(1);
+            });
+            
+            resetButton.addEventListener('click', () => {
+                complexitySlider.value = 5;
+                speedSlider.value = 1;
+                zoomSlider.value = 1;
+                thicknessSlider.value = 2;
+                
+                // Trigger input events to update params and labels
+                complexitySlider.dispatchEvent(new Event('input'));
+                speedSlider.dispatchEvent(new Event('input'));
+                zoomSlider.dispatchEvent(new Event('input'));
+                thicknessSlider.dispatchEvent(new Event('input'));
+            });
+
+            window.addEventListener('resize', resizeCanvas);
+        }
+
+        // --- Initialization ---
+        function init() {
+            resizeCanvas();
+            setupEventListeners();
+            // Set initial label values
+            complexityValue.textContent = complexitySlider.value;
+            speedValue.textContent = parseFloat(speedSlider.value).toFixed(1);
+            zoomValue.textContent = parseFloat(zoomSlider.value).toFixed(2);
+            thicknessValue.textContent = parseFloat(thicknessSlider.value).toFixed(1);
+            animate();
+        }
+
+        init();
+    </script>
+</body>
+</html>
