@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Calabi-Yau Manifold Explorer</title>
+    <link rel="stylesheet" href="calabi-yau.css">
+    <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+    <script type="module" src="calabi-yau.js"></script>
+    <script>
+        // MathJax configuration
+        window.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']]
+          }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="container"></div>
+
+    <div id="master-controller" class="panel">
+        <button id="toggle-controls" class="nav-button active" tabindex="1" title="Toggle Controls (Ctrl+C)">Controls</button>
+        <button id="toggle-info" class="nav-button" tabindex="2" title="Toggle Info (Ctrl+I)">Info</button>
+        <button id="toggle-equation" class="nav-button active" tabindex="3" title="Toggle Equation (Ctrl+E)">Equation</button>
+        <button id="toggle-config" class="nav-button" tabindex="4" title="Toggle Configuration (Ctrl+G)">Config</button>
+        <button id="toggle-threejs-debug" class="nav-button" tabindex="5" title="Toggle ThreeJS Debug (Ctrl+T)">Debug</button>
+        <button id="toggle-settings" class="nav-button" tabindex="6" title="Toggle Settings (Ctrl+S)">Settings</button>
+    </div>
+
+    <div id="controls" class="panel"></div>
+    <div id="info-display" class="panel is-hidden">
+        <div class="resize-handle"></div>
+    </div>
+    <div id="equation-panel" class="panel"></div>
+    <div id="config-panel" class="panel is-hidden">
+        <div class="resize-handle"></div>
+    </div>
+    <div id="threejs-debug" class="panel is-hidden"></div>
+    <div id="settings-modal-overlay" class="is-hidden">
+        <div id="settings-modal" class="panel">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Settings</h2>
+                <button id="close-settings" class="nav-button" tabindex="101">&times;</button>
+            </div>
+            <div id="settings-content"></div>
+        </div>
+    </div>
+    
+    <div id="ghost-top" class="ghost-slider-container"><input type="range" id="ghost-slider-top" class="ghost-slider"></div>
+    <div id="ghost-bottom" class="ghost-slider-container"><input type="range" id="ghost-slider-bottom" class="ghost-slider"></div>
+    <div id="ghost-left" class="ghost-slider-container"><input type="range" id="ghost-slider-left" class="ghost-slider vertical"></div>
+    <div id="ghost-right" class="ghost-slider-container"><input type="range" id="ghost-slider-right" class="ghost-slider vertical"></div>
+</body>
+</html> 

@@ -1,0 +1,42 @@
+[
+  {
+    "title": "What are Calabi-Yau Manifolds?",
+    "text": "Calabi-Yau manifolds are complex geometric shapes that play a crucial role in string theory. They are named after mathematicians Eugenio Calabi and Shing-Tung Yau. These spaces have special geometric properties that make them ideal for 'compactifying' the extra dimensions required by string theory.",
+    "controls": null
+  },
+  {
+    "title": "Mathematical Properties", 
+    "text": "These manifolds are characterized by having a Ricci-flat metric, meaning their curvature averages to zero. They are also Kähler manifolds, possessing a complex structure that harmonizes with their geometry. The most important property is that they preserve a certain amount of supersymmetry when used in string theory.",
+    "controls": null
+  },
+  {
+    "title": "String Theory Connection",
+    "text": "In string theory, our universe is thought to have 10 or 11 dimensions. Since we only observe 4 dimensions (3 spatial + 1 time), the extra 6 or 7 dimensions must be 'compactified' - curled up so small we can't detect them. Calabi-Yau manifolds provide the mathematical framework for how these extra dimensions might be shaped.",
+    "controls": null
+  },
+  {
+    "title": "Physical Implications",
+    "text": "The specific geometry of the Calabi-Yau manifold determines the fundamental properties of our universe - the masses of particles, the strengths of forces, and the constants of nature. Different Calabi-Yau shapes would lead to universes with different physical laws. This is why understanding their geometry is crucial for physics.",
+    "controls": null
+  },
+  {
+    "title": "Mirror Symmetry",
+    "text": "One of the most remarkable discoveries in Calabi-Yau geometry is mirror symmetry. This shows that two very different-looking Calabi-Yau manifolds can give rise to identical physics. This duality has led to profound insights in both mathematics and physics, connecting geometry with quantum field theory.",
+    "controls": null
+  },
+  {
+    "title": "Computational Challenges",
+    "text": "Visualizing Calabi-Yau manifolds is extremely challenging because they exist in 6 real dimensions (3 complex dimensions). What you see here is a 2D cross-section projected into 3D space. The parameters you can adjust (n, m, separation, etc.) control different aspects of this complex geometry.",
+    "controls": null
+  },
+  {
+    "title": "Interactive Parameters",
+    "text": "The 'n' and 'm' parameters control the fundamental topology of the manifold. 'Separation' adjusts how the surface folds and curves. The 'a', 'b', and 'c' parameters fine-tune the geometric details. Try adjusting these to see how they affect the shape - each configuration represents a different possible geometry for our universe's hidden dimensions.",
+    "controls": null
+  },
+  {
+    "title": "Mathematical Beauty",
+    "text": "Beyond their physical importance, Calabi-Yau manifolds represent some of the most beautiful and complex geometric objects in mathematics. They sit at the intersection of algebraic geometry, differential geometry, and mathematical physics. Their study has led to breakthrough discoveries in each of these fields.",
+    "controls": null
+  }
+] 

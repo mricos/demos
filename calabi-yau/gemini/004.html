@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Calabi-Yau Manifold Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #000; color: white; }
+        #container { width: 100vw; height: 100vh; cursor: grab; }
+        #container.grabbing { cursor: grabbing; }
+        .panel { position: absolute; background-color: rgba(17, 24, 39, 0.85); padding: 20px; border-radius: 12px; backdrop-filter: blur(10px); border: 1px solid rgba(55, 65, 81, 0.5); transition: opacity 0.4s, transform 0.4s; }
+        #controls { top: 80px; left: 20px; width: 380px; max-width: 90vw; }
+        #settings-panel { bottom: 20px; right: 20px; width: 420px; max-width: 90vw; max-height: calc(100vh - 40px); overflow-y: auto; }
+        #stats-panel { top: 20px; right: 20px; padding: 8px 12px; font-family: monospace; }
+        #master-controller { top: 20px; left: 20px; padding: 10px; display: flex; gap: 8px; z-index: 100; }
+        .is-hidden { opacity: 0; pointer-events: none; transform: scale(0.95); }
+        .control-item { padding: 10px; border: 2px solid transparent; border-radius: 8px; margin-bottom: 10px; transition: all 0.3s; }
+        label { display: block; margin-bottom: 5px; font-size: 14px; font-weight: 500; cursor: pointer; }
+        input[type="range"] { width: 100%; -webkit-appearance: none; appearance: none; height: 5px; background: #4b5563; border-radius: 5px; outline: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: #d1d5db; cursor: pointer; border-radius: 50%; border: 2px solid #1f2937; }
+        .value-display { display: inline-block; margin-left: 10px; font-weight: bold; color: #9ca3af; }
+        .param-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .nav-button { background-color: #4b5563; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: background-color 0.3s; }
+        .nav-button:hover:not(:disabled) { background-color: #6b7280; }
+        .nav-button.active { background-color: #3b82f6; }
+        .setting-row { display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: center; margin-bottom: 10px; }
+        select { background-color: #374151; color: white; border: 1px solid #4b5563; border-radius: 4px; padding: 4px 8px; width: 100%; }
+        details > summary { cursor: pointer; font-size: 1.1rem; font-weight: 600; margin: 1rem 0 0.5rem 0; list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        details > summary:before { content: '►'; margin-right: 0.5rem; display: inline-block; transition: transform 0.2s; }
+        details[open] > summary:before { transform: rotate(90deg); }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="container"></div>
+
+    <div id="master-controller" class="panel">
+        <button id="toggle-controls" class="nav-button active" title="Toggle Controls (Ctrl+C)">Controls</button>
+        <button id="toggle-settings" class="nav-button" title="Toggle Settings (Ctrl+S)">Settings</button>
+    </div>
+
+    <div id="controls" class="panel"></div>
+    <div id="settings-panel" class="panel is-hidden">
+        <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold">Settings</h2><button id="close-settings" class="nav-button">&times;</button></div>
+        <div id="settings-content"></div>
+    </div>
+    <div id="stats-panel" class="panel">FPS: <span id="fps-counter">--</span></div>
+    
+    <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js';
+
+        let scene, camera, renderer, manifoldObject;
+        let needsUpdate = { geometry: false, material: false };
+        let lastFrameTime = 0;
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+
+        const dom = {
+            container: document.getElementById('container'),
+            panels: { controls: document.getElementById('controls'), settings: document.getElementById('settings-panel') },
+            toggles: { controls: document.getElementById('toggle-controls'), settings: document.getElementById('toggle-settings') },
+            settings: { closeBtn: document.getElementById('close-settings'), content: document.getElementById('settings-content') },
+            fpsCounter: document.getElementById('fps-counter')
+        };
+        
+        const params = {
+            'azimuth': { value: -45, min: -180, max: 180, step: 0.5, label: 'Azimuth' },
+            'elevation': { value: 30, min: -90, max: 90, step: 0.5, label: 'Elevation' },
+            'distance': { value: 20, min: 5, max: 40, step: 0.1, label: 'Distance (Dolly)' },
+            'objectZ': { value: 0, min: -5, max: 5, step: 0.1, label: 'Object Closer' },
+            'paramN': { value: 2, min: 1, max: 7, step: 1, label: 'Param n' }, 
+            'paramM': { value: 3, min: 1, max: 7, step: 1, label: 'Param m' }, 
+            'separation': { value: 0.5, min: 0, max: 1.5, step: 0.01, label: 'Separation' },
+            'paramA': { value: 1, min: 0.5, max: 5, step: 0.1, label: 'Param a' }, 
+            'paramB': { value: 1, min: 0.5, max: 3, step: 0.1, label: 'Param b' }, 
+            'paramC': { value: 1, min: 0.5, max: 3, step: 0.1, label: 'Param c' },
+            'lineDensity': { value: 128, min: 32, max: 256, step: 1, label: 'Line Density' },
+            'lineThickness': { value: 1.0, min: 0.5, max: 5, step: 0.1, label: 'Line Thickness' },
+            'twistFactor': { value: 1.0, min: 0.1, max: 3, step: 0.01, label: 'Twist Factor' }
+        };
+        const modelParamKeys = ['paramN', 'paramM', 'separation', 'paramA', 'paramB', 'paramC', 'lineDensity', 'twistFactor'];
+        const appearanceKeys = ['lineThickness'];
+        let colorScheme = 'rainbow';
+        let renderingMode = 'wireframe';
+
+        const settingsManager = {
+            key: 'cy_settings_stable_v18',
+            save() {
+                const settingsToSave = {};
+                for (const key in params) {
+                    settingsToSave[key] = params[key].value;
+                }
+                settingsToSave.colorScheme = colorScheme;
+                settingsToSave.renderingMode = renderingMode;
+                try { localStorage.setItem(this.key, JSON.stringify(settingsToSave)); } catch (e) { console.error("Failed to save settings:", e); }
+            },
+            load() {
+                try {
+                    const storedSettings = localStorage.getItem(this.key);
+                    if (storedSettings) {
+                        const loadedSettings = JSON.parse(storedSettings);
+                        for (const key in loadedSettings) {
+                            if (params[key]) {
+                                params[key].value = loadedSettings[key];
+                            }
+                        }
+                        colorScheme = loadedSettings.colorScheme || 'rainbow';
+                        renderingMode = loadedSettings.renderingMode || 'wireframe';
+                    }
+                } catch (e) { console.error("Failed to load settings:", e); }
+            }
+        };
+
+        function calabiYauFunction(u, v, target) {
+            const p = {}; Object.keys(params).forEach(k => p[k] = params[k].value);
+            u *= Math.PI * 2; v *= Math.PI * 2;
+            
+            const m = p.paramM * p.twistFactor;
+            const b = p.paramB * p.twistFactor;
+
+            const cos_mu = Math.cos(m * u);
+            const base = Math.abs(cos_mu);
+            const r = 1 + p.separation * Math.pow(base, b);
+            const x = r * Math.cos(p.paramN * u) * Math.cos(p.paramA * v);
+            const y = r * Math.sin(p.paramN * u) * Math.cos(p.paramA * v);
+            const z = p.paramC * p.separation * Math.sin(p.paramA * v) * (1 + cos_mu);
+            target.set(x * 3, y * 3, z * 3);
+        }
+
+        function updateManifold() {
+            if (needsUpdate.geometry) {
+                if (manifoldObject) {
+                    scene.remove(manifoldObject);
+                    manifoldObject.geometry.dispose();
+                    manifoldObject.material.dispose();
+                }
+                const density = params.lineDensity.value;
+                const geometry = new ParametricGeometry(calabiYauFunction, density, density);
+                const colors = [];
+                const color = new THREE.Color();
+                const pos = geometry.attributes.position;
+                for (let i = 0; i < pos.count; i++) {
+                    const hue = (Math.atan2(pos.getY(i), pos.getX(i)) / (2 * Math.PI)) + 0.5;
+                    const finalColor = getColor(hue, colorScheme);
+                    colors.push(finalColor.r, finalColor.g, finalColor.b);
+                }
+                geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                
+                let material;
+                switch(renderingMode) {
+                    case 'solid':
+                        material = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide });
+                        break;
+                    case 'points':
+                        material = new THREE.PointsMaterial({ vertexColors: true, size: 0.1 });
+                        break;
+                    default:
+                        material = new THREE.MeshBasicMaterial({ vertexColors: true, wireframe: true });
+                        break;
+                }
+                manifoldObject = renderingMode === 'points' ? new THREE.Points(geometry, material) : new THREE.Mesh(geometry, material);
+                scene.add(manifoldObject);
+                needsUpdate.geometry = false;
+                needsUpdate.material = true; // Force material update after geometry change
+            }
+
+            if (needsUpdate.material) {
+                if (!manifoldObject) return;
+                const colors = []; const color = new THREE.Color();
+                const pos = manifoldObject.geometry.attributes.position;
+                for (let i = 0; i < pos.count; i++) {
+                    const hue = (Math.atan2(pos.getY(i), pos.getX(i)) / (2 * Math.PI)) + 0.5;
+                    const finalColor = getColor(hue, colorScheme);
+                    colors.push(finalColor.r, finalColor.g, finalColor.b);
+                }
+                manifoldObject.geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                if (manifoldObject.material.wireframeLinewidth) {
+                    manifoldObject.material.wireframeLinewidth = params.lineThickness.value;
+                }
+                needsUpdate.material = false;
+            }
+            
+            if (manifoldObject) {
+                manifoldObject.position.z = params.objectZ.value;
+            }
+            updateCameraPosition();
+        }
+
+        function getColor(hue, scheme) {
+            const color = new THREE.Color();
+            switch(scheme) {
+                case 'fire': return color.setHSL(hue * 0.15, 1.0, 0.5);
+                case 'ice': return color.setHSL(hue * 0.2 + 0.55, 1.0, 0.7);
+                case 'forest': return color.setHSL(hue * 0.2 + 0.2, 0.8, 0.4);
+                default: return color.setHSL(hue, 1.0, 0.5);
+            }
+        }
+        
+        function init() {
+            settingsManager.load();
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            dom.container.appendChild(renderer.domElement);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            dirLight.position.set(5, 10, 7.5);
+            scene.add(dirLight);
+            
+            buildUI();
+            setupEventListeners();
+            needsUpdate.geometry = true;
+            updateManifold();
+            animate();
+        }
+        
+        function animate(time) {
+            requestAnimationFrame(animate);
+            if (needsUpdate.geometry || needsUpdate.material) {
+                updateManifold();
+            }
+            
+            const delta = (time - lastFrameTime) / 1000;
+            lastFrameTime = time;
+            const fps = 1 / delta;
+            dom.fpsCounter.textContent = fps.toFixed(0);
+
+            renderer.render(scene, camera);
+        }
+
+        function buildUI() {
+            let controlsHTML = `<h2 class="text-lg font-bold mb-2">Controls</h2>`;
+            ['distance', 'objectZ'].forEach(key => { controlsHTML += createSliderHTML(key); });
+            controlsHTML += `<h3 class="text-md font-semibold mt-4 mb-2 text-gray-300">Model Parameters</h3><div class="param-grid">`;
+            modelParamKeys.forEach(key => { controlsHTML += createSliderHTML(key); });
+            controlsHTML += `</div>`;
+            dom.panels.controls.innerHTML = controlsHTML;
+
+            let settingsHTML = `<div id="settings-content-container">
+                <details open><summary>Appearance</summary>
+                    <div class="setting-row"><label for="rendering-mode">Render Mode</label><select id="rendering-mode">${['wireframe', 'solid', 'points'].map(s => `<option value="${s}" ${renderingMode === s ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`).join('')}</select></div>
+                    <div class="setting-row"><label for="color-scheme">Color Scheme</label><select id="color-scheme">${['rainbow', 'fire', 'ice', 'forest'].map(s => `<option value="${s}" ${colorScheme === s ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`).join('')}</select></div>
+                </details>
+            </div>`;
+            dom.settings.content.innerHTML = settingsHTML;
+        }
+        
+        function createSliderHTML(key){
+            const p = params[key];
+            const isFloat = p.step < 1;
+            return `<div class="control-item" id="control-${key}"><label for="slider-${key}">${p.label}: <span id="value-${key}" class="value-display">${p.value.toFixed(isFloat ? 2 : 0)}</span></label><input type="range" id="slider-${key}" min="${p.min}" max="${p.max}" value="${p.value}" step="${p.step}"></div>`;
+        }
+
+        function setupEventListeners(){
+            Object.entries(dom.toggles).forEach(([key, btn]) => btn.addEventListener('click', () => togglePanel(key)));
+            window.addEventListener('keydown', e => { if (e.ctrlKey || e.metaKey) { const keyMap = { 'c': 'controls', 'i': 'info', 's': 'settings' }; if (keyMap[e.key]) { e.preventDefault(); togglePanel(keyMap[e.key]); } } });
+            
+            Object.keys(params).forEach(key => {
+                const slider = document.getElementById(`slider-${key}`);
+                if(slider) slider.addEventListener('input', () => updateParamValue(key, slider.value));
+            });
+            
+            dom.settings.closeBtn.addEventListener('click', () => togglePanel('settings'));
+            document.getElementById('color-scheme').addEventListener('change', e => { colorScheme = e.target.value; needsUpdate.material = true; settingsManager.save(); });
+            document.getElementById('rendering-mode').addEventListener('change', e => { renderingMode = e.target.value; needsUpdate.geometry = true; settingsManager.save(); });
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            dom.container.addEventListener('mousedown', onMouseDown);
+            dom.container.addEventListener('wheel', onMouseWheel);
+        }
+
+        function onMouseDown(e) {
+            isDragging = true;
+            dom.container.classList.add('grabbing');
+            previousMousePosition.x = e.clientX;
+            previousMousePosition.y = e.clientY;
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        }
+
+        function onMouseMove(e) {
+            if (!isDragging) return;
+            const deltaX = e.clientX - previousMousePosition.x;
+            const deltaY = e.clientY - previousMousePosition.y;
+
+            updateParamValue('azimuth', params.azimuth.value - deltaX * 0.5);
+            updateParamValue('elevation', params.elevation.value + deltaY * 0.5);
+
+            previousMousePosition.x = e.clientX;
+            previousMousePosition.y = e.clientY;
+        }
+
+        function onMouseUp() {
+            isDragging = false;
+            dom.container.classList.remove('grabbing');
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        }
+
+        function onMouseWheel(e) {
+            e.preventDefault();
+            const zoomSpeed = 0.01;
+            if (e.shiftKey) {
+                const newCloser = params.objectZ.value - e.deltaY * zoomSpeed * 5;
+                updateParamValue('objectZ', newCloser);
+            } else {
+                const newDistance = params.distance.value + e.deltaY * zoomSpeed * 5;
+                updateParamValue('distance', newDistance);
+            }
+        }
+
+        function togglePanel(key) {
+            const panel = dom.panels[key]; const button = dom.toggles[key];
+            const isHidden = panel.classList.toggle('is-hidden');
+            if(button) button.classList.toggle('active', !isHidden);
+        }
+
+        function updateCameraPosition() {
+            const distance = params.distance.value;
+            const azimuth = THREE.MathUtils.degToRad(params.azimuth.value);
+            const elevation = THREE.MathUtils.degToRad(params.elevation.value);
+
+            camera.position.x = distance * Math.cos(elevation) * Math.sin(azimuth);
+            camera.position.y = distance * Math.sin(elevation);
+            camera.position.z = distance * Math.cos(elevation) * Math.cos(azimuth);
+            camera.lookAt(scene.position);
+        }
+
+        function updateParamValue(key, value) {
+            const p = params[key];
+            p.value = Math.max(p.min, Math.min(p.max, parseFloat(value)));
+            
+            const slider = document.getElementById(`slider-${key}`);
+            if(slider) slider.value = p.value;
+
+            const valueDisplay = document.getElementById(`value-${key}`);
+            if(valueDisplay) valueDisplay.textContent = p.value.toFixed(p.step < 1 ? 2 : 0);
+
+            if (modelParamKeys.includes(key)) {
+                needsUpdate = true;
+            } else if (['azimuth', 'elevation', 'distance', 'objectZ'].includes(key)) {
+                // These only require a position update, not a full geometry rebuild
+                if (manifoldObject) {
+                    manifoldObject.position.z = params.objectZ.value;
+                }
+                updateCameraPosition();
+            }
+            
+            settingsManager.save();
+        }
+
+        init();
+    </script>
+</body>
+</html>
