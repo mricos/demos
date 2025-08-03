@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ann - FSM Player & Recorder</title>
+  <style>
+    :root {
+      --bg-main: #232139;
+      --bg-panel: #222135;
+      --border: #3d395b;
+      --fg-main: #ececf5;
+      --badge-idle: #9ca3af;
+      --badge-paused: #b998c6;
+      --badge-active: #4ade80;
+      --badge-error: #fb7185;
+      --control-bg: #232139;
+      --control-fg: #ececf5;
+      --control-border: #66647b;
+      --info-bg: #181820;
+      --shadow: 0 8px 32px #0e0a20a0;
+    }
+    body.theme-light {
+      --bg-main: #f3f4f6;
+      --bg-panel: #ffffff;
+      --border: #d1d5db;
+      --fg-main: #111827;
+      --badge-idle: #6b7280;
+      --badge-paused: #d8b4fe;
+      --badge-active: #16a34a;
+      --badge-error: #ef4444;
+      --control-bg: #e5e7eb;
+      --control-fg: #111827;
+      --control-border: #9ca3af;
+      --info-bg: #f9fafb;
+      --shadow: 0 8px 32px #e0e0e0a0;
+    }
+    body {
+      margin:0; padding:0;
+      background:#1a1927; color:var(--fg-main);
+      font-family:monospace;
+      display:flex; justify-content:center;
+    }
+    #ann {
+      width:90%; max-width:800px;
+      background:var(--bg-main);
+      border:1px solid var(--border);
+      border-radius:12px;
+      box-shadow:var(--shadow);
+      margin:24px 0; padding:16px;
+    }
+    .flex-row { display:flex; flex-wrap:wrap; gap:24px; }
+    .player, .recorder { flex:1 1 300px; background:var(--bg-panel); padding:16px; border-radius:8px; }
+    h2 { margin:0 0 8px; font-size:1.1em; }
+    .badge { display:inline-block; padding:2px 6px; border-radius:4px; margin-right:6px; font-size:0.85em; }
+    .badge[data-state="idle"]   { background:var(--badge-idle); }
+    .badge[data-state="paused"] { background:var(--badge-paused); }
+    .badge[data-state="active"] { background:var(--badge-active); }
+    .badge[data-state="error"]  { background:var(--badge-error); }
+    .controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:8px 0; }
+    select, input[type=number], button {
+      background:var(--control-bg); color:var(--control-fg);
+      border:1px solid var(--control-border); border-radius:4px;
+      font-family:monospace; padding:4px 8px;
+    }
+    button:disabled { opacity:0.5; cursor:default; }
+    .info-box { background:var(--info-bg); padding:12px; border-radius:6px; margin:8px 0; font-size:0.95em; }
+    .audio-bar { width:100%; margin-top:8px; }
+    ul.file-list { list-style:none; padding:0; margin:8px 0; }
+    ul.file-list li { display:flex; justify-content:space-between; padding:6px; border-bottom:1px solid var(--border); }
+    ul.file-list li:last-child { border-bottom:none; }
+    .mood-tags { display:flex; gap:8px; margin:8px 0; }
+    .mood-tags .badge { cursor:pointer; }
+    .settings { margin-top:16px; }
+    .settings-header { cursor:pointer; background:var(--bg-panel); padding:8px; border-radius:4px; }
+    .settings-panel { background:var(--bg-panel); padding:12px; border-radius:4px; margin-top:4px; display:none; }
+    .settings-panel label { display:block; margin:6px 0 2px; }
+    .settings-panel input, .settings-panel select { width:100%; }
+    .data-scope { font-size:0.9em; margin:4px 0; }
+  </style>
+</head>
+<body>
+  <div id="ann">
+    <div class="flex-row">
+      <!-- Player Component -->
+      <div class="player">
+        <h2>Player</h2>
+        <span class="badge" id="player-badge" data-state="paused">paused</span>
+        <div class="controls">
+          <label for="provider-select">Station</label>
+          <select id="provider-select"></select>
+        </div>
+        <div class="controls">
+          <button id="play-btn">Play</button>
+          <button id="pause-btn" disabled>Pause</button>
+          <button id="info-btn">Info</button>
+          <label>Hop <input id="hop" type="number" value="0" min="0"></label>
+          <label>Length <input id="length" type="number" value="1" min="1"></label>
+        </div>
+        <div class="info-box" id="provider-info"></div>
+        <audio id="audio-bar" class="audio-bar" controls></audio>
+      </div>
+      <!-- Recorder Component -->
+      <div class="recorder">
+        <h2>Recorder</h2>
+        <span class="badge" id="rec-badge" data-state="idle">idle</span>
+        <div class="data-scope">LocalStorage Key: <span id="data-scope">ann_files</span></div>
+        <div class="controls">
+          <button id="arm-btn">Arm</button>
+          <button id="record-btn" disabled>Record</button>
+          <label>Length <input id="rec-len" type="number" value="5" min="1"></label>
+        </div>
+        <div class="mood-tags">
+          <span class="badge" data-mood="calm">calm</span>
+          <span class="badge" data-mood="energetic">energetic</span>
+          <span class="badge" data-mood="ambient">ambient</span>
+        </div>
+        <ul class="file-list" id="file-list"></ul>
+      </div>
+    </div>
+    <!-- Settings -->
+    <div class="settings">
+      <div class="settings-header" id="settings-header">Settings (click to expand)</div>
+      <div class="settings-panel" id="settings-panel">
+        <label>DO_SPACES_KEY</label>
+        <input type="text" id="DO_SPACES_KEY" value="XXXXXXXXXXXXXXXXXXXX">
+        <label>DO_SPACES_SECRET</label>
+        <input type="text" id="DO_SPACES_SECRET" value="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX">
+        <label>DO_SPACES_BUCKET</label>
+        <input type="text" id="DO_SPACES_BUCKET" value="devpages">
+        <label>DO_SPACES_REGION</label>
+        <input type="text" id="DO_SPACES_REGION" value="sfo3">
+        <label>Theme</label>
+        <select id="theme-select">
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <script>
+    // FSM
+    const PlayerFSM = { paused:{ play:'playing' }, playing:{ pause:'paused' } };
+    const RecFSM = { idle:{ arm:'armed' }, armed:{ record:'recording', disarm:'idle' }, recording:{ stop:'idle' } };
+    let playerState='paused', recorderState='idle';
+    const scopeKey='ann_files'; let files=JSON.parse(localStorage.getItem(scopeKey)||'[]');
+    let selectedProvider=0;
+    // Providers
+    const providers=[
+      {name:'WQXR',url:'https://fm939.wnyc.org/wnycfm.aac',desc:'New York classical station.'},
+      {name:'AccuClassical',url:'https://streams.accuradio.com/accuclassical.mp3',desc:'Multiple channels.'},
+      {name:'Sonatica.fm',url:'https://sonatica.fm/classical.mp3',desc:'Ad-free stream.'}
+    ];
+    // Init UI
+    const selProv=document.getElementById('provider-select');
+    providers.forEach((p,i)=> selProv.add(new Option(p.name,i)));
+    // Render
+    function updatePlayerUI(){
+      document.getElementById('player-badge').dataset.state=playerState;
+      const p=providers[selectedProvider];
+      document.getElementById('provider-info').innerHTML=`<b>${p.name}</b><br>${p.desc}<br>HTTPS: ${p.url.startsWith('https')}`;
+      document.getElementById('pause-btn').disabled=playerState!=='playing';
+    }
+    function updateRecorderUI(){
+      document.getElementById('rec-badge').dataset.state=recorderState;
+      const ul=document.getElementById('file-list');
+      ul.innerHTML=files.map((f,i)=>
+        `<li>
+          <span>${f.name}</span><span>${f.length}s</span>
+          <button data-idx="${i}" data-act="meta">meta</button>
+          <button data-idx="${i}" data-act="dl">DL</button>
+        </li>`).join('')||'<li>(none)</li>';
+    }
+    // Events
+    selProv.onchange=e=>{ selectedProvider=+e.target.value; updatePlayerUI(); };
+    document.getElementById('play-btn').onclick=()=>{ playerState=PlayerFSM[playerState].play; updatePlayerUI(); const a=document.querySelector('audio'); a.src=providers[selectedProvider].url; a.play(); };
+    document.getElementById('pause-btn').onclick=()=>{ playerState=PlayerFSM[playerState].pause; updatePlayerUI(); document.querySelector('audio').pause(); };
+    document.getElementById('arm-btn').onclick=()=>{ recorderState=RecFSM[recorderState].arm; updateRecorderUI(); };
+    document.getElementById('record-btn').onclick=()=>{
+      recorderState=RecFSM[recorderState].record; updateRecorderUI();
+      const len=+document.getElementById('rec-len').value;
+      setTimeout(()=>{ files.push({name:`rec_${Date.now()}`,length:len,meta:{}}); localStorage.setItem(scopeKey,JSON.stringify(files)); recorderState=RecFSM[recorderState].stop; updateRecorderUI(); },len*1000);
+    };
+    document.getElementById('file-list').onclick=e=>{
+      const b=e.target.closest('button'); if(!b) return;
+      const i=+b.dataset.idx;
+      if(b.dataset.act==='meta') alert(JSON.stringify(files[i],null,2));
+      if(b.dataset.act==='dl'){ const blob=new Blob([JSON.stringify(files[i])],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${files[i].name}.json`; a.click(); }
+    };
+    document.getElementById('settings-header').onclick=()=>{ const p=document.getElementById('settings-panel'); p.style.display=p.style.display==='block'?'none':'block'; };
+    document.getElementById('theme-select').onchange=e=>{ document.body.classList.toggle('theme-light',e.target.value==='light'); };
+    // Enable record button when armed
+    setInterval(()=> document.getElementById('record-btn').disabled=recorderState!=='armed',100);
+    // Init
+    updatePlayerUI(); updateRecorderUI();
+  </script>
+</body>
+</html>

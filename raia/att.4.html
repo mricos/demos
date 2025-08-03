@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>att - FSM-Driven Audio Component</title>
+    <style>
+        :root {
+            --primary-bg: #f4f7f6;
+            --secondary-bg: #ffffff;
+            --text-color: #2c3e50;
+            --accent-color: #3498db;
+            --accent-hover: #2980b9;
+            --record-color: #e74c3c;
+            --record-hover: #c0392b;
+            --armed-color: #f39c12;
+            --armed-hover: #d35400;
+            --border-color: #bdc3c7;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --font-family: 'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --focus-outline: 2px solid var(--accent-color);
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 20px;
+            box-sizing: border-box;
+        }
+
+        #att-container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--secondary-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px var(--shadow-color);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- A11Y: Focus Visibility --- */
+        :is(button, input, select):focus-visible {
+            outline: var(--focus-outline);
+            outline-offset: 2px;
+        }
+
+        .component-panel {
+            padding: 20px;
+            border-bottom: 1px solid var(--primary-bg);
+            transition: opacity 0.3s ease;
+        }
+        .component-panel[aria-busy="true"] {
+            opacity: 0.7;
+            cursor: progress;
+        }
+        .component-panel:last-child { border-bottom: none; }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .panel-header h2 { margin: 0; font-size: 1.5em; }
+        
+        .state-display {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .state-button {
+            font-size: 0.7em;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 15px;
+            border: 2px solid var(--border-color);
+            background-color: transparent;
+            color: var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .state-button.active { color: white; }
+        .state-button[data-state-group="player"].active { background-color: var(--accent-color); border-color: var(--accent-color); }
+        .state-button[data-state-group="recorder"][data-state="idle"].active { background-color: #7f8c8d; border-color: #7f8c8d;}
+        .state-button[data-state-group="recorder"][data-state="armed"].active { background-color: var(--armed-color); border-color: var(--armed-color);}
+        .state-button[data-state-group="recorder"][data-state*="recording"].active { background-color: var(--record-color); border-color: var(--record-color); }
+        .state-button[data-state-group="recorder"][data-state*="saving"].active { background-color: var(--record-color); border-color: var(--record-color); animation: pulse 1s infinite; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+        .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        label { font-weight: bold; margin-bottom: 5px; display: block; }
+        select, input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 1em; box-sizing: border-box; }
+
+        button { padding: 12px; border-radius: 6px; border: none; font-size: 1em; font-weight: bold; cursor: pointer; transition: background-color 0.2s ease; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        .btn-primary { background-color: var(--accent-color); color: white; }
+        .btn-primary:not(:disabled):hover { background-color: var(--accent-hover); }
+        .btn-danger { background-color: var(--record-color); color: white; }
+        .btn-danger:not(:disabled):hover { background-color: var(--record-hover); }
+        .btn-warning { background-color: var(--armed-color); color: white; }
+        .btn-warning:not(:disabled):hover { background-color: var(--armed-hover); }
+
+        #recorder-list { list-style: none; padding: 0; margin-top: 15px; max-height: 150px; overflow-y: auto; }
+        #recorder-list li { background-color: var(--primary-bg); padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; }
+        #recorder-list li .rec-info { font-family: 'Menlo', 'Courier New', monospace; }
+
+        .details-toggle { cursor: pointer; user-select: none; font-weight: bold; color: var(--accent-color); text-align: center; margin-top: 20px; padding: 5px; }
+        #recorder-details { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-in-out; }
+        #recorder-details.expanded { max-height: 600px; }
+        .detail-item { margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <main id="att-container">
+        <section id="player-panel" class="component-panel" role="region" aria-labelledby="player-header">
+            <div class="panel-header">
+                <h2 id="player-header">Player 📻</h2>
+                <div id="player-state-display" class="state-display" role="status" aria-live="polite">
+                    <span class="state-button" data-state-group="player" data-state="stopped">STOPPED</span>
+                    <span class="state-button" data-state-group="player" data-state="playing">PLAYING</span>
+                    <span class="state-button" data-state-group="player" data-state="error">ERROR</span>
+                </div>
+            </div>
+            <label for="provider-select">Service:</label>
+            <select id="provider-select"></select>
+            <div class="controls-grid" style="margin-top: 15px;">
+                <button id="play-btn" class="btn-primary">Play</button>
+                <button id="stop-btn">Stop</button>
+            </div>
+        </section>
+
+        <section id="recorder-panel" class="component-panel" role="region" aria-labelledby="recorder-header" aria-busy="false">
+            <div class="panel-header">
+                <h2 id="recorder-header">Recorder ⏺️</h2>
+                <div id="recorder-state-display" class="state-display" role="status" aria-live="polite">
+                    <span class="state-button" data-state-group="recorder" data-state="idle">IDLE</span>
+                    <span class="state-button" data-state-group="recorder" data-state="armed">ARMED</span>
+                    <span class="state-button" data-state-group="recorder" data-state="recording">RECORDING</span>
+                    <span class="state-button" data-state-group="recorder" data-state="saving">SAVING</span>
+                </div>
+            </div>
+            <div class="controls-grid">
+                <button id="arm-btn" class="btn-warning">Arm</button>
+                <button id="record-btn" class="btn-danger">Record</button>
+            </div>
+            <ul id="recorder-list"></ul>
+            
+            <button id="details-toggle-btn" class="details-toggle" aria-controls="recorder-details" aria-expanded="false">
+                ▶ Show Details
+            </button>
+            
+            <div id="recorder-details">
+                 <div class="detail-item">
+                    <h4>Storage Info</h4>
+                    <p id="localstorage-info">No data.</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Actions</h4>
+                     <div class="controls-grid">
+                        <button id="download-btn">Download Last</button>
+                        <button id="upload-btn" aria-controls="upload-details">Show Upload Config</button>
+                    </div>
+                </div>
+                <div id="upload-details" class="detail-item" hidden>
+                    <h4>DigitalOcean Spaces Credentials</h4>
+                    <label for="do-key">DO_SPACES_KEY</label><input id="do-key" type="text" value="XXXXXXXXXXXXXXXXXXXX" readonly>
+                    <label for="do-secret">DO_SPACES_SECRET</label><input id="do-secret" type="text" value="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" readonly>
+                    <label for="do-bucket">DO_SPACES_BUCKET</label><input id="do-bucket" type="text" value="devpages" readonly>
+                    <label for="do-region">DO_SPACES_REGION</label><input id="do-region" type="text" value="sfo3" readonly>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <audio id="audio-player"></audio>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- FSM Factory: A generic function to create state machines ---
+        function createFSM(config) {
+            let currentState = config.initial;
+            const machine = {
+                getState: () => currentState,
+                can: (action) => config.transitions[currentState]?.on?.[action],
+                transitionTo: (action, ...payload) => {
+                    const nextState = machine.can(action);
+                    if (!nextState) {
+                        console.warn(`FSM_WARN: Invalid transition from '${currentState}' via '${action}'`);
+                        return;
+                    }
+                    const onEnterHook = config.states[nextState]?.onEnter;
+                    if (onEnterHook) onEnterHook(...payload);
+                    currentState = nextState;
+                }
+            };
+            // Initial state's onEnter
+            config.states[currentState]?.onEnter?.();
+            return machine;
+        }
+
+        // --- DOM Elements ---
+        const DOMElements = {
+            player: {
+                panel: document.getElementById('player-panel'),
+                stateDisplay: document.getElementById('player-state-display'),
+                playBtn: document.getElementById('play-btn'),
+                stopBtn: document.getElementById('stop-btn'),
+                providerSelect: document.getElementById('provider-select'),
+                audioPlayer: document.getElementById('audio-player')
+            },
+            recorder: {
+                panel: document.getElementById('recorder-panel'),
+                stateDisplay: document.getElementById('recorder-state-display'),
+                armBtn: document.getElementById('arm-btn'),
+                recordBtn: document.getElementById('record-btn'),
+                list: document.getElementById('recorder-list'),
+                toggleBtn: document.getElementById('details-toggle-btn'),
+                details: document.getElementById('recorder-details'),
+                storageInfo: document.getElementById('localstorage-info'),
+                downloadBtn: document.getElementById('download-btn'),
+                uploadBtn: document.getElementById('upload-btn'),
+                uploadDetails: document.getElementById('upload-details')
+            }
+        };
+
+        const providers = {
+            wqxr: { name: 'WQXR', url: 'https://stream.wqxr.org/wqxr' },
+            radio_suisse: { name: 'Radio Suisse Classique', url: 'http://stream.srg-ssr.ch/m/rsc_de/mp3_128' }
+        };
+        let recordings = JSON.parse(localStorage.getItem('att_recordings') || '[]');
+
+        // --- FSM Definitions ---
+
+        //## Player FSM
+        const playerFSM = createFSM({
+            initial: 'stopped',
+            states: {
+                stopped: {
+                    onEnter: () => {
+                        DOMElements.player.stateDisplay.querySelector('.active')?.classList.remove('active');
+                        DOMElements.player.stateDisplay.querySelector('[data-state="stopped"]').classList.add('active');
+                        DOMElements.player.playBtn.disabled = false;
+                        DOMElements.player.stopBtn.disabled = true;
+                        DOMElements.player.providerSelect.disabled = false;
+                        DOMElements.player.audioPlayer.pause();
+                        DOMElements.player.audioPlayer.src = '';
+                        recorderActionFSM.transitionTo('playerStopped');
+                    }
+                },
+                playing: {
+                    onEnter: () => {
+                        DOMElements.player.stateDisplay.querySelector('.active')?.classList.remove('active');
+                        DOMElements.player.stateDisplay.querySelector('[data-state="playing"]').classList.add('active');
+                        DOMElements.player.playBtn.disabled = true;
+                        DOMElements.player.stopBtn.disabled = false;
+                        DOMElements.player.providerSelect.disabled = true;
+                        const providerUrl = providers[DOMElements.player.providerSelect.value].url;
+                        DOMElements.player.audioPlayer.src = providerUrl;
+                        DOMElements.player.audioPlayer.play().catch(() => playerFSM.transitionTo('streamError'));
+                    }
+                },
+                error: {
+                    onEnter: () => {
+                        DOMElements.player.stateDisplay.querySelector('.active')?.classList.remove('active');
+                        DOMElements.player.stateDisplay.querySelector('[data-state="error"]').classList.add('active');
+                        alert('Error: Could not play the selected stream.');
+                        playerFSM.transitionTo('stop');
+                    }
+                }
+            },
+            transitions: {
+                stopped: { on: { play: 'playing' } },
+                playing: { on: { stop: 'stopped', streamError: 'error' } },
+                error: { on: { stop: 'stopped' } }
+            }
+        });
+        
+        //## Recorder Action FSM (Parallel State 1)
+        const recorderActionFSM = createFSM({
+            initial: 'idle',
+            states: {
+                idle: {
+                    onEnter: () => {
+                        DOMElements.recorder.stateDisplay.querySelector('.active')?.classList.remove('active');
+                        DOMElements.recorder.stateDisplay.querySelector('[data-state="idle"]').classList.add('active');
+                        DOMElements.recorder.armBtn.disabled = (playerFSM.getState() !== 'playing');
+                        DOMElements.recorder.recordBtn.disabled = true;
+                        DOMElements.recorder.panel.setAttribute('aria-busy', 'false');
+                    }
+                },
+                armed: {
+                    onEnter: () => {
+                        DOMElements.recorder.stateDisplay.querySelector('.active')?.classList.remove('active');
+                        DOMElements.recorder.stateDisplay.querySelector('[data-state="armed"]').classList.add('active');
+                        DOMElements.recorder.armBtn.disabled = true;
+                        DOMElements.recorder.recordBtn.disabled = false;
+                    }
+                },
+                recording: {
+                    onEnter: () => {
+                        DOMElements.recorder.stateDisplay.querySelector('.active')?.classList.remove('active');
+                        DOMElements.recorder.stateDisplay.querySelector('[data-state="recording"]').classList.add('active');
+                        DOMElements.recorder.armBtn.disabled = true;
+                        DOMElements.recorder.recordBtn.disabled = true;
+                        DOMElements.recorder.panel.setAttribute('aria-busy', 'true');
+                        // Simulate recording duration
+                        setTimeout(() => recorderActionFSM.transitionTo('finish'), 5000); // 5s recording
+                    }
+                },
+                saving: {
+                     onEnter: () => {
+                        DOMElements.recorder.stateDisplay.querySelector('.active')?.classList.remove('active');
+                        DOMElements.recorder.stateDisplay.querySelector('[data-state="saving"]').classList.add('active');
+                        DOMElements.recorder.panel.setAttribute('aria-busy', 'true');
+                        const newRec = { id: Date.now(), name: `rec_${Date.now()}`, length: '5s', vocoder: 'Opus', channels: 2, bps: '128k' };
+                        recordings.push(newRec);
+                        localStorage.setItem('att_recordings', JSON.stringify(recordings));
+                        renderRecordings();
+                        // Simulate save time
+                        setTimeout(() => recorderActionFSM.transitionTo('complete'), 500);
+                     }
+                }
+            },
+            transitions: {
+                idle: { on: { arm: 'armed' } },
+                armed: { on: { record: 'recording', disarm: 'idle', playerStopped: 'idle' } },
+                recording: { on: { finish: 'saving' } },
+                saving: { on: { complete: 'idle' } }
+            }
+        });
+
+        //## Recorder View FSM (Parallel State 2)
+        const recorderViewFSM = createFSM({
+            initial: 'collapsed',
+            states: {
+                collapsed: {
+                    onEnter: () => {
+                        DOMElements.recorder.details.classList.remove('expanded');
+                        DOMElements.recorder.toggleBtn.setAttribute('aria-expanded', 'false');
+                        DOMElements.recorder.toggleBtn.textContent = '▶ Show Details';
+                        DOMElements.recorder.uploadDetails.hidden = true;
+                        DOMElements.recorder.uploadBtn.setAttribute('aria-expanded', 'false');
+                    }
+                },
+                expanded: {
+                    onEnter: () => {
+                        updateStorageInfo();
+                        DOMElements.recorder.details.classList.add('expanded');
+                        DOMElements.recorder.toggleBtn.setAttribute('aria-expanded', 'true');
+                        DOMElements.recorder.toggleBtn.textContent = '▼ Hide Details';
+                    }
+                }
+            },
+            transitions: {
+                collapsed: { on: { toggle: 'expanded' } },
+                expanded: { on: { toggle: 'collapsed' } }
+            }
+        });
+        
+        // --- UI Rendering & Logic ---
+        function renderRecordings() {
+            DOMElements.recorder.list.innerHTML = recordings.map(rec => `<li><span>${rec.name}</span><span class="rec-info">${rec.length} ${rec.bps}</span></li>`).join('') || '<li>No recordings found.</li>';
+            updateStorageInfo();
+        }
+        function updateStorageInfo() {
+            const storedData = localStorage.getItem('att_recordings') || '';
+            const sizeInKB = (new Blob([storedData]).size / 1024).toFixed(2);
+            DOMElements.recorder.storageInfo.textContent = `Using ${sizeInKB} KB for ${recordings.length} recording(s).`;
+        }
+        
+        // --- Initialization ---
+        Object.entries(providers).forEach(([key, {name}]) => {
+            DOMElements.player.providerSelect.add(new Option(name, key));
+        });
+        renderRecordings();
+
+        // --- Event Listeners ---
+        DOMElements.player.playBtn.addEventListener('click', () => playerFSM.transitionTo('play'));
+        DOMElements.player.stopBtn.addEventListener('click', () => playerFSM.transitionTo('stop'));
+        DOMElements.recorder.armBtn.addEventListener('click', () => recorderActionFSM.transitionTo('arm'));
+        DOMElements.recorder.recordBtn.addEventListener('click', () => recorderActionFSM.transitionTo('record'));
+        DOMElements.recorder.toggleBtn.addEventListener('click', () => recorderViewFSM.transitionTo('toggle'));
+        DOMElements.recorder.uploadBtn.addEventListener('click', (e) => {
+            const isHidden = DOMElements.recorder.uploadDetails.hidden;
+            DOMElements.recorder.uploadDetails.hidden = !isHidden;
+            e.currentTarget.setAttribute('aria-expanded', String(isHidden));
+        });
+        DOMElements.recorder.downloadBtn.addEventListener('click', () => alert('Simulating download of the last recording.'));
+
+    });
+    </script>
+</body>
+</html>

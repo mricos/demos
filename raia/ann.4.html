@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ann - Advanced Player & Recorder</title>
+  <style>
+    :root {
+      --bg-primary: #18181e;
+      --bg-secondary: #232338;
+      --text-main: #efefef;
+      --accent-play: #007bff;
+      --accent-stop: #6c757d;
+      --accent-record: #dc3545;
+      --accent-armed: #ffc107;
+      --font-mono: monospace;
+      --border: 1px solid #444;
+      --focus-color: #00e;
+    }
+    body {
+      margin: 0; padding: 0;
+      font-family: var(--font-mono);
+      background: var(--bg-primary);
+      color: var(--text-main);
+      display: flex; justify-content: center; align-items: flex-start;
+      min-height: 100vh;
+    }
+    #ann-container {
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      margin: 16px;
+      padding: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      width: 480px;
+    }
+    .component {
+      border-bottom: var(--border);
+      padding: 12px 0;
+    }
+    .component:last-child { border-bottom: none; }
+    .component h2 {
+      margin: 0 0 8px;
+      font-size: 1.2em;
+    }
+    .state-display {
+      display: flex; gap: 8px; margin-bottom: 8px;
+    }
+    .state-btn {
+      padding: 4px 8px; border-radius: 4px;
+      border: var(--border); background: transparent;
+      color: var(--text-main); font-size: 0.9em;
+      cursor: pointer; outline: none;
+    }
+    .state-btn.active {
+      background: var(--focus-color); color: #000;
+    }
+    .controls, .settings { display: flex; flex-wrap: wrap; gap: 8px; }
+    .controls label { flex: 1 0 100%; }
+    select, input[type="number"] {
+      flex: 1 0 calc(50% - 8px);
+      background: var(--bg-primary); color: var(--text-main);
+      border: var(--border); border-radius: 4px;
+      padding: 4px;
+    }
+    button {
+      flex: 1 0 calc(33% - 8px);
+      padding: 8px;
+      border: none; border-radius: 4px;
+      color: #fff; cursor: pointer; font-weight: bold;
+      outline-offset: 2px;
+    }
+    button:focus { outline: 2px dashed var(--focus-color); }
+    .btn-play { background: var(--accent-play); }
+    .btn-stop { background: var(--accent-stop); }
+    .btn-arm { background: var(--accent-armed); color: #000; }
+    .btn-record { background: var(--accent-record); }
+    #recorder-list li {
+      list-style: none; margin: 4px 0;
+      display: flex; justify-content: space-between;
+      background: var(--bg-primary); padding: 4px 8px;
+    }
+    [role="region"] { margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <div id="ann-container">
+    <!-- Player Component: FSM with parallel states (UI and background) -->
+    <section class="component" role="region" aria-labelledby="player-label">
+      <h2 id="player-label">Player</h2>
+      <div class="state-display" role="group" aria-label="Player State">
+        <button class="state-btn" data-state="STOPPED" tabindex="0">STOPPED</button>
+        <button class="state-btn" data-state="PLAYING" tabindex="0">PLAYING</button>
+      </div>
+      <div class="controls">
+        <label for="provider-select">Service</label>
+        <select id="provider-select" aria-label="Select streaming provider" tabindex="0"></select>
+      </div>
+      <div class="controls">
+        <button id="play-btn" class="btn-play" aria-label="Play stream" tabindex="0">Play</button>
+        <button id="stop-btn" class="btn-stop" aria-label="Stop stream" tabindex="0" disabled>Stop</button>
+      </div>
+    </section>
+
+    <!-- Recorder Component: nested FSM with visual sub-panel -->
+    <section class="component" role="region" aria-labelledby="recorder-label">
+      <h2 id="recorder-label">Recorder</h2>
+      <div class="state-display" role="group" aria-label="Recorder State">
+        <button class="state-btn" data-state="IDLE" tabindex="0">IDLE</button>
+        <button class="state-btn" data-state="ARMED" tabindex="0">ARMED</button>
+        <button class="state-btn" data-state="RECORDING" tabindex="0">RECORDING</button>
+      </div>
+      <div class="controls">
+        <button id="arm-btn" class="btn-arm" aria-label="Arm recorder" tabindex="0">Arm</button>
+        <button id="record-btn" class="btn-record" aria-label="Start recording" tabindex="0" disabled>Record</button>
+      </div>
+      <div class="settings">
+        <label for="length-input">Length (s)</label>
+        <input id="length-input" type="number" min="1" value="5" aria-label="Recording length in seconds" tabindex="0" />
+      </div>
+      <ul id="recorder-list" role="list" aria-label="Recordings"></ul>
+      <button id="toggle-details" aria-expanded="false" aria-controls="details-panel" tabindex="0">Show Details</button>
+      <div id="details-panel" role="region" aria-labelledby="toggle-details" hidden>
+        <div class="settings" role="group" aria-label="LocalStorage Info">
+          <p id="localstorage-info">--</p>
+        </div>
+        <div class="controls">
+          <button id="download-btn" tabindex="0">Download</button>
+          <button id="upload-btn" tabindex="0">Upload</button>
+        </div>
+        <div id="upload-credentials" hidden>
+          <label>DO_SPACES_KEY</label><input type="text" readonly value="XXXXXXXXXXXXXXXXXXXX" />
+          <label>DO_SPACES_SECRET</label><input type="text" readonly value="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" />
+          <label>DO_SPACES_BUCKET</label><input type="text" readonly value="devpages" />
+          <label>DO_SPACES_REGION</label><input type="text" readonly value="sfo3" />
+        </div>
+      </div>
+    </section>
+
+  </div>
+  <audio id="audio-player" hidden></audio>
+
+  <script>
+  // FSM Definitions
+  const PlayerFSM = {
+    states: ['STOPPED','PLAYING'],
+    transitions: {
+      STOPPED: { play: 'PLAYING' },
+      PLAYING: { stop: 'STOPPED' }
+    }
+  };
+  const RecorderFSM = {
+    states: ['IDLE','ARMED','RECORDING'],
+    transitions: {
+      IDLE: { arm: 'ARMED' },
+      ARMED: { record: 'RECORDING', disarm: 'IDLE' },
+      RECORDING: { stop: 'IDLE' }
+    }
+  };
+
+  // Parallel State: Visual vs Background descriptor
+  let playerState = 'STOPPED';
+  let recorderState = 'IDLE';
+  let recordings = [];
+
+  const providers = [
+    { name: 'WQXR', url: 'https://stream.wqxr.org/wqxr' },
+    { name: 'AccuClassical', url: 'https://streams.accuradio.com/accuclassical.mp3' },
+    { name: 'Sonatica.fm', url: 'https://sonatica.fm/classical.mp3' }
+  ];
+
+  // DOM refs
+  const providerSelect = document.getElementById('provider-select');
+  const playBtn = document.getElementById('play-btn');
+  const stopBtn = document.getElementById('stop-btn');
+  const stateButtons = document.querySelectorAll('#player-label ~ .state-display .state-btn');
+
+  const armBtn = document.getElementById('arm-btn');
+  const recordBtn = document.getElementById('record-btn');
+  const recStateButtons = document.querySelectorAll('#recorder-label ~ .state-display .state-btn');
+  const lengthInput = document.getElementById('length-input');
+  const recList = document.getElementById('recorder-list');
+  const toggleDetails = document.getElementById('toggle-details');
+  const detailsPanel = document.getElementById('details-panel');
+  const localInfo = document.getElementById('localstorage-info');
+  const downloadBtn = document.getElementById('download-btn');
+  const uploadBtn = document.getElementById('upload-btn');
+  const uploadCreds = document.getElementById('upload-credentials');
+  const audioPlayer = document.getElementById('audio-player');
+
+  // Keyboard nav for buttons
+  document.querySelectorAll('button, [type="number"], select').forEach(el => {
+    el.addEventListener('keydown', e => {
+      if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
+    });
+  });
+
+  // Initialize
+  providers.forEach(p => {
+    const opt = document.createElement('option'); opt.textContent = p.name; providerSelect.append(opt);
+  });
+  renderPlayer(); renderRecorder();
+
+  function renderPlayer() {
+    stateButtons.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.state === playerState);
+    });
+    playBtn.disabled = playerState !== 'STOPPED';
+    stopBtn.disabled = playerState !== 'PLAYING';
+  }
+  function renderRecorder() {
+    recStateButtons.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.state === recorderState);
+    });
+    armBtn.disabled = playerState !== 'PLAYING' || recorderState !== 'IDLE';
+    recordBtn.disabled = recorderState !== 'ARMED';
+    renderList(); updateLocalStorage();
+  }
+  function renderList() {
+    recList.innerHTML = recordings.length
+      ? recordings.map(r => `<li>${r.name} | ${r.length}s | ${r.vocoder} | ${r.channels}ch | ${r.bps}</li>`).join('')
+      : '<li>No recordings.</li>';
+  }
+  function updateLocalStorage() {
+    const data = localStorage.getItem('ann_recordings') || '[]';
+    const size = new Blob([data]).size;
+    localInfo.textContent = `${(size/1024).toFixed(2)} KB used, ${recordings.length} items`;
+  }
+
+  // Actions
+  playBtn.addEventListener('click', () => {
+    audioPlayer.src = providers[providerSelect.selectedIndex].url;
+    audioPlayer.play(); playerState = PlayerFSM.transitions[playerState].play;
+    renderPlayer();
+  });
+  stopBtn.addEventListener('click', () => {
+    audioPlayer.pause(); audioPlayer.src = '';
+    playerState = PlayerFSM.transitions[playerState].stop;
+    recorderState = RecorderFSM.transitions[recorderState]?.stop || recorderState;
+    renderPlayer(); renderRecorder();
+  });
+  armBtn.addEventListener('click', () => {
+    recorderState = RecorderFSM.transitions[recorderState].arm; renderRecorder();
+  });
+  recordBtn.addEventListener('click', () => {
+    recorderState = RecorderFSM.transitions[recorderState].record; renderRecorder();
+    const len = parseInt(lengthInput.value,10);
+    setTimeout(() => {
+      const entry = { name: `rec_${Date.now()}`, length: len, vocoder:'Opus', channels:2, bps:'128k' };
+      recordings.push(entry);
+      localStorage.setItem('ann_recordings', JSON.stringify(recordings));
+      recorderState = RecorderFSM.transitions[recorderState].stop; renderRecorder();
+    }, len*1000);
+  });
+
+  toggleDetails.addEventListener('click', () => {
+    const exp = detailsPanel.hidden;
+    detailsPanel.hidden = !exp;
+    toggleDetails.textContent = exp ? 'Hide Details' : 'Show Details';
+  });
+  downloadBtn.addEventListener('click', () => { alert('Download placeholder'); });
+  uploadBtn.addEventListener('click', () => { uploadCreds.hidden = !uploadCreds.hidden; });
+  </script>
+</body>
+</html>

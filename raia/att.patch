@@ -1,0 +1,254 @@
+--- att.prev.html	2025-07-18 20:50:11.000000000 -0700
++++ att.curr.html	2025-07-18 20:50:11.000000000 -0700
+@@ -35,6 +35,7 @@
+         .btn-danger { background-color: var(--accent-record); color: white; }
+         .btn-danger:not(:disabled):hover { background-color: var(--accent-record-hover); }
+         .btn-warning { background-color: var(--accent-armed); color: var(--accent-armed-text); }
+         .btn-warning:not(:disabled):hover { background-color: var(--accent-armed-hover); }
++        .btn-delete { background-color: var(--text-secondary); color: white; padding: 5px 10px; font-size: 0.8em; margin-left: 10px;}
+         #recorder-list { list-style: none; padding: 0; margin-top: 15px; max-height: 200px; overflow-y: auto; }
+         #recorder-list li { background-color: var(--bg-primary); padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 0.9em; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 2px solid transparent; }
++        #recorder-list li .rec-name { flex-grow: 1; }
+         #recorder-list li:hover { border-color: var(--accent-armed); }
+         #recorder-list li.selected { border-color: var(--accent-primary); background-color: var(--accent-primary); color: white; }
+         #introspection-display { font-family: 'Menlo', 'Courier New', monospace; font-size: 0.85em; background: var(--bg-primary); padding: 15px; border-radius: 6px; white-space: pre-wrap; word-wrap: break-word; color: var(--text-secondary); }
+@@ -42,6 +43,7 @@
+         #settings-panel { max-height: 50px; overflow: hidden; transition: max-height 0.5s ease-in-out; }
+         #settings-panel.expanded { max-height: 500px; }
++        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;}
+     </style>
+ </head>
+ <body>
+@@ -82,8 +84,11 @@
+                  <div>
+                     <h2>Recordings Library 📚</h2>
+                     <p style="margin: 5px 0 0 0; font-size: 0.9em;">Using data scope: <code id="data-scope-display"></code></p>
+                  </div>
+-                 <button id="download-btn" class="btn-primary">Download</button>
++                 <div>
++                    <button id="sort-toggle-btn" class="btn-primary" style="margin-right: 10px;">Sort: Newest First</button>
++                    <button id="download-btn" class="btn-primary">Download</button>
++                 </div>
+              </div>
+              <div class="panel-row">
+                 <div style="flex:1;">
+@@ -102,14 +107,19 @@
+                 <span id="settings-indicator">▶</span>
+             </div>
+             <div id="settings-content">
+-                <label for="settings-data-scope">LOCAL_STORAGE_DATA_SCOPE</label>
+-                <input type="text" id="settings-data-scope">
++                <div class="settings-grid">
++                    <div>
++                         <label for="settings-data-scope">LOCAL_STORAGE_DATA_SCOPE</label>
++                         <input type="text" id="settings-data-scope">
++                    </div>
++                     <div>
++                         <label for="settings-snippet-duration">SNIPPET_DURATION_S</label>
++                         <input type="number" id="settings-snippet-duration" min="1">
++                    </div>
++                </div>
+                 <div class="controls-grid" style="margin-top: 15px;">
+                     <button id="theme-toggle-btn" class="btn-primary">Toggle Theme</button>
+-                    <button id="apply-settings-btn" class="btn-primary">Apply & Reload</button>
++                    <button id="apply-settings-btn" class="btn-primary">Apply Settings</button>
+                 </div>
+             </div>
+         </section>
+@@ -122,12 +132,13 @@
+     document.addEventListener('DOMContentLoaded', () => {
+         // --- App Configuration & State ---
+         let CONFIG = {
+-            SNIPPET_DURATION_S: 5,
+-            LOCAL_STORAGE_DATA_SCOPE: 'att_recorder_data_scope_default'
++            SNIPPET_DURATION_S: 5,
++            LOCAL_STORAGE_DATA_SCOPE: 'att_recs' // Default scope changed
+         };
+ 
+         let playerState = 'stopped', recorderState = 'idle', playerStateBeforeSnippet = 'stopped';
+         let recordings = [], selectedRecordingId = null, snippetTimeout = null;
++        let sortOrder = 'newest_first'; // newest_first or oldest_first
+         let audioContext, analyser, audioSource;
+ 
+         const FFT_BANDS = { /* ... */ };
+@@ -156,12 +167,14 @@
+             const currentStreamURL = new URL(providers[selectedProviderKey].url);
+             
+             setTimeout(() => {
+                 const newRec = {
+                     id: Date.now(),
+                     name: `rec_${currentStreamURL.hostname}_${Date.now()}`,
+                     source_url: currentStreamURL.href,
+                     protocol: currentStreamURL.protocol.replace(':', ''),
+                     timestamp: new Date().toISOString(),
+-                    length_hms: new Date(CONFIG.SNIPPET_DURATION_S * 1000).toISOString().substr(11, 8),
+-                    size_kb: `${(40 + Math.random() * 60).toFixed(1)} KB`,
++                    length_hms: new Date(CONFIG.SNIPPET_DURATION_S * 1000).toISOString().substr(11, 8),
++                    size_kb: `${(40 + Math.random() * 60).toFixed(1)} KB`, // Simulated size
+                     fft_footprint: getFFTFootprint(),
+                     moods: { /* ... random moods ... */ }
+                 };
+@@ -171,43 +184,79 @@
+                 setRecorderState('idle');
+             }, CONFIG.SNIPPET_DURATION_S * 1000);
+         }
+-
++
+         function renderRecordingsList() {
+             DOMElements.library.list.innerHTML = '';
+             if (recordings.length === 0) {
+                 DOMElements.library.list.innerHTML = '<li>No recordings yet.</li>'; return;
+             }
+-            recordings.forEach(rec => {
++
++            // Create a sorted copy based on the current sort order
++            const sortedRecordings = [...recordings].sort((a, b) => {
++                if (sortOrder === 'newest_first') return b.id - a.id; // Newest (higher timestamp) first
++                return a.id - b.id; // Oldest (lower timestamp) first
++            });
++
++            sortedRecordings.forEach(rec => {
+                 const li = document.createElement('li');
+-                li.textContent = rec.name;
+                 li.dataset.recordingId = rec.id;
+                 if (rec.id === selectedRecordingId) li.classList.add('selected');
++
++                const nameSpan = document.createElement('span');
++                nameSpan.className = 'rec-name';
++                nameSpan.textContent = rec.name;
++
++                const deleteBtn = document.createElement('button');
++                deleteBtn.className = 'btn-delete';
++                deleteBtn.textContent = '🗑️';
++                deleteBtn.dataset.deleteId = rec.id;
++
++                li.appendChild(nameSpan);
++                li.appendChild(deleteBtn);
+                 DOMElements.library.list.appendChild(li);
+             });
+         }
+         
+-        function handleSnippetPlayback(e) {
++        function handleLibraryClick(e) {
++            const deleteBtn = e.target.closest('.btn-delete');
++            const listItem = e.target.closest('li');
++
++            if (deleteBtn) {
++                e.stopPropagation(); // Prevent the list item from being selected
++                deleteRecording(parseInt(deleteBtn.dataset.deleteId, 10));
++            } else if (listItem && listItem.dataset.recordingId) {
++                selectAndPlayRecording(parseInt(listItem.dataset.recordingId, 10));
++            }
++        }
++
++        function selectAndPlayRecording(recId) {
+             const target = e.target.closest('li');
+             if (!target || !target.dataset.recordingId) return;
+-
+-            if (snippetTimeout) clearTimeout(snippetTimeout);
+-
+-            selectedRecordingId = parseInt(target.dataset.recordingId, 10);
++            if (snippetTimeout) clearTimeout(snippetTimeout);
++
++            selectedRecordingId = recId;
+             const recording = recordings.find(r => r.id === selectedRecordingId);
+             
+             DOMElements.library.introspection.textContent = JSON.stringify(recording, null, 2);
+             renderRecordingsList();
+-            updateUI();
+             
+             playerStateBeforeSnippet = playerState;
+             if (playerState === 'playing') DOMElements.player.audio.pause();
+             
+             setPlayerState('snippet');
+             DOMElements.player.audio.src = recording.source_url;
+             DOMElements.player.audio.play();
+ 
+             snippetTimeout = setTimeout(() => {
+                 if (playerState !== 'snippet') return;
+                 if (playerStateBeforeSnippet === 'playing') {
+                     playStream(DOMElements.player.providerSelect.value);
+                 } else {
+                     stopStream();
+                 }
+             }, CONFIG.SNIPPET_DURATION_S * 1000);
+         }
+ 
++        function deleteRecording(recId) {
++            if (!confirm('Are you sure you want to delete this recording?')) return;
++
++            recordings = recordings.filter(rec => rec.id !== recId);
++            localStorage.setItem(CONFIG.LOCAL_STORAGE_DATA_SCOPE, JSON.stringify(recordings));
++
++            // If the deleted recording was the selected one, clear the selection
++            if (selectedRecordingId === recId) {
++                selectedRecordingId = null;
++                DOMElements.library.introspection.textContent = 'No file selected.';
++            }
++
++            renderRecordingsList();
++            updateUI();
++        }
++        
++        function toggleSortOrder() {
++            sortOrder = (sortOrder === 'newest_first') ? 'oldest_first' : 'newest_first';
++            DOMElements.library.sortToggleBtn.textContent = (sortOrder === 'newest_first') ? 'Sort: Newest First' : 'Sort: Oldest First';
++            renderRecordingsList();
++        }
++
+         function downloadSelectedRecording() { /* ... */ }
+ 
+         // --- Theming & Settings Logic ---
+@@ -220,13 +269,14 @@
+         
+         function applySettings() {
+             const newScope = DOMElements.settings.dataScopeInput.value.trim();
++            const newDuration = parseInt(DOMElements.settings.snippetDurationInput.value, 10);
+ 
+             if (newScope) CONFIG.LOCAL_STORAGE_DATA_SCOPE = newScope;
++            if (newDuration && newDuration > 0) CONFIG.SNIPPET_DURATION_S = newDuration;
+             
+             localStorage.setItem('att_config', JSON.stringify(CONFIG));
+             alert(`Settings applied. Reloading to apply changes.`);
+             location.reload();
+         }
+ 
+         // --- Initialization ---
+@@ -236,9 +286,9 @@
+             
+             Object.assign(DOMElements, {
+                 body: document.body,
+-                player: { display: document.getElementById('player-state-display'), playBtn: document.getElementById('play-btn'), stopBtn: document.getElementById('stop-btn'), audio: document.getElementById('audio-player'), providerSelect: document.getElementById('provider-select') },
+-                recorder: { display: document.getElementById('recorder-state-display'), armBtn: document.getElementById('arm-btn'), recordBtn: document.getElementById('record-btn') },
+-                library: { list: document.getElementById('recorder-list'), introspection: document.getElementById('introspection-display'), downloadBtn: document.getElementById('download-btn'), dataScopeDisplay: document.getElementById('data-scope-display') },
+-                settings: { panel: document.getElementById('settings-panel'), toggleBtn: document.getElementById('settings-toggle-btn'), indicator: document.getElementById('settings-indicator'), dataScopeInput: document.getElementById('settings-data-scope'), applyBtn: document.getElementById('apply-settings-btn'), themeToggleBtn: document.getElementById('theme-toggle-btn') }
++                player: { /* ... */ },
++                recorder: { /* ... */ },
++                library: { /* ... */, sortToggleBtn: document.getElementById('sort-toggle-btn') },
++                settings: { /* ... */, snippetDurationInput: document.getElementById('settings-snippet-duration') }
+             });
+ 
+             recordings = JSON.parse(localStorage.getItem(CONFIG.LOCAL_STORAGE_DATA_SCOPE) || '[]');
+@@ -248,16 +298,16 @@
+             Object.entries(providers).forEach(([key, {name}]) => DOMElements.player.providerSelect.add(new Option(name, key)));
+             DOMElements.library.dataScopeDisplay.textContent = CONFIG.LOCAL_STORAGE_DATA_SCOPE;
+             DOMElements.settings.dataScopeInput.value = CONFIG.LOCAL_STORAGE_DATA_SCOPE;
++            DOMElements.settings.snippetDurationInput.value = CONFIG.SNIPPET_DURATION_S;
+             
+             attachListeners();
+             renderRecordingsList();
+             updateUI();
+             applyTheme(localStorage.getItem('att_theme') || 'light');
+         }
+-
++
+         function attachListeners() {
+-            // Attach event listeners to all interactive elements
+-            DOMElements.library.list.addEventListener('click', handleSnippetPlayback);
+-            // ... other listeners ...
++            DOMElements.library.list.addEventListener('click', handleLibraryClick);
++            DOMElements.library.sortToggleBtn.addEventListener('click', toggleSortOrder);
++            // ... other listeners from previous version ...
+         }
+         
+         init();

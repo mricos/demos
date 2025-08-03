@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ann - FSM Player, Recorder & Settings</title>
+  <style>
+    :root {
+      --bg-main: #232139;
+      --bg-panel: #222135;
+      --border: #3d395b;
+      --fg-main: #ececf5;
+      --badge-idle: #9ca3af;
+      --badge-active: #86efac;
+      --badge-paused: #b998c6;
+      --badge-error: #fb7185;
+      --control-bg: #232139;
+      --control-fg: #ececf5;
+      --control-border: #66647b;
+      --info-bg: #181820;
+      --shadow: 0 8px 32px #0e0a20a0;
+    }
+    body {
+      margin: 0; padding: 0;
+      background: #1a1927; color: var(--fg-main);
+      font-family: monospace;
+      display: flex; justify-content: center;
+    }
+    #ann {
+      width: 90%; max-width: 800px;
+      background: var(--bg-main);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      margin: 24px 0; padding: 16px;
+    }
+    .flex-row { display: flex; flex-wrap: wrap; gap: 24px; }
+    .player, .recorder { flex: 1 1 300px; background: var(--bg-panel); padding: 16px; border-radius: 8px; }
+    h2 { margin: 0 0 8px; font-size: 1.1em; }
+    .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; margin-right: 6px; font-size: 0.85em; }
+    .badge[data-state="idle"]    { background: var(--badge-idle); }
+    .badge[data-state="active"]  { background: var(--badge-active); }
+    .badge[data-state="paused"]  { background: var(--badge-paused); }
+    .badge[data-state="error"]   { background: var(--badge-error); }
+    ul { padding: 0; margin: 8px 0; list-style: none; }
+    ul.provider-list li { padding: 6px; cursor: pointer; border-bottom: 1px solid var(--border); }
+    ul.provider-list li.selected { background: #363256; font-weight: bold; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+    select, input[type=number], button {
+      background: var(--control-bg); color: var(--control-fg);
+      border: 1px solid var(--control-border); border-radius: 4px;
+      font-family: monospace; padding: 4px 8px;
+    }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .info-box { background: var(--info-bg); padding: 12px; border-radius: 6px; margin: 8px 0; font-size: 0.95em; }
+    .audio-bar { width: 100%; margin-top: 8px; }
+    ul.file-list li { display: flex; justify-content: space-between; padding: 6px; border-bottom: 1px solid var(--border); }
+    ul.file-list li:last-child { border-bottom: none; }
+    .mood-tags { margin: 8px 0; }
+    .mood-tags .badge { cursor: pointer; }
+    .settings { margin-top: 16px; }
+    .settings-header { cursor: pointer; background: var(--bg-panel); padding: 8px; border-radius: 4px; }
+    .settings-panel { background: var(--bg-panel); padding: 12px; border-radius: 4px; margin-top: 4px; display: none; }
+    .settings-panel input { width: 100%; margin: 6px 0; }
+    .data-scope { font-size: 0.9em; margin: 4px 0; }
+  </style>
+</head>
+<body>
+  <div id="ann">
+    <div class="flex-row">
+      <!-- Player Component -->
+      <div class="player">
+        <h2>Player</h2>
+        <span class="badge" id="player-badge" data-state="paused">paused</span>
+        <ul class="provider-list" id="provider-list"></ul>
+        <div class="controls">
+          <button id="play-btn">Play</button>
+          <button id="pause-btn">Pause</button>
+          <button id="info-btn">Info</button>
+          <label>Hop <input id="hop" type="number" value="0" min="0"></label>
+          <label>Length <input id="length" type="number" value="1" min="1"></label>
+        </div>
+        <div class="info-box" id="provider-info"></div>
+        <audio id="audio-bar" class="audio-bar" controls></audio>
+      </div>
+      <!-- Recorder Component -->
+      <div class="recorder">
+        <h2>Recorder</h2>
+        <span class="badge" id="rec-badge" data-state="idle">idle</span>
+        <div class="data-scope">LocalStorage Key: <span id="data-scope">ann_files</span></div>
+        <div class="controls">
+          <button id="arm-btn">Arm</button>
+          <button id="record-btn" disabled>Record</button>
+          <label>Length <input id="rec-len" type="number" value="5" min="1"></label>
+        </div>
+        <ul class="mood-tags">
+          <li><span class="badge" data-mood="calm">Calm</span></li>
+          <li><span class="badge" data-mood="energetic">Energetic</span></li>
+          <li><span class="badge" data-mood="ambient">Ambient</span></li>
+        </ul>
+        <ul class="file-list" id="file-list"></ul>
+      </div>
+    </div>
+    <!-- Settings -->
+    <div class="settings">
+      <div class="settings-header" id="settings-header">Settings (click to expand)</div>
+      <div class="settings-panel" id="settings-panel">
+        <label>DO_SPACES_KEY</label>
+        <input type="text" id="DO_SPACES_KEY" value="XXXXXXXXXXXXXXXXXXXX">
+        <label>DO_SPACES_SECRET</label>
+        <input type="text" id="DO_SPACES_SECRET" value="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX">
+        <label>DO_SPACES_BUCKET</label>
+        <input type="text" id="DO_SPACES_BUCKET" value="devpages">
+        <label>DO_SPACES_REGION</label>
+        <input type="text" id="DO_SPACES_REGION" value="sfo3">
+      </div>
+    </div>
+  </div>
+  <script>
+    // FSM configurations
+    const PlayerFSM = { paused: { play: 'playing' }, playing: { pause: 'paused' } };
+    const RecFSM = { idle: { arm: 'armed' }, armed: { record: 'recording', disarm: 'idle' }, recording: { stop: 'idle' } };
+    // State
+    let playerState = 'paused';
+    let recorderState = 'idle';
+    const scopeKey = 'ann_files';
+    let files = JSON.parse(localStorage.getItem(scopeKey) || '[]');
+    let selectedProvider = 0;
+    // DOM refs
+    const providerList = document.getElementById('provider-list');
+    const fileList = document.getElementById('file-list');
+    // Init providers
+    const providers = [
+      { name: 'WQXR', url: 'https://fm939.wnyc.org/wnycfm.aac', desc: 'New York classical station.' },
+      { name: 'AccuClassical', url: 'https://streams.accuradio.com/accuclassical.mp3', desc: 'Multiple channels.' },
+      { name: 'Sonatica.fm', url: 'https://sonatica.fm/classical.mp3', desc: 'Ad-free stream.' }
+    ];
+    // Render functions
+    function renderProviders() {
+      providerList.innerHTML = providers.map((p,i) =>
+        `<li class="${i===selectedProvider?'selected':''}" data-idx="${i}">${p.name}</li>`
+      ).join('');
+    }
+    function renderFiles() {
+      fileList.innerHTML = files.map((f,i) =>
+        `<li>
+          <span>${f.name}</span>
+          <span class="badge" data-state="active">${f.meta.mood || 'none'}</span>
+          <span>${f.length}s</span>
+          <button data-idx="${i}" data-action="meta">meta</button>
+          <button data-idx="${i}" data-action="dl">DL</button>
+        </li>`
+      ).join('') || '<li>(no recordings)</li>';
+    }
+    function updatePlayerUI() {
+      document.getElementById('player-badge').dataset.state = playerState;
+      // Info
+      const infoBox = document.getElementById('provider-info');
+      const p = providers[selectedProvider];
+      infoBox.innerHTML = `<b>${p.name}</b><br>${p.desc}<br>HTTPS: ${p.url.startsWith('https')}`;
+    }
+    function updateRecorderUI() {
+      document.getElementById('rec-badge').dataset.state = recorderState;
+      renderFiles();
+    }
+    // Event bindings
+    providerList.onclick = e => {
+      const li = e.target.closest('li'); if(!li) return;
+      selectedProvider = +li.dataset.idx; renderProviders(); updatePlayerUI();
+    };
+    document.getElementById('play-btn').onclick = () => { playerState = PlayerFSM[playerState].play; updatePlayerUI(); document.querySelector('audio').src = providers[selectedProvider].url; document.querySelector('audio').play(); };
+    document.getElementById('pause-btn').onclick = () => { playerState = PlayerFSM[playerState].pause; updatePlayerUI(); document.querySelector('audio').pause(); };
+    document.getElementById('record-btn').onclick = () => {
+      recorderState = RecFSM[recorderState].record; updateRecorderUI();
+      const len = +document.getElementById('rec-len').value;
+      setTimeout(() => {
+        const entry = { name: `rec_${Date.now()}`, length: len, meta: { mood: null } };
+        files.push(entry); localStorage.setItem(scopeKey, JSON.stringify(files));
+        recorderState = RecFSM[recorderState].stop; updateRecorderUI();
+      }, len*1000);
+    };
+    document.getElementById('arm-btn').onclick = () => { recorderState = RecFSM[recorderState].arm; updateRecorderUI(); };
+    // Mood tags
+    document.querySelectorAll('.mood-tags .badge').forEach(el => el.onclick = () => {
+      const mood = el.dataset.mood;
+      const last = files[files.length-1]; if(last) { last.meta.mood = mood; localStorage.setItem(scopeKey, JSON.stringify(files)); renderFiles(); }
+    });
+    // File actions
+    fileList.onclick = e => {
+      const btn = e.target.closest('button'); if(!btn) return;
+      const idx = +btn.dataset.idx; const act = btn.dataset.action;
+      if(act==='meta') alert(JSON.stringify(files[idx],null,2));
+      if(act==='dl') { const blob = new Blob([JSON.stringify(files[idx])],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${files[idx].name}.json`; a.click(); }
+    };
+    // Settings toggle
+    document.getElementById('settings-header').onclick = () => {
+      const panel = document.getElementById('settings-panel'); panel.style.display = panel.style.display==='block'?'none':'block';
+    };
+    // Init
+    renderProviders(); updatePlayerUI(); updateRecorderUI();
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ann - Technical Player & Recorder</title>
+  <style>
+    body { margin:0; font-family: monospace; background: #111; color: #ddd; }
+    #ann { width: 500px; margin: 40px auto; padding:20px; background:#1a1a1a; border:1px solid #333; }
+    section { margin-bottom: 24px; }
+    h2 { margin:0 0 8px; font-size:1.1em; }
+    .badge { display:inline-block; padding:2px 6px; margin-right:4px; background:#333; color:#ddd; font-size:0.8em; border-radius:3px; }
+    .badge.active { background:#555; }
+    .controls { margin:12px 0; }
+    .controls > label { display:block; margin-bottom:4px; }
+    select, input[type=number], button { font-family:monospace; font-size:0.9em; }
+    select, input[type=number] { width:100%; padding:4px; margin-bottom:8px; background:#1a1a1a; border:1px solid #333; color:#ddd; }
+    button { padding:6px 12px; background:#222; border:1px solid #333; color:#ddd; cursor:pointer; }
+    button:disabled { opacity:0.5; cursor:default; }
+    #rec-list { list-style:none; padding-left:0; margin:8px 0; border-top:1px solid #333; }
+    #rec-list li { padding:4px 0; border-bottom:1px solid #333; }
+    .details { margin-top:8px; font-size:0.85em; }
+  </style>
+</head>
+<body>
+  <div id="ann">
+    <section>
+      <h2>Player</h2>
+      <div>
+        <span class="badge active">STATE: <span id="player-state">STOPPED</span></span>
+      </div>
+      <div class="controls">
+        <label for="provider">Provider</label>
+        <select id="provider"></select>
+      </div>
+      <div class="controls">
+        <button id="play">Play</button>
+        <button id="stop" disabled>Stop</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Recorder</h2>
+      <div>
+        <span class="badge active">STATE: <span id="rec-state">IDLE</span></span>
+      </div>
+      <div class="controls">
+        <button id="arm">Arm</button>
+        <button id="record" disabled>Record</button>
+      </div>
+      <div class="controls">
+        <label for="length">Length (s)</label>
+        <input id="length" type="number" min="1" value="5">
+      </div>
+      <ul id="rec-list"></ul>
+      <div class="controls">
+        <button id="download">Download</button>
+        <button id="upload">Upload</button>
+      </div>
+      <div class="details" id="storage-info"></div>
+      <div class="details" id="upload-info" hidden>
+        export DO_SPACES_KEY=XXXXXXXXXXXX<br>
+        export DO_SPACES_SECRET=XXXXXXXXXXXXXXXXXXXXXXXXXXXX<br>
+        export DO_SPACES_BUCKET=devpages<br>
+        export DO_SPACES_REGION=sfo3
+      </div>
+    </section>
+  </div>
+  <audio id="audio" hidden></audio>
+  <script>
+    // FSM
+    const PlayerFSM = { STOPPED:{play:'PLAYING'}, PLAYING:{stop:'STOPPED'} };
+    const RecFSM = { IDLE:{arm:'ARMED'}, ARMED:{record:'RECORDING', disarm:'IDLE'}, RECORDING:{stop:'IDLE'} };
+    let pState='STOPPED', rState='IDLE';
+    let recordings=JSON.parse(localStorage.getItem('ann_recs')||'[]');
+    // Providers
+    const providers=[
+      {name:'WQXR',url:'https://fm939.wnyc.org/wnycfm.aac'},
+      {name:'AccuClassical',url:'https://streams.accuradio.com/accuclassical.mp3'},
+      {name:'Sonatica.fm',url:'https://sonatica.fm/classical.mp3'}
+    ];
+    // DOM
+    const selProv=document.getElementById('provider');
+    const btnPlay=document.getElementById('play'), btnStop=document.getElementById('stop');
+    const spanPState=document.getElementById('player-state');
+    const btnArm=document.getElementById('arm'), btnRec=document.getElementById('record');
+    const spanRState=document.getElementById('rec-state');
+    const inpLen=document.getElementById('length');
+    const ulRec=document.getElementById('rec-list');
+    const divInfo=document.getElementById('storage-info');
+    const btnDownload=document.getElementById('download'), btnUpload=document.getElementById('upload');
+    const divUpload=document.getElementById('upload-info');
+    const audio=document.getElementById('audio');
+    // init
+    providers.forEach(p=>{ let o=new Option(p.name); selProv.add(o); });
+    updatePlayer(); updateRecorder();
+    // Player actions
+    btnPlay.onclick=()=>{
+      audio.src=providers[selProv.selectedIndex].url; audio.play();
+      pState=PlayerFSM[pState].play; updatePlayer();
+    };
+    btnStop.onclick=()=>{
+      audio.pause(); audio.src=''; pState=PlayerFSM[pState].stop; updatePlayer();
+    };
+    function updatePlayer(){
+      spanPState.textContent=pState;
+      btnPlay.disabled=pState!=='STOPPED';
+      btnStop.disabled=pState!=='PLAYING';
+    }
+    // Recorder actions
+    btnArm.onclick=()=>{ rState=RecFSM[rState].arm; updateRecorder(); };
+    btnRec.onclick=()=>{
+      rState=RecFSM[rState].record; updateRecorder();
+      const len=+inpLen.value;
+      setTimeout(()=>{
+        const entry={id:Date.now(),length:len,vocoder:'Opus',channels:2,bps:128};
+        recordings.push(entry);
+        localStorage.setItem('ann_recs',JSON.stringify(recordings));
+        rState=RecFSM[rState].stop; updateRecorder();
+      },len*1000);
+    };
+    btnDownload.onclick=()=>{ /* placeholder */ };
+    btnUpload.onclick=()=>{ divUpload.hidden=!divUpload.hidden; };
+    function updateRecorder(){
+      spanRState.textContent=rState;
+      btnArm.disabled=rState!=='IDLE';
+      btnRec.disabled=rState!=='ARMED';
+      renderList(); updateStorageInfo();
+    }
+    function renderList(){
+      ulRec.innerHTML=recordings.map(r=>`<li>${r.id} | ${r.length}s | ${r.vocoder} | ${r.channels}ch | ${r.bps}bps</li>`).join('')||'<li>(none)</li>';
+    }
+    function updateStorageInfo(){
+      const size=new Blob([localStorage.getItem('ann_recs')||'[]']).size;
+      divInfo.textContent=`localStorage: ${size} bytes, ${recordings.length} recs`;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ann Antennae with Recorder</title>
+  <style>
+    body { background: #18181e; color: #efefef; font-family: monospace; }
+    #ann { max-width: 720px; margin: 48px auto; background: #232338; padding: 28px; border-radius: 10px; box-shadow: 0 2px 16px #000d; }
+    .ghost-btn {
+      background: transparent; border: 1px solid #555; color: #ccc; padding: 4px 10px; margin: 0 4px; border-radius: 3px;
+      cursor: pointer; font-family: inherit;
+    }
+    .ghost-btn.active { border-color: #88f; color: #88f; }
+    .ann-list, .rec-list { margin: 0; padding: 0; list-style: none; }
+    .ann-list li, .rec-list li { padding: 6px 0; border-bottom: 1px solid #3c3c48; }
+    .ann-controls, .rec-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+    .ann-info, .rec-info, .storage-info { background: #191920; padding: 12px; border-radius: 4px; font-size: 13px; margin-bottom: 14px; }
+    .recorder { border: 1px solid #444; padding: 12px; border-radius: 6px; margin-top: 20px; }
+    .hidden { display: none; }
+    #ann-audio { width: 100%; margin-bottom: 6px; }
+    .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #232338; padding: 20px; border: 1px solid #555; border-radius: 6px; }
+    .modal input { width: 100%; margin-bottom: 8px; padding: 6px; background: #333; border: 1px solid #555; color: #eee; }
+    .modal button { margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div id="ann"></div>
+
+  <script>
+    // Top-level providers omitted for brevity
+    const annProviders = [
+      { name: "WQXR", url: "https://fm939.wnyc.org/wnycfm.aac", desc: "NY classical station" },
+      { name: "AccuClassical", url: "https://streams.accuradio.com/accuclassical.mp3", desc: "Multiple classical channels" },
+      { name: "Sonatica.fm", url: "https://sonatica.fm/classical.mp3", desc: "Ad-free classical stream" }
+    ];
+    const annStates = { IDLE:"idle", LOADED:"loaded", PLAYING:"playing", PAUSED:"paused" };
+    const recStates = { COLLAPSED:"collapsed", EXPANDED:"expanded" };
+
+    const ann = { current: annStates.IDLE, selectedIndex:0, serverInfo:"", audio:null };
+    const rec = { state: recStates.COLLAPSED, list: [], activeState: 'idle' };
+
+    // Main DOM
+    const root = document.getElementById('ann');
+    root.innerHTML = `
+      <div id="ann-ui">
+        <div class="ann-controls" id="ann-controls"></div>
+        <div class="ann-info" id="ann-info"></div>
+        <audio id="ann-audio" controls></audio>
+        <div class="recorder" id="recorder">
+          <div class="rec-controls" id="rec-controls"></div>
+          <div class="storage-info hidden" id="storage-info"></div>
+          <ul class="rec-list hidden" id="rec-list"></ul>
+        </div>
+      </div>
+    `;
+
+    // Render functions
+    function renderAnn() {
+      const ctr = document.getElementById('ann-controls');
+      ctr.innerHTML = '';
+      // Ghost buttons for states
+      Object.values(annStates).forEach(s => {
+        const btn = document.createElement('button'); btn.textContent = s;
+        btn.className = 'ghost-btn'+(ann.current===s?' active':'');
+        btn.onclick = ()=>{ ann.current=s; applyAnnState(); };
+        ctr.appendChild(btn);
+      });
+      // Info + Server button
+      const infoBtn = document.createElement('button'); infoBtn.textContent = 'Server Info';
+      infoBtn.className='ghost-btn'; infoBtn.onclick = fetchServerInfo;
+      ctr.appendChild(infoBtn);
+
+      const info = annProviders[ann.selectedIndex];
+      document.getElementById('ann-info').innerHTML = `<b>${info.name}</b><br>${info.desc}<br>${ann.serverInfo}`;
+    }
+
+    function applyAnnState() {
+      const audio = document.getElementById('ann-audio');
+      const p = annProviders[ann.selectedIndex];
+      if(ann.current==='loaded'||ann.current==='idle') { audio.src=p.url; audio.pause(); }
+      if(ann.current==='playing') { audio.src=p.url; audio.play(); }
+      if(ann.current==='paused') { audio.pause(); }
+      renderAnn(); renderRec();
+    }
+
+    async function fetchServerInfo(){
+      const p = annProviders[ann.selectedIndex];
+      let out=`URL: ${p.url}<br>`;
+      try{ const res = await fetch(p.url,{method:'HEAD',mode:'cors'});
+        out+=`Status: ${res.status} ${res.statusText}<br><pre>`;
+        for(const [k,v] of res.headers) out+=`${k}: ${v}\n`;
+        out+='</pre>';
+      }catch(e){ out+=`Error: ${e}`; }
+      ann.serverInfo=out; renderAnn();
+    }
+
+    function renderRec(){
+      const ctr = document.getElementById('rec-controls'); ctr.innerHTML='';
+      // Toggle expand/collapse
+      const toggle = document.createElement('button');
+      toggle.textContent = rec.state;
+      toggle.className = 'ghost-btn'+(rec.state==='expanded'?' active':'');
+      toggle.onclick = ()=>{ rec.state = rec.state==='collapsed'? 'expanded':'collapsed'; renderRec(); };
+      ctr.appendChild(toggle);
+      // Record FSM buttons
+      ['idle','recording','paused'].forEach(s=>{
+        const b=document.createElement('button'); b.textContent=s;
+        b.className='ghost-btn'+(rec.activeState===s?' active':'');
+        b.onclick=()=>{ rec.activeState=s; if(s==='recording') startRecord(); renderRec(); };
+        ctr.appendChild(b);
+      });
+      // Download placeholder
+      const dl = document.createElement('button'); dl.textContent='Download';
+      dl.className='ghost-btn'; dl.onclick=()=>{ rec.activeState='idle'; renderRec(); };
+      ctr.appendChild(dl);
+      // Upload placeholder
+      const up = document.createElement('button'); up.textContent='Upload';
+      up.className='ghost-btn'; up.onclick=uploadPrompt;
+      ctr.appendChild(up);
+
+      const storageInfo = document.getElementById('storage-info');
+      const listEl = document.getElementById('rec-list');
+      if(rec.state==='expanded'){
+        // show storage info
+        const used = JSON.stringify(localStorage).length;
+        const quota = 5*1024*1024; // approx
+        storageInfo.innerHTML=`localStorage used: ${used} bytes<br>quota ~${quota} bytes`;
+        storageInfo.classList.remove('hidden');
+        // show recordings list
+        listEl.innerHTML = rec.list.map(r=>
+          `<li>ID: ${r.id} | len: ${r.length}s | vocoder: ${r.vocoder} | ch: ${r.channels} | bps: ${r.bps}</li>`
+        ).join('');
+        listEl.classList.remove('hidden');
+      } else {
+        storageInfo.classList.add('hidden'); listEl.classList.add('hidden');
+      }
+    }
+
+    function startRecord(){
+      // Simulate record entry
+      const id = Date.now();
+      rec.list.push({ id, length:5, vocoder:'pcm', channels:2, bps:16 });
+    }
+
+    function uploadPrompt(){
+      const key = prompt('DO_SPACES_KEY=');
+      const secret = prompt('DO_SPACES_SECRET=');
+      const bucket = prompt('DO_SPACES_BUCKET=devpages');
+      const region = prompt('DO_SPACES_REGION=sfo3');
+      console.log({key, secret, bucket, region});
+    }
+
+    // Init
+    renderAnn(); renderRec();
+  </script>
+</body>
+</html>

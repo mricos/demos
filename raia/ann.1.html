@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>att Classical Streaming Browser</title>
+  <style>
+    body { background: #18181e; color: #efefef; font-family: monospace; }
+    #att { max-width: 600px; margin: 48px auto; background: #232338; padding: 28px; border-radius: 10px; box-shadow: 0 2px 16px #000d; }
+    .att-list { margin: 0 0 22px 0; padding: 0; }
+    .att-list li { list-style: none; padding: 7px 0; cursor: pointer; border-bottom: 1px solid #3c3c48; }
+    .att-list li.selected { background: #34345b; color: #cfcfd7; }
+    .att-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .att-controls label { margin-right: 4px; }
+    .att-info { background: #191920; padding: 12px; border-radius: 4px; margin-bottom: 14px; }
+    button, input[type="number"] { background: #333; color: #ececec; border: 1px solid #555; border-radius: 3px; padding: 4px 10px; font-family: inherit; }
+    button { cursor: pointer; }
+    .att-status { font-size: 13px; color: #b9b; margin-bottom: 6px; }
+    #att-audio { width: 100%; margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+  <div id="att"></div>
+  <script>
+    const attProviders = [
+      {
+        name: "WQXR",
+        url: "https://fm939.wnyc.org/wnycfm.aac",
+        desc: "WQXR – New York's classical station. Live curated classical music, announcers, news, HD stream.",
+        infoEndpoint: "https://www.wqxr.org/api/v1/nowplaying/1/"
+      },
+      {
+        name: "The Classical Station",
+        url: "https://audio-ogg.ibiblio.org:8000/wcpe.ogg",
+        desc: "The Classical Station (WCPE, North Carolina): 24/7 non-commercial classical radio, minimal talk.",
+        infoEndpoint: "https://theclassicalstation.org/json/nowplaying.json"
+      },
+      {
+        name: "YourClassical MPR",
+        url: "https://cmsstream.publicradio.org/cms.mp3",
+        desc: "YourClassical MPR: Minnesota Public Radio's all-classical stream. Multi-genre programming.",
+        infoEndpoint: "https://www.yourclassical.org/now-playing"
+      },
+      {
+        name: "AccuRadio – AccuClassical",
+        url: "https://streams.accuradio.com/accuclassical.mp3",
+        desc: "AccuClassical: Free internet radio with many classical channels. No login, ad-supported.",
+        infoEndpoint: "https://www.accuradio.com/api/1.2/nowplaying/accuclassical/"
+      },
+      {
+        name: "Sonatica.fm",
+        url: "https://sonatica.fm/classical.mp3",
+        desc: "Sonatica.fm: Minimal, ad-free, non-commercial classical stream, no commentary.",
+        infoEndpoint: "https://sonatica.fm/nowplaying"
+      }
+    ];
+
+    const attStates = {
+      IDLE: "idle",
+      LOADED: "loaded",
+      PLAYING: "playing",
+      PAUSED: "paused",
+      RECORDING: "recording"
+    };
+
+    const att = {
+      current: attStates.IDLE,
+      selectedIndex: 0,
+      hop: 0,
+      length: 60,
+      info: "",
+      streamInfo: "",
+      audio: null,
+      recordTimeout: null
+    };
+
+    const root = document.getElementById('att');
+    root.innerHTML = `
+      <div class="att-status" id="att-status"></div>
+      <ul class="att-list" id="att-list"></ul>
+      <div class="att-controls">
+        <button id="att-play">Play</button>
+        <button id="att-pause">Pause</button>
+        <button id="att-record">Record</button>
+        <label>Hop <input id="att-hop" type="number" value="0" min="0" style="width:60px">s</label>
+        <label>Length <input id="att-length" type="number" value="60" min="1" style="width:60px">s</label>
+        <button id="att-info-btn">Info</button>
+      </div>
+      <div class="att-info" id="att-info"></div>
+      <audio id="att-audio" controls></audio>
+    `;
+
+    function attRender() {
+      const list = document.getElementById('att-list');
+      list.innerHTML = attProviders.map((prov, i) =>
+        `<li class="${i === att.selectedIndex ? 'selected' : ''}" data-idx="${i}">
+          ${prov.name}
+        </li>`
+      ).join('');
+      const infoSection = document.getElementById('att-info');
+      infoSection.innerHTML = `<b>${attProviders[att.selectedIndex].name}</b><br>${attProviders[att.selectedIndex].desc}<br>${att.streamInfo ? `<hr>${att.streamInfo}` : ''}`;
+      document.getElementById('att-status').textContent = `State: ${att.current}`;
+      const audio = document.getElementById('att-audio');
+      if (!att.audio) att.audio = audio;
+      if (att.current === attStates.LOADED || att.current === attStates.PAUSED) {
+        att.audio.src = attProviders[att.selectedIndex].url;
+        att.audio.pause();
+      }
+      if (att.current === attStates.PLAYING) {
+        att.audio.src = attProviders[att.selectedIndex].url;
+        att.audio.play();
+      }
+      if (att.current === attStates.RECORDING) {
+        att.audio.src = attProviders[att.selectedIndex].url;
+        att.audio.play();
+        clearTimeout(att.recordTimeout);
+        att.recordTimeout = setTimeout(() => {
+          att.current = attStates.PAUSED;
+          attRender();
+        }, att.length * 1000);
+      }
+    }
+
+    document.getElementById('att-list').onclick = (e) => {
+      const li = e.target.closest('li');
+      if (!li) return;
+      att.selectedIndex = parseInt(li.getAttribute('data-idx'), 10);
+      att.current = attStates.LOADED;
+      att.streamInfo = "";
+      attRender();
+    };
+
+    document.getElementById('att-play').onclick = () => {
+      att.current = attStates.PLAYING;
+      attRender();
+    };
+    document.getElementById('att-pause').onclick = () => {
+      att.current = attStates.PAUSED;
+      if (att.audio) att.audio.pause();
+      attRender();
+    };
+    document.getElementById('att-record').onclick = () => {
+      att.current = attStates.RECORDING;
+      att.length = parseInt(document.getElementById('att-length').value, 10) || 60;
+      attRender();
+    };
+    document.getElementById('att-hop').oninput = (e) => {
+      att.hop = parseInt(e.target.value, 10) || 0;
+    };
+    document.getElementById('att-length').oninput = (e) => {
+      att.length = parseInt(e.target.value, 10) || 60;
+    };
+    document.getElementById('att-info-btn').onclick = async () => {
+      const provider = attProviders[att.selectedIndex];
+      att.streamInfo = "Loading…";
+      attRender();
+      try {
+        const res = await fetch(provider.infoEndpoint, {mode: 'cors'});
+        let txt = await res.text();
+        if (res.headers.get('content-type')?.includes('application/json')) {
+          txt = JSON.stringify(JSON.parse(txt), null, 2);
+        }
+        att.streamInfo = `<pre>${txt.substring(0, 2000)}</pre>`;
+      } catch (err) {
+        att.streamInfo = `Could not fetch info: ${err}`;
+      }
+      attRender();
+    };
+
+    attRender();
+  </script>
+</body>
+</html>

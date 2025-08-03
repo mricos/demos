@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>att - Advanced Player & Recorder</title>
+    <style>
+        :root {
+            --primary-bg: #f0f0f0;
+            --secondary-bg: #ffffff;
+            --text-color: #333;
+            --accent-color: #007bff;
+            --accent-hover: #0056b3;
+            --record-color: #dc3545;
+            --record-hover: #b02a37;
+            --armed-color: #ffc107;
+            --border-color: #ccc;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 20px;
+            box-sizing: border-box;
+        }
+
+        #att-container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--secondary-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px var(--shadow-color);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .component-section {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .component-section:last-child {
+            border-bottom: none;
+        }
+
+        .att-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .att-header h2 {
+            margin: 0;
+            color: var(--text-color);
+            font-size: 1.5em;
+        }
+        
+        .state-display {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .state-button {
+            font-size: 0.7em;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 15px;
+            border: 2px solid var(--border-color);
+            background-color: transparent;
+            color: var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .state-button.active-play { border-color: var(--accent-color); color: var(--accent-color); background-color: var(--accent-color); color: white;}
+        .state-button.active-stop { border-color: #6c757d; color: #6c757d; background-color: #6c757d; color: white;}
+        .state-button.active-record { border-color: var(--record-color); color: var(--record-color); background-color: var(--record-color); color: white;}
+        .state-button.active-armed { border-color: var(--armed-color); color: var(--armed-color); background-color: var(--armed-color); color: white;}
+        .state-button.active-idle { border-color: #6c757d; color: #6c757d; background-color: #6c757d; color: white;}
+
+        .att-controls, .att-settings {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        label { font-weight: bold; margin-bottom: 5px; }
+
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+
+        .att-button-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px;
+            border-radius: 6px;
+            border: none;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+        button:active { transform: scale(0.98); }
+        button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+
+        .btn-primary { background-color: var(--accent-color); color: white; }
+        .btn-primary:hover { background-color: var(--accent-hover); }
+        .btn-danger { background-color: var(--record-color); color: white; }
+        .btn-danger:hover { background-color: var(--record-hover); }
+        .btn-warning { background-color: var(--armed-color); color: black; }
+        
+        #recorder-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        #recorder-list li {
+            background-color: var(--primary-bg);
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 0.85em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #recorder-list li .rec-info { font-family: 'Courier New', Courier, monospace; }
+
+        #recorder-visual-fsm { cursor: pointer; user-select: none; font-weight: bold; color: var(--accent-color); }
+        #recorder-details { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-in-out; }
+        #recorder-details.expanded { max-height: 500px; }
+        .detail-item { margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <div id="att-container">
+        <div class="component-section">
+            <div class="att-header">
+                <h2>Player 📻</h2>
+                <div id="player-state-display" class="state-display">
+                    <span class="state-button" data-state="STOPPED">STOPPED</span>
+                    <span class="state-button" data-state="PLAYING">PLAYING</span>
+                </div>
+            </div>
+            <div class="att-controls">
+                <label for="provider-select">Select a Service:</label>
+                <select id="provider-select"></select>
+            </div>
+            <div class="att-button-group" style="margin-top: 15px;">
+                <button id="play-btn" class="btn-primary">Play</button>
+                <button id="stop-btn" disabled>Stop</button>
+            </div>
+        </div>
+
+        <div class="component-section">
+            <div class="att-header">
+                <h2>Recorder ⏺️</h2>
+                <div id="recorder-state-display" class="state-display">
+                    <span class="state-button" data-state="IDLE">IDLE</span>
+                    <span class="state-button" data-state="ARMED">ARMED</span>
+                    <span class="state-button" data-state="RECORDING">RECORDING</span>
+                </div>
+            </div>
+            <div class="att-button-group">
+                <button id="arm-btn" class="btn-warning">Arm</button>
+                <button id="record-btn" class="btn-danger" disabled>Record</button>
+            </div>
+             <label for="length-input" style="margin-top:15px;">Record Length (s):</label>
+             <input type="number" id="length-input" value="5" min="1">
+            
+            <ul id="recorder-list"></ul>
+            
+            <p id="recorder-visual-fsm" style="margin-top: 20px; text-align:center;">
+                ▶ Show Details
+            </p>
+            <div id="recorder-details">
+                 <div class="detail-item">
+                    <h4>Storage Info</h4>
+                    <p id="localstorage-info">No data.</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Actions</h4>
+                     <div class="att-button-group">
+                        <button id="download-btn">Download</button>
+                        <button id="upload-btn">Upload</button>
+                    </div>
+                </div>
+                <div id="upload-details" class="detail-item" style="display:none;">
+                    <h4>DigitalOcean Credentials</h4>
+                    <label>DO_SPACES_KEY</label>
+                    <input type="text" value="XXXXXXXXXXXXXXXXXXXX" readonly>
+                    <label>DO_SPACES_SECRET</label>
+                    <input type="text" value="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" readonly>
+                    <label>DO_SPACES_BUCKET</label>
+                    <input type="text" value="devpages" readonly>
+                     <label>DO_SPACES_REGION</label>
+                    <input type="text" value="sfo3" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <audio id="audio-player"></audio>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- STATE MACHINES ---
+        const PlayerState = { STOPPED: 'STOPPED', PLAYING: 'PLAYING' };
+        const RecorderState = { IDLE: 'IDLE', ARMED: 'ARMED', RECORDING: 'RECORDING' };
+        const RecorderVisualState = { COLLAPSED: 'COLLAPSED', EXPANDED: 'EXPANDED' };
+
+        let playerState = PlayerState.STOPPED;
+        let recorderState = RecorderState.IDLE;
+        let recorderVisualState = RecorderVisualState.COLLAPSED;
+        
+        let recordings = [];
+
+        // --- DATA ---
+        const providers = {
+            wqxr: { name: 'WQXR', url: 'https://stream.wqxr.org/wqxr' },
+            radio_suisse: { name: 'Radio Suisse Classique', url: 'http://stream.srg-ssr.ch/m/rsc_de/mp3_128' }
+        };
+
+        // --- DOM ELEMENT REFERENCES ---
+        const providerSelect = document.getElementById('provider-select');
+        const playBtn = document.getElementById('play-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const armBtn = document.getElementById('arm-btn');
+        const recordBtn = document.getElementById('record-btn');
+        const audioPlayer = document.getElementById('audio-player');
+        const recorderList = document.getElementById('recorder-list');
+        const recorderVisualFsmBtn = document.getElementById('recorder-visual-fsm');
+        const recorderDetails = document.getElementById('recorder-details');
+        const localStorageInfo = document.getElementById('localstorage-info');
+        const downloadBtn = document.getElementById('download-btn');
+        const uploadBtn = document.getElementById('upload-btn');
+        const uploadDetails = document.getElementById('upload-details');
+
+        // --- STATE MANAGEMENT & UI UPDATES ---
+        function setPlayerState(newState) {
+            playerState = newState;
+            updatePlayerUI();
+        }
+
+        function setRecorderState(newState) {
+            recorderState = newState;
+            updateRecorderUI();
+        }
+
+        function setRecorderVisualState(newState) {
+            recorderVisualState = newState;
+            updateRecorderVisualUI();
+        }
+        
+        function updatePlayerUI() {
+            document.querySelectorAll('#player-state-display .state-button').forEach(btn => btn.classList.remove('active-play', 'active-stop'));
+            if (playerState === PlayerState.PLAYING) {
+                document.querySelector('[data-state="PLAYING"]').classList.add('active-play');
+                playBtn.disabled = true;
+                stopBtn.disabled = false;
+                armBtn.disabled = false;
+            } else { // STOPPED
+                document.querySelector('[data-state="STOPPED"]').classList.add('active-stop');
+                playBtn.disabled = false;
+                stopBtn.disabled = true;
+                armBtn.disabled = true;
+                setRecorderState(RecorderState.IDLE); // Can't be armed if not playing
+            }
+        }
+
+        function updateRecorderUI() {
+            document.querySelectorAll('#recorder-state-display .state-button').forEach(btn => btn.classList.remove('active-idle', 'active-armed', 'active-record'));
+            if (recorderState === RecorderState.IDLE) {
+                document.querySelector('[data-state="IDLE"]').classList.add('active-idle');
+                armBtn.disabled = playerState === PlayerState.STOPPED;
+                recordBtn.disabled = true;
+            } else if (recorderState === RecorderState.ARMED) {
+                document.querySelector('[data-state="ARMED"]').classList.add('active-armed');
+                armBtn.disabled = true;
+                recordBtn.disabled = false;
+            } else { // RECORDING
+                document.querySelector('[data-state="RECORDING"]').classList.add('active-record');
+                armBtn.disabled = true;
+                recordBtn.disabled = true;
+            }
+        }
+
+        function updateRecorderVisualUI() {
+             if (recorderVisualState === RecorderVisualState.EXPANDED) {
+                recorderDetails.classList.add('expanded');
+                recorderVisualFsmBtn.textContent = '▼ Hide Details';
+                updateLocalStorageInfo();
+            } else {
+                recorderDetails.classList.remove('expanded');
+                recorderVisualFsmBtn.textContent = '▶ Show Details';
+                uploadDetails.style.display = 'none'; // always hide on collapse
+            }
+        }
+
+        // --- ACTIONS & EVENT HANDLERS ---
+        function populateProviders() {
+            for (const key in providers) {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = providers[key].name;
+                providerSelect.appendChild(option);
+            }
+        }
+
+        function playStream() {
+            const selectedKey = providerSelect.value;
+            audioPlayer.src = providers[selectedKey].url;
+            audioPlayer.play().then(() => setPlayerState(PlayerState.PLAYING)).catch(err => {
+                console.error("Playback Error:", err);
+                alert("Could not play stream.");
+            });
+        }
+
+        function stopStream() {
+            audioPlayer.pause();
+            audioPlayer.src = '';
+            setPlayerState(PlayerState.STOPPED);
+        }
+
+        function armRecorder() {
+            if (playerState === PlayerState.PLAYING) {
+                setRecorderState(RecorderState.ARMED);
+            }
+        }
+
+        function recordStream() {
+            if (recorderState !== RecorderState.ARMED) return;
+            setRecorderState(RecorderState.RECORDING);
+            
+            const recordLength = parseInt(document.getElementById('length-input').value, 10);
+            
+            setTimeout(() => {
+                const newRecording = {
+                    id: Date.now(),
+                    name: `rec_${providers[providerSelect.value].name}_${Date.now()}`,
+                    length: `${recordLength}s`,
+                    vocoder: 'Opus',
+                    channels: 2,
+                    bps: '128k'
+                };
+                recordings.push(newRecording);
+                saveRecordingsToStorage();
+                renderRecordings();
+                setRecorderState(RecorderState.IDLE);
+            }, recordLength * 1000);
+        }
+        
+        function renderRecordings() {
+            recorderList.innerHTML = '';
+            if (recordings.length === 0) {
+                 recorderList.innerHTML = '<li>No recordings yet.</li>';
+                 return;
+            }
+            recordings.forEach(rec => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${rec.name}</span> <span class="rec-info">${rec.length} ${rec.vocoder} ${rec.bps}</span>`;
+                recorderList.appendChild(li);
+            });
+        }
+
+        function saveRecordingsToStorage() {
+            localStorage.setItem('att_recordings', JSON.stringify(recordings));
+        }
+
+        function loadRecordingsFromStorage() {
+            const stored = localStorage.getItem('att_recordings');
+            if (stored) {
+                recordings = JSON.parse(stored);
+            }
+            renderRecordings();
+        }
+
+        function updateLocalStorageInfo() {
+            const storedData = localStorage.getItem('att_recordings') || '';
+            const sizeInBytes = new Blob([storedData]).size;
+            const sizeInKB = (sizeInBytes / 1024).toFixed(2);
+            localStorageInfo.textContent = `Using ${sizeInKB} KB of local storage for ${recordings.length} recording(s).`;
+        }
+        
+        // --- INITIALIZATION ---
+        populateProviders();
+        loadRecordingsFromStorage();
+        updatePlayerUI();
+        updateRecorderUI();
+        updateRecorderVisualUI();
+
+        // --- Event Listeners ---
+        playBtn.addEventListener('click', playStream);
+        stopBtn.addEventListener('click', stopStream);
+        armBtn.addEventListener('click', armRecorder);
+        recordBtn.addEventListener('click', recordStream);
+        recorderVisualFsmBtn.addEventListener('click', () => {
+            setRecorderVisualState(recorderVisualState === RecorderVisualState.COLLAPSED ? RecorderVisualState.EXPANDED : RecorderVisualState.COLLAPSED);
+        });
+        downloadBtn.addEventListener('click', () => {
+            alert('Download simulation! State changed.');
+            setRecorderVisualState(RecorderVisualState.COLLAPSED);
+        });
+        uploadBtn.addEventListener('click', () => {
+             uploadDetails.style.display = uploadDetails.style.display === 'none' ? 'block' : 'none';
+        });
+    });
+    </script>
+</body>
+</html>

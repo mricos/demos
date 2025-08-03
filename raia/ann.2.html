@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ann Antennae Browser</title>
+  <style>
+    body { background: #18181e; color: #efefef; font-family: monospace; }
+    #ann { max-width: 640px; margin: 48px auto; background: #232338; padding: 28px; border-radius: 10px; box-shadow: 0 2px 16px #000d; }
+    .ann-list { margin: 0 0 22px 0; padding: 0; }
+    .ann-list li { list-style: none; padding: 7px 0; cursor: pointer; border-bottom: 1px solid #3c3c48; }
+    .ann-list li.selected { background: #34345b; color: #cfcfd7; }
+    .ann-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .ann-info { background: #191920; padding: 12px; border-radius: 4px; margin-bottom: 14px; font-size: 13px; }
+    .ann-status { font-size: 13px; color: #b9b; margin-bottom: 6px; }
+    button, input[type="number"] { background: #333; color: #ececec; border: 1px solid #555; border-radius: 3px; padding: 4px 10px; font-family: inherit; }
+    button { cursor: pointer; }
+    #ann-audio { width: 100%; margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+  <div id="ann"></div>
+  <script>
+    // Providers list
+    const annProviders = [
+      { name: "WQXR", url: "https://fm939.wnyc.org/wnycfm.aac", desc: "New York classical station, curated live streams." },
+      { name: "AccuClassical", url: "https://streams.accuradio.com/accuclassical.mp3", desc: "Multiple classical channels, ad-supported." },
+      { name: "Sonatica.fm", url: "https://sonatica.fm/classical.mp3", desc: "Minimal, ad-free classical stream." }
+    ];
+
+    // FSM States
+    const annStates = { IDLE: "idle", LOADED: "loaded", PLAYING: "playing", PAUSED: "paused", RECORDING: "recording" };
+
+    // Main state
+    const ann = { current: annStates.IDLE, selectedIndex: 0, hop: 0, length: 60, serverInfo: "", audio: null, recordTimeout: null };
+
+    // Initialize DOM
+    const root = document.getElementById('ann');
+    root.innerHTML = `
+      <div class="ann-status" id="ann-status"></div>
+      <ul class="ann-list" id="ann-list"></ul>
+      <div class="ann-controls">
+        <button id="ann-play">Play</button>
+        <button id="ann-pause">Pause</button>
+        <button id="ann-record">Record</button>
+        <label>Hop <input id="ann-hop" type="number" value="0" min="0" style="width:60px">s</label>
+        <label>Length <input id="ann-length" type="number" value="60" min="1" style="width:60px">s</label>
+        <button id="ann-info-btn">Info</button>
+      </div>
+      <div class="ann-info" id="ann-info"></div>
+      <audio id="ann-audio" controls></audio>
+    `;
+
+    // Render function
+    function render() {
+      // List
+      const list = document.getElementById('ann-list');
+      list.innerHTML = annProviders.map((p,i) =>
+        `<li class="${i===ann.selectedIndex?'selected':''}" data-idx="${i}">${p.name}</li>`
+      ).join('');
+
+      // Status
+      document.getElementById('ann-status').textContent = `State: ${ann.current}`;
+
+      // Info (description + serverInfo)
+      const info = annProviders[ann.selectedIndex];
+      const infoDiv = document.getElementById('ann-info');
+      infoDiv.innerHTML = `<b>${info.name}</b><br>${info.desc}${ann.serverInfo?`<hr>${ann.serverInfo}`:''}`;
+
+      // Audio handling
+      const audio = document.getElementById('ann-audio');
+      if (!ann.audio) ann.audio = audio;
+      if (ann.current===annStates.LOADED||ann.current===annStates.PAUSED) {
+        ann.audio.src = annProviders[ann.selectedIndex].url;
+        ann.audio.pause();
+      }
+      if (ann.current===annStates.PLAYING) {
+        ann.audio.src = annProviders[ann.selectedIndex].url;
+        ann.audio.play();
+      }
+      if (ann.current===annStates.RECORDING) {
+        ann.audio.src = annProviders[ann.selectedIndex].url;
+        ann.audio.play();
+        clearTimeout(ann.recordTimeout);
+        ann.recordTimeout = setTimeout(()=>{ ann.current=annStates.PAUSED; render(); }, ann.length*1000);
+      }
+    }
+
+    // Event bindings
+    document.getElementById('ann-list').onclick = e => {
+      const li = e.target.closest('li'); if(!li) return;
+      ann.selectedIndex = +li.dataset.idx;
+      ann.current = annStates.LOADED; ann.serverInfo=''; render();
+    };
+    document.getElementById('ann-play').onclick = ()=>{ ann.current=annStates.PLAYING; render(); };
+    document.getElementById('ann-pause').onclick = ()=>{ ann.current=annStates.PAUSED; ann.audio.pause(); render(); };
+    document.getElementById('ann-record').onclick = ()=>{ ann.current=annStates.RECORDING; ann.length=+document.getElementById('ann-length').value||60; render(); };
+    document.getElementById('ann-hop').oninput = e=>{ ann.hop=+e.target.value||0; };
+    document.getElementById('ann-length').oninput = e=>{ ann.length=+e.target.value||60; };
+
+    // Info button: parse URL + HEAD request
+    document.getElementById('ann-info-btn').onclick = async ()=>{
+      const prov = annProviders[ann.selectedIndex];
+      const u = new URL(prov.url);
+      let out = `<b>URL Parse:</b><br>origin: ${u.origin}<br>protocol: ${u.protocol}<br>host: ${u.host}<br>pathname: ${u.pathname}`;
+      out += `<hr><b>Server HEAD:</b><br>`;
+      try {
+        const res = await fetch(prov.url, {method:'HEAD', mode:'cors'});
+        out += `Status: ${res.status} ${res.statusText}<br><pre>`;
+        for(const [k,v] of res.headers) out += `${k}: ${v}\n`;
+        out += `</pre>`;
+      } catch(err) {
+        out += `Fetch HEAD failed: ${err}`;
+      }
+      ann.serverInfo = out;
+      render();
+    };
+
+    // Initial
+    render();
+  </script>
+</body>
+</html>
+
