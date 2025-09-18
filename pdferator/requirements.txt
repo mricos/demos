@@ -1,0 +1,7 @@
+PyMuPDF
+Pillow
+pix2tex[torch]
+PyYAML
+beautifulsoup4
+lxml
+
