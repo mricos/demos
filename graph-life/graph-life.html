@@ -1,0 +1,1088 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Graph-Life | loop-forming agent network</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root{color-scheme:dark;--bg:#0b0b0f;--fg:#cfd8e3;--ui:#111421;--hl:#86d0ff;--edge:#e9eef6}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:12px/1.35 system-ui,Segoe UI,Roboto,sans-serif}
+  canvas{display:block;width:100%;height:calc(100% - 46px);background:#000}
+
+  /* Top bar */
+  .top{display:flex;gap:10px;align-items:center;padding:8px 10px;background:var(--ui);border-bottom:1px solid #171a2a}
+  .sp{flex:1}
+  button{padding:6px 10px;background:#192038;color:#dbe5ff;border:1px solid #2a3558;border-radius:6px}
+  button:focus-visible{outline:2px solid rgba(134,208,255,.6);outline-offset:2px}
+  .stat{color:#9fb3ff;font-variant-numeric:tabular-nums}
+
+  /* Overlay */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none}
+  .overlay.open{display:block}
+
+  /* Window (draggable + resizable) */
+  .win{
+    position:absolute; inset:auto; /* will place with JS */
+    background:#0e1221; border:1px solid #2b365d; border-radius:12px; box-shadow:0 12px 36px rgba(0,0,0,.45);
+    min-width:360px; min-height:200px; max-width:92vw; max-height:88vh; overflow:hidden;
+  }
+  .win header{
+    cursor:move; user-select:none; display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px; background:#0f1326; border-bottom:1px solid #202a4d; gap:10px
+  }
+  .win h3{margin:0;font-size:15px;font-weight:600}
+  .win .body{padding:10px 12px; overflow:auto; height:calc(100% - 46px)}
+  .hint{color:#9aa6cc}
+
+  /* Window sizes */
+  .about{width:min(900px,90vw);height:min(600px,82vh)}
+  .ctrls{width:min(980px,92vw);height:min(640px,84vh)}
+  .learn{width:min(1000px,94vw);height:min(680px,86vh)}
+
+  /* Controls content */
+  .grp{padding:10px 0 4px;color:#8fa6ff;border-top:1px solid #1a2141;margin-top:6px}
+  .panel{padding:6px 0 10px;display:grid;grid-template-columns: 220px 1fr 64px;gap:8px;align-items:center}
+  .panel small{grid-column: 1 / -1; color:#9aa6cc; margin:-2px 0 6px}
+  .panel output{justify-self:end;color:var(--hl);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%}
+  .chk{display:flex;align-items:center;gap:8px}
+  .rowish{display:flex;gap:10px;align-items:center}
+  .kbd{font:11px ui-monospace,Menlo,monospace;color:#a9b8ff;background:#141a2f;border:1px solid #26305a;border-radius:4px;padding:0 6px}
+
+  /* Learn content */
+  .learn-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+  .card{background:#0c1120;border:1px solid #1f2a4a;border-radius:10px;padding:10px}
+  .card h4{margin:0 0 6px;font-size:14px}
+  .muted{color:#9aa6cc}
+  textarea.notes{width:100%;min-height:160px;background:#0a0f1d;color:#cfe0ff;border:1px solid #223058;border-radius:8px;padding:8px;font-family:ui-monospace,Menlo,monospace;resize:vertical}
+  .snap-row{display:flex;gap:8px;align-items:center;justify-content:space-between;border-top:1px dashed #233059;padding:6px 0}
+  .snap-meta{font:11px;color:#9aa6cc}
+  .mono{font-family:ui-monospace,Menlo,monospace}
+  .pill{display:inline-block;padding:2px 6px;border:1px solid #2a3558;border-radius:999px;background:#141a2f;color:#cfe3ff;font-size:11px}
+</style>
+</head>
+<body>
+  <div class="top">
+    <button id="menuBtn" title="Open controls">☰ Controls</button>
+    <button id="learnBtn" title="Open Learn & Notes">✦ Learn</button>
+    <button id="reset">Reset</button>
+    <div class="sp"></div>
+    <div id="stats" class="stat">nodes: 0</div>
+  </div>
+
+  <canvas id="cv"></canvas>
+
+  <!-- Overlays (content injected by modules) -->
+  <div id="aboutOv" class="overlay" aria-hidden="true"><div id="aboutWin" class="win about"></div></div>
+  <div id="ctrlOv"  class="overlay" aria-hidden="true"><div id="ctrlWin"  class="win ctrls"></div></div>
+  <div id="learnOv" class="overlay" aria-hidden="true"><div id="learnWin" class="win learn"></div></div>
+
+<!-- ===================== PJA.ui (IIFE) ===================== -->
+<script>
+(function(){
+  const root = (window.PJA = window.PJA || {});
+  const util = root.util = root.util || {};
+  const ui   = root.ui   = root.ui   || {};
+
+  // ---------- utils ----------
+  util.$  = (sel,ctx=document)=>ctx.querySelector(sel);
+  util.$$ = (sel,ctx=document)=>Array.from(ctx.querySelectorAll(sel));
+  util.clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  util.noop = ()=>{};
+  util.h = (tag, attrs={}, ...kids)=>{
+    const el=document.createElement(tag);
+    for(const [k,v] of Object.entries(attrs||{})){
+      if(v==null) continue;
+      if(k==='class') el.className=v;
+      else if(k==='style') el.style.cssText=v;
+      else if(k.startsWith('on') && typeof v==='function') el.addEventListener(k.slice(2),v);
+      else { try{ if(k in el) el[k]=v; else el.setAttribute(k,String(v)); } catch{ el.setAttribute(k,String(v)); } }
+    }
+    for(let child of kids){ if(child==null) continue; if(!(child instanceof Node)) child=document.createTextNode(String(child)); el.appendChild(child); }
+    return el;
+  };
+
+  // ---------- design tokens + zooms ----------
+  (function injectStyles(){
+    const css = `
+      :root{
+        --bg:#0b0b0f; --fg:#cfd8e3; --ui:#111421; --hl:#86d0ff; --edge:#e9eef6;
+        --font-scale:1.00; --space-scale:1.00; --radius-scale:1.00;
+        --fab-zoom:1.0; --controls-zoom:1.0;
+      }
+      :root[data-size="tight"]  { --font-scale:.92; --space-scale:.85; --radius-scale:.9; }
+      :root[data-size="normal"] { --font-scale:1.00; --space-scale:1.00; --radius-scale:1.00; }
+      :root[data-size="large"]  { --font-scale:1.12; --space-scale:1.10; --radius-scale:1.05; }
+
+      html,body{ font-size: calc(12px * var(--font-scale)); }
+      .win{ border-radius: calc(12px * var(--radius-scale)); position:absolute; }
+      .win header{ padding: calc(10px * var(--space-scale)) calc(14px * var(--space-scale)); }
+      .win .body{ padding: calc(10px * var(--space-scale)) calc(12px * var(--space-scale)); }
+
+      /* Always-on-top, easy-to-grab resize handles */
+      .win { overflow:hidden; }
+      .win .rz{ position:absolute; background:transparent; z-index: 10; pointer-events:auto; }
+      .win .rz.n{ top:-2px; left:8px; right:8px; height:8px; cursor:n-resize }
+      .win .rz.s{ bottom:-2px; left:8px; right:8px; height:8px; cursor:s-resize }
+      .win .rz.e{ right:-2px; top:8px; bottom:8px; width:8px; cursor:e-resize }
+      .win .rz.w{ left:-2px; top:8px; bottom:8px; width:8px; cursor:w-resize }
+      .win .rz.nw{ left:-4px; top:-4px; width:12px; height:12px; cursor:nwse-resize }
+      .win .rz.ne{ right:-4px; top:-4px; width:12px; height:12px; cursor:nesw-resize }
+      .win .rz.sw{ left:-4px; bottom:-4px; width:12px; height:12px; cursor:nesw-resize }
+      .win .rz.se{ right:-4px; bottom:-4px; width:12px; height:12px; cursor:nwse-resize }
+
+      /* Controls layout + zoom */
+      .controls { display:block; transform-origin: top left; transform: scale(var(--controls-zoom)); }
+      .controls.controls--tight .panel{ grid-template-columns: 180px 1fr 56px; }
+      .controls .panel{ padding:6px 0 10px; display:grid; grid-template-columns: 220px 1fr 64px; gap: calc(8px * var(--space-scale)); align-items:center }
+      .controls .panel small{ grid-column: 1 / -1; color:#9aa6cc; margin:-2px 0 6px }
+      .controls.controls--tight .panel small{ display:none }
+      .controls .grp{ padding:10px 0 4px; color:#8fa6ff; border-top:1px solid #1a2141; margin-top:6px; display:flex; align-items:center; justify-content:space-between; user-select:none; }
+      .controls section[aria-expanded="false"] > .panel { display:none; }
+      .controls select{ padding:6px 8px; background:#0f1529; color:#dbe5ff; border:1px solid #26305a; border-radius:8px; }
+
+      /* Learn text larger */
+      #learnWin .body{ font-size: calc(1.0rem * 1.15); line-height: 1.5; }
+
+      /* FAB + zoom */
+      .fab{ position:fixed; right:18px; bottom:18px; z-index:99; }
+      .fab > button.fab-btn{
+        width:56px; height:56px; border-radius:999px; border:1px solid #2a3558;
+        background:#192038; color:#dbe5ff; box-shadow:0 8px 26px rgba(0,0,0,.4);
+        font-size:20px; cursor:pointer;
+      }
+      .fab-panel{
+        position:fixed; right:18px; bottom:84px; width:min(420px,90vw); max-height:60vh; overflow:auto;
+        background:#0e1221; border:1px solid #2b365d; border-radius:12px; box-shadow:0 16px 40px rgba(0,0,0,.5); padding:10px; display:none;
+        transform-origin: bottom right; transform: scale(var(--fab-zoom));
+      }
+      .fab-panel.open{ display:block; }
+      .fab-sec{ background:#0c1120; border:1px solid #1f2a4a; border-radius:10px; padding:10px; margin:8px 0; }
+      .fab-sec h5{ margin:0 0 6px; font-size:13px; color:#9fb3ff; cursor:pointer; user-select:none; }
+      .fab-sec[aria-expanded="false"] > div[data-sec-body]{ display:none; }
+      .kv{ display:grid; grid-template-columns: 110px 1fr; gap:6px; font-size:12px; }
+      .pill{display:inline-block;padding:2px 6px;border:1px solid #2a3558;border-radius:999px;background:#141a2f;color:#cfe3ff;font-size:11px}
+
+      /* Zoom nubs */
+      .zoom-nubs{ position: absolute; right:6px; top:6px; display:flex; gap:6px; z-index:200; }
+      .zoom-nubs button{ width:22px; height:22px; border-radius:6px; border:1px solid #2a3558; background:#141a2f; color:#cfe3ff; line-height:1; }
+
+      /* Controls zoom nubs */
+      .controls-zoom-nubs{ position:sticky; top:0; display:flex; gap:6px; justify-content:flex-end; padding:6px 0; z-index:150; }
+      .controls-zoom-nubs button{ width:22px; height:22px; border-radius:6px; border:1px solid #2a3558; background:#141a2f; color:#cfe3ff; }
+    `;
+    const tag = document.createElement('style'); tag.textContent = css; document.head.appendChild(tag);
+    if(!document.documentElement.hasAttribute('data-size')){
+      document.documentElement.setAttribute('data-size','normal');
+    }
+  })();
+
+  ui.tokens = (function(){
+    const getSize = ()=> document.documentElement.getAttribute('data-size') || 'normal';
+    const setSize = (v)=>{ if(!['tight','normal','large'].includes(v)) return; document.documentElement.setAttribute('data-size', v); };
+    return { getSize, setSize };
+  })();
+
+  // ---------- bus ----------
+  const bus = root.bus = root.bus || (function(){
+    const listeners = new Map(); let reqId=0;
+    function on(t,fn){ const set=listeners.get(t)||new Set(); set.add(fn); listeners.set(t,set); return ()=>off(t,fn); }
+    function off(t,fn){ const set=listeners.get(t); if(!set) return; set.delete(fn); if(!set.size) listeners.delete(t); }
+    function emit(t,p){ const set=listeners.get(t); if(!set) return 0; set.forEach(fn=>{ try{fn(p);}catch(e){console.error(e)} }); return set?.size||0; }
+    async function request(topic, data, {timeout=2000}={}) {
+      const id=++reqId, key=`${topic}::reply`;
+      return new Promise((res,rej)=>{
+        const stop=on(key,(msg)=>{ if(msg?.id!==id) return; off(key,stop.fn); clearTimeout(timer); res(msg.data); });
+        stop.fn = [...(listeners.get(key)||[])][0];
+        const timer=setTimeout(()=>{ off(key,stop.fn); rej(new Error(`bus.request timeout for ${topic}`)); }, timeout);
+        emit(topic,{id,data});
+      });
+    }
+    function reply(topic, handler){
+      return on(topic, async (msg)=>{ try{ const data=await handler(msg||{}); emit(`${topic}::reply`,{id:msg.id,data}); } catch(e){ emit(`${topic}::reply`,{id:msg.id,data:{error:String(e)}}); } });
+    }
+    return { on, off, emit, request, reply };
+  })();
+
+  // ---------- KaTeX ----------
+  ui.katex = (function(){
+    let ready=false, pending=[];
+    function ensure(){
+      if(ready) return;
+      if(document.getElementById('katex-css')) return;
+      const link=document.createElement('link');
+      link.id='katex-css'; link.rel='stylesheet';
+      link.href='https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';
+      document.head.appendChild(link);
+      const s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js';
+      s.onload=()=>{ ready=true; pending.splice(0).forEach(fn=>fn()); };
+      document.head.appendChild(s);
+    }
+    function render(el, tex, opts={}){
+      ensure();
+      const doRender=()=>{ if(window.katex){ el.innerHTML = window.katex.renderToString(tex, {throwOnError:false, displayMode:!!opts.display}); } };
+      ready? doRender() : pending.push(doRender);
+    }
+    return { render };
+  })();
+
+  // ---------- windows ----------
+  ui.makeWindow = ({hostSel, id, title, body, sizeClass})=>{
+    const host = util.$(hostSel);
+    const win = host.firstElementChild;
+    win.id = id; if(sizeClass) win.classList.add(sizeClass);
+
+    const header = util.h('header',{},
+      util.h('h3',{}, title||''),
+      util.h('div',{class:'rowish'},
+        util.h('span',{class:'hint'},'Drag/resize • Esc to close'),
+        util.h('button',{onclick:()=>ui.closeOverlay(hostSel)},'Close')
+      )
+    );
+    const bodyWrap = util.h('div',{class:'body'}); if(body) bodyWrap.append(body);
+    // handles are appended last, above content
+    win.replaceChildren(
+      header, bodyWrap,
+      util.h('div',{class:'rz n'}),util.h('div',{class:'rz s'}),util.h('div',{class:'rz e'}),util.h('div',{class:'rz w'}),
+      util.h('div',{class:'rz nw'}),util.h('div',{class:'rz ne'}),util.h('div',{class:'rz sw'}),util.h('div',{class:'rz se'})
+    );
+    ui.bindDrag(win, id); ui.bindResize(win, id);
+    return win;
+  };
+  ui.openOverlay = (ovSel, key)=>{
+    const ov=util.$(ovSel); ov.classList.add('open'); ov.ariaHidden="false";
+    const win=ov.firstElementChild; ui.restoreWin(win,key); if(!win.dataset.restored){ ui.centerWin(win); ui.saveWin(win,key); }
+    const esc=(e)=>{ if(e.key==='Escape') ui.closeOverlay(ovSel); }; ov._onEsc=esc; addEventListener('keydown',esc);
+    ov.addEventListener('click',e=>{ if(e.target===ov) ui.closeOverlay(ovSel); },{once:true});
+  };
+  ui.closeOverlay = (ovSel)=>{ const ov=util.$(ovSel); if(!ov) return; ov.classList.remove('open'); ov.ariaHidden="true"; removeEventListener('keydown',ov._onEsc||util.noop); };
+  ui.centerWin=(win)=>{ const vw=innerWidth,vh=innerHeight; const w=parseInt(getComputedStyle(win).width,10), h=parseInt(getComputedStyle(win).height,10); win.style.left=Math.max(8,(vw-w)/2)+'px'; win.style.top=Math.max(8,(vh-h)/2)+'px'; };
+  ui.saveWin=(win,key)=>{ if(!key) return; const rect={ left:parseInt(win.style.left||0,10), top: parseInt(win.style.top||0,10), width:parseInt(getComputedStyle(win).width,10), height:parseInt(getComputedStyle(win).height,10)}; localStorage.setItem(key, JSON.stringify(rect)); };
+  ui.restoreWin=(win,key)=>{ if(!key) return; const raw=localStorage.getItem(key); if(!raw){ win.dataset.restored='0'; return; } try{ const r=JSON.parse(raw); const vw=innerWidth,vh=innerHeight; const w=util.clamp(r.width,360,vw-16),h=util.clamp(r.height,200,vh-16),l=util.clamp(r.left,8,vw-w-8),t=util.clamp(r.top,8,vh-h-8); Object.assign(win.style,{width:w+'px',height:h+'px',left:l+'px',top:t+'px'}); win.dataset.restored='1'; }catch{ win.dataset.restored='0'; } };
+  ui.bindDrag=(win,key)=>{
+    const handle=win.querySelector('header'); let start=null;
+    const move=e=>{ if(!start) return; const dx=e.clientX-start.x, dy=e.clientY-start.y; const vw=innerWidth,vh=innerHeight; const w=parseInt(getComputedStyle(win).width,10),h=parseInt(getComputedStyle(win).height,10); const L=util.clamp(start.l+dx,8,vw-w-8), T=util.clamp(start.t+dy,8,vh-h-8); Object.assign(win.style,{left:L+'px',top:T+'px'}); };
+    const up=()=>{ if(start){ ui.saveWin(win,key); start=null; } removeEventListener('pointermove',move); removeEventListener('pointerup',up); };
+    handle.addEventListener('pointerdown',e=>{ if(e.target.closest('button')) return; const r=win.getBoundingClientRect(); start={x:e.clientX,y:e.clientY,l:r.left,t:r.top}; addEventListener('pointermove',move); addEventListener('pointerup',up); e.preventDefault(); });
+  };
+  ui.bindResize=(win,key)=>{
+    const sides=['n','s','e','w','nw','ne','sw','se'];
+    sides.forEach(side=>{
+      const el=util.$('.rz.'+side,win); if(!el) return;
+      el.addEventListener('pointerdown',e=>{
+        e.stopPropagation();
+        const r=win.getBoundingClientRect(); const vw=innerWidth,vh=innerHeight; const start={x:e.clientX,y:e.clientY,l:r.left,t:r.top,w:r.width,h:r.height};
+        const move=ev=>{
+          let dx=ev.clientX-start.x, dy=ev.clientY-start.y; let L=start.l, T=start.t, Wn=start.w, Hn=start.h; const minW=360,minH=200;
+          if(side.includes('e')) Wn = util.clamp(start.w + dx, minW, vw - start.l - 8);
+          if(side.includes('s')) Hn = util.clamp(start.h + dy, minH, vh - start.t - 8);
+          if(side.includes('w')) { Wn = util.clamp(start.w - dx, minW, start.l - 8 + start.w); L = util.clamp(start.l + dx, 8, start.l + start.w - minW); }
+          if(side.includes('n')) { Hn = util.clamp(start.h - dy, minH, start.t - 8 + start.h); T = util.clamp(start.t + dy, 8, start.t + start.h - minH); }
+          Object.assign(win.style,{left:L+'px',top:T+'px',width:Wn+'px',height:Hn+'px'});
+        };
+        const up=()=>{ removeEventListener('pointermove',move); removeEventListener('pointerup',up); ui.saveWin(win,key); };
+        addEventListener('pointermove',move); addEventListener('pointerup',up); e.preventDefault();
+      });
+    });
+  };
+
+  // ---------- controls (now supports select) ----------
+  const _selection = { id:null, label:null, value:null, title:null, desc:null };
+  const notifySelection = ()=>{ if(ui.fab && ui.fab.updateLive){ ui.fab.updateLive(_selection); } };
+
+  const _registry = ui.controls?.registry || new Map();
+  const REG_KEY = 'pja_controls_registry@v1';
+  if(!_registry.size){
+    try{ const cached=JSON.parse(localStorage.getItem(REG_KEY)||'{}'); Object.entries(cached).forEach(([id,meta])=>_registry.set(id,meta)); }catch{}
+  }
+  function saveRegistry(){ const obj={}; _registry.forEach((v,k)=>obj[k]=v); localStorage.setItem(REG_KEY, JSON.stringify(obj)); }
+
+  const mappingFn = ui.mappingFn || function(spec){
+    if(!spec) return (x)=>x;
+    if(typeof spec==='function') return spec;
+    const {type='linear', in:iin, out=iin} = spec;
+    if(type==='linear'){ const [ia,ib]=iin||[0,1], [oa,ob]=out||[ia,ib]; const m=(ob-oa)/((ib-ia)||1e-9), b=oa-m*ia; return (x)=>m*x+b; }
+    if(type==='exp'){ const [oa,ob]=out||[1,10]; return (x)=> oa*Math.pow(ob/oa,x); }
+    if(type==='log'){ const [ia,ib]=iin||[1,10], [oa,ob]=out||[0,1]; return (x)=>{ const t=(Math.log(x)-Math.log(ia))/(Math.log(ib)-Math.log(ia)); return oa + t*(ob-oa); }; }
+    return (x)=>x;
+  };
+
+  let _tightForced = null;
+  function setTight(v){ _tightForced = !!v; const root = util.$('.controls'); if(root) root.classList.toggle('controls--tight', !!v); }
+  function autoTight(rootEl){ if(_tightForced!==null) return; const tight = rootEl.getBoundingClientRect().width < 720; rootEl.classList.toggle('controls--tight', tight); }
+
+  ui.controls = {
+    registry:_registry, mappingFn, setTight, getTight:()=>!!_tightForced,
+    makePanel(schema, onChange){
+      const wrap = util.h('div',{class:'controls'});
+      const zoomBar = util.h('div',{class:'controls-zoom-nubs'},
+        util.h('button',{onclick:()=>controlsZoom(-0.05), title:'Smaller (Controls)'},'−'),
+        util.h('button',{onclick:()=>controlsZoom(+0.05), title:'Larger (Controls)'},'＋')
+      );
+      wrap.append(zoomBar);
+
+      const outRefs=new Map();
+
+      function addRange(secEl, spec){
+        const {id,label,min,max,step,value,title,desc,map} = spec;
+        _registry.set(id, {type:'range', min,max,step,default:value, map:map||null, title:title||'', desc:desc||''}); saveRegistry();
+        const input = util.h('input',{
+          id, type:'range', min, max, step, value,
+          oninput:(e)=>{ const v=+e.target.value; const mapped=map? mappingFn(map)(v) : v; outRefs.get(id).textContent=fmt(id,v); onChange && onChange(id, v, mapped); select(id,label,v,title,desc); },
+          onfocus:(e)=> select(id,label,e.target.value,title,desc),
+          onpointerdown:(e)=> select(id,label,e.target.value,title,desc)
+        });
+        const row = util.h('div',{class:'panel'},
+          util.h('label',{for:id,title:title||''},label),
+          input,
+          util.h('output',{id:id+'_v'}, fmt(id,value)),
+          desc? util.h('small',{}, desc) : null
+        );
+        outRefs.set(id, util.$('#'+id+'_v', row));
+        secEl.append(row);
+      }
+
+      function addCheck(secEl, spec){
+        const {id,label,value,desc} = spec;
+        _registry.set(id, {type:'check', default:!!value, desc:desc||''}); saveRegistry();
+        const input = util.h('input',{
+          id, type:'checkbox', checked:value?true:undefined,
+          oninput:(e)=>{ onChange && onChange(id, !!e.target.checked); select(id,label,!!e.target.checked,'',desc); },
+          onfocus:(e)=> select(id,label,!!e.target.checked,'',desc),
+          onpointerdown:(e)=> select(id,label,!!e.target.checked,'',desc)
+        });
+        const row = util.h('div',{class:'panel',style:'grid-template-columns:1fr'},
+          util.h('div',{class:'chk'}, input, util.h('label',{for:id},label)),
+          desc? util.h('small',{}, desc) : null
+        );
+        secEl.append(row);
+      }
+
+      function addSelect(secEl, spec){
+        const {id,label,value,options=[],desc,title} = spec;
+        _registry.set(id, {type:'select', default:value, options, desc:desc||'', title:title||''}); saveRegistry();
+        const select = util.h('select',{
+          id,
+          onchange:(e)=>{ onChange && onChange(id, e.target.value); selectSel(id,label,e.target.value,title,desc); },
+          onfocus:(e)=> selectSel(id,label,e.target.value,title,desc)
+        },
+          ...options.map(opt=>{
+            const [val, txt] = Array.isArray(opt)? opt : [opt,opt];
+            const o = document.createElement('option'); o.value=val; o.textContent=txt; if(val===value) o.selected=true; return o;
+          })
+        );
+        const row = util.h('div',{class:'panel'},
+          util.h('label',{for:id,title:title||''},label),
+          select,
+          util.h('output',{id:id+'_v'}, value),
+          desc? util.h('small',{}, desc) : null
+        );
+        outRefs.set(id, util.$('#'+id+'_v', row));
+        secEl.append(row);
+      }
+
+      function addHint(secEl, spec){
+        if(!spec.text) return;
+        secEl.append(util.h('div',{class:'panel',style:'grid-template-columns:1fr'}, util.h('div',{class:'hint'}, spec.text)));
+      }
+
+      function select(id,label,value,title,desc){
+        _selection.id=id; _selection.label=label; _selection.value=value; _selection.title=title||''; _selection.desc=desc||'';
+        notifySelection(); root.bus?.emit('controls/selection', JSON.parse(JSON.stringify(_selection)));
+      }
+      function selectSel(id,label,value,title,desc){ select(id,label,value,title,desc); const out = document.getElementById(id+'_v'); if(out) out.textContent = value; }
+
+      function section(id,title,collapsed){
+        const grp = util.h('div',{class:'grp'}, util.h('span',{}, title));
+        const sec = util.h('section',{'data-sec-id':id, 'aria-expanded': collapsed? 'false':'true'}, grp);
+        grp.addEventListener('dblclick',()=>{
+          const cur = sec.getAttribute('aria-expanded')!=='false';
+          sec.setAttribute('aria-expanded', cur?'false':'true');
+          localStorage.setItem(`controls.collapsed.${id}`, cur?'1':'0');
+        });
+        const saved = localStorage.getItem(`controls.collapsed.${id}`);
+        if(saved==='1') sec.setAttribute('aria-expanded','false');
+        wrap.append(sec);
+        return sec;
+      }
+
+      schema.forEach(secSpec=>{
+        const sec = section(secSpec.id||secSpec.title, secSpec.title, !!secSpec.collapsed);
+        (secSpec.items||[]).forEach(item=>{
+          if(item.type==='range') addRange(sec, item);
+          else if(item.type==='check') addCheck(sec, item);
+          else if(item.type==='select') addSelect(sec, item);
+          else if(item.type==='hint') addHint(sec, item);
+        });
+      });
+
+      const ro = new ResizeObserver(()=>autoTight(wrap)); ro.observe(wrap);
+      autoTight(wrap);
+
+      return {
+        el:wrap,
+        get:(id)=>{ const n=document.getElementById(id); if(!n) return undefined; if(n.tagName==='SELECT') return n.value; return n?.type==='checkbox'? n.checked : +n.value; },
+        set:(id,val)=>{ const n=document.getElementById(id); if(!n) return; if(n.tagName==='SELECT'){ n.value=val; } else if(n.type==='checkbox'){ n.checked=!!val; } else { n.value=val; } const out=document.getElementById(id+'_v'); if(out) out.textContent=(n.tagName==='SELECT')? String(val) : fmt(id,n.type==='checkbox'?Number(n.checked):n.value); },
+        bulkSet:(map)=>{ Object.entries(map).forEach(([k,v])=>{ const n=document.getElementById(k); if(n){ if(n.tagName==='SELECT'){ n.value=v; } else if(n.type==='checkbox') n.checked=!!v; else n.value=v; const out=document.getElementById(k+'_v'); if(out) out.textContent=(n.tagName==='SELECT')? String(v) : fmt(k,n.type==='checkbox'?Number(n.checked):n.value); } }); },
+        setCollapsed:(secId,collapsed)=>{ const sec=util.$(`section[data-sec-id="${secId}"]`, wrap); if(!sec) return; sec.setAttribute('aria-expanded', collapsed? 'false':'true'); localStorage.setItem(`controls.collapsed.${secId}`, collapsed?'1':'0'); },
+        setTight:(v)=>{ setTight(v); wrap.classList.toggle('controls--tight', !!v); },
+        bindGamepad:(mapper)=>{ const helper={ get:(id)=>{ const n=document.getElementById(id); if(!n) return undefined; if(n.tagName==='SELECT') return n.value; return n?.type==='checkbox'? n.checked : +n.value; }, set:(id,val)=>{ const n=document.getElementById(id); if(!n) return; if(n.tagName==='SELECT'){ n.value=val; n.dispatchEvent(new Event('change',{bubbles:true})); } else if(n.type==='checkbox'){ n.checked=!!val; n.dispatchEvent(new Event('input',{bubbles:true})); } else { n.value=val; n.dispatchEvent(new Event('input',{bubbles:true})); } }, meta:(id)=> _registry.get(id)||null }; root.bus?.on('gamepad/tick',(state)=>{ try{ mapper({state, ...helper}); }catch(e){ console.warn('gamepad mapper error',e); } }); }
+      };
+    }
+  };
+
+  // ---------- FAB (collapsible + zoom + Live) ----------
+  ui.fab = (function(){
+    const wrap = util.h('div',{class:'fab'});
+    const btn  = util.h('button',{class:'fab-btn', title:'Tech Panel (L)', onclick:toggle},'≡');
+    const panel= util.h('div',{class:'fab-panel', role:'dialog', 'aria-modal':'false'});
+    wrap.append(btn,panel);
+    document.body.appendChild(wrap);
+    function toggle(){ panel.classList.toggle('open'); }
+    addEventListener('keydown',e=>{ if((e.key==='l' || e.key==='L') && !e.altKey && !e.ctrlKey && !e.metaKey){ toggle(); } });
+
+    const nubs = util.h('div',{class:'zoom-nubs'},
+      util.h('button',{onclick:()=>fabZoom(-0.05), title:'Smaller (FAB)'},'−'),
+      util.h('button',{onclick:()=>fabZoom(+0.05), title:'Larger (FAB)'},'＋')
+    );
+    panel.append(nubs);
+
+    const sections = new Map();
+    function addSection(id,title,contentEl){
+      const body = util.h('div',{'data-sec-body':id}, contentEl);
+      const sec  = util.h('section',{class:'fab-sec', 'data-sec':id, 'aria-expanded':'true'},
+        util.h('h5',{}, title),
+        body
+      );
+      sections.set(id, sec);
+      panel.append(sec);
+      sec.querySelector('h5').addEventListener('click', ()=>{
+        const cur = sec.getAttribute('aria-expanded')!=='false';
+        sec.setAttribute('aria-expanded', cur?'false':'true');
+      });
+    }
+    function updateSection(id, el){
+      const body = util.$(`[data-sec-body="${id}"]`, panel);
+      if(body) body.replaceChildren(el);
+    }
+
+    // Live section
+    const liveBody = util.h('div',{},
+      util.h('div',{class:'kv'},
+        util.h('div',{},'Label'), util.h('div',{'data-live':'label'},'—'),
+        util.h('div',{},'ID'),    util.h('div',{'data-live':'id'},'—'),
+        util.h('div',{},'Value'), util.h('div',{'data-live':'value'},'—'),
+        util.h('div',{},'Title'), util.h('div',{'data-live':'title'},'—'),
+        util.h('div',{},'Desc'),  util.h('div',{'data-live':'desc'},'—')
+      )
+    );
+    addSection('live','Live — Control Focus', liveBody);
+
+    // Tokens section
+    const sizeRow = util.h('div',{},
+      util.h('span',{},'Size:'),' ',
+      util.h('span',{class:'pill','data-size-read':''}, ui.tokens.getSize()), ' ',
+      util.h('button',{onclick:()=>setSize('tight')},'tight'),
+      util.h('button',{style:'margin-left:6px',onclick:()=>setSize('normal')},'normal'),
+      util.h('button',{style:'margin-left:6px',onclick:()=>setSize('large')},'large')
+    );
+    addSection('tokens','Design Tokens', sizeRow);
+    function setSize(v){ ui.tokens.setSize(v); util.$('[data-size-read]', sizeRow).textContent = ui.tokens.getSize(); }
+
+    // Model section
+    addSection('model','Model (external)', util.h('div',{},'Attach via PJA.ui.fab.updateSection("model", el)'));
+
+    function updateLive(sel){
+      const set = (k,v)=>{ const el=util.$(`[data-live="${k}"]`, panel); if(el) el.textContent = (v==null||v==='')?'—':String(v); };
+      if(!sel){ ['label','id','value','title','desc'].forEach(k=>set(k,'—')); return; }
+      set('label', sel.label); set('id', sel.id); set('value', sel.value);
+      set('title', sel.title); set('desc', sel.desc);
+    }
+
+    function fabZoom(delta){
+      const html = document.documentElement;
+      const cur = parseFloat(getComputedStyle(html).getPropertyValue('--fab-zoom')) || 1;
+      const next = util.clamp(+((cur+delta).toFixed(2)), 0.6, 1.6);
+      html.style.setProperty('--fab-zoom', String(next));
+    }
+    function controlsZoom(delta){
+      const html = document.documentElement;
+      const cur = parseFloat(getComputedStyle(html).getPropertyValue('--controls-zoom')) || 1;
+      const next = util.clamp(+((cur+delta).toFixed(2)), 0.7, 1.6);
+      html.style.setProperty('--controls-zoom', String(next));
+    }
+    window.controlsZoom = controlsZoom;
+
+    return { addSection, updateSection, updateLive };
+  })();
+
+  // ---------- helpers ----------
+  function fmt(id,v){
+    return (/L0|repel|maxNodes|vecLen|crossBudget/).test(id)? (v|0) : (+v).toFixed(
+      (/grav|omega0|modAmp|modFreq|pBranch|closeMul|couple|biasKnob|biasStrength/.test(id)?3:2)
+    );
+  }
+  function controlsZoom(delta){
+    const html = document.documentElement;
+    const cur = parseFloat(getComputedStyle(html).getPropertyValue('--controls-zoom')) || 1;
+    const next = util.clamp(+((cur+delta).toFixed(2)), 0.7, 1.6);
+    html.style.setProperty('--controls-zoom', String(next));
+  }
+
+})();
+</script>
+
+
+<!-- ============== PJA.models.lifegraph (IIFE) ============== -->
+<script>
+(function(){
+  const PJA = window.PJA = window.PJA || {};
+  PJA.models = PJA.models || {};
+  const bus = PJA.bus;
+
+  const lifegraph = (function(){
+    // ===== Canvas & view =====
+    let cv, ctx, dpr=1, W=0, H=0;
+    const view = { scale: 1.0, min: 0.25, max: 3.0 };
+
+    function attachCanvas(canvas){
+      cv = canvas; ctx = cv.getContext('2d', {alpha:true});
+      dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      const fit=()=>{ const w=cv.clientWidth*dpr|0, h=cv.clientHeight*dpr|0; if(w===W&&h===H) return; W=cv.width=w; H=cv.height=h; ctx.setTransform(dpr,0,0,dpr,0,0); };
+      addEventListener('resize', fit); fit();
+      bindMouse();
+    }
+
+    // ===== State =====
+    let nodes=[], edges=[], time=0;
+
+    // ===== Params =====
+    const params = {
+      // growth/topology
+      pBranch: 0.030, L0: 18, closeMul: 1.05, maxNodes: 900, lockTopo:false,
+      // physics
+      repel: 420, grav: 0.0015,
+      // phase
+      omega0: 0.018, couple: 0.30, modAmp: 0.040, modFreq: 0.20,
+      phaseColor:true, showVec:true, vecLen:10,
+      // antenna crossing
+      crossEnable:false, crossBudget:800, biasKnob:0.08, biasStrength:0.40,
+      // color mapping
+      colorMode:'phase', hueOffset:0, colorSat:1, colorVal:1,
+      fixedColor:[220,230,255],
+      palette:[[255,110,110],[255,210,90],[160,230,120],[110,200,255],[190,160,255],[255,150,220]],
+      // global phase offset (cycles / second if set as slider)
+      phaseOffset: 0.0,
+      // NEW: field of view (exposed; also controlled by wheel)
+      viewScale: 1.0
+    };
+
+    // ===== Utils =====
+    const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+    const wrap1=v=>{ v%=1; return v<0?v+1:v; };
+    const dist2=(a,b)=>{const dx=a.x-b.x, dy=a.y-b.y; return dx*dx+dy*dy; };
+    const hueRGB=(h,s=1,v=1)=>{ const i=(h*6)|0, f=h*6-i, p=v*(1-s), q=v*(1-f*s), t=v*(1-(1-f)*s);
+      let r,g,b; switch(i%6){case 0:r=v;g=t;b=p;break;case 1:r=q;g=v;b=p;break;case 2:r=p;g=v;b=t;break;case 3:r=p;g=q;b=v;break;case 4:r=t;g=p;b=v;break;default:r=v;g=p;b=q;}
+      return [(r*255)|0,(g*255)|0,(b*255)|0];
+    };
+    const makeNode=(x,y)=>({x,y,vx:0,vy:0,phi:Math.random(),age:0,deg:0});
+    function addEdge(i,j){ if(i===j) return; edges.push([i,j]); nodes[i].deg++; nodes[j].deg++; }
+
+    // ===== Seeds =====
+    function seed(kind="ring"){
+      nodes=[]; edges=[];
+      const cx=W/(2/dpr), cy=H/(2/dpr);
+      if (kind==="trihub"){
+        const R=42, R2=90;
+        const ids=[0,1,2].map(k=>nodes.push(makeNode(cx+R*Math.cos(2*Math.PI*k/3), cy+R*Math.sin(2*Math.PI*k/3)))-1);
+        addEdge(ids[0],ids[1]); addEdge(ids[1],ids[2]); addEdge(ids[2],ids[0]);
+        for(let k=0;k<3;k++){ const b=2*Math.PI*k/3+Math.PI/3;
+          const n1=nodes.push(makeNode(cx+R2*Math.cos(b), cy+R2*Math.sin(b)))-1; addEdge(ids[k],n1); }
+      } else {
+        const R=120; for(let k=0;k<12;k++){ const a=2*Math.PI*k/12; nodes.push(makeNode(cx+R*Math.cos(a), cy+R*Math.sin(a))); }
+        for(let k=0;k<12;k++) addEdge(k,(k+1)%12);
+        const tip=nodes.length; nodes.push(makeNode(cx+R*1.4, cy)); addEdge(0,tip);
+      }
+    }
+
+    // ===== Public params =====
+    const getParams = ()=>({...params, viewScale:view.scale});
+    function setParams(next){
+      if(!next) return;
+      Object.assign(params, next);
+      if(next.viewScale!=null){
+        view.scale = clamp(+next.viewScale || 1, view.min, view.max);
+        params.viewScale = view.scale;
+      }
+      if(next.L0!=null) params.L0 = Math.max(2, +next.L0); // enforce new min=2
+      if(next.grav!=null) params.grav = clamp(+next.grav, 0, 0.016); // allow up to 4x
+      if(next.repel!=null) params.repel = clamp(+next.repel, 0, 4000); // allow up to 2x
+    }
+
+    // ===== Color mapping =====
+    let customColorFn = null;
+    function nodeColor(n){
+      const s=clamp(params.colorSat,0,1), v=clamp(params.colorVal,0,1);
+      switch(params.colorMode){
+        case 'fixed': return params.fixedColor.slice(0,3);
+        case 'age': { const t=clamp(n.age/60,0,1)*0.85 + params.hueOffset; return hueRGB(wrap1(t), s, v); }
+        case 'degree': { const h=wrap1(((n.deg||0)%8)/8 + params.hueOffset); return hueRGB(h,s,v); }
+        case 'speed': { const spd=Math.min(1, Math.hypot(n.vx,n.vy)*20); const h=wrap1(spd*0.85 + params.hueOffset); return hueRGB(h,s,v); }
+        case 'palette': { const P=params.palette||[]; if(!P.length) return [220,230,255]; const idx=Math.abs(n.deg||0)%P.length; return P[idx]; }
+        case 'custom': if(typeof customColorFn==='function'){ const out=customColorFn(n,{hueRGB,wrap1,params}); if(Array.isArray(out)&&out.length>=3) return out; }
+        /* falls through */ default: { const h=wrap1(n.phi + params.hueOffset); return hueRGB(h,s,v); }
+      }
+    }
+    function setColorMode(mode){ params.colorMode=mode; }
+    function setHueOffset(x){ params.hueOffset=wrap1(+x||0); }
+    function setColorSat(x){ params.colorSat=clamp(+x||0,0,1); }
+    function setColorVal(x){ params.colorVal=clamp(+x||0,0,1); }
+    function setPalette(arr){ if(Array.isArray(arr)) params.palette=arr.map(c=>c.slice(0,3)); }
+    function setCustomColor(fn){ customColorFn = typeof fn==='function'? fn : null; }
+
+    // ===== Phase offset (one-shot helper) =====
+    function applyPhaseOffset(deltaCycles){ const d=deltaCycles||0; if(!d) return; for(const n of nodes){ n.phi=wrap1(n.phi+d); } }
+
+    // ===== Antennae helpers =====
+    function antennaEnd(n){
+      const R=5+Math.min(4,0.25*Math.log1p(n.age));
+      const len=params.vecLen|0;
+      const ang=2*Math.PI*n.phi;
+      return {x:n.x+(R+len)*Math.cos(ang), y:n.y+(R+len)*Math.sin(ang)};
+    }
+    function segInter(a,b,c,d){
+      const x1=a.x,y1=a.y,x2=b.x,y2=b.y,x3=c.x,y3=c.y,x4=d.x,y4=d.y;
+      const den=(x1-x2)*(y3-y4)-(y1-y2)*(x3-x4); if(Math.abs(den)<1e-6) return false;
+      const t=((x1-x3)*(y3-y4)-(y1-y3)*(x3-x4))/den; const u=((x1-x3)*(y1-y2)-(y1-y3)*(x1-x2))/den;
+      return t>0&&t<1&&u>0&&u<1;
+    }
+
+    // ===== Dynamics =====
+    function step(dt){
+      const L0=params.L0, kSpring=0.03, repulse=params.repel, damp=0.15;
+      const grav=params.grav, couple=params.couple, pBranch=params.pBranch;
+      const closeR2=(L0*(params.closeMul))**2;
+      const maxNodes=(params.maxNodes|0);
+      const canRewrite = !params.lockTopo ? (nodes.length<maxNodes) : (nodes.length<maxNodes);
+
+      time += dt;
+
+      // global phase offset (interpret as cycles/sec)
+      if (params.phaseOffset){
+        const add = params.phaseOffset * dt;
+        for(let i=0;i<nodes.length;i++) nodes[i].phi = wrap1(nodes[i].phi + add);
+      }
+
+      // Kuramoto + FM
+      const mod = (params.modAmp) * Math.sin(2*Math.PI*(params.modFreq)*time);
+      const dphi = new Float32Array(nodes.length);
+      for (const [i,j] of edges){ const s=Math.sin(2*Math.PI*(nodes[j].phi - nodes[i].phi)); dphi[i]+=s; dphi[j]-=s; }
+      for (let i=0;i<nodes.length;i++){ nodes[i].phi=wrap1(nodes[i].phi + dt*(params.omega0 + mod + couple*dphi[i])); nodes[i].age+=dt; }
+
+      // springs
+      for (const [i,j] of edges){
+        const a=nodes[i], b=nodes[j];
+        let dx=b.x-a.x, dy=b.y-a.y; const d=Math.hypot(dx,dy)||1e-6, f=kSpring*(d-L0);
+        dx/=d; dy/=d; a.vx+=f*dx; a.vy+=f*dy; b.vx-=f*dx; b.vy-=f*dy;
+      }
+      // repulsion + gravity
+      for (let i=0;i<nodes.length;i++){
+        const a=nodes[i];
+        for (let j=i+1;j<nodes.length;j++){
+          const b=nodes[j]; let dx=b.x-a.x, dy=b.y-a.y; let r2=dx*dx+dy*dy + 25;
+          let f=repulse/r2; const inv=Math.sqrt(r2); dx/=inv; dy/=inv;
+          a.vx-=f*dx; a.vy-=f*dy; b.vx+=f*dx; b.vy+=f*dy;
+        }
+        a.vx += -grav*(a.x - W/(2/dpr));
+        a.vy += -grav*(a.y - H/(2/dpr));
+      }
+      // integrate
+      for (const n of nodes){ n.vx*=(1-damp); n.vy*=(1-damp); n.x+=dt*60*n.vx; n.y+=dt*60*n.vy; }
+
+      if (canRewrite){
+        // split long edges
+        const newEdges=[];
+        for (let ei=0; ei<edges.length; ei++){
+          const e=edges[ei]; if(!e) continue;
+          const [i,j]=e; const a=nodes[i], b=nodes[j];
+          const d=Math.hypot(a.x-b.x, a.y-b.y);
+          if (d>2.2*L0 && nodes.length<maxNodes){
+            const mid=nodes.push(makeNode((a.x+b.x)/2,(a.y+b.y)/2))-1;
+            nodes[i].deg--; nodes[j].deg--; newEdges.push([i,mid],[mid,j]); edges[ei]=null;
+          }
+        }
+        edges = edges.filter(Boolean).concat(newEdges);
+
+        // branch + loop close
+        for (let i=0;i<nodes.length;i++){
+          if (nodes.length>=maxNodes) break;
+          const n=nodes[i];
+          if (n.deg<=2 && Math.random()<pBranch*dt){
+            let tx=0,ty=0,cnt=0;
+            for(const [u,v] of edges){ if(u===i){tx+=nodes[v].x-n.x; ty+=nodes[v].y-n.y; cnt++;} else if(v===i){tx+=nodes[u].x-n.x; ty+=nodes[u].y-n.y; cnt++;} }
+            let nx = cnt? -ty : (Math.random()*2-1), ny = cnt? tx : (Math.random()*2-1);
+            const s=Math.hypot(nx,ny)||1e-6; nx/=s; ny/=s;
+            const j=nodes.push(makeNode(n.x+nx*L0, n.y+ny*L0))-1; addEdge(i,j);
+
+            // loop close
+            let target=-1,best=1e9;
+            for(let k=0;k<nodes.length-1;k++){ if(k===i) continue;
+              const r2=dist2(nodes[j],nodes[k]); if(r2<closeR2 && r2<best){best=r2; target=k;}
+            }
+            if (target>=0) addEdge(j,target);
+          }
+        }
+      }
+
+      // antenna crossing (existing simple bias)
+      if (params.crossEnable && (params.vecLen|0)>0 && nodes.length>1){
+        const budget = params.crossBudget|0;
+        const ncount = nodes.length;
+        for (let m=0;m<budget;m++){
+          const i = (Math.random()*ncount)|0, j = (Math.random()*ncount)|0;
+          if (i===j) continue;
+          const a=nodes[i], b=nodes[j];
+          const A1={x:a.x,y:a.y}, A2=antennaEnd(a);
+          const B1={x:b.x,y:b.y}, B2=antennaEnd(b);
+          if (segInter(A1,A2,B1,B2)){
+            const knob = params.biasKnob, str=params.biasStrength;
+            a.phi = wrap1(a.phi + str*knob); b.phi = wrap1(b.phi - str*knob);
+          }
+        }
+      }
+    }
+
+    // ===== Rendering (with view scale) =====
+    function draw(){
+      if(!ctx) return;
+      ctx.clearRect(0,0,cv.width,cv.height);
+      ctx.save(); ctx.scale(dpr,dpr);
+
+      // zoom around center
+      const cx=W/(2*dpr), cy=H/(2*dpr);
+      ctx.translate(cx, cy);
+      ctx.scale(view.scale, view.scale);
+      ctx.translate(-cx, -cy);
+
+      // edges
+      ctx.lineWidth=2/view.scale;
+      ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--edge').trim()||"#e9eef6";
+      ctx.globalAlpha=0.7; ctx.beginPath();
+      for (const [i,j] of edges){ const a=nodes[i], b=nodes[j]; ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); }
+      ctx.stroke(); ctx.globalAlpha=1;
+
+      // nodes
+      for (const n of nodes){
+        const [r,g,b]= params.phaseColor ? nodeColor(n) : hueRGB(clamp(n.age/60,0,1)*0.85, 0.8, 1);
+        ctx.fillStyle=`rgb(${r},${g},${b})`;
+        const R=5+Math.min(4,0.25*Math.log1p(n.age));
+        ctx.beginPath(); ctx.arc(n.x,n.y,R,0,Math.PI*2); ctx.fill();
+
+        // selection highlight
+        if (selection.set.has(n)){
+          ctx.lineWidth=2/view.scale; ctx.strokeStyle=`rgba(${r},${g},${b},0.9)`;
+          ctx.beginPath(); ctx.arc(n.x,n.y,R+3,0,Math.PI*2); ctx.stroke();
+        }
+
+        if (params.showVec && (params.vecLen|0)>0){
+          const ang=2*Math.PI*n.phi, len=R + (params.vecLen|0);
+          ctx.beginPath(); ctx.lineWidth=1.25/view.scale; ctx.strokeStyle=`rgba(${r},${g},${b},0.9)`;
+          ctx.moveTo(n.x,n.y); ctx.lineTo(n.x+len*Math.cos(ang), n.y+len*Math.sin(ang)); ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
+    // ===== Mouse / Selection / Zoom =====
+    const selection = { active:false, set:new Set() };
+    let dragNode = { idx:-1, phaseMode:false, moveMode:false };
+
+    function screenToWorld(px, py){
+      // inverse of center-zoom transform
+      const cx=W/(2*dpr), cy=H/(2*dpr);
+      return {
+        x: (px - cx)/view.scale + cx,
+        y: (py - cy)/view.scale + cy
+      };
+    }
+    function eventPos(e){
+      const rect=cv.getBoundingClientRect();
+      return {x:(e.clientX-rect.left), y:(e.clientY-rect.top)};
+    }
+    function pickNode(wx,wy, radius=18){
+      let best=-1,bd2=(radius*radius);
+      for (let i=0;i<nodes.length;i++){
+        const n=nodes[i], d2=(n.x-wx)*(n.x-wx)+(n.y-wy)*(n.y-wy);
+        if (d2<bd2){ bd2=d2; best=i; }
+      }
+      return best;
+    }
+
+    function bindMouse(){
+      // wheel zoom (zoom to cursor)
+      cv.addEventListener('wheel',(e)=>{
+        e.preventDefault();
+        const pos = eventPos(e);
+        const worldBefore = screenToWorld(pos.x, pos.y);
+        const factor = Math.exp((-e.deltaY) * 0.0015);
+        const next = clamp(view.scale * factor, view.min, view.max);
+        if (next === view.scale) return;
+        // keep cursor world point stable: adjust center transform by translating canvas
+        const cx=W/(2*dpr), cy=H/(2*dpr);
+        // to keep world point under cursor, shift nodes’ projected position by transforming the view around center:
+        // Equivalent trick: adjust nothing but re-translate so worldBefore stays under same screen pixel:
+        // We simulate by temporarily modifying node positions visually via ctx transforms only.
+        view.scale = next;
+        params.viewScale = view.scale; // keep in params
+      }, {passive:false});
+
+      // pointer down
+      cv.addEventListener('pointerdown',(e)=>{
+        if(e.button!==0) return; // left only
+        const sp = eventPos(e);
+        const w = screenToWorld(sp.x, sp.y);
+        const i = pickNode(w.x, w.y, 16/view.scale);
+
+        dragNode.idx = -1;
+        dragNode.phaseMode = e.shiftKey;
+        dragNode.moveMode  = (!e.shiftKey && i>=0); // plain drag moves node
+        selection.active = (!dragNode.moveMode);   // click & hold to select (paint-select)
+
+        if (dragNode.moveMode){
+          dragNode.idx = i;
+        } else {
+          // start selection pass
+          selection.set.clear();
+          if(i>=0) selection.set.add(nodes[i]);
+        }
+        cv.setPointerCapture?.(e.pointerId);
+        e.preventDefault();
+      });
+
+      // pointer move
+      cv.addEventListener('pointermove',(e)=>{
+        if(!selection.active && dragNode.idx<0) return;
+        const sp = eventPos(e);
+        const w = screenToWorld(sp.x, sp.y);
+
+        // paint-select while active
+        if (selection.active){
+          const i = pickNode(w.x, w.y, 18/view.scale);
+          if (i>=0) selection.set.add(nodes[i]);
+        }
+
+        if (dragNode.idx>=0){
+          const n=nodes[dragNode.idx];
+          if (dragNode.phaseMode){
+            const ang=Math.atan2(w.y-n.y, w.x-n.x);
+            n.phi = wrap1(ang/(2*Math.PI));
+          }else if (dragNode.moveMode){
+            n.x = w.x; n.y = w.y; n.vx=0; n.vy=0;
+          }
+        }
+      });
+
+      // pointer up
+      cv.addEventListener('pointerup',(e)=>{
+        // on release: reset all selected phases to 0 + phaseOffset
+        if (selection.active && selection.set.size){
+          const base = wrap1(params.phaseOffset || 0);
+          selection.set.forEach(n => { n.phi = base; });
+        }
+        selection.active=false; selection.set.clear();
+        dragNode.idx=-1; dragNode.moveMode=false; dragNode.phaseMode=false;
+      });
+
+      // cancel on leave
+      addEventListener('keydown',e=>{ if(e.key==='Escape'){ selection.active=false; selection.set.clear(); dragNode.idx=-1; }});
+      addEventListener('pointercancel',()=>{ selection.active=false; selection.set.clear(); dragNode.idx=-1; });
+    }
+
+    // ===== Main loop =====
+    let running=false, last=0;
+    function tick(t){
+      if(!running) return;
+      if(!last) last=t;
+      const dt=Math.min(0.05,(t-last)/1000); last=t;
+      for(let k=0;k<2;k++) step(dt/2);
+      draw();
+      requestAnimationFrame(tick);
+    }
+
+    // ===== API =====
+    function start(){ running=true; last=0; requestAnimationFrame(tick); }
+    function stop(){ running=false; }
+    function init(canvas, seedKind="ring"){ attachCanvas(canvas); seed(seedKind); start(); }
+    function snapshot(){ const N=nodes.length,E=edges.length, avgDeg=N? (E*2)/N : 0; return { t:Date.now(), metrics:{nodes:N,edges:E,avgDeg}, controls:{...params, viewScale:view.scale} }; }
+
+    // bus endpoints
+    bus && bus.reply('lifegraph/getStats', ()=>({nodes:nodes.length, edges:edges.length, time}));
+    bus && bus.reply('lifegraph/getParams', ()=>getParams());
+    bus && bus.reply('lifegraph/setParams', ({data})=>{ setParams(data||{}); return true; });
+    bus && bus.reply('lifegraph/applyPhaseOffset', ({data})=>{ applyPhaseOffset((data&&data.delta)||0); return true; });
+    bus && bus.reply('lifegraph/setViewScale', ({data})=>{ const s=clamp(+data?.scale||1, view.min, view.max); view.scale=s; params.viewScale=s; return s; });
+
+    return {
+      init, start, stop, snapshot,
+      seed,
+      getParams, setParams,
+      setColorMode, setHueOffset, setColorSat, setColorVal, setPalette, setCustomColor,
+      applyPhaseOffset
+    };
+  })();
+
+  PJA.models.lifegraph = lifegraph;
+})();
+</script>
+
+
+<!-- ===================== PJA.learn (IIFE) ===================== -->
+<script>
+(function(){
+  const PJA = window.PJA; const {util, ui} = PJA; const {lifegraph} = (PJA.models||{});
+  const learnNS = PJA.learn = PJA.learn || {};
+
+  learnNS.build = function(){
+    // About content (with presets)
+    const aboutBody = util.h('div',{},
+      '<section class="hint" style="margin-bottom:8px">Window is draggable and resizable. Position/size persist.</section>',
+      '<section>\
+        <p><b>Model.</b> Agents (nodes) have position, velocity, phase φ∈[0,1), and age. Edges are linear springs with target length L₀. Forces = spring + inverse-square repulsion + weak central gravity + viscous damping. Rewrites: split edges longer than 2.2·L₀; branch from degree ≤2 with probability p<sub>branch</sub>·dt; close a loop if a new tip is within (closeMul·L₀) of another node.</p>\
+        <aside style="margin-top:10px"><b>Presets</b><br/>\
+          <button data-preset="trilobe">Tri-lobe</button>\
+          <button data-preset="filaments">Filaments</button>\
+          <button data-preset="locked">Locked</button>\
+          <button data-preset="sync">Synchronize</button>\
+        </aside>\
+      </section>'
+    );
+    ui.makeWindow({hostSel:'#aboutOv', id:'aboutWin', title:'About • Graph-Life', body:aboutBody});
+
+    // Controls (schema → panel)
+    const schema=[
+      {title:'Growth & Topology', items:[
+        {type:'range', id:'pBranch', label:'Branch probability', min:0, max:0.2, step:0.002, value:0.030, title:'Probability per second degree≤2 spawns a new edge'},
+        {type:'range', id:'L0', label:'Target edge length (L₀)', min:2, max:40, step:1, value:18},
+        {type:'range', id:'closeMul', label:'Loop-close radius ×L₀', min:0.9, max:2.5, step:0.05, value:1.05},
+        {type:'range', id:'maxNodes', label:'Max nodes', min:100, max:4000, step:10, value:900},
+        {type:'check', id:'lockTopo', label:'Lock topology at max', value:false}
+      ]},
+      {title:'Geometry & Physics', items:[
+        {type:'range', id:'repel', label:'Repulsion strength', min:10, max:3000, step:10, value:420},
+        {type:'range', id:'grav', label:'Gravity to center', min:0, max:0.016, step:0.0001, value:0.0015}
+      ]},
+      {title:'Phase Dynamics', items:[
+        {type:'range', id:'omega0', label:'Base frequency ω₀', min:0, max:0.12, step:0.001, value:0.018},
+        {type:'range', id:'couple', label:'Coupling K (Kuramoto)', min:0, max:2.0, step:0.01, value:0.30},
+        {type:'range', id:'modAmp', label:'Global phase FM amplitude A', min:0, max:0.25, step:0.002, value:0.04},
+        {type:'range', id:'modFreq', label:'Global phase FM freq fₘ', min:0, max:2.0, step:0.01, value:0.20},
+        {type:'range', id:'vecLen', label:'Phase antenna length', min:0, max:32, step:1, value:10},
+        {type:'check', id:'phaseColor', label:'Color = phase', value:true},
+        {type:'check', id:'showVec', label:'Show phase vectors', value:true}
+      ]},
+      {title:'Phase Interactions (Optional)', items:[
+        {type:'check', id:'crossEnable', label:'Enable antenna crossing bias', value:false},
+        {type:'range', id:'crossBudget', label:'Crossing test budget', min:0, max:4000, step:50, value:800},
+        {type:'range', id:'biasKnob', label:'Phase bias knob (± cycles)', min:-0.5, max:0.5, step:0.005, value:0.08},
+        {type:'range', id:'biasStrength', label:'Phase bias strength', min:0, max:1, step:0.02, value:0.40}
+      ]},
+      {title:'Interaction', items:[{type:'hint', text:'Drag a node to move it. Shift+Drag sets its phase. Esc closes windows.'}]}
+    ];
+    const panel = ui.controls.makePanel(schema,(id,val)=>{
+      const p = lifegraph.getParams(); p[id] = (typeof val==='boolean')? val : +val; lifegraph.setParams(p);
+    });
+    const ctrlBody = util.h('div',{}); ctrlBody.append(panel.el);
+    ui.makeWindow({hostSel:'#ctrlOv', id:'ctrlWin', title:'Controls & Parameters', body:ctrlBody});
+
+    // Learn window
+    const NOTES_KEY='gl_learn_notes@v3';
+    const SNAPS_KEY='gl_snapshots@v3';
+    const notes = util.h('textarea',{id:'learnNotes',class:'notes',placeholder:'Write ideas, todos, paper links… (autosaves)',spellcheck:'false'});
+    notes.value = localStorage.getItem(NOTES_KEY)||''; notes.addEventListener('input',()=>localStorage.setItem(NOTES_KEY,notes.value));
+    const snapList = util.h('div',{id:'snapList',class:'muted'},'No snapshots yet.');
+    const learnBody = util.h('div',{},
+      util.h('div',{class:'learn-grid'},
+        util.h('section',{class:'card'},'<h4>Playbook (Neural CA ↔ Graph‑Life)</h4><ol class="muted"><li><b>Hybrid controller.</b> Tiny per‑node state; local summary → tiny net → modulate rules.</li><li><b>Goal‑oriented growth.</b> Differentiable step; train to SDF/points; weights = genome.</li><li><b>Self‑repair.</b> Train for target; regeneration after damage.</li><li><b>Evolve rules.</b> Genetic search over update nets with fitness on loops/sprawl/synchrony.</li></ol>'),
+        util.h('section',{class:'card'}, '<h4>Scratchpad</h4>', notes,
+          util.h('div',{class:'rowish',style:'margin-top:8px'},
+            util.h('button',{id:'saveSnap'},'Save snapshot'),
+            util.h('button',{id:'clearSnaps',title:'Remove all parameter snapshots'},'Clear snapshots'),
+            util.h('button',{id:'exportNotes'},'Export'),
+            util.h('span',{class:'muted'},'Snapshots store sliders + quick metrics; persisted to localStorage.')
+          )
+        )
+      ),
+      util.h('section',{class:'card',style:'margin-top:12px'},'<h4>Snapshots</h4>', snapList)
+    );
+    ui.makeWindow({hostSel:'#learnOv', id:'learnWin', title:'Learn • Notes, Snapshots, and NCA Ideas', body:learnBody});
+
+    // Snapshot helpers
+    const SNAPS = ()=> JSON.parse(localStorage.getItem(SNAPS_KEY)||'[]');
+    const setSNAPS = (arr)=> localStorage.setItem(SNAPS_KEY, JSON.stringify(arr));
+    const renderSnaps = ()=>{
+      const snaps = SNAPS();
+      if(!snaps.length){ snapList.textContent='No snapshots yet.'; return; }
+      snapList.replaceChildren();
+      snaps.forEach((s,idx)=>{
+        const row = util.h('div',{class:'snap-row'});
+        row.append(
+          util.h('div',{class:'snap-meta'}, `#${idx+1} • ${new Date(s.t).toLocaleString()} • <span class="pill">nodes ${s.metrics.nodes}</span> <span class="pill">edges ${s.metrics.edges}</span> <span class="pill">avgDeg ${s.metrics.avgDeg.toFixed(2)}</span>`),
+          util.h('div',{},
+            util.h('button',{onclick:()=>navigator.clipboard?.writeText(JSON.stringify(s,null,2))},'Copy JSON'),
+            util.h('button',{style:'margin-left:6px',onclick:()=>{ panel.bulkSet(s.controls); lifegraph.setParams(s.controls); }},'Apply')
+          )
+        );
+        snapList.append(row);
+      });
+    };
+
+    document.addEventListener('click',e=>{
+      if(e.target.id==='saveSnap'){ const snap = lifegraph.snapshot(); const arr=SNAPS(); arr.push(snap); setSNAPS(arr); renderSnaps(); }
+      if(e.target.id==='clearSnaps'){ if(confirm('Delete all snapshots?')){ setSNAPS([]); renderSnaps(); } }
+      if(e.target.id==='exportNotes'){
+        const payload = {version:3, exportedAt:new Date().toISOString(), notes:notes.value, snapshots:SNAPS()};
+        const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+        const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`graph-life-learn-${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href);
+      }
+    });
+
+    renderSnaps();
+    return { panel, renderSnaps };
+  };
+})();
+</script>
+
+<!-- ======================== boot (wire-up) ======================== -->
+<script>
+(function(){
+  const {ui, models, learn} = window.PJA;
+  const life = models.lifegraph.init(document.getElementById('cv'));
+  learn.build();
+
+  // openers
+  document.getElementById('menuBtn').addEventListener('click',()=>ui.openOverlay('#ctrlOv','ctrlWin@v3'));
+  document.getElementById('learnBtn').addEventListener('click',()=>ui.openOverlay('#learnOv','learnWin@v3'));
+
+  // About presets
+  document.getElementById('aboutOv').addEventListener('click',e=>{
+    const name = e.target?.dataset?.preset; if(!name) return; const p = life.getParams();
+    if(name==='trilobe'){ Object.assign(p,{L0:14,pBranch:0.012,closeMul:1.02,repel:600,grav:0.0014,maxNodes:1500,omega0:0.014,couple:0.40,modAmp:0.02,modFreq:0.16,phaseColor:true,showVec:true,vecLen:12,crossEnable:false,crossBudget:600,biasKnob:0.06,biasStrength:0.35}); life.seed('trilobe'); }
+    else if(name==='filaments'){ Object.assign(p,{L0:18,pBranch:0.030,closeMul:1.70,repel:260,grav:0.0006,maxNodes:1400,omega0:0.012,couple:0.10,modAmp:0.02,modFreq:0.12,phaseColor:false,showVec:false,vecLen:6,crossEnable:false,crossBudget:400,biasKnob:0.04,biasStrength:0.20}); life.seed('ring'); }
+    else if(name==='locked'){ Object.assign(p,{L0:20,pBranch:0.022,closeMul:1.20,repel:360,grav:0.0010,maxNodes:life.getParams().maxNodes,lockTopo:true,omega0:0.016,couple:0.50,modAmp:0,modFreq:0.2,phaseColor:true,showVec:true,vecLen:10,crossEnable:true,crossBudget:800,biasKnob:0.05,biasStrength:0.40}); }
+    else if(name==='sync'){ Object.assign(p,{modAmp:0,couple:1.2,omega0:0.02,phaseColor:true,showVec:true,vecLen:14,crossEnable:false,crossBudget:0,biasKnob:0,biasStrength:0}); }
+    life.setParams(p);
+  });
+
+  // seed/reset
+  document.getElementById('reset').addEventListener('click',()=>life.seed('ring'));
+
+  // RAF
+  let last=performance.now();
+  function raf(t){ const dt=Math.min(0.05,(t-last)/1000); last=t; life.tick(dt); requestAnimationFrame(raf); }
+  requestAnimationFrame(raf);
+})();
+</script>
+</body>
+</html>
+

@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Graph-Life | loop-forming agent network</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root{color-scheme:dark;--bg:#0b0b0f;--fg:#cfd8e3;--ui:#111421;--hl:#86d0ff;--edge:#e9eef6}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:12px/1.35 system-ui,Segoe UI,Roboto,sans-serif}
+  canvas{display:block;width:100%;height:calc(100% - 46px);background:#000}
+
+  /* Top bar */
+  .top{display:flex;gap:10px;align-items:center;padding:8px 10px;background:var(--ui);border-bottom:1px solid #171a2a}
+  .sp{flex:1}
+  button{padding:6px 10px;background:#192038;color:#dbe5ff;border:1px solid #2a3558;border-radius:6px}
+  button:focus-visible{outline:2px solid rgba(134,208,255,.6);outline-offset:2px}
+  .stat{color:#9fb3ff;font-variant-numeric:tabular-nums}
+
+  /* FAB */
+  .fab{position:fixed;right:20px;bottom:20px;width:56px;height:56px;border-radius:50%;
+       background:#2a3558;color:#fff;border:1px solid #3d4a78;display:grid;place-items:center;
+       box-shadow:0 8px 22px rgba(0,0,0,.35);cursor:pointer;user-select:none;outline:none}
+  .fab span{font-size:22px;line-height:1}
+  .fab:hover{transform:translateY(-1px)}
+
+  /* Modal shell */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
+  .overlay.open{display:block}
+
+  /* About modal (90% width, honors header bounds) */
+  .card{
+    position:absolute; left:5vw; right:5vw; top:7vh; width:90vw; max-height:86vh;
+    background:#0e1221; border:1px solid #2b365d; border-radius:12px; box-shadow:0 12px 36px rgba(0,0,0,.45);
+    overflow:hidden;
+  }
+  .card header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #202a4d;background:#0f1326}
+  .card h3{margin:0;font-size:18px;font-weight:600}
+  .card .body{display:grid;grid-template-columns:1fr 320px;gap:16px;padding:14px;overflow:auto;max-height:calc(86vh - 50px)}
+  .preset{display:flex;flex-direction:column;gap:8px}
+  .preset button{width:100%;text-align:left}
+  .kbd{font:11px ui-monospace,Menlo,monospace;color:#a9b8ff;background:#141a2f;border:1px solid #26305a;border-radius:4px;padding:0 6px}
+
+  /* Controls Drawer (Popup menu) */
+  .drawer{position:absolute;left:50%;top:8vh;transform:translateX(-50%);
+    width:min(980px,92vw);max-height:84vh;overflow:auto;background:#0e1221;border:1px solid #2b365d;border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,.45)}
+  .drawer header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #202a4d;background:#0f1326}
+  .grp{padding:10px 14px 2px;color:#8fa6ff;border-top:1px solid #1a2141}
+  details{border-bottom:1px solid #171c35}
+  details>summary{cursor:pointer;list-style:none;padding:10px 14px;font-weight:600}
+  details>summary::-webkit-details-marker{display:none}
+  .panel{padding:6px 14px 14px;display:grid;grid-template-columns: 240px 1fr;gap:10px}
+  .ctl{display:grid;grid-template-columns: 1fr 240px 64px;gap:8px;align-items:center}
+  .ctl small{grid-column: 1 / -1; color:#9aa6cc; margin:-2px 0 6px}
+  .ctl output{justify-self:end;color:var(--hl);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%}
+  .rowish{display:flex;gap:14px;align-items:center}
+  .hint{color:#9aa6cc}
+  .chk{display:flex;align-items:center;gap:8px}
+</style>
+</head>
+<body>
+  <div class="top">
+    <button id="menuBtn" title="Open controls">☰ Controls</button>
+    <button id="reset">Reset</button>
+    <div class="sp"></div>
+    <div id="stats" class="stat">nodes: 0</div>
+  </div>
+
+  <canvas id="cv"></canvas>
+
+  <!-- FAB / About -->
+  <button id="fab" class="fab" aria-haspopup="dialog" aria-controls="aboutOverlay"><span>?</span></button>
+  <div id="aboutOverlay" class="overlay" aria-hidden="true">
+    <div class="card" role="dialog" aria-modal="true" aria-labelledby="about-title">
+      <header>
+        <h3 id="about-title">About • Graph-Life</h3>
+        <button data-close="#aboutOverlay">Close</button>
+      </header>
+      <div class="body">
+        <section>
+          <p><b>Model.</b> Agents (nodes) have position, velocity, phase φ∈[0,1), and age. Edges are linear springs with target length L₀. Forces = spring + inverse-square repulsion + weak central gravity + viscous damping. Rewrites: split edges longer than 2.2·L₀; branch from degree ≤2 with probability p<sub>branch</sub>·dt; close a loop if a new tip is within (closeMul·L₀) of another node. With <span class="kbd">lock topology</span> at <span class="kbd">Max nodes</span>, splitting and branching stop; geometry and phases continue to evolve.</p>
+          <p><b>Phases and color.</b> Kuramoto dynamics: φ̇ = ω₀ + A·sin(2π f<sub>m</sub> t) + K·Σ<sub>j∈N(i)</sub>sin(φ<sub>j</sub>−φ<sub>i</sub>). “color = phase” maps φ to hue. High K with A=0 synchronizes the graph (uniform hue). “Phase antenna” draws the current phase direction.</p>
+          <p><b>Hints.</b> Tri-lobe morphologies: closeMul≈1.02–1.08, moderate gravity, higher repulsion, low p<sub>branch</sub>, tri-hub seed.</p>
+        </section>
+        <aside class="preset">
+          <b>Presets</b>
+          <button data-preset="trilobe">Tri-lobe (tight core, long loops)</button>
+          <button data-preset="filaments">Filament sprigs</button>
+          <button data-preset="locked">Locked topology morph</button>
+          <button data-preset="sync">Synchronize (single hue)</button>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls popup -->
+  <div id="ctrlOverlay" class="overlay" aria-hidden="true">
+    <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="ctrl-title">
+      <header>
+        <h3 id="ctrl-title">Controls & Parameters</h3>
+        <div class="rowish">
+          <span class="hint">Hover tips explain purpose & global effect.</span>
+          <button data-close="#ctrlOverlay">Close</button>
+        </div>
+      </header>
+
+      <!-- Growth & topology -->
+      <div class="grp">Growth & Topology</div>
+      <details open>
+        <summary>Branching, closing, limits</summary>
+        <div class="panel">
+          <div class="ctl" title="Probability per second that a degree ≤ 2 node spawns a new edge. Lower → sparse, higher → bushy. Global: controls network density and exploration rate.">
+            <label>Branch probability</label>
+            <input id="pBranch" type="range" min="0" max="0.2" step="0.002" value="0.030"><output id="pBranch_v">0.030</output>
+            <small>Contributes to: density / growth speed</small>
+          </div>
+          <div class="ctl" title="Preferred spring length for edges. Lower → tighter cells; higher → looser mesh. Global: sets network spatial scale.">
+            <label>Target edge length (L₀)</label>
+            <input id="L0" type="range" min="8" max="40" step="1" value="18"><output id="L0_v">18</output>
+            <small>Contributes to: scale / cell size</small>
+          </div>
+          <div class="ctl" title="Loop-closing distance in units of L₀ for a fresh tip. Lower quickly closes; higher allows long filaments.">
+            <label>Loop-close radius ×L₀</label>
+            <input id="closeMul" type="range" min="0.9" max="2.5" step="0.05" value="1.05"><output id="closeMul_v">1.05</output>
+            <small>Contributes to: cyclicity vs. sprawl</small>
+          </div>
+          <div class="ctl" title="Upper bound on node count. With lock on, rewriting halts at this size.">
+            <label>Max nodes</label>
+            <input id="maxNodes" type="range" min="100" max="4000" step="10" value="900"><output id="maxNodes_v">900</output>
+            <small>Contributes to: complexity cap</small>
+          </div>
+          <div class="chk"><input id="lockTopo" type="checkbox"><label for="lockTopo">Lock topology at max</label></div>
+        </div>
+      </details>
+
+      <!-- Physics -->
+      <div class="grp">Geometry & Physics</div>
+      <details>
+        <summary>Forces & damping</summary>
+        <div class="panel">
+          <div class="ctl" title="Inverse-square repulsion between all nodes to prevent collapse.">
+            <label>Repulsion strength</label>
+            <input id="repel" type="range" min="50" max="2000" step="10" value="420"><output id="repel_v">420</output>
+            <small>Contributes to: spacing / de-clumping</small>
+          </div>
+          <div class="ctl" title="Weak pull toward canvas center; stabilizes drift and centers structures.">
+            <label>Gravity to center</label>
+            <input id="grav" type="range" min="0" max="0.004" step="0.0001" value="0.0015"><output id="grav_v">0.0015</output>
+            <small>Contributes to: centering / cohesion</small>
+          </div>
+        </div>
+      </details>
+
+      <!-- Phase -->
+      <div class="grp">Phase Dynamics</div>
+      <details open>
+        <summary>Kuramoto & global FM</summary>
+        <div class="panel">
+          <div class="ctl" title="Base oscillator frequency for each node (cycles per second).">
+            <label>Base frequency ω₀</label>
+            <input id="omega0" type="range" min="0" max="0.12" step="0.001" value="0.018"><output id="omega0_v">0.018</output>
+            <small>Contributes to: overall temporal tempo</small>
+          </div>
+          <div class="ctl" title="Coupling coefficient between neighbors; raises synchronization.">
+            <label>Coupling K (Kuramoto)</label>
+            <input id="couple" type="range" min="0" max="2.0" step="0.01" value="0.30"><output id="couple_v">0.30</output>
+            <small>Contributes to: coherence / phase locking</small>
+          </div>
+          <div class="ctl" title="Amplitude of global sinusoidal frequency modulation.">
+            <label>Global phase FM amplitude A</label>
+            <input id="modAmp" type="range" min="0" max="0.25" step="0.002" value="0.04"><output id="modAmp_v">0.040</output>
+            <small>Contributes to: macro breathing / tempo sway</small>
+          </div>
+          <div class="ctl" title="Frequency (Hz) of the global FM.">
+            <label>Global phase FM freq fₘ</label>
+            <input id="modFreq" type="range" min="0" max="2.0" step="0.01" value="0.20"><output id="modFreq_v">0.20</output>
+            <small>Contributes to: modulation rate</small>
+          </div>
+
+          <div class="ctl" title="Length of the drawn phase vector (antenna) added to the node radius. 0 hides it.">
+            <label>Phase antenna length</label>
+            <input id="vecLen" type="range" min="0" max="32" step="1" value="10"><output id="vecLen_v">10</output>
+            <small>Contributes to: phase readability</small>
+          </div>
+
+          <div class="chk"><input id="phaseColor" type="checkbox" checked><label for="phaseColor">Color = phase</label></div>
+          <div class="chk"><input id="showVec" type="checkbox" checked><label for="showVec">Show phase vectors</label></div>
+        </div>
+      </details>
+
+      <!-- Phase interactions (antenna crossing) -->
+      <div class="grp">Phase Interactions (Optional)</div>
+      <details>
+        <summary>Antenna crossing bias</summary>
+        <div class="panel">
+          <div class="chk" title="Detect line-segment crossings between phase antennas and bias the phases of both nodes. Budgeted per frame.">
+            <input id="crossEnable" type="checkbox"><label for="crossEnable">Enable crossing detection</label>
+          </div>
+          <div class="ctl" title="Pairs per frame to test (randomly sampled). Guards performance at large N.">
+            <label>Crossing test budget</label>
+            <input id="crossBudget" type="range" min="0" max="4000" step="50" value="800"><output id="crossBudget_v">800</output>
+            <small>Contributes to: interaction intensity vs. FPS</small>
+          </div>
+          <div class="ctl" title="Signed bias applied on crossing. Positive pushes one forward and the other backward by this fraction of a cycle.">
+            <label>Phase bias knob (± cycles)</label>
+            <input id="biasKnob" type="range" min="-0.5" max="0.5" step="0.005" value="0.08"><output id="biasKnob_v">0.080</output>
+            <small>Contributes to: interaction direction</small>
+          </div>
+          <div class="ctl" title="Blend factor for applying the bias at each crossing event.">
+            <label>Phase bias strength</label>
+            <input id="biasStrength" type="range" min="0" max="1" step="0.02" value="0.40"><output id="biasStrength_v">0.40</output>
+            <small>Contributes to: interaction magnitude</small>
+          </div>
+        </div>
+      </details>
+
+      <!-- Interaction -->
+      <div class="grp">Interaction</div>
+      <details>
+        <summary>Mouse</summary>
+        <div class="panel">
+          <div class="hint" style="grid-column:1/-1">
+            Drag a node to move it. <b>Shift+Drag</b> over a node sets its phase to the pointer angle. Esc cancels drag.
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+<script>
+(() => {
+  /* --- DOM --- */
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+  const $ = id => document.getElementById(id);
+  const OUT=(id,v)=>($(id).textContent=v);
+
+  // Controls refs
+  const PBR=$('pBranch'), L0=$('L0'), CM=$('closeMul'), RP=$('repel'), GV=$('grav');
+  const MAXN=$('maxNodes'), LOCK=$('lockTopo');
+  const OMG=$('omega0'), K=$('couple'), A=$('modAmp'), FM=$('modFreq');
+  const PHC=$('phaseColor'), SHV=$('showVec'), VLEN=$('vecLen');
+  const CEN=$('crossEnable'), CBUD=$('crossBudget'), BKN=$('biasKnob'), BST=$('biasStrength');
+
+  const sync=()=>{
+    OUT('pBranch_v',(+PBR.value).toFixed(3));
+    OUT('L0_v',(+L0.value|0));
+    OUT('closeMul_v',(+CM.value).toFixed(2));
+    OUT('repel_v',(+RP.value|0));
+    OUT('grav_v',(+GV.value).toFixed(4));
+    OUT('maxNodes_v',(+MAXN.value|0));
+    OUT('omega0_v',(+OMG.value).toFixed(3));
+    OUT('couple_v',(+K.value).toFixed(2));
+    OUT('modAmp_v',(+A.value).toFixed(3));
+    OUT('modFreq_v',(+FM.value).toFixed(2));
+    OUT('vecLen_v',(+VLEN.value|0));
+    OUT('crossBudget_v',(+CBUD.value|0));
+    OUT('biasKnob_v',(+BKN.value).toFixed(3));
+    OUT('biasStrength_v',(+BST.value).toFixed(2));
+  };
+  [PBR,L0,CM,RP,GV,MAXN,OMG,K,A,FM,VLEN,CBUD,BKN,BST].forEach(x=>x.addEventListener('input',sync)); sync();
+
+  /* --- Layout --- */
+  let W=0,H=0;
+  const fit=()=>{
+    const w=cv.clientWidth*dpr|0,h=cv.clientHeight*dpr|0;
+    if(w===W&&h===H)return; W=cv.width=w; H=cv.height=h; ctx.setTransform(dpr,0,0,dpr,0,0);
+  };
+  addEventListener('resize',fit); fit();
+
+  /* --- Graph state --- */
+  let nodes=[], edges=[], time=0;
+
+  const makeNode=(x,y)=>({x,y,vx:0,vy:0,phi:Math.random(),age:0,deg:0});
+  const addEdge=(i,j)=>{ if(i===j) return; edges.push([i,j]); nodes[i].deg++; nodes[j].deg++; };
+
+  function seed(kind="ring"){
+    nodes=[]; edges=[];
+    const cx=W/(2*dpr), cy=H/(2*dpr);
+    if (kind==="trihub"){
+      const R=42, R2=90;
+      const ids=[0,1,2].map(k=>nodes.push(makeNode(cx+R*Math.cos(2*Math.PI*k/3), cy+R*Math.sin(2*Math.PI*k/3)))-1);
+      addEdge(ids[0],ids[1]); addEdge(ids[1],ids[2]); addEdge(ids[2],ids[0]);
+      for(let k=0;k<3;k++){ const b=2*Math.PI*k/3+Math.PI/3;
+        const n1=nodes.push(makeNode(cx+R2*Math.cos(b), cy+R2*Math.sin(b)))-1; addEdge(ids[k],n1); }
+    } else {
+      const R=120; for(let k=0;k<12;k++){ const a=2*Math.PI*k/12; nodes.push(makeNode(cx+R*Math.cos(a), cy+R*Math.sin(a))); }
+      for(let k=0;k<12;k++) addEdge(k,(k+1)%12);
+      const tip=nodes.length; nodes.push(makeNode(cx+R*1.4, cy)); addEdge(0,tip);
+    }
+  }
+  seed("ring");
+  $('reset').addEventListener('click',()=>seed("ring"));
+
+  const dist2=(a,b)=>{const dx=a.x-b.x, dy=a.y-b.y; return dx*dx+dy*dy; };
+  const wrap1=v=>{v%=1; return v<0?v+1:v; };
+
+  /* --- Antenna endpoints (for crossings) --- */
+  function antennaEnd(n){
+    const R=5+Math.min(4,0.25*Math.log1p(n.age));
+    const len = +VLEN.value;
+    const ang = 2*Math.PI*n.phi;
+    return {x:n.x + (R+len)*Math.cos(ang), y:n.y + (R+len)*Math.sin(ang)};
+  }
+
+  function segInter(a,b,c,d){
+    // robust-ish segment intersection
+    const x1=a.x,y1=a.y,x2=b.x,y2=b.y,x3=c.x,y3=c.y,x4=d.x,y4=d.y;
+    const den=(x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);
+    if(Math.abs(den)<1e-6) return false;
+    const t=((x1-x3)*(y3-y4)-(y1-y3)*(x3-x4))/den;
+    const u=((x1-x3)*(y1-y2)-(y1-y3)*(x1-x2))/den;
+    return t>0 && t<1 && u>0 && u<1;
+  }
+
+  /* --- Dynamics --- */
+  function step(dt){
+    const L0v=+L0.value, kSpring=0.03, repulse=+RP.value, damp=0.15;
+    const grav=+GV.value, couple=+K.value, pBranch=+PBR.value;
+    const closeR2=(L0v*(+CM.value))**2, omega0=+OMG.value;
+    const maxNodes=(+MAXN.value|0);
+    const canRewrite = !LOCK.checked ? (nodes.length<maxNodes) : (nodes.length<maxNodes);
+
+    time += dt;
+    // Kuramoto + global FM
+    const mod = (+A.value) * Math.sin(2*Math.PI*(+FM.value)*time);
+    const dphi = new Float32Array(nodes.length);
+    for (const [i,j] of edges){ const s=Math.sin(2*Math.PI*(nodes[j].phi - nodes[i].phi)); dphi[i]+=s; dphi[j]-=s; }
+    for (let i=0;i<nodes.length;i++){ nodes[i].phi=wrap1(nodes[i].phi + dt*(omega0 + mod + couple*dphi[i])); nodes[i].age+=dt; }
+
+    // springs
+    for (const [i,j] of edges){
+      const a=nodes[i], b=nodes[j];
+      let dx=b.x-a.x, dy=b.y-a.y; const d=Math.hypot(dx,dy)||1e-6, f=kSpring*(d-L0v);
+      dx/=d; dy/=d; a.vx+=f*dx; a.vy+=f*dy; b.vx-=f*dx; b.vy-=f*dy;
+    }
+    // repulsion + gravity
+    for (let i=0;i<nodes.length;i++){
+      const a=nodes[i];
+      for (let j=i+1;j<nodes.length;j++){
+        const b=nodes[j]; let dx=b.x-a.x, dy=b.y-a.y; let r2=dx*dx+dy*dy + 25;
+        let f=repulse/r2; const inv=Math.sqrt(r2); dx/=inv; dy/=inv;
+        a.vx-=f*dx; a.vy-=f*dy; b.vx+=f*dx; b.vy+=f*dy;
+      }
+      a.vx += -grav*(a.x - W/(2*dpr));
+      a.vy += -grav*(a.y - H/(2*dpr));
+    }
+    // integrate
+    for (const n of nodes){ n.vx*=(1-damp); n.vy*=(1-damp); n.x+=dt*60*n.vx; n.y+=dt*60*n.vy; }
+
+    if (canRewrite){
+      // split long edges
+      const newEdges=[];
+      for (let ei=0; ei<edges.length; ei++){
+        const e=edges[ei]; if(!e) continue;
+        const [i,j]=e; const a=nodes[i], b=nodes[j];
+        const d=Math.hypot(a.x-b.x, a.y-b.y);
+        if (d>2.2*L0v && nodes.length<maxNodes){
+          const mid=nodes.push(makeNode((a.x+b.x)/2,(a.y+b.y)/2))-1;
+          nodes[i].deg--; nodes[j].deg--; newEdges.push([i,mid],[mid,j]); edges[ei]=null;
+        }
+      }
+      edges = edges.filter(Boolean).concat(newEdges);
+
+      // branch + loop close
+      for (let i=0;i<nodes.length;i++){
+        if (nodes.length>=maxNodes) break;
+        const n=nodes[i];
+        if (n.deg<=2 && Math.random()<pBranch*dt){
+          let tx=0,ty=0,cnt=0;
+          for(const [u,v] of edges){ if(u===i){tx+=nodes[v].x-n.x; ty+=nodes[v].y-n.y; cnt++;} else if(v===i){tx+=nodes[u].x-n.x; ty+=nodes[u].y-n.y; cnt++;} }
+          let nx = cnt? -ty : (Math.random()*2-1), ny = cnt? tx : (Math.random()*2-1);
+          const s=Math.hypot(nx,ny)||1e-6; nx/=s; ny/=s;
+          const j=nodes.push(makeNode(n.x+nx*L0v, n.y+ny*L0v))-1; addEdge(i,j);
+
+          // loop close
+          let target=-1,best=1e9;
+          for(let k=0;k<nodes.length-1;k++){ if(k===i) continue;
+            const r2=dist2(nodes[j],nodes[k]); if(r2<closeR2 && r2<best){best=r2; target=k;}
+          }
+          if (target>=0) addEdge(j,target);
+        }
+      }
+    }
+
+    // Optional: antenna crossing phase bias
+    if (CEN.checked && +VLEN.value>0 && nodes.length>1){
+      const budget = +CBUD.value|0;
+      const n = nodes.length;
+      for (let m=0;m<budget;m++){
+        const i = (Math.random()*n)|0, j = (Math.random()*n)|0;
+        if (i===j) continue;
+        const a=nodes[i], b=nodes[j];
+        const A1={x:a.x,y:a.y}, A2=antennaEnd(a);
+        const B1={x:b.x,y:b.y}, B2=antennaEnd(b);
+        if (segInter(A1,A2,B1,B2)){
+          const knob = +BKN.value;       // cycles
+          const str  = +BST.value;       // [0..1]
+          // symmetric: push one forward, one backward
+          a.phi = wrap1(a.phi + str*knob);
+          b.phi = wrap1(b.phi - str*knob);
+        }
+      }
+    }
+
+    $('stats').textContent = `nodes: ${nodes.length}`;
+  }
+
+  /* --- Rendering --- */
+  const hue=v=>{const h=v*6,i=h|0,f=h-i,q=1-f,t=f;let r,g,b;
+    if(i===0){r=1;g=t;b=0}else if(i===1){r=q;g=1;b=0}
+    else if(i===2){r=0;g=1;b=t}else if(i===3){r=0;g=q;b=1}
+    else if(i===4){r=t;g=0;b=1}else{r=1;g=0;b=q}
+    return [(r*255)|0,(g*255)|0,(b*255)|0];
+  };
+  const birthColor=age=>{const x=Math.min(1,age/60); return hue(x*0.85);};
+
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.save(); ctx.scale(dpr,dpr);
+    // edges
+    ctx.lineWidth=2; ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--edge').trim()||"#e9eef6";
+    ctx.globalAlpha=0.7; ctx.beginPath();
+    for (const [i,j] of edges){ const a=nodes[i], b=nodes[j]; ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); }
+    ctx.stroke(); ctx.globalAlpha=1;
+    // nodes + antennas
+    for (const n of nodes){
+      const [r,g,b]=(PHC.checked ? hue(n.phi) : birthColor(n.age));
+      ctx.fillStyle=`rgb(${r},${g},${b})`;
+      const R=5+Math.min(4,0.25*Math.log1p(n.age));
+      ctx.beginPath(); ctx.arc(n.x,n.y,R,0,Math.PI*2); ctx.fill();
+      if (SHV.checked && +VLEN.value>0){ const ang=2*Math.PI*n.phi, len=R + (+VLEN.value);
+        ctx.beginPath(); ctx.lineWidth=1.25; ctx.strokeStyle=`rgba(${r},${g},${b},0.9)`;
+        ctx.moveTo(n.x,n.y); ctx.lineTo(n.x+len*Math.cos(ang), n.y+len*Math.sin(ang)); ctx.stroke(); }
+    }
+    ctx.restore();
+  }
+
+  /* --- Mouse interaction --- */
+  let drag = {idx:-1, phaseMode:false};
+  function eventPos(e){
+    const rect=cv.getBoundingClientRect();
+    return {x:(e.clientX-rect.left), y:(e.clientY-rect.top)};
+  }
+  function pickNode(px,py){
+    let best=-1,bd2=100; // ~10px radius
+    for (let i=0;i<nodes.length;i++){
+      const n=nodes[i], d2=(n.x-px)*(n.x-px)+(n.y-py)*(n.y-py);
+      if (d2<bd2){ bd2=d2; best=i; }
+    }
+    return best;
+  }
+  cv.addEventListener('mousedown',e=>{
+    const p=eventPos(e);
+    const i=pickNode(p.x,p.y);
+    if (i>=0){
+      drag.idx=i;
+      drag.phaseMode = e.shiftKey;
+      e.preventDefault();
+    }
+  });
+  addEventListener('mousemove',e=>{
+    if (drag.idx<0) return;
+    const p=eventPos(e);
+    const n=nodes[drag.idx];
+    if (drag.phaseMode){
+      // set phase by angle from node to pointer
+      const ang=Math.atan2(p.y-n.y, p.x-n.x); // [-π,π]
+      n.phi = wrap1(ang/(2*Math.PI));
+    }else{
+      n.x = p.x; n.y = p.y; n.vx=0; n.vy=0;
+    }
+  });
+  addEventListener('mouseup',()=>{ drag.idx=-1; });
+  addEventListener('mouseleave',()=>{ drag.idx=-1; });
+  addEventListener('keydown',e=>{ if(e.key==='Escape') drag.idx=-1; });
+
+  /* --- Loop --- */
+  let last=performance.now();
+  function tick(t){ fit(); const dt=Math.min(0.05,(t-last)/1000); last=t; for(let k=0;k<2;k++) step(dt/2); draw(); requestAnimationFrame(tick); }
+  requestAnimationFrame(tick);
+
+  /* --- About modal + presets --- */
+  const aboutOverlay=$('aboutOverlay');
+  const ctrlOverlay=$('ctrlOverlay');
+  const open = el => { el.classList.add('open'); el.ariaHidden = "false"; };
+  const close = el => { el.classList.remove('open'); el.ariaHidden = "true"; };
+  $('fab').onclick=()=>open(aboutOverlay);
+  $('menuBtn').onclick=()=>open(ctrlOverlay);
+  document.querySelectorAll('[data-close]').forEach(b=>{
+    b.addEventListener('click',()=>{ const sel=b.getAttribute('data-close'); const el=document.querySelector(sel); if(el) close(el); });
+  });
+  [aboutOverlay,ctrlOverlay].forEach(ov=>{
+    ov.addEventListener('click',e=>{ if(e.target===ov) close(ov); });
+  });
+  addEventListener('keydown',e=>{
+    if(e.key==='Escape'){
+      if(aboutOverlay.classList.contains('open')) close(aboutOverlay);
+      if(ctrlOverlay.classList.contains('open')) close(ctrlOverlay);
+    }
+  });
+
+  function applyPreset(name){
+    if (name==="trilobe"){
+      L0.value=14; PBR.value=0.012; CM.value=1.02; RP.value=600; GV.value=0.0014; MAXN.value=1500;
+      OMG.value=0.014; K.value=0.40; A.value=0.02; FM.value=0.16; PHC.checked=true; SHV.checked=true; VLEN.value=12;
+      CEN.checked=false; CBUD.value=600; BKN.value=0.06; BST.value=0.35;
+      seed("trihub");
+    } else if (name==="filaments"){
+      L0.value=18; PBR.value=0.030; CM.value=1.70; RP.value=260; GV.value=0.0006; MAXN.value=1400;
+      OMG.value=0.012; K.value=0.10; A.value=0.02; FM.value=0.12; PHC.checked=false; SHV.checked=false; VLEN.value=6;
+      CEN.checked=false; CBUD.value=400; BKN.value=0.04; BST.value=0.20;
+      seed("ring");
+    } else if (name==="locked"){
+      L0.value=20; PBR.value=0.022; CM.value=1.20; RP.value=360; GV.value=0.0010; MAXN.value=nodes.length+0;
+      LOCK.checked=true; OMG.value=0.016; K.value=0.50; A.value=0; FM.value=0.2; PHC.checked=true; SHV.checked=true; VLEN.value=10;
+      CEN.checked=true; CBUD.value=800; BKN.value=0.05; BST.value=0.40;
+    } else if (name==="sync"){
+      A.value=0; K.value=1.2; OMG.value=0.02; PHC.checked=true; SHV.checked=true; VLEN.value=14;
+      CEN.checked=false; CBUD.value=0; BKN.value=0.00; BST.value=0.00;
+    }
+    sync();
+  }
+  document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click',()=>applyPreset(b.dataset.preset)));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Graph-Life | loop-forming agent network</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{color-scheme:dark;--bg:#0b0b0f;--fg:#cfd8e3;--ui:#111421;--hl:#86d0ff;--edge:#e9eef6}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:12px/1.35 system-ui,Segoe UI,Roboto,sans-serif}
+  .row{display:flex;gap:14px;align-items:center;padding:8px 10px;background:var(--ui);border-bottom:1px solid #171a2a;flex-wrap:wrap}
+  .ctl{display:grid;grid-template-columns:150px 240px 72px;gap:8px;align-items:center}
+  .ctl output{justify-self:end;color:var(--hl);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%}
+  .chk{display:flex;align-items:center;gap:8px;margin-left:8px}
+  .stat{margin-left:auto;color:#9fb3ff;font-variant-numeric:tabular-nums}
+  button{padding:6px 10px;background:#192038;color:#dbe5ff;border:1px solid #2a3558;border-radius:6px}
+  canvas{display:block;width:100%;height:calc(100% - 146px);background:#000}
+
+  /* FAB + modal */
+  .fab{position:fixed;right:18px;bottom:18px;width:64px;height:64px;border-radius:50%;
+       background:#2a3558;color:#fff;border:1px solid #3d4a78;display:grid;place-items:center;
+       box-shadow:0 6px 18px rgba(0,0,0,.35);cursor:pointer;user-select:none;font-size:28px}
+  .fab:hover{filter:brightness(1.05)}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none}
+  .modal.open{display:block}
+  .card{position:absolute;right:24px;bottom:96px;width:min(980px,calc(100% - 48px));
+        background:#0e1221;border:1px solid #2b365d;border-radius:10px;box-shadow:0 10px 34px rgba(0,0,0,.45)}
+  .card header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #202a4d}
+  .card h3{margin:0;font-size:26px}            /* 3× readable title */
+  .card .body{display:grid;grid-template-columns:1fr 320px;gap:18px;padding:16px}
+  .card .body *{font-size:30px;line-height:1.45}/* ≈3× readable content */
+  .preset{display:flex;flex-direction:column;gap:10px}
+  .preset button{width:100%;text-align:left}
+  .kbd{font:28px ui-monospace,Menlo,monospace;color:#a9b8ff;background:#141a2f;border:1px solid #26305a;border-radius:6px;padding:0 8px}
+</style>
+</head>
+<body>
+  <!-- Growth / layout -->
+  <div class="row">
+    <div class="ctl">
+      <label>Branch probability</label>
+      <input id="pBranch" type="range" min="0" max="0.2" step="0.002" value="0.030">
+      <output id="pBranch_v">0.030</output>
+    </div>
+    <div class="ctl">
+      <label>Target edge length (L₀)</label>
+      <input id="L0" type="range" min="8" max="40" step="1" value="18">
+      <output id="L0_v">18</output>
+    </div>
+    <div class="ctl">
+      <label>Loop-close radius ×L₀</label>
+      <input id="closeMul" type="range" min="0.9" max="2.5" step="0.05" value="1.05">
+      <output id="closeMul_v">1.05</output>
+    </div>
+    <div class="ctl">
+      <label>Repulsion strength</label>
+      <input id="repel" type="range" min="50" max="2000" step="10" value="420">
+      <output id="repel_v">420</output>
+    </div>
+    <div class="ctl">
+      <label>Gravity to center</label>
+      <input id="grav" type="range" min="0" max="0.004" step="0.0001" value="0.0015">
+      <output id="grav_v">0.0015</output>
+    </div>
+    <div class="ctl">
+      <label>Max nodes</label>
+      <input id="maxNodes" type="range" min="100" max="4000" step="10" value="900">
+      <output id="maxNodes_v">900</output>
+    </div>
+    <div class="chk"><input id="lockTopo" type="checkbox"><label for="lockTopo">lock topology at max</label></div>
+    <button id="reset">Reset</button>
+    <div id="stats" class="stat">nodes: 0</div>
+  </div>
+
+  <!-- Phase controls -->
+  <div class="row">
+    <div class="ctl">
+      <label>Base frequency ω₀ (cycles/s)</label>
+      <input id="omega0" type="range" min="0" max="0.12" step="0.001" value="0.018">
+      <output id="omega0_v">0.018</output>
+    </div>
+    <div class="ctl">
+      <label>Coupling K (Kuramoto)</label>
+      <input id="couple" type="range" min="0" max="2.0" step="0.01" value="0.30">
+      <output id="couple_v">0.30</output>
+    </div>
+    <div class="ctl">
+      <label>Global phase FM amplitude A</label>
+      <input id="modAmp" type="range" min="0" max="0.25" step="0.002" value="0.04">
+      <output id="modAmp_v">0.040</output>
+    </div>
+    <div class="ctl">
+      <label>Global phase FM freq f<sub>m</sub> (Hz)</label>
+      <input id="modFreq" type="range" min="0" max="2.0" step="0.01" value="0.20">
+      <output id="modFreq_v">0.20</output>
+    </div>
+    <div class="chk"><input id="showVec" type="checkbox" checked><label for="showVec">show phase vectors</label></div>
+    <div class="chk"><input id="phaseColor" type="checkbox" checked><label for="phaseColor">color = phase</label></div>
+  </div>
+
+  <canvas id="cv"></canvas>
+
+  <!-- FAB / modal -->
+  <div id="fab" class="fab" title="About & presets">?</div>
+  <div id="modal" class="modal" aria-hidden="true">
+    <div class="card">
+      <header><h3>About • Graph-Life</h3><button id="close">Close</button></header>
+      <div class="body">
+        <section>
+          <p><b>Model.</b> Agents (nodes) have position, velocity, phase φ∈[0,1), and age. Edges are linear springs of target length L₀. Forces = spring + inverse-square repulsion + weak central gravity + viscous damping. Rewrites: split edges longer than 2.2·L₀; branch from degree ≤2 with probability p<sub>branch</sub>·dt; close a loop if a new tip is within (closeMul·L₀) of another node. When <span class="kbd">lock topology</span> is enabled and the node count reaches <span class="kbd">Max nodes</span>, splitting and branching halt; only geometry and phases evolve (shape changes, count fixed).</p>
+          <p><b>Phases and color.</b> Kuramoto dynamics: φ̇ = ω₀ + A·sin(2π f<sub>m</sub> t) + K·Σ<sub>j∈N(i)</sub>sin(φ<sub>j</sub>−φ<sub>i</sub>). With large K the network synchronizes (all φ equal), hence the hue becomes uniform. Vectors draw direction at angle 2πφ; their rotation rate equals φ̇.</p>
+          <p><b>Presets.</b> Use the buttons to recreate common motifs including the tri-lobe. Synchronization check: set <span class="kbd">K</span>≈1.2 and A=0; the entire graph should converge to a single hue.</p>
+        </section>
+        <aside class="preset">
+          <b>Presets</b>
+          <button data-preset="trilobe">Tri-lobe (tight core, long loops)</button>
+          <button data-preset="filaments">Filament sprigs</button>
+          <button data-preset="locked">Locked topology morph</button>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  /* ---------- DOM ---------- */
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+  const ctl = id => document.getElementById(id);
+  const PBR=ctl('pBranch'), L0ctl=ctl('L0'), CM=ctl('closeMul'), RP=ctl('repel'), GV=ctl('grav');
+  const MAXN=ctl('maxNodes'), LOCK=ctl('lockTopo');
+  const OMG=ctl('omega0'), K=ctl('couple'), A=ctl('modAmp'), FM=ctl('modFreq'), SHV=ctl('showVec'), PHC=ctl('phaseColor');
+
+  const setOut=(id,v)=>ctl(id).textContent=v;
+  function sync(){
+    setOut('pBranch_v',(+PBR.value).toFixed(3));
+    setOut('L0_v',(+L0ctl.value|0));
+    setOut('closeMul_v',(+CM.value).toFixed(2));
+    setOut('repel_v',(+RP.value|0));
+    setOut('grav_v',(+GV.value).toFixed(4));
+    setOut('maxNodes_v',(+MAXN.value|0));
+    setOut('omega0_v',(+OMG.value).toFixed(3));
+    setOut('couple_v',(+K.value).toFixed(2));
+    setOut('modAmp_v',(+A.value).toFixed(3));
+    setOut('modFreq_v',(+FM.value).toFixed(2));
+  }
+  [PBR,L0ctl,CM,RP,GV,MAXN,OMG,K,A,FM].forEach(x=>x.addEventListener('input',sync)); sync();
+
+  let W=0,H=0; const fit=()=>{const w=cv.clientWidth*dpr|0,h=cv.clientHeight*dpr|0;
+    if(w===W&&h===H)return; W=cv.width=w; H=cv.height=h; ctx.setTransform(dpr,0,0,dpr,0,0)};
+  window.addEventListener('resize',fit); fit();
+
+  /* ---------- Graph ---------- */
+  let nodes=[], edges=[], time=0;
+
+  const makeNode=(x,y)=>({x,y,vx:0,vy:0,phi:Math.random(),age:0,deg:0});
+  const addEdge=(i,j)=>{ if(i===j) return; edges.push([i,j]); nodes[i].deg++; nodes[j].deg++; };
+
+  function seed(kind="ring"){
+    nodes=[]; edges=[];
+    const cx=W/(2*dpr), cy=H/(2*dpr);
+    if (kind==="trihub"){
+      const R=42, R2=90;
+      const a0=[0,2*Math.PI/3,4*Math.PI/3];
+      const ids=[];
+      for(let k=0;k<3;k++) ids.push(nodes.push(makeNode(cx+R*Math.cos(a0[k]), cy+R*Math.sin(a0[k])))-1);
+      addEdge(ids[0],ids[1]); addEdge(ids[1],ids[2]); addEdge(ids[2],ids[0]); // triangle
+      for(let k=0;k<3;k++){
+        const b=a0[k]+Math.PI/3;
+        const n1=nodes.push(makeNode(cx+R2*Math.cos(b), cy+R2*Math.sin(b)))-1;
+        addEdge(ids[k],n1);
+      }
+    } else {
+      const R = 120;
+      for(let k=0;k<12;k++){ const a=2*Math.PI*k/12;
+        nodes.push(makeNode(cx+R*Math.cos(a), cy+R*Math.sin(a))); }
+      for(let k=0;k<12;k++) addEdge(k,(k+1)%12);
+      const tip = nodes.length; nodes.push(makeNode(cx+R*1.4, cy)); addEdge(0, tip);
+    }
+  }
+  seed("ring");
+
+  document.getElementById('reset').addEventListener('click',()=>seed("ring"));
+
+  const dist2=(a,b)=>{const dx=a.x-b.x, dy=a.y-b.y; return dx*dx+dy*dy; };
+
+  /* ---------- Dynamics ---------- */
+  function step(dt){
+    const L0=+L0ctl.value, kSpring=0.03, repulse=+RP.value, damp=0.15;
+    const grav=+GV.value, couple=+K.value, pBranch=+PBR.value;
+    const closeR2=(L0*(+CM.value))**2, omega0=+OMG.value;
+    const maxNodes=(+MAXN.value|0), allowRewrites = (!LOCK.checked) ? (nodes.length<maxNodes) : (nodes.length<maxNodes ? true : false);
+
+    time += dt;
+
+    // Kuramoto with global FM (common to all)
+    const mod = (+A.value) * Math.sin(2*Math.PI*(+FM.value)*time);   // cycles/s
+    const dphi = new Float32Array(nodes.length);
+    for (const [i,j] of edges){ const s=Math.sin(2*Math.PI*(nodes[j].phi - nodes[i].phi)); dphi[i]+=s; dphi[j]-=s; }
+    for (let i=0;i<nodes.length;i++){
+      nodes[i].phi = (nodes[i].phi + dt*(omega0 + mod + couple*dphi[i])) % 1;
+      nodes[i].age += dt;
+    }
+
+    // springs
+    for (const [i,j] of edges){
+      const a=nodes[i], b=nodes[j];
+      let dx=b.x-a.x, dy=b.y-a.y;
+      const d=Math.hypot(dx,dy)||1e-6, f=kSpring*(d-L0);
+      dx/=d; dy/=d; a.vx+=f*dx; a.vy+=f*dy; b.vx-=f*dx; b.vy-=f*dy;
+    }
+    // repulsion + gravity
+    for (let i=0;i<nodes.length;i++){
+      const a=nodes[i];
+      for (let j=i+1;j<nodes.length;j++){
+        const b=nodes[j]; let dx=b.x-a.x, dy=b.y-a.y; let r2=dx*dx+dy*dy + 25;
+        let f=repulse/r2; const inv=Math.sqrt(r2); dx/=inv; dy/=inv;
+        a.vx-=f*dx; a.vy-=f*dy; b.vx+=f*dx; b.vy+=f*dy;
+      }
+      a.vx += -grav*(a.x - W/(2*dpr));
+      a.vy += -grav*(a.y - H/(2*dpr));
+    }
+    // integrate
+    for (const n of nodes){ n.vx*=(1-damp); n.vy*=(1-damp); n.x+=dt*60*n.vx; n.y+=dt*60*n.vy; }
+
+    if (allowRewrites){
+      // split long edges
+      const newEdges=[];
+      for (let ei=0; ei<edges.length; ei++){
+        const [i,j]=edges[ei]; const a=nodes[i], b=nodes[j];
+        const d=Math.hypot(a.x-b.x, a.y-b.y);
+        if (d>2.2*L0 && nodes.length<maxNodes){
+          const mid=nodes.push(makeNode((a.x+b.x)/2,(a.y+b.y)/2))-1;
+          nodes[i].deg--; nodes[j].deg--;
+          newEdges.push([i,mid],[mid,j]); edges[ei]=null;
+        }
+      }
+      const e2=[]; for(const e of edges) if(e) e2.push(e); for(const e of newEdges) e2.push(e); edges=e2;
+
+      // branch + loop close
+      for (let i=0;i<nodes.length;i++){
+        if (nodes.length>=maxNodes) break;
+        const n=nodes[i];
+        if (n.deg<=2 && Math.random()<pBranch*dt){
+          let tx=0,ty=0,cnt=0;
+          for(const [u,v] of edges){ if(u===i){tx+=nodes[v].x-n.x; ty+=nodes[v].y-n.y; cnt++;} else if(v===i){tx+=nodes[u].x-n.x; ty+=nodes[u].y-n.y; cnt++;} }
+          let nx = cnt? -ty : (Math.random()*2-1), ny = cnt? tx : (Math.random()*2-1);
+          const s=Math.hypot(nx,ny)||1e-6; nx/=s; ny/=s;
+          const j=nodes.push(makeNode(n.x+nx*L0, n.y+ny*L0))-1; addEdge(i,j);
+
+          // nearest target closure
+          let target=-1,best=1e9;
+          for(let k=0;k<nodes.length-1;k++){ if(k===i) continue;
+            const r2=dist2(nodes[j],nodes[k]); if(r2<closeR2 && r2<best){best=r2; target=k;}
+          }
+          if (target>=0) addEdge(j,target);
+        }
+      }
+    }
+
+    // stats
+    document.getElementById('stats').textContent = `nodes: ${nodes.length}`;
+  }
+
+  /* ---------- Rendering ---------- */
+  function hue(v){ const h=v*6, i=h|0, f=h-i, q=1-f, t=f; let r,g,b;
+    if(i===0){r=1;g=t;b=0}else if(i===1){r=q;g=1;b=0}
+    else if(i===2){r=0;g=1;b=t}else if(i===3){r=0;g=q;b=1}
+    else if(i===4){r=t;g=0;b=1}else{r=1;g=0;b=q}
+    return [(r*255)|0,(g*255)|0,(b*255)|0];
+  }
+  const birthColor=(age)=>{ // monotone ramp for “time-of-birth” look
+    const x=Math.min(1,age/60); return hue(x*0.85);
+  };
+
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.save(); ctx.scale(dpr,dpr);
+    // edges
+    ctx.lineWidth=2; ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--edge').trim()||"#e9eef6";
+    ctx.globalAlpha=0.7; ctx.beginPath();
+    for (const [i,j] of edges){ const a=nodes[i], b=nodes[j]; ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); }
+    ctx.stroke(); ctx.globalAlpha=1;
+    // nodes
+    for (const n of nodes){
+      const [r,g,b]= (PHC.checked ? hue(n.phi) : birthColor(n.age));
+      ctx.fillStyle=`rgb(${r},${g},${b})`;
+      const R=5+Math.min(4,0.25*Math.log1p(n.age));
+      ctx.beginPath(); ctx.arc(n.x,n.y,R,0,Math.PI*2); ctx.fill();
+      if (document.getElementById('showVec').checked){
+        const ang = 2*Math.PI*n.phi, len = R+7;
+        ctx.beginPath(); ctx.lineWidth=1.25; ctx.strokeStyle=`rgba(${r},${g},${b},0.9)`;
+        ctx.moveTo(n.x,n.y); ctx.lineTo(n.x+len*Math.cos(ang), n.y+len*Math.sin(ang)); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  /* ---------- Loop ---------- */
+  let last=performance.now();
+  function tick(t){ fit(); const dt=Math.min(0.05,(t-last)/1000); last=t; for(let k=0;k<2;k++) step(dt/2); draw(); requestAnimationFrame(tick); }
+  requestAnimationFrame(tick);
+
+  /* ---------- FAB + presets ---------- */
+  const modal = document.getElementById('modal'), fab=document.getElementById('fab'), close=document.getElementById('close');
+  fab.onclick = ()=>{ modal.classList.add('open'); modal.ariaHidden="false"; };
+  close.onclick = ()=>{ modal.classList.remove('open'); modal.ariaHidden="true"; };
+  modal.addEventListener('click',e=>{ if(e.target===modal) close.onclick(); });
+
+  function applyPreset(name){
+    if (name==="trilobe"){        // tighter core + long clean loops
+      L0ctl.value=16;  PBR.value=0.016;  CM.value=1.04;
+      RP.value=520;    GV.value=0.0016; MAXN.value=1100;
+      OMG.value=0.015; K.value=0.35;    A.value=0.03; FM.value=0.18;
+      PHC.checked=true; SHV.checked=true; seed("trihub");
+    } else if (name==="filaments"){
+      L0ctl.value=18;  PBR.value=0.030;  CM.value=1.70;
+      RP.value=260;    GV.value=0.0006; MAXN.value=1400;
+      OMG.value=0.012; K.value=0.10;    A.value=0.02; FM.value=0.12;
+      PHC.checked=false; SHV.checked=false; seed("ring");
+    } else if (name==="locked"){
+      L0ctl.value=20;  PBR.value=0.022;  CM.value=1.20;
+      RP.value=360;    GV.value=0.0010; MAXN.value=nodes.length+0;
+      LOCK.checked=true; OMG.value=0.016; K.value=0.50; A.value=0; FM.value=0.2;
+      PHC.checked=true; SHV.checked=true; // keep current topology
+    }
+    sync();
+  }
+  document.querySelectorAll('[data-preset]').forEach(b=>{
+    b.addEventListener('click',()=>applyPreset(b.dataset.preset));
+  });
+})();
+</script>
+</body>
+</html>
+

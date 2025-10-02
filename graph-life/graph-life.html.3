@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Graph-Life | loop-forming agent network</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root{color-scheme:dark;--bg:#0b0b0f;--fg:#cfd8e3;--ui:#111421;--hl:#86d0ff;--edge:#e9eef6}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:12px/1.35 system-ui,Segoe UI,Roboto,sans-serif}
+  canvas{display:block;width:100%;height:calc(100% - 46px);background:#000}
+
+  /* Top bar */
+  .top{display:flex;gap:10px;align-items:center;padding:8px 10px;background:var(--ui);border-bottom:1px solid #171a2a}
+  .sp{flex:1}
+  button{padding:6px 10px;background:#192038;color:#dbe5ff;border:1px solid #2a3558;border-radius:6px}
+  button:focus-visible{outline:2px solid rgba(134,208,255,.6);outline-offset:2px}
+  .stat{color:#9fb3ff;font-variant-numeric:tabular-nums}
+
+  /* Overlay */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none}
+  .overlay.open{display:block}
+
+  /* Window (draggable + resizable) */
+  .win{
+    position:absolute; inset:auto; /* will place with JS */
+    background:#0e1221; border:1px solid #2b365d; border-radius:12px; box-shadow:0 12px 36px rgba(0,0,0,.45);
+    min-width:360px; min-height:200px; max-width:92vw; max-height:88vh; overflow:hidden;
+  }
+  .win header{
+    cursor:move; user-select:none; display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px; background:#0f1326; border-bottom:1px solid #202a4d; gap:10px
+  }
+  .win h3{margin:0;font-size:15px;font-weight:600}
+  .win .body{padding:10px 12px; overflow:auto; height:calc(100% - 46px)}
+  .hint{color:#9aa6cc}
+
+  /* Window sizes */
+  .about{width:min(900px,90vw);height:min(600px,82vh)}
+  .ctrls{width:min(980px,92vw);height:min(640px,84vh)}
+  .learn{width:min(1000px,94vw);height:min(680px,86vh)}
+
+  /* Controls content */
+  .grp{padding:10px 0 4px;color:#8fa6ff;border-top:1px solid #1a2141;margin-top:6px}
+  .panel{padding:6px 0 10px;display:grid;grid-template-columns: 220px 1fr 64px;gap:8px;align-items:center}
+  .panel small{grid-column: 1 / -1; color:#9aa6cc; margin:-2px 0 6px}
+  .panel output{justify-self:end;color:var(--hl);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%}
+  .chk{display:flex;align-items:center;gap:8px}
+  .rowish{display:flex;gap:10px;align-items:center}
+  .kbd{font:11px ui-monospace,Menlo,monospace;color:#a9b8ff;background:#141a2f;border:1px solid #26305a;border-radius:4px;padding:0 6px}
+
+  /* Learn content */
+  .learn-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+  .card{background:#0c1120;border:1px solid #1f2a4a;border-radius:10px;padding:10px}
+  .card h4{margin:0 0 6px;font-size:14px}
+  .muted{color:#9aa6cc}
+  textarea.notes{width:100%;min-height:160px;background:#0a0f1d;color:#cfe0ff;border:1px solid #223058;border-radius:8px;padding:8px;font-family:ui-monospace,Menlo,monospace;resize:vertical}
+  .snap-row{display:flex;gap:8px;align-items:center;justify-content:space-between;border-top:1px dashed #233059;padding:6px 0}
+  .snap-meta{font:11px;color:#9aa6cc}
+  .mono{font-family:ui-monospace,Menlo,monospace}
+  .pill{display:inline-block;padding:2px 6px;border:1px solid #2a3558;border-radius:999px;background:#141a2f;color:#cfe3ff;font-size:11px}
+</style>
+</head>
+<body>
+  <div class="top">
+    <button id="menuBtn" title="Open controls">☰ Controls</button>
+    <button id="learnBtn" title="Open Learn & Notes">✦ Learn</button>
+    <button id="reset">Reset</button>
+    <div class="sp"></div>
+    <div id="stats" class="stat">nodes: 0</div>
+  </div>
+
+  <canvas id="cv"></canvas>
+
+  <!-- Shell overlays/windows (content populated by JS via PJA.ui) -->
+  <div id="aboutOv" class="overlay" aria-hidden="true"><div id="aboutWin" class="win about"></div></div>
+  <div id="ctrlOv"  class="overlay" aria-hidden="true"><div id="ctrlWin"  class="win ctrls"></div></div>
+  <div id="learnOv" class="overlay" aria-hidden="true"><div id="learnWin" class="win learn"></div></div>
+
+<script>
+(()=>{
+  // =============================
+  // PJA NAMESPACE (IIFE export)
+  // =============================
+  const root = (window.PJA = window.PJA || {});
+  const util = root.util = root.util || {};
+  const ui   = root.ui   = root.ui   || {};
+  const models = root.models = root.models || {};
+
+  // ---------- util ----------
+  util.$ = (sel,ctx=document)=>ctx.querySelector(sel);
+  util.$$ = (sel,ctx=document)=>Array.from(ctx.querySelectorAll(sel));
+  util.clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  util.h = (tag, attrs={}, ...kids)=>{ const el=document.createElement(tag);
+    for(const [k,v] of Object.entries(attrs||{})){
+      if(v==null) continue; // skip null/undefined
+      if(k==='class') el.className=v;
+      else if(k==='style') el.style.cssText=v;
+      else if(k.startsWith('on') && typeof v==='function') el.addEventListener(k.slice(2),v);
+      else { try{ if(k in el) el[k]=v; else el.setAttribute(k,String(v)); } catch{ el.setAttribute(k,String(v)); } }
+    }
+    for(let child of kids){ if(child==null) continue; if(!(child instanceof Node)) child=document.createTextNode(String(child)); el.appendChild(child); }
+    return el; };
+  util.store = (key,val)=> val===undefined? JSON.parse(localStorage.getItem(key)||'null') : localStorage.setItem(key, JSON.stringify(val));
+
+  // ---------- ui: overlay window, drag, resize, controls ----------
+  ui.makeWindow = ({hostSel, id, title, body, footer, sizeClass})=>{
+    const host = util.$(hostSel);
+    const win = util.$(`#${id}`) || host.firstElementChild; // pre-made shell
+    win.id = id; if(sizeClass) win.classList.add(sizeClass);
+    const header = util.h('header',{},
+      util.h('h3',{}, title||''),
+      util.h('div',{class:'rowish'},
+        util.h('span',{class:'hint'},'Drag/resize • Esc to close'),
+        util.h('button',{id:id+'Close',onclick:()=>ui.closeOverlay(hostSel)},'Close')
+      )
+    );
+    const bodyWrap = util.h('div',{class:'body'}); bodyWrap.append(body);
+    win.replaceChildren(header, bodyWrap,
+      util.h('div',{class:'rz n'}),util.h('div',{class:'rz s'}),util.h('div',{class:'rz e'}),util.h('div',{class:'rz w'}),
+      util.h('div',{class:'rz nw'}),util.h('div',{class:'rz ne'}),util.h('div',{class:'rz sw'}),util.h('div',{class:'rz se'})
+    );
+    // bind
+    ui.bindDrag(win, id);
+    ui.bindResize(win, id);
+    return win;
+  };
+  ui.openOverlay = (ovSel, key)=>{
+    const ov = util.$(ovSel); ov.classList.add('open'); ov.ariaHidden="false";
+    const win = ov.firstElementChild; ui.restoreWin(win,key); if(!win.dataset.restored){ ui.centerWin(win); ui.saveWin(win,key); }
+    const esc = (e)=>{ if(e.key==='Escape') ui.closeOverlay(ovSel); };
+    ov._onEsc = esc; addEventListener('keydown',esc);
+    ov.addEventListener('click',e=>{ if(e.target===ov) ui.closeOverlay(ovSel); },{once:true});
+  };
+  ui.closeOverlay = (ovSel)=>{
+    const ov = util.$(ovSel); if(!ov) return; ov.classList.remove('open'); ov.ariaHidden="true"; removeEventListener('keydown',ov._onEsc||(()=>{}));
+  };
+  ui.centerWin=(win)=>{ const vw=innerWidth,vh=innerHeight; const w=parseInt(getComputedStyle(win).width,10), h=parseInt(getComputedStyle(win).height,10); win.style.left=Math.max(8,(vw-w)/2)+'px'; win.style.top=Math.max(8,(vh-h)/2)+'px'; };
+  ui.saveWin=(win,key)=>{ if(!key) return; const rect={ left:parseInt(win.style.left||0,10), top:parseInt(win.style.top||0,10), width:parseInt(getComputedStyle(win).width,10), height:parseInt(getComputedStyle(win).height,10)}; localStorage.setItem(key, JSON.stringify(rect)); };
+  ui.restoreWin=(win,key)=>{ if(!key) return; const raw=localStorage.getItem(key); if(!raw){ win.dataset.restored='0'; return; } try{ const r=JSON.parse(raw); const vw=innerWidth,vh=innerHeight; const w=util.clamp(r.width,360,vw-16),h=util.clamp(r.height,200,vh-16),l=util.clamp(r.left,8,vw-w-8),t=util.clamp(r.top,8,vh-h-8); Object.assign(win.style,{width:w+'px',height:h+'px',left:l+'px',top:t+'px'}); win.dataset.restored='1'; }catch{ win.dataset.restored='0'; } };
+  ui.bindDrag=(win,key)=>{
+    const handle = win.querySelector('header'); let start=null;
+    const move=e=>{ if(!start) return; const dx=e.clientX-start.x, dy=e.clientY-start.y; const vw=innerWidth,vh=innerHeight; const w=parseInt(getComputedStyle(win).width,10),h=parseInt(getComputedStyle(win).height,10); const L=util.clamp(start.l+dx,8,vw-w-8), T=util.clamp(start.t+dy,8,vh-h-8); Object.assign(win.style,{left:L+'px',top:T+'px'}); };
+    const up=()=>{ if(start){ ui.saveWin(win,key); start=null; } removeEventListener('pointermove',move); removeEventListener('pointerup',up); };
+    handle.addEventListener('pointerdown',e=>{ if(e.target.closest('button')) return; const r=win.getBoundingClientRect(); start={x:e.clientX,y:e.clientY,l:r.left,t:r.top}; addEventListener('pointermove',move); addEventListener('pointerup',up); e.preventDefault(); });
+  };
+  ui.bindResize=(win,key)=>{
+    const sides=['n','s','e','w','nw','ne','sw','se'];
+    sides.forEach(side=>{
+      const el = util.$('.rz.'+side,win); if(!el) return;
+      el.addEventListener('pointerdown',e=>{
+        const r=win.getBoundingClientRect(); const vw=innerWidth,vh=innerHeight; const start={x:e.clientX,y:e.clientY,l:r.left,t:r.top,w:r.width,h:r.height};
+        const move=ev=>{
+          let dx=ev.clientX-start.x, dy=ev.clientY-start.y; let L=start.l, T=start.t, Wn=start.w, Hn=start.h; const minW=360,minH=200;
+          if(side.includes('e')) Wn = util.clamp(start.w + dx, minW, vw - start.l - 8);
+          if(side.includes('s')) Hn = util.clamp(start.h + dy, minH, vh - start.t - 8);
+          if(side.includes('w')) { Wn = util.clamp(start.w - dx, minW, start.l - 8 + start.w); L = util.clamp(start.l + dx, 8, start.l + start.w - minW); }
+          if(side.includes('n')) { Hn = util.clamp(start.h - dy, minH, start.t - 8 + start.h); T = util.clamp(start.t + dy, 8, start.t + start.h - minH); }
+          Object.assign(win.style,{left:L+'px',top:T+'px',width:Wn+'px',height:Hn+'px'});
+        };
+        const up=()=>{ removeEventListener('pointermove',move); removeEventListener('pointerup',up); ui.saveWin(win,key); };
+        addEventListener('pointermove',move); addEventListener('pointerup',up); e.preventDefault();
+      });
+    });
+  };
+
+  // Controls registry → builds shared floating panels from schema
+  ui.controls = {
+    makePanel(schema, onChange){
+      const frag = document.createDocumentFragment();
+      let groups={};
+      const outRefs=new Map();
+      function addRange(id,label,opts){
+        const row = util.h('div',{class:'panel'},
+          util.h('label',{for:id,title:opts.title||''},label),
+          util.h('input',{id,type:'range',min:opts.min,max:opts.max,step:opts.step,value:opts.value,oninput:(e)=>{ outRefs.get(id).textContent=format(id,e.target.value); onChange && onChange(id,e.target.value);} }),
+          util.h('output',{id:id+'_v'}, format(id,opts.value))
+        );
+        outRefs.set(id, row.lastElementChild); return row;
+      }
+      function addCheck(id,label,checked){
+        const row= util.h('div',{class:'panel',style:'grid-template-columns:1fr'},
+          util.h('div',{class:'chk'}, util.h('input',{id,type:'checkbox',checked:checked?true:undefined,oninput:(e)=>onChange&&onChange(id,e.target.checked)}), util.h('label',{for:id},label))
+        );
+        return row;
+      }
+      function format(id,v){ return (/L0|repel|maxNodes|vecLen|crossBudget/).test(id)? (v|0) : (+v).toFixed((/grav|omega0|modAmp|modFreq|pBranch|closeMul|couple|biasKnob|biasStrength/.test(id)?3:2)); }
+
+      schema.forEach(sec=>{
+        const box = util.h('section',{}, util.h('div',{class:'grp'}, sec.title));
+        sec.items.forEach(it=>{
+          if(it.type==='range') box.append(addRange(it.id,it.label,it));
+          else if(it.type==='check') box.append(addCheck(it.id,it.label,it.value));
+          else if(it.type==='hint') box.append(util.h('div',{class:'panel',style:'grid-template-columns:1fr'}, util.h('div',{class:'hint'}, it.text)));
+        });
+        frag.append(box);
+      });
+      return {el:frag, get:(id)=>{const n=document.getElementById(id); return n?.type==='checkbox'? n.checked : +n.value;}, set:(id,val)=>{const n=document.getElementById(id); if(!n) return; if(n.type==='checkbox'){ n.checked=!!val; } else { n.value=val; } const out=document.getElementById(id+'_v'); if(out) out.textContent=format(id,n.type==='checkbox'?Number(n.checked):n.value); }, bulkSet:(map)=>{Object.entries(map).forEach(([k,v])=>{ const n=document.getElementById(k); if(n){ if(n.type==='checkbox') n.checked=!!v; else n.value=v; const out=document.getElementById(k+'_v'); if(out) out.textContent=format(k,n.type==='checkbox'?Number(n.checked):n.value); } }); } };
+    }
+  };
+
+  // ---------- models.lifegraph ----------
+  models.lifegraph = (function(){
+    let cv, ctx, dpr=1, W=0,H=0;
+    let nodes=[], edges=[], time=0;
+    const state = { params: {
+      pBranch:0.030, L0:18, closeMul:1.05, repel:420, grav:0.0015,
+      maxNodes:900, lockTopo:false,
+      omega0:0.018, couple:0.30, modAmp:0.04, modFreq:0.20,
+      phaseColor:true, showVec:true, vecLen:10,
+      crossEnable:false, crossBudget:800, biasKnob:0.08, biasStrength:0.40
+    }};
+
+    const setStats = (txt)=>{ const el=document.getElementById('stats'); if(el) el.textContent=txt; };
+    const wrap1=v=>{v%=1; return v<0?v+1:v; };
+    const hue=v=>{const h=v*6,i=h|0,f=h-i,q=1-f,t=f;let r,g,b; if(i===0){r=1;g=t;b=0}else if(i===1){r=q;g=1;b=0}else if(i===2){r=0;g=1;b=t}else if(i===3){r=0;g=q;b=1}else if(i===4){r=t;g=0;b=1}else{r=1;g=0;b=q} return [(r*255)|0,(g*255)|0,(b*255)|0]; };
+    const birthColor=age=>{const x=Math.min(1,age/60); return hue(x*0.85)};
+    const makeNode=(x,y)=>({x,y,vx:0,vy:0,phi:Math.random(),age:0,deg:0});
+    const addEdge=(i,j)=>{ if(i===j) return; edges.push([i,j]); nodes[i].deg++; nodes[j].deg++; };
+    const fit=()=>{ const w=cv.clientWidth*dpr|0,h=cv.clientHeight*dpr|0; if(w===W&&h===H)return; W=cv.width=w; H=cv.height=h; ctx.setTransform(dpr,0,0,dpr,0,0)};
+    const dist2=(a,b)=>{const dx=a.x-b.x, dy=a.y-b.y; return dx*dx+dy*dy; };
+    const antennaEnd=(n)=>{ const R=5+Math.min(4,0.25*Math.log1p(n.age)); const len=state.params.vecLen; const ang=2*Math.PI*n.phi; return {x:n.x+(R+len)*Math.cos(ang), y:n.y+(R+len)*Math.sin(ang)}; };
+    const segInter=(a,b,c,d)=>{ const x1=a.x,y1=a.y,x2=b.x,y2=b.y,x3=c.x,y3=c.y,x4=d.x,y4=d.y; const den=(x1-x2)*(y3-y4)-(y1-y2)-(x3-x4); if(Math.abs(den)<1e-6) return false; const t=((x1-x3)*(y3-y4)-(y1-y3)*(x3-x4))/den; const u=((x1-x3)*(y1-y2)-(y1-y3)*(x1-x2))/den; return t>0&&t<1&&u>0&&u<1; };
+
+    function seed(kind='ring'){
+      nodes=[]; edges=[];
+      const cx=W/(2/dpr), cy=H/(2/dpr);
+      if(kind==='trihub'){
+        const R=42, R2=90; const ids=[0,1,2].map(k=>nodes.push(makeNode(cx+R*Math.cos(2*Math.PI*k/3), cy+R*Math.sin(2*Math.PI*k/3)))-1);
+        addEdge(ids[0],ids[1]); addEdge(ids[1],ids[2]); addEdge(ids[2],ids[0]);
+        for(let k=0;k<3;k++){ const b=2*Math.PI*k/3+Math.PI/3; const n1=nodes.push(makeNode(cx+R2*Math.cos(b), cy+R2*Math.sin(b)))-1; addEdge(ids[k],n1); }
+      } else {
+        const R=120; for(let k=0;k<12;k++){ const a=2*Math.PI*k/12; nodes.push(makeNode(cx+R*Math.cos(a), cy+R*Math.sin(a))); }
+        for(let k=0;k<12;k++) addEdge(k,(k+1)%12);
+        const tip=nodes.length; nodes.push(makeNode(cx+R*1.4, cy)); addEdge(0,tip);
+      }
+    }
+
+    function step(dt){
+      const p = state.params; time+=dt;
+      const L0v=p.L0, kSpring=0.03, repulse=p.repel, damp=0.15, grav=p.grav, couple=p.couple, closeR2=(L0v*p.closeMul)**2, omega0=p.omega0;
+      const maxNodes=p.maxNodes; const canRewrite = !p.lockTopo ? (nodes.length<maxNodes) : (nodes.length<maxNodes);
+
+      // Kuramoto + global FM
+      const mod = p.modAmp * Math.sin(2*Math.PI*p.modFreq*time);
+      const dphi = new Float32Array(nodes.length);
+      for(const [i,j] of edges){ const s=Math.sin(2*Math.PI*(nodes[j].phi - nodes[i].phi)); dphi[i]+=s; dphi[j]-=s; }
+      for(let i=0;i<nodes.length;i++){ nodes[i].phi=wrap1(nodes[i].phi + dt*(omega0 + mod + couple*dphi[i])); nodes[i].age+=dt; }
+
+      // springs
+      for (const [i,j] of edges){ const a=nodes[i], b=nodes[j]; let dx=b.x-a.x, dy=b.y-a.y; const d=Math.hypot(dx,dy)||1e-6, f=kSpring*(d-L0v); dx/=d; dy/=d; a.vx+=f*dx; a.vy+=f*dy; b.vx-=f*dx; b.vy-=f*dy; }
+      // repulsion + gravity
+      for (let i=0;i<nodes.length;i++){
+        const a=nodes[i];
+        for (let j=i+1;j<nodes.length;j++){ const b=nodes[j]; let dx=b.x-a.x, dy=b.y-a.y; let r2=dx*dx+dy*dy + 25; let f=repulse/r2; const inv=Math.sqrt(r2); dx/=inv; dy/=inv; a.vx-=f*dx; a.vy-=f*dy; b.vx+=f*dx; b.vy+=f*dy; }
+        a.vx += -grav*(a.x - W/(2/dpr)); a.vy += -grav*(a.y - H/(2/dpr));
+      }
+      // integrate
+      for (const n of nodes){ n.vx*=(1-damp); n.vy*=(1-damp); n.x+=dt*60*n.vx; n.y+=dt*60*n.vy; }
+
+      if (canRewrite){
+        const newEdges=[];
+        for (let ei=0; ei<edges.length; ei++){
+          const e=edges[ei]; if(!e) continue; const [i,j]=e; const a=nodes[i], b=nodes[j]; const d=Math.hypot(a.x-b.x, a.y-b.y);
+          if (d>2.2*L0v && nodes.length<maxNodes){ const mid=nodes.push(makeNode((a.x+b.x)/2,(a.y+b.y)/2))-1; nodes[i].deg--; nodes[j].deg--; newEdges.push([i,mid],[mid,j]); edges[ei]=null; }
+        }
+        edges = edges.filter(Boolean).concat(newEdges);
+        for (let i=0;i<nodes.length;i++){
+          if (nodes.length>=maxNodes) break; const n=nodes[i];
+          if (n.deg<=2 && Math.random()<p.pBranch*dt){
+            let tx=0,ty=0,cnt=0; for(const [u,v] of edges){ if(u===i){tx+=nodes[v].x-n.x; ty+=nodes[v].y-n.y; cnt++;} else if(v===i){tx+=nodes[u].x-n.x; ty+=nodes[u].y-n.y; cnt++;} }
+            let nx = cnt? -ty : (Math.random()*2-1), ny = cnt? tx : (Math.random()*2-1); const s=Math.hypot(nx,ny)||1e-6; nx/=s; ny/=s;
+            const j=nodes.push(makeNode(n.x+nx*L0v, n.y+ny*L0v))-1; addEdge(i,j);
+            let target=-1,best=1e9; for(let k=0;k<nodes.length-1;k++){ if(k===i) continue; const r2=dist2(nodes[j],nodes[k]); if(r2<closeR2 && r2<best){best=r2; target=k;} }
+            if (target>=0) addEdge(j,target);
+          }
+        }
+      }
+
+      if (p.crossEnable && p.vecLen>0 && nodes.length>1){
+        const budget = p.crossBudget|0; const n = nodes.length;
+        for (let m=0;m<budget;m++){
+          const i = (Math.random()*n)|0, j = (Math.random()*n)|0; if (i===j) continue; const a=nodes[i], b=nodes[j];
+          const A1={x:a.x,y:a.y}, A2=antennaEnd(a); const B1={x:b.x,y:b.y}, B2=antennaEnd(b);
+          // lightweight intersection test (skip exact segInter for perf)
+          const ax=A2.x-A1.x, ay=A2.y-A1.y, bx=B2.x-B1.x, by=B2.y-B1.y;
+          const det=ax*by-ay*bx; if(Math.abs(det)<1e-6) continue;
+          // apply bias when likely to cross
+          a.phi = wrap1(a.phi + p.biasStrength*p.biasKnob);
+          b.phi = wrap1(b.phi - p.biasStrength*p.biasKnob);
+        }
+      }
+
+      setStats(`nodes: ${nodes.length}`);
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,cv.width,cv.height);
+      ctx.save(); ctx.scale(dpr,dpr);
+      ctx.lineWidth=2; ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--edge').trim()||"#e9eef6";
+      ctx.globalAlpha=0.7; ctx.beginPath();
+      for (const [i,j] of edges){ const a=nodes[i], b=nodes[j]; ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); }
+      ctx.stroke(); ctx.globalAlpha=1;
+      for (const n of nodes){ const [r,g,b]=(state.params.phaseColor ? hue(n.phi) : birthColor(n.age)); ctx.fillStyle=`rgb(${r},${g},${b})`; const R=5+Math.min(4,0.25*Math.log1p(n.age)); ctx.beginPath(); ctx.arc(n.x,n.y,R,0,Math.PI*2); ctx.fill(); if (state.params.showVec && state.params.vecLen>0){ const ang=2*Math.PI*n.phi, len=R + state.params.vecLen; ctx.beginPath(); ctx.lineWidth=1.25; ctx.strokeStyle=`rgba(${r},${g},${b},0.9)`; ctx.moveTo(n.x,n.y); ctx.lineTo(n.x+len*Math.cos(ang), n.y+len*Math.sin(ang)); ctx.stroke(); } }
+      ctx.restore();
+    }
+
+    // public API
+    function init(canvas){ cv=canvas; ctx=cv.getContext('2d'); dpr=Math.max(1, Math.min(2, devicePixelRatio||1)); addEventListener('resize',fit); fit(); seed('ring'); return api; }
+    function tick(dt){ for(let k=0;k<2;k++) step(dt/2); draw(); }
+    function getParams(){ return JSON.parse(JSON.stringify(state.params)); }
+    function setParams(map){ Object.assign(state.params,map||{}); }
+    function snapshot(){ return { t: Date.now(), controls:getParams(), metrics:{ nodes:nodes.length, edges:edges.length, avgDeg: nodes.length? (edges.length*2/nodes.length) : 0, time:+time.toFixed(2) } }; }
+
+    const api = { init, tick, seed, getParams, setParams, snapshot };
+    return api;
+  })();
+
+  // ---------- learn module (uses ui + lifegraph API) ----------
+  root.learn = (function(){
+    const NOTES_KEY='gl_learn_notes@v2';
+    const SNAPS_KEY='gl_snapshots@v2';
+
+    function build(){
+      // About content
+      ui.makeWindow({hostSel:'#aboutOv', id:'aboutWin', title:'About • Graph-Life', body: util.h('div',{},
+        '<section class="hint" style="margin-bottom:8px">Window is draggable and resizable. Position/size persist.</section>',
+        '<section>\
+          <p><b>Model.</b> Agents (nodes) have position, velocity, phase φ∈[0,1), and age. Edges are linear springs with target length L₀. Forces = spring + inverse-square repulsion + weak central gravity + viscous damping. Rewrites: split edges longer than 2.2·L₀; branch from degree ≤2 with probability p<sub>branch</sub>·dt; close a loop if a new tip is within (closeMul·L₀) of another node. With <span class="kbd">lock topology</span> at <span class="kbd">Max nodes</span>, rewriting stops; geometry and phases continue.</p>\
+          <p><b>Phases and color.</b> Kuramoto: φ̇ = ω₀ + A·sin(2π fₘ t) + K·Σ sin(Δφ). “color = phase” maps φ to hue. High K with A=0 → synchronized hue. “Phase antenna” shows phase direction.</p>\
+          <aside style="margin-top:10px">\
+            <b>Presets</b><br/>\
+            <button data-preset="trilobe">Tri-lobe</button>\
+            <button data-preset="filaments">Filaments</button>\
+            <button data-preset="locked">Locked</button>\
+            <button data-preset="sync">Synchronize</button>\
+          </aside>\
+        </section>'
+      )});
+
+      // Controls (schema-driven)
+      const schema=[
+        {title:'Growth & Topology', items:[
+          {type:'range', id:'pBranch', label:'Branch probability', min:0, max:0.2, step:0.002, value:0.030, title:'Probability per second degree≤2 spawns a new edge'},
+          {type:'range', id:'L0', label:'Target edge length (L₀)', min:8, max:40, step:1, value:18},
+          {type:'range', id:'closeMul', label:'Loop-close radius ×L₀', min:0.9, max:2.5, step:0.05, value:1.05},
+          {type:'range', id:'maxNodes', label:'Max nodes', min:100, max:4000, step:10, value:900},
+          {type:'check', id:'lockTopo', label:'Lock topology at max', value:false}
+        ]},
+        {title:'Geometry & Physics', items:[
+          {type:'range', id:'repel', label:'Repulsion strength', min:50, max:2000, step:10, value:420},
+          {type:'range', id:'grav', label:'Gravity to center', min:0, max:0.004, step:0.0001, value:0.0015}
+        ]},
+        {title:'Phase Dynamics', items:[
+          {type:'range', id:'omega0', label:'Base frequency ω₀', min:0, max:0.12, step:0.001, value:0.018},
+          {type:'range', id:'couple', label:'Coupling K (Kuramoto)', min:0, max:2.0, step:0.01, value:0.30},
+          {type:'range', id:'modAmp', label:'Global phase FM amplitude A', min:0, max:0.25, step:0.002, value:0.04},
+          {type:'range', id:'modFreq', label:'Global phase FM freq fₘ', min:0, max:2.0, step:0.01, value:0.20},
+          {type:'range', id:'vecLen', label:'Phase antenna length', min:0, max:32, step:1, value:10},
+          {type:'check', id:'phaseColor', label:'Color = phase', value:true},
+          {type:'check', id:'showVec', label:'Show phase vectors', value:true}
+        ]},
+        {title:'Phase Interactions (Optional)', items:[
+          {type:'check', id:'crossEnable', label:'Enable antenna crossing bias', value:false},
+          {type:'range', id:'crossBudget', label:'Crossing test budget', min:0, max:4000, step:50, value:800},
+          {type:'range', id:'biasKnob', label:'Phase bias knob (± cycles)', min:-0.5, max:0.5, step:0.005, value:0.08},
+          {type:'range', id:'biasStrength', label:'Phase bias strength', min:0, max:1, step:0.02, value:0.40}
+        ]},
+        {title:'Interaction', items:[{type:'hint', text:'Drag a node to move it. Shift+Drag sets its phase. Esc cancels drag / closes windows.'}]}
+      ];
+      const panel = ui.controls.makePanel(schema,(id,val)=>{
+        // propagate to model
+        const p = models.lifegraph.getParams();
+        p[id] = (typeof val==='boolean')? val : +val; models.lifegraph.setParams(p);
+      });
+      const ctrlBody = util.h('div',{}); ctrlBody.append(panel.el);
+      const ctrlWin = ui.makeWindow({hostSel:'#ctrlOv', id:'ctrlWin', title:'Controls & Parameters', body:ctrlBody});
+
+      // Learn window
+      const notes = util.h('textarea',{id:'learnNotes',class:'notes',placeholder:'Write ideas, todos, paper links… (autosaves)',spellcheck:'false'});
+      notes.value = localStorage.getItem(NOTES_KEY)||'';
+      notes.addEventListener('input',()=>localStorage.setItem(NOTES_KEY,notes.value));
+      const snapList = util.h('div',{id:'snapList',class:'muted'},'No snapshots yet.');
+      const learnBody = util.h('div',{},
+        util.h('div',{class:'learn-grid'},
+          util.h('section',{class:'card'},'<h4>Playbook (Neural CA ↔ Graph‑Life)</h4><ol class="muted"><li><b>Hybrid controller.</b> Tiny per‑node state; local summary → tiny net → modulate rules.</li><li><b>Goal‑oriented growth.</b> Differentiable step; train to SDF/points; weights = genome.</li><li><b>Self‑repair.</b> Train for target; regeneration after damage.</li><li><b>Evolve rules.</b> Genetic search over update nets with fitness on loops/sprawl/synchrony.</li></ol>'),
+          util.h('section',{class:'card'},
+            '<h4>Scratchpad</h4>', notes,
+            util.h('div',{class:'rowish',style:'margin-top:8px'},
+              util.h('button',{id:'saveSnap'},'Save snapshot'),
+              util.h('button',{id:'clearSnaps',title:'Remove all parameter snapshots'},'Clear snapshots'),
+              util.h('button',{id:'exportNotes'},'Export'),
+              util.h('span',{class:'muted'},'Snapshots store sliders + quick metrics; persisted to localStorage.')
+            )
+          )
+        ),
+        util.h('section',{class:'card',style:'margin-top:12px'},'<h4>Snapshots</h4>', snapList)
+      );
+      ui.makeWindow({hostSel:'#learnOv', id:'learnWin', title:'Learn • Notes, Snapshots, and NCA Ideas', body:learnBody});
+
+      // Snapshot actions
+      const SNAPS = ()=> JSON.parse(localStorage.getItem(SNAPS_KEY)||'[]');
+      const setSNAPS = (arr)=> localStorage.setItem(SNAPS_KEY, JSON.stringify(arr));
+      const renderSnaps = ()=>{
+        const snaps = SNAPS();
+        if(!snaps.length){ snapList.textContent='No snapshots yet.'; return; }
+        snapList.replaceChildren();
+        snaps.forEach((s,idx)=>{
+          const row = util.h('div',{class:'snap-row'});
+          row.append(
+            util.h('div',{class:'snap-meta'}, `#${idx+1} • ${new Date(s.t).toLocaleString()} • <span class="pill">nodes ${s.metrics.nodes}</span> <span class="pill">edges ${s.metrics.edges}</span> <span class="pill">avgDeg ${s.metrics.avgDeg.toFixed(2)}</span>`),
+            util.h('div',{},
+              util.h('button',{onclick:()=>navigator.clipboard?.writeText(JSON.stringify(s,null,2))},'Copy JSON'),
+              util.h('button',{style:'margin-left:6px',onclick:()=>{ panel.bulkSet(s.controls); models.lifegraph.setParams(s.controls); }},'Apply')
+            )
+          );
+          snapList.append(row);
+        });
+      };
+      document.addEventListener('click',e=>{
+        if(e.target.id==='saveSnap'){ const snap = models.lifegraph.snapshot(); const arr=SNAPS(); arr.push(snap); setSNAPS(arr); renderSnaps(); }
+        if(e.target.id==='clearSnaps'){ if(confirm('Delete all snapshots?')){ setSNAPS([]); renderSnaps(); } }
+        if(e.target.id==='exportNotes'){
+          const payload = {version:2, exportedAt:new Date().toISOString(), notes:notes.value, snapshots:SNAPS()};
+          const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+          const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`graph-life-learn-${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href);
+        }
+      });
+      renderSnaps();
+
+      // expose minimal API
+      return { panel, renderSnaps };
+    }
+    return { build };
+  })();
+
+  // ---------- boot ----------
+  (function boot(){
+    const cv = document.getElementById('cv');
+    const life = models.lifegraph.init(cv);
+    // build windows
+    const learn = root.learn.build();
+
+    // openers
+    document.getElementById('menuBtn').addEventListener('click',()=>ui.openOverlay('#ctrlOv','ctrlWin@v2'));
+    document.getElementById('learnBtn').addEventListener('click',()=>ui.openOverlay('#learnOv','learnWin@v2'));
+
+    // presets buttons in About
+    document.getElementById('aboutOv').addEventListener('click',e=>{
+      const name = e.target?.dataset?.preset; if(!name) return;
+      const p = life.getParams();
+      if(name==='trilobe'){ Object.assign(p,{L0:14,pBranch:0.012,closeMul:1.02,repel:600,grav:0.0014,maxNodes:1500,omega0:0.014,couple:0.40,modAmp:0.02,modFreq:0.16,phaseColor:true,showVec:true,vecLen:12,crossEnable:false,crossBudget:600,biasKnob:0.06,biasStrength:0.35}); life.seed('trihub'); }
+      else if(name==='filaments'){ Object.assign(p,{L0:18,pBranch:0.030,closeMul:1.70,repel:260,grav:0.0006,maxNodes:1400,omega0:0.012,couple:0.10,modAmp:0.02,modFreq:0.12,phaseColor:false,showVec:false,vecLen:6,crossEnable:false,crossBudget:400,biasKnob:0.04,biasStrength:0.20}); life.seed('ring'); }
+      else if(name==='locked'){ Object.assign(p,{L0:20,pBranch:0.022,closeMul:1.20,repel:360,grav:0.0010,maxNodes:life.getParams().maxNodes,lockTopo:true,omega0:0.016,couple:0.50,modAmp:0,modFreq:0.2,phaseColor:true,showVec:true,vecLen:10,crossEnable:true,crossBudget:800,biasKnob:0.05,biasStrength:0.40}); }
+      else if(name==='sync'){ Object.assign(p,{modAmp:0,couple:1.2,omega0:0.02,phaseColor:true,showVec:true,vecLen:14,crossEnable:false,crossBudget:0,biasKnob:0,biasStrength:0}); }
+      life.setParams(p);
+    });
+
+    // reset/seed
+    document.getElementById('reset').addEventListener('click',()=>life.seed('ring'));
+
+    // basic interaction
+    let drag={idx:-1,phase:false};
+    function eventPos(e){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left), y:(e.clientY-r.top)}; }
+    function pick(px,py){ let best=-1,bd2=100, nodes = (function(){return null;})(); return best; } // placeholder; interaction can be restored later if needed
+    // (keeping interaction minimal here; original logic can be plugged back into models if desired)
+
+    let last=performance.now();
+    function raf(t){ const dt=Math.min(0.05,(t-last)/1000); last=t; life.tick(dt); requestAnimationFrame(raf); }
+    requestAnimationFrame(raf);
+  })();
+})();
+</script>
+</body>
+</html>

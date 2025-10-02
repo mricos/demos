@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Graph-Life | loop-forming agent network</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root{color-scheme:dark;--bg:#0b0b0f;--fg:#cfd8e3;--ui:#0e1223;--ui2:#0b0f1f;--ink:#a9b8ff;--hl:#86d0ff;--edge:#e9eef6}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:12px/1.35 system-ui,Segoe UI,Roboto,sans-serif;overflow:hidden}
+  *{box-sizing:border-box}
+
+  .wrap{display:grid;grid-template-columns: 300px 1fr;grid-template-rows: 44px 1fr;height:100vh}
+  .top{grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--ui2);border-bottom:1px solid #171a2a}
+  .top .sp{flex:1}
+  .stat{color:#9fb3ff;font-variant-numeric:tabular-nums}
+  button{padding:4px 8px;background:#192038;color:#dbe5ff;border:1px solid #2a3558;border-radius:6px}
+  button:focus-visible{outline:2px solid rgba(134,208,255,.6);outline-offset:2px}
+
+  /* Sidebar */
+  .side{grid-row:2;grid-column:1;display:flex;flex-direction:column;min-width:240px;max-width:360px;width:100%;
+        background:linear-gradient(#0d1226,#0b0f21);border-right:1px solid #1a2140}
+  .sideHeader{display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid #1a2140}
+  .sideBody{overflow:auto;padding:6px}
+  .grp{padding:6px 8px;color:#8fa6ff;border-top:1px solid #141a2f;font-weight:600}
+  details{border-bottom:1px solid #131a38;background:#0c1130}
+  details>summary{cursor:pointer;list-style:none;padding:7px 10px;font-weight:600;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  details>summary::-webkit-details-marker{display:none}
+  .panel{padding:8px;display:grid;gap:8px}
+  .ctl{display:grid;grid-template-columns: 1fr 120px 44px;gap:6px;align-items:center}
+  .ctl label{color:#c9d4ff;opacity:.9}
+  .ctl output{justify-self:end;color:var(--hl);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;height:16px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .chk{display:flex;align-items:center;gap:6px}
+
+  .qpair{display:grid;grid-template-columns:auto 120px;gap:6px;align-items:center}
+
+  /* Color wheel */
+  .wheel{width:120px;height:120px;border-radius:50%;position:relative;border:1px solid #2a3558;overflow:hidden}
+  .wheel canvas{width:100%;height:100%}
+  .thumb{position:absolute;width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid #111;box-shadow:0 0 0 2px rgba(0,0,0,.25);pointer-events:none}
+
+  /* Canvas */
+  #cv{grid-row:2;grid-column:2;display:block;width:100%;height:100%;background:#000}
+
+  /* Concepts FAB + sheet */
+  .fab{position:fixed;right:16px;bottom:16px;width:56px;height:56px;border-radius:50%;
+       background:#2a3558;color:#fff;border:1px solid #3d4a78;display:grid;place-items:center;
+       box-shadow:0 8px 22px rgba(0,0,0,.35);cursor:pointer}
+  .fab span{font-size:26px;line-height:1.1;font-weight:700}
+  .sheet{position:fixed;right:16px;bottom:84px;width:320px;max-height:70vh;background:#0f142b;border:1px solid #2b365d;border-radius:12px;overflow:auto;display:none}
+  .sheet.open{display:block}
+  .sheet .sec{border-top:1px solid #1a2140}
+  .sheet summary{padding:10px 12px;cursor:pointer;font-weight:600}
+  .sheet .content{padding:8px 12px 12px;color:#b9c5ff}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <button id="reset">Reset</button>
+      <button id="save">Save PNG</button>
+      <label class="row" style="gap:6px;margin-left:10px">
+        Seed
+        <input id="seed" type="number" value="1337" min="0" step="1" style="width:100px">
+        <button id="reseed">Apply</button>
+      </label>
+      <button id="hardSync" title="Set all phases to the same value now">Hard sync now</button>
+      <div class="sp"></div>
+      <div id="stats" class="stat">nodes: 0</div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <aside id="side" class="side">
+      <div class="sideHeader">
+        <div class="title">Controls</div><div class="sp"></div>
+        <div class="qpair"><span>Grav</span><input id="gravQuick" type="range" min="0" max="0.004" step="0.0001" value="0.0035"></div>
+        <div class="qpair"><span>K</span><input id="coupleQuick" type="range" min="0" max="2.0" step="0.01" value="0.50"></div>
+      </div>
+
+      <div class="sideBody">
+        <details open><summary>Presets</summary>
+          <div class="panel row">
+            <button data-preset="trilobe">Tri-lobe figure</button>
+            <button data-preset="filaments">Filaments</button>
+            <button data-preset="locked">Locked topology</button>
+            <button data-preset="sync">Synchronize</button>
+          </div>
+        </details>
+
+        <details><summary>Growth & Topology</summary>
+          <div class="panel">
+            <div class="ctl"><label>Branch probability</label><input id="pBranch" type="range" min="0" max="0.2" step="0.002" value="0.018"><output id="pBranch_v">0.018</output></div>
+            <div class="ctl"><label>Target edge length (L₀)</label><input id="L0" type="range" min="8" max="40" step="1" value="16"><output id="L0_v">16</output></div>
+            <div class="ctl"><label>Loop-close radius ×L₀</label><input id="closeMul" type="range" min="0.9" max="2.5" step="0.05" value="1.04"><output id="closeMul_v">1.04</output></div>
+            <div class="ctl"><label>Max nodes</label><input id="maxNodes" type="range" min="200" max="5000" step="10" value="1600"><output id="maxNodes_v">1600</output></div>
+            <label class="chk"><input id="lockTopo" type="checkbox"> Lock topology at max</label>
+          </div>
+        </details>
+
+        <details><summary>Geometry</summary>
+          <div class="panel">
+            <div class="ctl"><label>Repulsion</label><input id="repel" type="range" min="50" max="2500" step="10" value="520"><output id="repel_v">520</output></div>
+            <div class="ctl"><label>Gravity</label><input id="grav" type="range" min="0" max="0.004" step="0.0001" value="0.0035"><output id="grav_v">0.0035</output></div>
+          </div>
+        </details>
+
+        <details><summary>Phase</summary>
+          <div class="panel">
+            <div class="ctl"><label>Base freq ω₀</label><input id="omega0" type="range" min="0" max="0.12" step="0.001" value="0.015"><output id="omega0_v">0.015</output></div>
+            <div class="ctl"><label>Coupling K</label><input id="couple" type="range" min="0" max="2.0" step="0.01" value="0.50"><output id="couple_v">0.50</output></div>
+            <div class="ctl"><label>FM amplitude A</label><input id="modAmp" type="range" min="0" max="0.25" step="0.002" value="0.02"><output id="modAmp_v">0.020</output></div>
+            <div class="ctl"><label>FM freq fₘ</label><input id="modFreq" type="range" min="0" max="2.0" step="0.01" value="0.16"><output id="modFreq_v">0.16</output></div>
+            <div class="ctl"><label>Detune spread σ<sub>ω</sub></label><input id="detune" type="range" min="0" max="0.08" step="0.001" value="0.004"><output id="detune_v">0.004</output></div>
+            <div class="ctl"><label>Phase diffusion</label><input id="diffuse" type="range" min="0" max="1.0" step="0.01" value="0.10"><output id="diffuse_v">0.10</output></div>
+            <div class="row">
+              <div>
+                <div id="wheel" class="wheel"><canvas width="120" height="120"></canvas><div class="thumb" id="wheelThumb"></div></div>
+                <div class="row" style="margin-top:6px">
+                  <label class="chk"><input id="phaseColor" type="checkbox" checked> Color=phase</label>
+                  <label class="chk"><input id="showVec" type="checkbox" checked> Vectors</label>
+                </div>
+              </div>
+              <div style="flex:1">
+                <div class="ctl"><label>Antenna length</label><input id="vecLen" type="range" min="0" max="36" step="1" value="12"><output id="vecLen_v">12</output></div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details><summary>Antenna Crossing</summary>
+          <div class="panel">
+            <div class="row">
+              <label class="chk"><input id="crossEnable" type="checkbox" checked> Enable</label>
+              <label class="chk"><input id="crossHighlight" type="checkbox" checked> Highlight</label>
+            </div>
+            <div class="ctl"><label>Budget (pairs/frame)</label><input id="crossBudget" type="range" min="0" max="6000" step="50" value="1200"><output id="crossBudget_v">1200</output></div>
+            <div class="ctl"><label>Bias magnitude (cycles)</label><input id="biasMag" type="range" min="0" max="0.5" step="0.005" value="0.08"><output id="biasMag_v">0.080</output></div>
+            <div class="ctl"><label>Blend strength</label><input id="biasStrength" type="range" min="0" max="1" step="0.02" value="0.40"><output id="biasStrength_v">0.40</output></div>
+            <div class="ctl"><label>Action</label>
+              <select id="crossAction">
+                <option value="nudge" selected>Phase nudge (+/−)</option>
+                <option value="align">Align (mean)</option>
+                <option value="swap">Swap phases</option>
+                <option value="fkick">Freq kick (±)</option>
+              </select>
+              <output></output>
+            </div>
+            <div class="ctl"><label>Swap min Δφ</label><input id="swapMin" type="range" min="0" max="0.5" step="0.01" value="0.15"><output id="swapMin_v">0.15</output></div>
+            <div class="ctl"><label>Lock where meet</label>
+              <select id="lockMode">
+                <option value="none" selected>None</option>
+                <option value="edge">Add edge</option>
+                <option value="pin">Pin 500ms</option>
+                <option value="phaselock">Phase-lock 500ms</option>
+              </select>
+              <output></output>
+            </div>
+          </div>
+        </details>
+
+        <details><summary>Interaction</summary>
+          <div class="panel"><div class="row">Drag = move • <b>Shift+Drag</b> = set phase • Esc = cancel</div></div>
+        </details>
+      </div>
+    </aside>
+
+    <canvas id="cv" aria-label="Graph canvas"></canvas>
+  </div>
+
+  <!-- Concepts FAB -->
+  <button id="fab" class="fab" title="Concepts & tips"><span>ℹ︎</span></button>
+  <div id="sheet" class="sheet" aria-hidden="true">
+    <details class="sec" open><summary>Sync vs. twisted states</summary>
+      <div class="content">Rings/filaments admit k-twisted equilibria (constant phase steps). Moderate K, small detune, and a little diffusion produce smooth rainbows; very high K and no detune give single-hue sync.</div>
+    </details>
+    <details class="sec"><summary>Antenna crossings</summary>
+      <div class="content">When phase vectors cross we can nudge, align, swap (with min Δφ guard so colors visibly jump), or give a brief frequency kick. Optional: add an edge, pin positions, or phase-lock at the intersection.</div>
+    </details>
+    <details class="sec"><summary>Tips for figures</summary>
+      <div class="content">Tri-lobe: tight loop closure, strong gravity, higher repulsion, low branching, tri-hub seed. Filaments: larger close radius, higher branching, moderate K.</div>
+    </details>
+  </div>
+
+<script>
+(()=> {
+  const $ = id => document.getElementById(id);
+  const OUT=(id,v)=>{ const el=$(id); if(el) el.textContent=v; };
+
+  /* Canvas */
+  const cv=$('cv'), ctx=cv.getContext('2d');
+  const dpr=Math.max(1, Math.min(2, window.devicePixelRatio||1));
+  let W=0,H=0; function fit(){const w=cv.clientWidth*dpr|0,h=cv.clientHeight*dpr|0;if(w===W&&h===H)return;W=cv.width=w;H=cv.height=h;ctx.setTransform(dpr,0,0,dpr,0,0);} addEventListener('resize',fit); fit();
+
+  /* Controls + outputs */
+  const seedEl=$('seed'), reseedBtn=$('reseed'), saveBtn=$('save'), resetBtn=$('reset'), hardSyncBtn=$('hardSync');
+  const PBR=$('pBranch'), L0=$('L0'), CM=$('closeMul'), RP=$('repel'), GV=$('grav'), MAXN=$('maxNodes'), LOCK=$('lockTopo');
+  const OMG=$('omega0'), K=$('couple'), A=$('modAmp'), FM=$('modFreq'), PHC=$('phaseColor'), SHV=$('showVec'), VLEN=$('vecLen');
+  const DETUNE=$('detune'), DIFF=$('diffuse');
+  const CEN=$('crossEnable'), CBUD=$('crossBudget'), BMAG=$('biasMag'), BST=$('biasStrength'), CACT=$('crossAction'), CHI=$('crossHighlight');
+  const LMODE=$('lockMode'), SWMIN=$('swapMin');
+  const GVQ=$('gravQuick'), KVQ=$('coupleQuick');
+
+  const outs=[['pBranch','pBranch_v',3],['L0','L0_v',0],['closeMul','closeMul_v',2],['repel','repel_v',0],['grav','grav_v',4],
+              ['maxNodes','maxNodes_v',0],['omega0','omega0_v',3],['couple','couple_v',2],['modAmp','modAmp_v',3],
+              ['modFreq','modFreq_v',2],['vecLen','vecLen_v',0],['crossBudget','crossBudget_v',0],['biasMag','biasMag_v',3],
+              ['biasStrength','biasStrength_v',2],['detune','detune_v',3],['diffuse','diffuse_v',2],['swapMin','swapMin_v',2]];
+  for (const [i,o,p] of outs){ const el=$(i), oo=$(o); if(el&&oo){ el.addEventListener('input',()=>oo.textContent=(+el.value).toFixed(p)); oo.textContent=(+el.value).toFixed(p); } }
+
+  GVQ.addEventListener('input',()=>{ GV.value=GVQ.value; OUT('grav_v',(+GV.value).toFixed(4)); });
+  GV.addEventListener('input',()=>{ GVQ.value=GV.value; });
+  KVQ.addEventListener('input',()=>{ K.value=KVQ.value; OUT('couple_v',(+K.value).toFixed(2)); });
+  K.addEventListener('input',()=>{ KVQ.value=K.value; });
+
+  /* Color wheel */
+  const wheelEl=$('wheel'), wheelCanvas=wheelEl.querySelector('canvas'), wctx=wheelCanvas.getContext('2d'), thumb=$('wheelThumb');
+  const WZ=wheelCanvas.width, HZ=wheelCanvas.height, CX=WZ/2, CY=HZ/2, R=CX-1;
+  let wheelAngle=0;
+  function hue2rgb(v){ const h=v*6,i=h|0,f=h-i,q=1-f,t=f;let r,g,b;
+    if(i===0){r=1;g=t;b=0}else if(i===1){r=q;g=1;b=0}
+    else if(i===2){r=0;g=1;b=t}else if(i===3){r=0;g=q;b=1}
+    else if(i===4){r=t;g=0;b=1}else{r=1;g=0;b=q}
+    return [(r*255)|0,(g*255)|0,(b*255)|0];
+  }
+  function drawWheel(){
+    const img=wctx.createImageData(WZ,HZ), d=img.data;
+    for(let y=0;y<HZ;y++)for(let x=0;x<WZ;x++){
+      const dx=x-CX, dy=y-CY, rr=Math.hypot(dx,dy), k=(y*WZ+x)*4;
+      if(rr>R){ d[k+3]=0; continue; }
+      let ang=Math.atan2(dy,dx); if(ang<0) ang+=Math.PI*2; const hue=ang/(Math.PI*2);
+      const [r,g,b]=hue2rgb(hue); d[k]=r; d[k+1]=g; d[k+2]=b; d[k+3]=255;
+    }
+    wctx.putImageData(img,0,0); placeThumb();
+  }
+  function placeThumb(){ const r=R-6; const x=CX + r*Math.cos(wheelAngle), y=CY + r*Math.sin(wheelAngle);
+    thumb.style.left=(x-5)+'px'; thumb.style.top=(y-5)+'px';
+  }
+  function setWheelFromEvent(e){
+    const rect=wheelCanvas.getBoundingClientRect(); const x=(e.clientX-rect.left)*(WZ/rect.width); const y=(e.clientY-rect.top)*(HZ/rect.height);
+    wheelAngle=Math.atan2(y-CY,x-CX); drawWheel();
+  }
+  wheelCanvas.addEventListener('mousedown',e=>{ setWheelFromEvent(e); draggingWheel=true; });
+  let draggingWheel=false; addEventListener('mousemove',e=>{ if(draggingWheel) setWheelFromEvent(e); });
+  addEventListener('mouseup',()=>draggingWheel=false);
+  drawWheel();
+
+  /* RNG */
+  function makePRNG(seed){ let s=seed>>>0; return ()=>{ s|=0; s=(s+0x6D2B79F5)|0; let t=Math.imul(s^s>>>15,1|s); t^=t+Math.imul(t^t>>>7,61|t); return ((t^t>>>14)>>>0)/4294967296; }; }
+  let rand=makePRNG(+seedEl.value||1337);
+
+  /* Graph */
+  let nodes=[], edges=[], time=0, freqKicks=[], pinLocks=[], phaseLocks=[], flashes=[];
+  const makeNode=(x,y)=>({x,y,vx:0,vy:0,phi:rand(),age:0,deg:0,domega:0});
+  const addEdge=(i,j)=>{ if(i===j) return; for(const [u,v] of edges){ if((u===i&&v===j)||(u===j&&v===i)) return; } edges.push([i,j]); nodes[i].deg++; nodes[j].deg++; };
+
+  function seed(kind="ring"){
+    nodes=[]; edges=[]; freqKicks=[]; pinLocks=[]; phaseLocks=[]; flashes=[];
+    const cx=cv.width/dpr/2, cy=cv.height/dpr/2;
+    if (kind==="trihub"){
+      const R=42, R2=92;
+      const ids=[0,1,2].map(k=>nodes.push(makeNode(cx+R*Math.cos(2*Math.PI*k/3), cy+R*Math.sin(2*Math.PI*k/3)))-1);
+      addEdge(ids[0],ids[1]); addEdge(ids[1],ids[2]); addEdge(ids[2],ids[0]);
+      for(let k=0;k<3;k++){ const b=2*Math.PI*k/3+Math.PI/3;
+        const n1=nodes.push(makeNode(cx+R2*Math.cos(b), cy+R2*Math.sin(b)))-1; addEdge(ids[k],n1); }
+    } else {
+      const R=120; for(let k=0;k<12;k++){ const a=2*Math.PI*k/12; nodes.push(makeNode(cx+R*Math.cos(a), cy+R*Math.sin(a))); }
+      for(let k=0;k<12;k++) addEdge(k,(k+1)%12);
+      const tip=nodes.length; nodes.push(makeNode(cx+R*1.45, cy)); addEdge(0,tip);
+    }
+    for(const n of nodes){ n.domega=(rand()*2-1)*(+DETUNE.value); }
+  }
+  function reseed(){ rand=makePRNG(+seedEl.value||0); seed("trihub"); }
+  reseed();
+
+  resetBtn.onclick=()=>seed("ring");
+  reseedBtn.onclick=()=>reseed();
+  hardSyncBtn.onclick=()=>{ if(nodes.length){ const ph=nodes[0].phi; for(const n of nodes) n.phi=ph; } };
+
+  const dist2=(a,b)=>{const dx=a.x-b.x, dy=a.y-b.y; return dx*dx+dy*dy; };
+  const wrap1=v=>{v%=1; return v<0?v+1:v; };
+  const shortestPhase=d=>{ d-=Math.floor(d+0.5); return d; };
+  function nodeRadius(n){return 5+Math.min(4,0.25*Math.log1p(n.age));}
+  function antennaEnd(n){ const len=+VLEN.value, R=nodeRadius(n); const ang=2*Math.PI*n.phi;
+    return {x:n.x + (R+len)*Math.cos(ang), y:n.y + (R+len)*Math.sin(ang)};
+  }
+  function segInter(a,b,c,d){
+    const x1=a.x,y1=a.y,x2=b.x,y2=b.y,x3=c.x,y3=c.y,x4=d.x,y4=d.y;
+    const den=(x1-x2)*(y3-y4)-(y1-y2)*(x3-x4); if(Math.abs(den)<1e-6) return null;
+    const t=((x1-x3)*(y3-y4)-(y1-y3)*(x3-x4))/den;
+    const u=((x1-x3)*(y1-y2)-(y1-y3)*(x1-x2))/den;
+    if(t>0 && t<1 && u>0 && u<1){ return {x:x1+t*(x2-x1), y:y1+t*(y2-y1)}; }
+    return null;
+  }
+
+  /* Dynamics */
+  function step(dt){
+    const L0v=+L0.value, kSpring=0.03, repulse=+RP.value, damp=0.15;
+    const grav=+GV.value, couple=+K.value, pBranch=+PBR.value;
+    const closeR2=(L0v*(+CM.value))**2, omega0=+OMG.value;
+    const maxNodes=(+MAXN.value|0), canRewrite = (nodes.length<maxNodes) && !LOCK.checked ? true : (nodes.length<maxNodes);
+    const hueBias = wheelAngle/(2*Math.PI);
+
+    time += dt;
+
+    // Coupling sum
+    const sumCouple = new Float32Array(nodes.length);
+    for (const [i,j] of edges){ const s=Math.sin(2*Math.PI*(nodes[j].phi - nodes[i].phi)); sumCouple[i]+=s; sumCouple[j]-=s; }
+
+    // Base FM
+    const baseFM = (+A.value) * Math.sin(2*Math.PI*(+FM.value)*time);
+
+    // Active freq kicks
+    const kickNow = new Float32Array(nodes.length);
+    freqKicks = freqKicks.filter(k=> time-k.t0 < 0.5 );
+    for (const k of freqKicks){ const age=time-k.t0; kickNow[k.i]+=k.amp*(1-age/0.5); }
+
+    // Phase locks
+    phaseLocks = phaseLocks.filter(pl=> time<pl.until );
+    for (const pl of phaseLocks){ nodes[pl.i].phi=pl.ph; nodes[pl.j].phi=pl.ph; }
+
+    // Integrate phases
+    for (let i=0;i<nodes.length;i++){
+      const n=nodes[i];
+      const freq = omega0 + baseFM + n.domega + kickNow[i] + couple*sumCouple[i];
+      n.phi = wrap1(n.phi + dt*freq);
+      n.age+=dt;
+    }
+
+    // Diffusion
+    if (+DIFF.value>0){
+      const dphi=new Float32Array(nodes.length), s=+DIFF.value*0.02;
+      for (const [i,j] of edges){ const d = shortestPhase(nodes[j].phi - nodes[i].phi); dphi[i]+=d; dphi[j]-=d; }
+      for (let i=0;i<nodes.length;i++) nodes[i].phi = wrap1(nodes[i].phi + s*dphi[i]);
+    }
+
+    // Springs
+    for (const [i,j] of edges){
+      const a=nodes[i], b=nodes[j];
+      let dx=b.x-a.x, dy=b.y-a.y; const d=Math.hypot(dx,dy)||1e-6, f=kSpring*(d-L0v);
+      dx/=d; dy/=d; a.vx+=f*dx; a.vy+=f*dy; b.vx-=f*dx; b.vy-=f*dy;
+    }
+
+    // Pin locks
+    pinLocks = pinLocks.filter(pl=> time<pl.until );
+    for (const pl of pinLocks){
+      const k=0.25;
+      const a=nodes[pl.i], b=nodes[pl.j];
+      a.vx += k*(pl.x - a.x); a.vy += k*(pl.y - a.y);
+      b.vx += k*(pl.x - b.x); b.vy += k*(pl.y - b.y);
+    }
+
+    // Repulsion & gravity
+    const cx=cv.width/dpr/2, cy=cv.height/dpr/2;
+    for (let i=0;i<nodes.length;i++){
+      const a=nodes[i];
+      for (let j=i+1;j<nodes.length;j++){
+        const b=nodes[j]; let dx=b.x-a.x, dy=b.y-a.y; let r2=dx*dx+dy*dy + 25;
+        let f=repulse/r2; const inv=Math.sqrt(r2); dx/=inv; dy/=inv;
+        a.vx-=f*dx; a.vy-=f*dy; b.vx+=f*dx; b.vy+=f*dy;
+      }
+      a.vx += -grav*(a.x - cx);
+      a.vy += -grav*(a.y - cy);
+    }
+
+    // Integrate motion
+    for (const n of nodes){ n.vx*=(1-damp); n.vy*=(1-damp); n.x+=dt*60*n.vx; n.y+=dt*60*n.vy; }
+
+    // Rewrites
+    if (canRewrite){
+      const newEdges=[];
+      for (let ei=0; ei<edges.length; ei++){
+        const e=edges[ei]; if(!e) continue;
+        const [i,j]=e; const a=nodes[i], b=nodes[j];
+        const d=Math.hypot(a.x-b.x, a.y-b.y);
+        if (d>2.2*L0v && nodes.length<maxNodes){
+          const mid=nodes.push(makeNode((a.x+b.x)/2,(a.y+b.y)/2))-1;
+          nodes[i].deg--; nodes[j].deg--; newEdges.push([i,mid],[mid,j]); edges[ei]=null;
+        }
+      }
+      edges = edges.filter(Boolean).concat(newEdges);
+
+      for (let i=0;i<nodes.length;i++){
+        if (nodes.length>=maxNodes) break;
+        const n=nodes[i];
+        if (n.deg<=2 && rand()<pBranch*dt){
+          let tx=0,ty=0,cnt=0;
+          for(const [u,v] of edges){ if(u===i){tx+=nodes[v].x-n.x; ty+=nodes[v].y-n.y; cnt++;} else if(v===i){tx+=nodes[u].x-n.x; ty+=nodes[u].y-n.y; cnt++;} }
+          let nx = cnt? -ty : (rand()*2-1), ny = cnt? tx : (rand()*2-1);
+          const s=Math.hypot(nx,ny)||1e-6; nx/=s; ny/=s;
+          const j=nodes.push(makeNode(n.x+nx*L0v, n.y+ny*L0v))-1; addEdge(i,j);
+          // loop close
+          const closeR2=(L0v*(+CM.value))**2; let target=-1,best=1e9;
+          for(let k=0;k<nodes.length-1;k++){ if(k===i) continue;
+            const r2=dist2(nodes[j],nodes[k]); if(r2<closeR2 && r2<best){best=r2; target=k;}
+          }
+          if (target>=0) addEdge(j,target);
+        }
+      }
+    }
+
+    // Crossings
+    if (CEN.checked && +VLEN.value>0 && nodes.length>1){
+      const N=nodes.length, budget=(+CBUD.value|0), bias=(+BMAG.value), str=(+BST.value), wheelCycles=wheelAngle/(2*Math.PI), minSwap=+SWMIN.value;
+      for (let m=0;m<budget;m++){
+        const i=(rand()*N)|0, j=(rand()*N)|0; if(i===j) continue;
+        const a=nodes[i], b=nodes[j];
+        const A1={x:a.x,y:a.y}, A2=antennaEnd(a), B1={x:b.x,y:b.y}, B2=antennaEnd(b);
+        const P = segInter(A1,A2,B1,B2);
+        if (P){
+          if (CHI.checked) flashes.push({A1,A2,B1,B2,t:performance.now()});
+          if (CACT.value==='nudge'){
+            a.phi = wrap1(a.phi + str*( bias+wheelCycles ));
+            b.phi = wrap1(b.phi - str*( bias+wheelCycles ));
+          } else if (CACT.value==='align'){
+            const mean=wrap1(a.phi + shortestPhase(b.phi-a.phi)/2);
+            a.phi=b.phi=mean;
+          } else if (CACT.value==='swap'){
+            // enforce visible contrast if phases too similar
+            let d = shortestPhase(b.phi - a.phi);
+            if (Math.abs(d) < minSwap){
+              const mean = wrap1(a.phi + d/2);
+              a.phi = wrap1(mean - minSwap/2);
+              b.phi = wrap1(mean + minSwap/2);
+            } else {
+              const t=a.phi; a.phi=b.phi; b.phi=t;
+            }
+          } else if (CACT.value==='fkick'){
+            freqKicks.push({i:i,amp:(bias+wheelCycles),t0:time});
+            freqKicks.push({i:j,amp:-(bias+wheelCycles),t0:time});
+          }
+          // Locks
+          if (LMODE.value==='edge'){ addEdge(i,j); }
+          else if (LMODE.value==='pin'){ pinLocks.push({i,j,x:P.x,y:P.y,until:time+0.5}); }
+          else if (LMODE.value==='phaselock'){ const mean=wrap1(a.phi + shortestPhase(b.phi-a.phi)/2); phaseLocks.push({i,j,ph:mean,until:time+0.5}); }
+        }
+      }
+    }
+
+    $('stats').textContent=`nodes: ${nodes.length}`;
+  }
+
+  /* Render */
+  const birthColor=age=>{const x=Math.min(1,age/60); return hue2rgb(x*0.85);};
+  function pruneFlashes(now){ flashes = flashes.filter(s=> now - s.t < 120); }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.save(); ctx.scale(dpr,dpr);
+    // edges
+    ctx.lineWidth=2; ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--edge').trim()||"#e9eef6";
+    ctx.globalAlpha=0.7; ctx.beginPath();
+    for (const [i,j] of edges){ const a=nodes[i], b=nodes[j]; ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); }
+    ctx.stroke(); ctx.globalAlpha=1;
+    // nodes
+    const hueBias = wheelAngle/(2*Math.PI);
+    for (const n of nodes){
+      const phaseHue = wrap1(n.phi + hueBias);
+      const [r,g,b]=(PHC.checked ? hue2rgb(phaseHue) : birthColor(n.age));
+      ctx.fillStyle=`rgb(${r},${g},${b})`;
+      const R=nodeRadius(n);
+      ctx.beginPath(); ctx.arc(n.x,n.y,R,0,Math.PI*2); ctx.fill();
+      if (SHV.checked && +VLEN.value>0){
+        const ang=2*Math.PI*n.phi, len=R + (+VLEN.value);
+        ctx.beginPath(); ctx.lineWidth=1.25; ctx.strokeStyle=`rgba(${r},${g},${b},0.9)`;
+        ctx.moveTo(n.x,n.y); ctx.lineTo(n.x+len*Math.cos(ang), n.y+len*Math.sin(ang)); ctx.stroke();
+      }
+    }
+    if (flashes.length){
+      ctx.lineWidth=3; ctx.strokeStyle="rgba(255,255,120,.95)";
+      ctx.beginPath();
+      for (const s of flashes){ ctx.moveTo(s.A1.x,s.A1.y); ctx.lineTo(s.A2.x,s.A2.y); ctx.moveTo(s.B1.x,s.B1.y); ctx.lineTo(s.B2.x,s.B2.y); }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* Mouse */
+  let drag = {idx:-1, phaseMode:false};
+  function eventPos(e){const rect=cv.getBoundingClientRect(); return {x:(e.clientX-rect.left), y:(e.clientY-rect.top)};}
+  function pickNode(px,py){
+    let best=-1,bd2=100;
+    for (let i=0;i<nodes.length;i++){
+      const n=nodes[i], d2=(n.x-px)*(n.x-px)+(n.y-py)*(n.y-py);
+      if (d2<bd2){ bd2=d2; best=i; }
+    }
+    return best;
+  }
+  cv.addEventListener('mousedown',e=>{
+    const p=eventPos(e), i=pickNode(p.x,p.y);
+    if (i>=0){ drag.idx=i; drag.phaseMode=e.shiftKey; e.preventDefault(); }
+  });
+  addEventListener('mousemove',e=>{
+    if (drag.idx<0) return;
+    const p=eventPos(e), n=nodes[drag.idx];
+    if (drag.phaseMode){
+      const ang=Math.atan2(p.y-n.y, p.x-n.x);
+      n.phi = wrap1(ang/(2*Math.PI));
+    } else { n.x=p.x; n.y=p.y; n.vx=0; n.vy=0; }
+  });
+  ['mouseup','mouseleave','blur'].forEach(ev=>addEventListener(ev,()=>{drag.idx=-1;}));
+  addEventListener('keydown',e=>{ if(e.key==='Escape') drag.idx=-1; });
+
+  /* Save PNG */
+  saveBtn.onclick=()=>{ const a=document.createElement('a'); a.download=`graph-life-${Date.now()}.png`; a.href=cv.toDataURL('image/png'); a.click(); };
+
+  /* Loop */
+  let last=performance.now();
+  function tick(t){ fit(); const dt=Math.min(0.05,(t-last)/1000); last=t; for(let k=0;k<2;k++) step(dt/2); pruneFlashes(performance.now()); draw(); requestAnimationFrame(tick); }
+  requestAnimationFrame(tick);
+
+  /* Presets */
+  function applyPreset(name){
+    if (name==="trilobe"){
+      seedEl.value = 1337; reseed();
+      L0.value=14; PBR.value=0.010; CM.value=1.02; RP.value=640; GV.value=0.0032; GVQ.value=GV.value; MAXN.value=1800;
+      OMG.value=0.014; K.value=0.55; KVQ.value=K.value; A.value=0.015; FM.value=0.14;
+      DETUNE.value=0.006; DIFF.value=0.14; PHC.checked=true; SHV.checked=true; VLEN.value=10;
+      CEN.checked=true; CBUD.value=1400; BMAG.value=0.06; BST.value=0.45; CACT.value='nudge'; LMODE.value='none'; SWMIN.value=0.15;
+      wheelAngle = Math.PI*0.07; drawWheel();
+    } else if (name==="filaments"){
+      seedEl.value = 2024; reseed();
+      L0.value=18; PBR.value=0.032; CM.value=1.75; RP.value=280; GV.value=0.0020; GVQ.value=GV.value; MAXN.value=1600;
+      OMG.value=0.012; K.value=0.12; KVQ.value=K.value; A.value=0.02; FM.value=0.12;
+      DETUNE.value=0.004; DIFF.value=0.06; PHC.checked=true; SHV.checked=true; VLEN.value=8;
+      CEN.checked=true; CBUD.value=800; BMAG.value=0.05; BST.value=0.35; CACT.value='nudge'; LMODE.value='none'; SWMIN.value=0.15;
+      wheelAngle=0; drawWheel();
+    } else if (name==="locked"){
+      MAXN.value=nodes.length+0; LOCK.checked=true; GV.value=0.0030; GVQ.value=GV.value;
+      K.value=0.6; KVQ.value=K.value; A.value=0; DIFF.value=0.10; DETUNE.value=0.003; PHC.checked=true; SHV.checked=true; VLEN.value=12;
+      CEN.checked=true; CBUD.value=800; BMAG.value=0.05; BST.value=0.40; CACT.value='align'; LMODE.value='edge'; SWMIN.value=0.15;
+      wheelAngle = Math.PI*0.02; drawWheel();
+    } else if (name==="sync"){
+      A.value=0; K.value=1.2; KVQ.value=K.value; OMG.value=0.02; PHC.checked=true; SHV.checked=true; VLEN.value=14; GV.value=0.0035; GVQ.value=GV.value;
+      DETUNE.value=0.0; DIFF.value=0.0; CEN.checked=false; LMODE.value='none'; SWMIN.value=0.15; wheelAngle=0; drawWheel();
+    }
+    for (const [i,o,p] of outs){ const el=$(i), oo=$(o); if(el&&oo) oo.textContent=(+el.value).toFixed(p); }
+  }
+  document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click',()=>applyPreset(b.dataset.preset)));
+  applyPreset('trilobe');
+
+  /* FAB */
+  const fab=$('fab'), sheet=$('sheet');
+  fab.onclick=()=>{ sheet.classList.toggle('open'); sheet.ariaHidden = sheet.classList.contains('open') ? "false":"true"; };
+
+})();
+</script>
+</body>
+</html>
