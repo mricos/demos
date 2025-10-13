@@ -155,37 +155,10 @@ window.FP.Optics = (function() {
         const hit = traceRay(sourceX, sourceY, targetX, targetY);
 
         if (hit.blocked && hit.type === 'block') {
-            // Ray blocked by opaque element - use reflection coefficient
-            // reflectionCoefficient: 0 = blackbody absorber, 1 = perfect reflection, 1-2 = color-dependent
-            const reflCoeff = hit.element ? hit.element.reflectionCoefficient : 0;
-
-            if (reflCoeff < 1.0) {
-                // Partial or total absorption (0 = blackbody, <1 = partial absorption)
-                return { amplitude: reflCoeff, phase: basePhase };
-            } else if (reflCoeff === 1.0) {
-                // Perfect reflection - all wavelengths reflected equally
-                return { amplitude: 1.0, phase: basePhase };
-            } else {
-                // Wavelength-dependent reflection (1.0 < reflCoeff <= 2.0)
-                // This creates color spreading by modulating amplitude based on phase
-                // The phase represents different points in the wave cycle (different "colors")
-                const colorSensitivity = (reflCoeff - 1.0);  // 0 to 1 range
-
-                // Modulate amplitude based on phase to create wavelength-dependent reflection
-                // Different phases (representing different wavelengths) reflect differently
-                // Use normalized phase (0 to 2π) to determine color-dependent reflection
-                const normalizedPhase = (basePhase % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
-
-                // Create wavelength-dependent amplitude modulation
-                // This causes different phases to reflect with different strengths
-                const phaseModulation = Math.cos(normalizedPhase * 3) * 0.5 + 0.5;  // Oscillates 0-1
-                const amplitudeModulation = 1.0 - (colorSensitivity * (1.0 - phaseModulation));
-
-                return {
-                    amplitude: amplitudeModulation,
-                    phase: basePhase
-                };
-            }
+            // Ray blocked by opaque element - completely blocked (amplitude = 0)
+            // The reflection coefficient affects the visual appearance of the element,
+            // but does NOT make blocked rays pass through
+            return { amplitude: 0, phase: basePhase };
         }
 
         if (hit.type === 'refract' && hit.phaseShift !== null) {

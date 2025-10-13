@@ -86,25 +86,47 @@ window.FP.Matter = (function() {
             // Wall occupies: -thickness/2 <= localX <= +thickness/2, -length/2 <= localY <= +length/2
             // Check if ray crosses this region
 
-            // Check if both points on same side of wall
-            if ((localX1 < -this.thickness/2 && localX2 < -this.thickness/2) ||
-                (localX1 > this.thickness/2 && localX2 > this.thickness/2)) {
+            // Check if both points are completely on the same side of the wall volume
+            const halfThick = this.thickness / 2;
+            if ((localX1 < -halfThick && localX2 < -halfThick) ||
+                (localX1 > halfThick && localX2 > halfThick)) {
                 return { blocked: false };
             }
 
-            // Calculate intersection with wall plane (localX = 0)
+            // Ray might intersect wall - check intersection with wall plane (localX = 0)
+            if (Math.abs(localX2 - localX1) < 0.0001) {
+                // Ray is parallel to wall - check if it's inside the wall
+                if (Math.abs(localX1) <= halfThick &&
+                    Math.abs(localY1) <= this.length / 2 &&
+                    Math.abs(localY2) <= this.length / 2) {
+                    return {
+                        blocked: true,
+                        intersection: {
+                            x: this.x + localY1 * sin,
+                            y: this.y + localY1 * cos
+                        },
+                        type: 'block'
+                    };
+                }
+                return { blocked: false };
+            }
+
+            // Calculate intersection parameter with wall center plane (localX = 0)
             const t = -localX1 / (localX2 - localX1);
+
+            // Check if intersection is between the ray endpoints
             if (t < 0 || t > 1) {
                 return { blocked: false };  // Intersection not between endpoints
             }
 
+            // Calculate Y coordinate of intersection
             const intersectY = localY1 + t * (localY2 - localY1);
 
-            // Check if intersection is within wall bounds
+            // Check if intersection is within wall length bounds
             if (Math.abs(intersectY) <= this.length / 2) {
                 // Transform intersection back to world coordinates
-                const worldX = this.x + intersectY * Math.sin(this.angle);
-                const worldY = this.y - intersectY * Math.cos(this.angle);
+                const worldX = this.x + intersectY * sin;
+                const worldY = this.y - intersectY * cos;
 
                 return {
                     blocked: true,
