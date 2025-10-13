@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase Field - Spatial Phase Modulation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0a0e27;
+            --bg-panel: #141b3a;
+            --border-color: #2a3f5f;
+            --accent-primary: #00d4ff;
+            --accent-secondary: #ff00d4;
+            --text-primary: #e0e6ff;
+            --text-secondary: #8b9dc3;
+            --input-bg: #1a2547;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow: hidden;
+            display: flex;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 0 40px rgba(0, 212, 255, 0.2);
+        }
+
+        #controls {
+            width: 360px;
+            background: var(--bg-panel);
+            border-left: 2px solid var(--border-color);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            color: var(--accent-primary);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--accent-secondary);
+            border-left: 3px solid var(--accent-secondary);
+            padding-left: 8px;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+        }
+
+        h2:hover {
+            color: var(--accent-primary);
+            border-left-color: var(--accent-primary);
+        }
+
+        h2::before {
+            content: '▼ ';
+            display: inline-block;
+            transition: transform 0.2s;
+            margin-right: 4px;
+        }
+
+        h2.collapsed::before {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0 !important;
+        }
+
+        .control-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: var(--accent-primary);
+            border: 2px solid var(--bg-dark);
+            cursor: pointer;
+            border-radius: 2px;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: var(--accent-primary);
+            border: 2px solid var(--bg-dark);
+            cursor: pointer;
+            border-radius: 2px;
+        }
+
+        input[type="number"], input[type="color"] {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px;
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+        }
+
+        input[type="color"] {
+            height: 36px;
+            cursor: pointer;
+            padding: 2px;
+        }
+
+        .value-display {
+            float: right;
+            color: var(--accent-primary);
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        button {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 8px;
+        }
+
+        button:hover {
+            background: var(--border-color);
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .palette-preview {
+            height: 30px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .palette-preview:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
+        }
+
+        .palette-preview.active {
+            border: 2px solid var(--accent-primary);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.6);
+        }
+
+        .color-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 6px 10px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            transition: all 0.2s;
+        }
+
+        .radio-option:hover {
+            border-color: var(--accent-primary);
+            background: var(--border-color);
+        }
+
+        .radio-option input[type="radio"] {
+            cursor: pointer;
+        }
+
+        .radio-option.selected {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+        }
+
+        #status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(20, 27, 58, 0.9);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            font-size: 10px;
+            color: var(--text-secondary);
+            letter-spacing: 1px;
+        }
+
+        .status-value {
+            color: var(--accent-primary);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-primary);
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div id="controls">
+        <h1>Phase Field</h1>
+
+        <h2 id="header-game">Game Parameters</h2>
+        <div class="collapsible-content" id="section-game">
+            <div class="control-group">
+                <label>Frequency <span class="value-display" id="freq-val">2.0</span></label>
+                <input type="range" id="frequency" min="0.5" max="5" step="0.1" value="2">
+            </div>
+
+            <div class="control-group">
+                <label>Amplitude <span class="value-display" id="amp-val">40</span></label>
+                <input type="range" id="amplitude" min="10" max="100" step="1" value="40">
+            </div>
+
+            <div class="control-group">
+                <label>Speed <span class="value-display" id="speed-val">0.02</span></label>
+                <input type="range" id="speed" min="0.005" max="0.1" step="0.005" value="0.02">
+            </div>
+
+            <div class="control-group">
+                <label>Wave Sources <span class="value-display" id="sources-val">2</span></label>
+                <input type="range" id="sources" min="1" max="6" step="1" value="2">
+            </div>
+
+            <div class="control-group">
+                <label>Distortion <span class="value-display" id="dist-val">1.0</span></label>
+                <input type="range" id="distortion" min="0.5" max="3" step="0.1" value="1">
+            </div>
+        </div>
+
+        <h2 id="header-pixelator">Pixelator</h2>
+        <div class="collapsible-content" id="section-pixelator">
+            <div class="control-group">
+                <label>Resolution <span class="value-display" id="res-val">4×4</span></label>
+                <input type="range" id="resolution" min="0" max="10" step="1" value="2">
+            </div>
+
+            <div class="control-group">
+                <label>Downsample Mode</label>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="pixelator-mode" value="avg" checked>
+                        <span>AVG</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="pixelator-mode" value="min">
+                        <span>MIN</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="pixelator-mode" value="max">
+                        <span>MAX</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Dual Resolution <span class="value-display" id="res2-val">OFF</span></label>
+                <input type="range" id="resolution2" min="0" max="10" step="1" value="0">
+            </div>
+
+            <div class="control-group">
+                <label>Blend <span class="value-display" id="blend-val">50%</span></label>
+                <input type="range" id="blend" min="0" max="100" step="1" value="50">
+            </div>
+        </div>
+
+        <h2 id="header-presets" class="collapsed">Preset Palettes</h2>
+        <div class="collapsible-content collapsed" id="section-presets">
+            <div class="palette-grid" id="palette-grid"></div>
+            <button id="cycle-palette">Cycle Palette</button>
+        </div>
+
+        <h2 id="header-custom">Custom Palette</h2>
+        <div class="collapsible-content" id="section-custom">
+            <div class="control-group">
+                <label>Start Color</label>
+                <input type="color" id="color-start" value="#0000ff" class="auto-palette">
+            </div>
+
+            <div class="control-group">
+                <label>Mid Color</label>
+                <input type="color" id="color-mid" value="#00ffff" class="auto-palette">
+            </div>
+
+            <div class="control-group">
+                <label>End Color</label>
+                <input type="color" id="color-end" value="#ff00ff" class="auto-palette">
+            </div>
+
+            <div class="control-group">
+                <label>Mid Pivot <span class="value-display" id="pivot-val">50%</span></label>
+                <input type="range" id="color-pivot" min="0" max="100" step="1" value="50" class="auto-palette">
+            </div>
+
+            <div class="control-group">
+                <button id="compute-adjoint">Compute Adjoint Colors</button>
+            </div>
+
+            <div class="control-group">
+                <label>Palette Steps <span class="value-display" id="steps-val">256</span></label>
+                <input type="range" id="palette-steps" min="64" max="512" step="64" value="256" class="auto-palette">
+            </div>
+
+            <div class="control-group">
+                <label>Color Cycle <span class="value-display" id="cycle-val">1.0</span></label>
+                <input type="range" id="color-cycle" min="0.1" max="3" step="0.1" value="1">
+            </div>
+        </div>
+
+        <h2 id="header-gamepad" class="collapsed">Gamepad Controls</h2>
+        <div class="collapsible-content collapsed" id="section-gamepad">
+            <div class="control-group">
+                <label>Status: <span class="value-display" id="gamepad-status">Not Connected</span></label>
+            </div>
+
+            <div class="control-group">
+                <label>Left Stick X</label>
+                <select id="map-axis0" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>Left Stick Y</label>
+                <select id="map-axis1" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>Right Stick X</label>
+                <select id="map-axis2" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>Right Stick Y</label>
+                <select id="map-axis3" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>Button A (0)</label>
+                <select id="map-button0" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>Button B (1)</label>
+                <select id="map-button1" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>Button X (2)</label>
+                <select id="map-button2" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>Button Y (3)</label>
+                <select id="map-button3" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>L1 (4)</label>
+                <select id="map-button4" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>R1 (5)</label>
+                <select id="map-button5" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>L2 (6)</label>
+                <select id="map-button6" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>R2 (7)</label>
+                <select id="map-button7" class="gamepad-map"></select>
+            </div>
+
+            <button id="save-gamepad-map">Save Mapping</button>
+            <button id="reset-gamepad-map">Reset to Defaults</button>
+        </div>
+
+        <button id="randomize">Randomize All</button>
+    </div>
+
+    <div id="status">
+        FPS: <span class="status-value" id="fps">0</span> |
+        Frame: <span class="status-value" id="frame">0</span>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas size
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            canvas.width = Math.min(800, container.clientWidth - 40);
+            canvas.height = Math.min(800, container.clientHeight - 40);
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Wave parameters
+        let params = {
+            frequency: 2,
+            amplitude: 40,
+            speed: 0.02,
+            sources: 2,
+            resolution: 2,
+            resolution2: 0,
+            blend: 50,
+            pixelatorMode: 'avg',
+            distortion: 1,
+            paletteSteps: 256,
+            colorCycle: 1
+        };
+
+        // Collapsible section functionality
+        function setupCollapsible() {
+            const sections = [
+                {header: 'header-game', content: 'section-game'},
+                {header: 'header-pixelator', content: 'section-pixelator'},
+                {header: 'header-presets', content: 'section-presets'},
+                {header: 'header-custom', content: 'section-custom'},
+                {header: 'header-gamepad', content: 'section-gamepad'}
+            ];
+
+            sections.forEach(({header, content}) => {
+                const headerEl = document.getElementById(header);
+                const contentEl = document.getElementById(content);
+
+                // Set initial height for smooth animation
+                if (!contentEl.classList.contains('collapsed')) {
+                    contentEl.style.maxHeight = contentEl.scrollHeight + 'px';
+                }
+
+                headerEl.addEventListener('click', () => {
+                    const isCollapsed = headerEl.classList.toggle('collapsed');
+                    contentEl.classList.toggle('collapsed');
+
+                    if (isCollapsed) {
+                        contentEl.style.maxHeight = '0';
+                    } else {
+                        contentEl.style.maxHeight = contentEl.scrollHeight + 'px';
+                    }
+                });
+            });
+        }
+
+        // Resolution helper - converts slider value to grid divisions
+        function getGridDivisions(sliderValue) {
+            if (sliderValue === 0) return 1; // Single pixel
+            return Math.pow(2, sliderValue);
+        }
+
+        function formatResolution(sliderValue) {
+            const divisions = getGridDivisions(sliderValue);
+            if (divisions === 1) return '1px';
+            return `${divisions}×${divisions}`;
+        }
+
+        // Gamepad support
+        let gamepadConnected = false;
+        let gamepadIndex = -1;
+
+        // Mappable parameters
+        const mappableParams = [
+            {id: 'none', name: '-- None --', min: 0, max: 1, param: null},
+            {id: 'frequency', name: 'Frequency', min: 0.5, max: 5, param: 'frequency'},
+            {id: 'amplitude', name: 'Amplitude', min: 10, max: 100, param: 'amplitude'},
+            {id: 'speed', name: 'Speed', min: 0.005, max: 0.1, param: 'speed'},
+            {id: 'sources', name: 'Wave Sources', min: 1, max: 6, param: 'sources'},
+            {id: 'resolution', name: 'Resolution', min: 0, max: 10, param: 'resolution'},
+            {id: 'resolution2', name: 'Dual Resolution', min: 0, max: 10, param: 'resolution2'},
+            {id: 'blend', name: 'Blend', min: 0, max: 100, param: 'blend'},
+            {id: 'distortion', name: 'Distortion', min: 0.5, max: 3, param: 'distortion'},
+            {id: 'colorCycle', name: 'Color Cycle', min: 0.1, max: 3, param: 'colorCycle'},
+            {id: 'paletteSteps', name: 'Palette Steps', min: 64, max: 512, param: 'paletteSteps'}
+        ];
+
+        // Default gamepad mappings
+        const defaultGamepadMap = {
+            axis0: 'frequency',      // Left stick X
+            axis1: 'amplitude',      // Left stick Y
+            axis2: 'speed',          // Right stick X
+            axis3: 'distortion',     // Right stick Y
+            button0: 'none',         // A
+            button1: 'none',         // B
+            button2: 'none',         // X
+            button3: 'none',         // Y
+            button4: 'resolution',   // L1
+            button5: 'resolution2',  // R1
+            button6: 'colorCycle',   // L2
+            button7: 'blend'         // R2
+        };
+
+        let gamepadMap = {...defaultGamepadMap};
+
+        // Load gamepad map from localStorage
+        function loadGamepadMap() {
+            const saved = localStorage.getItem('phaseFieldGamepadMap');
+            if (saved) {
+                try {
+                    gamepadMap = JSON.parse(saved);
+                } catch (e) {
+                    console.error('Failed to load gamepad map:', e);
+                    gamepadMap = {...defaultGamepadMap};
+                }
+            }
+        }
+
+        // Save gamepad map to localStorage
+        function saveGamepadMap() {
+            localStorage.setItem('phaseFieldGamepadMap', JSON.stringify(gamepadMap));
+        }
+
+        // Populate gamepad dropdown menus
+        function populateGamepadDropdowns() {
+            const dropdowns = document.querySelectorAll('.gamepad-map');
+            dropdowns.forEach(dropdown => {
+                dropdown.innerHTML = '';
+                mappableParams.forEach(param => {
+                    const option = document.createElement('option');
+                    option.value = param.id;
+                    option.textContent = param.name;
+                    dropdown.appendChild(option);
+                });
+
+                // Set current value
+                const controlId = dropdown.id.replace('map-', '');
+                if (gamepadMap[controlId]) {
+                    dropdown.value = gamepadMap[controlId];
+                }
+
+                // Add change listener
+                dropdown.addEventListener('change', (e) => {
+                    gamepadMap[controlId] = e.target.value;
+                });
+            });
+        }
+
+        // Apply gamepad input to parameter
+        function applyGamepadValue(paramId, inputValue, isButton = false) {
+            const paramConfig = mappableParams.find(p => p.id === paramId);
+            if (!paramConfig || paramConfig.param === null) return;
+
+            const param = paramConfig.param;
+            let value;
+
+            if (isButton) {
+                // Buttons toggle or increment
+                if (inputValue > 0.5) {
+                    value = paramConfig.max;
+                }
+            } else {
+                // Axes map to full range with deadzone
+                const deadzone = 0.15;
+                let normalizedValue = inputValue;
+                if (Math.abs(normalizedValue) < deadzone) {
+                    return; // Don't update if in deadzone
+                }
+                normalizedValue = (normalizedValue - Math.sign(normalizedValue) * deadzone) / (1 - deadzone);
+                normalizedValue = Math.max(-1, Math.min(1, normalizedValue));
+
+                // Map -1 to 1 range to parameter range
+                value = paramConfig.min + (normalizedValue + 1) * 0.5 * (paramConfig.max - paramConfig.min);
+            }
+
+            // Update parameter
+            if (value !== undefined) {
+                if (param === 'sources' || param === 'resolution' || param === 'resolution2' || param === 'paletteSteps') {
+                    params[param] = Math.round(value);
+                } else {
+                    params[param] = value;
+                }
+
+                // Update UI
+                updateUIForParam(param);
+            }
+        }
+
+        // Update UI elements when parameter changes
+        function updateUIForParam(param) {
+            const updates = {
+                'frequency': () => {
+                    document.getElementById('frequency').value = params.frequency;
+                    document.getElementById('freq-val').textContent = params.frequency.toFixed(1);
+                },
+                'amplitude': () => {
+                    document.getElementById('amplitude').value = params.amplitude;
+                    document.getElementById('amp-val').textContent = Math.round(params.amplitude);
+                },
+                'speed': () => {
+                    document.getElementById('speed').value = params.speed;
+                    document.getElementById('speed-val').textContent = params.speed.toFixed(3);
+                },
+                'sources': () => {
+                    document.getElementById('sources').value = params.sources;
+                    document.getElementById('sources-val').textContent = params.sources;
+                    generateWaveSources();
+                },
+                'resolution': () => {
+                    document.getElementById('resolution').value = params.resolution;
+                    document.getElementById('res-val').textContent = formatResolution(params.resolution);
+                },
+                'resolution2': () => {
+                    document.getElementById('resolution2').value = params.resolution2;
+                    const val = params.resolution2 === 0 ? 'OFF' : formatResolution(params.resolution2);
+                    document.getElementById('res2-val').textContent = val;
+                },
+                'blend': () => {
+                    document.getElementById('blend').value = params.blend;
+                    document.getElementById('blend-val').textContent = params.blend + '%';
+                },
+                'distortion': () => {
+                    document.getElementById('distortion').value = params.distortion;
+                    document.getElementById('dist-val').textContent = params.distortion.toFixed(1);
+                },
+                'colorCycle': () => {
+                    document.getElementById('color-cycle').value = params.colorCycle;
+                    document.getElementById('cycle-val').textContent = params.colorCycle.toFixed(1);
+                },
+                'paletteSteps': () => {
+                    params.paletteSteps = Math.round(params.paletteSteps / 64) * 64; // Round to 64
+                    document.getElementById('palette-steps').value = params.paletteSteps;
+                    document.getElementById('steps-val').textContent = params.paletteSteps;
+                    if (currentPresetIndex >= 0) {
+                        loadPresetPalette(currentPresetIndex);
+                    }
+                }
+            };
+
+            if (updates[param]) {
+                updates[param]();
+            }
+        }
+
+        // Poll gamepad state
+        function pollGamepad() {
+            const gamepads = navigator.getGamepads();
+            if (!gamepads) return;
+
+            // Find connected gamepad
+            let connected = false;
+            for (let i = 0; i < gamepads.length; i++) {
+                if (gamepads[i]) {
+                    connected = true;
+                    gamepadIndex = i;
+                    break;
+                }
+            }
+
+            if (connected !== gamepadConnected) {
+                gamepadConnected = connected;
+                document.getElementById('gamepad-status').textContent = connected ? 'Connected' : 'Not Connected';
+            }
+
+            if (!gamepadConnected) return;
+
+            const gamepad = gamepads[gamepadIndex];
+            if (!gamepad) return;
+
+            // Process axes
+            gamepad.axes.forEach((value, index) => {
+                const controlId = `axis${index}`;
+                const paramId = gamepadMap[controlId];
+                if (paramId && paramId !== 'none') {
+                    applyGamepadValue(paramId, value, false);
+                }
+            });
+
+            // Process buttons
+            gamepad.buttons.forEach((button, index) => {
+                const controlId = `button${index}`;
+                const paramId = gamepadMap[controlId];
+                if (paramId && paramId !== 'none') {
+                    applyGamepadValue(paramId, button.value, true);
+                }
+            });
+        }
+
+        // Gamepad connection events
+        window.addEventListener('gamepadconnected', (e) => {
+            console.log('Gamepad connected:', e.gamepad.id);
+            gamepadConnected = true;
+            gamepadIndex = e.gamepad.index;
+            document.getElementById('gamepad-status').textContent = 'Connected';
+        });
+
+        window.addEventListener('gamepaddisconnected', (e) => {
+            console.log('Gamepad disconnected:', e.gamepad.id);
+            gamepadConnected = false;
+            gamepadIndex = -1;
+            document.getElementById('gamepad-status').textContent = 'Not Connected';
+        });
+
+        let time = 0;
+        let frameCount = 0;
+        let lastTime = performance.now();
+        let fps = 0;
+
+        // Computation budget watchdog
+        const MAX_FRAME_TIME = 100; // milliseconds - if frame takes longer, reduce quality
+        let adaptiveQuality = 1.0; // 0.1 to 1.0
+        let slowFrameCount = 0;
+
+        // Dynamic range tracking for color normalization
+        let waveMin = 0;
+        let waveMax = 0;
+        let rangeUpdateCounter = 0;
+
+        // Predefined palettes
+        const presetPalettes = [
+            {name: 'Cyber', colors: ['#0000ff', '#00ffff', '#ffff00', '#ff00ff']},
+            {name: 'Fire', colors: ['#000000', '#ff0000', '#ff8800', '#ffff00']},
+            {name: 'Ocean', colors: ['#001a33', '#0066cc', '#00ccff', '#00ffaa']},
+            {name: 'Sunset', colors: ['#1a0033', '#cc0099', '#ff6600', '#ffcc00']},
+            {name: 'Forest', colors: ['#001a00', '#004400', '#00aa00', '#88ff88']},
+            {name: 'Purple', colors: ['#1a001a', '#6600cc', '#cc00ff', '#ff66ff']},
+            {name: 'Neon', colors: ['#ff00ff', '#00ffff', '#ffff00', '#ff00ff']},
+            {name: 'Grayscale', colors: ['#000000', '#444444', '#888888', '#ffffff']}
+        ];
+
+        let currentPalette = [];
+        let currentPresetIndex = 0;
+
+        // Wave sources
+        let waveSources = [];
+
+        function generateWaveSources() {
+            waveSources = [];
+            const count = params.sources;
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const radius = Math.min(canvas.width, canvas.height) * 0.3;
+                waveSources.push({
+                    x: canvas.width / 2 + Math.cos(angle) * radius,
+                    y: canvas.height / 2 + Math.sin(angle) * radius,
+                    phase: i * Math.PI / count
+                });
+            }
+        }
+
+        // Color interpolation
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : {r: 0, g: 0, b: 0};
+        }
+
+        function interpolateColor(color1, color2, factor) {
+            return {
+                r: Math.round(color1.r + (color2.r - color1.r) * factor),
+                g: Math.round(color1.g + (color2.g - color1.g) * factor),
+                b: Math.round(color1.b + (color2.b - color1.b) * factor)
+            };
+        }
+
+        function generatePalette(colors, steps, pivot = 0.5) {
+            const palette = [];
+
+            if (colors.length === 3) {
+                // 3-color palette with pivot
+                const [startColor, midColor, endColor] = colors.map(hexToRgb);
+
+                for (let i = 0; i < steps; i++) {
+                    const t = i / (steps - 1); // 0 to 1
+                    let color;
+
+                    if (t < pivot) {
+                        // First half: start -> mid
+                        const factor = t / pivot; // 0 to 1 over first section
+                        color = interpolateColor(startColor, midColor, factor);
+                    } else {
+                        // Second half: mid -> end
+                        const factor = (t - pivot) / (1 - pivot); // 0 to 1 over second section
+                        color = interpolateColor(midColor, endColor, factor);
+                    }
+
+                    palette.push(color);
+                }
+            } else {
+                // Legacy multi-color support
+                const segmentLength = steps / (colors.length - 1);
+
+                for (let i = 0; i < steps; i++) {
+                    const segment = Math.floor(i / segmentLength);
+                    const segmentFactor = (i % segmentLength) / segmentLength;
+
+                    const color1 = hexToRgb(colors[Math.min(segment, colors.length - 2)]);
+                    const color2 = hexToRgb(colors[Math.min(segment + 1, colors.length - 1)]);
+
+                    const color = interpolateColor(color1, color2, segmentFactor);
+                    palette.push(color);
+                }
+            }
+
+            return palette;
+        }
+
+        // Compute complementary/adjoint color
+        function computeComplementaryColor(hex) {
+            const rgb = hexToRgb(hex);
+            // Invert in RGB space
+            const comp = {
+                r: 255 - rgb.r,
+                g: 255 - rgb.g,
+                b: 255 - rgb.b
+            };
+            return `#${comp.r.toString(16).padStart(2, '0')}${comp.g.toString(16).padStart(2, '0')}${comp.b.toString(16).padStart(2, '0')}`;
+        }
+
+        // Compute adjoint triad based on color theory
+        function computeAdjointTriad(startColor) {
+            const rgb = hexToRgb(startColor);
+
+            // Convert to HSL for better color manipulation
+            const r = rgb.r / 255;
+            const g = rgb.g / 255;
+            const b = rgb.b / 255;
+
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            const l = (max + min) / 2;
+
+            let h, s;
+
+            if (max === min) {
+                h = s = 0;
+            } else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+                switch (max) {
+                    case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                    case g: h = ((b - r) / d + 2) / 6; break;
+                    case b: h = ((r - g) / d + 4) / 6; break;
+                }
+            }
+
+            // Create triad: original, +120°, +240°
+            const hslToRgb = (h, s, l) => {
+                let r, g, b;
+
+                if (s === 0) {
+                    r = g = b = l;
+                } else {
+                    const hue2rgb = (p, q, t) => {
+                        if (t < 0) t += 1;
+                        if (t > 1) t -= 1;
+                        if (t < 1/6) return p + (q - p) * 6 * t;
+                        if (t < 1/2) return q;
+                        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                        return p;
+                    };
+
+                    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                    const p = 2 * l - q;
+
+                    r = hue2rgb(p, q, h + 1/3);
+                    g = hue2rgb(p, q, h);
+                    b = hue2rgb(p, q, h - 1/3);
+                }
+
+                const toHex = (x) => Math.round(x * 255).toString(16).padStart(2, '0');
+                return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+            };
+
+            // Boost saturation for vibrant colors
+            const boostS = Math.min(1, s * 1.3);
+
+            return {
+                start: hslToRgb(h, boostS, l),
+                mid: hslToRgb((h + 0.333) % 1, boostS, l),
+                end: hslToRgb((h + 0.667) % 1, boostS, l)
+            };
+        }
+
+        function loadPresetPalette(index) {
+            currentPresetIndex = index;
+            const preset = presetPalettes[index];
+            currentPalette = generatePalette(preset.colors, params.paletteSteps);
+            updatePaletteUI();
+        }
+
+        function loadCustomPalette() {
+            const colors = [
+                document.getElementById('color-start').value,
+                document.getElementById('color-mid').value,
+                document.getElementById('color-end').value
+            ];
+            const pivot = parseInt(document.getElementById('color-pivot').value) / 100;
+            currentPalette = generatePalette(colors, params.paletteSteps, pivot);
+            currentPresetIndex = -1;
+            updatePaletteUI();
+        }
+
+        function updatePaletteUI() {
+            const previews = document.querySelectorAll('.palette-preview');
+            previews.forEach((preview, index) => {
+                preview.classList.toggle('active', index === currentPresetIndex);
+            });
+        }
+
+        function renderPalettePreview(colors, pivot = 0.5) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 100;
+            tempCanvas.height = 30;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            const palette = generatePalette(colors, 100, pivot);
+            for (let i = 0; i < 100; i++) {
+                const c = palette[i];
+                tempCtx.fillStyle = `rgb(${c.r}, ${c.g}, ${c.b})`;
+                tempCtx.fillRect(i, 0, 1, 30);
+            }
+
+            return tempCanvas.toDataURL();
+        }
+
+        // Initialize palette grid
+        const paletteGrid = document.getElementById('palette-grid');
+        presetPalettes.forEach((preset, index) => {
+            const preview = document.createElement('div');
+            preview.className = 'palette-preview';
+            preview.style.backgroundImage = `url(${renderPalettePreview(preset.colors)})`;
+            preview.style.backgroundSize = 'cover';
+            preview.addEventListener('click', () => loadPresetPalette(index));
+            paletteGrid.appendChild(preview);
+        });
+
+        // Calculate wave value at a point
+        function calculateWaveValue(x, y) {
+            let sum = 0;
+            for (const source of waveSources) {
+                const dx = x - source.x;
+                const dy = y - source.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                const wave = Math.sin(
+                    distance * params.frequency * 0.05 -
+                    time +
+                    source.phase
+                ) * params.amplitude;
+
+                sum += wave / Math.pow(distance * 0.01 + 1, params.distortion);
+            }
+            return sum;
+        }
+
+        // Calculate downsampled value for a block
+        function calculateBlockValue(blockX, blockY, blockSize, mode) {
+            if (blockSize === 1) {
+                // Single pixel mode - average the entire canvas
+                let sum = 0;
+                const samples = Math.max(5, Math.floor(20 * adaptiveQuality)); // Adaptive sampling
+                for (let sy = 0; sy < samples; sy++) {
+                    for (let sx = 0; sx < samples; sx++) {
+                        const x = (sx / samples) * canvas.width;
+                        const y = (sy / samples) * canvas.height;
+                        sum += calculateWaveValue(x, y);
+                    }
+                }
+                return sum / (samples * samples);
+            }
+
+            // Multi-pixel sampling within block - adaptive quality
+            const baseSampleRate = Math.max(1, Math.floor(blockSize / 4));
+            const sampleRate = Math.max(1, Math.floor(baseSampleRate / adaptiveQuality));
+            const values = [];
+
+            for (let dy = 0; dy < blockSize; dy += sampleRate) {
+                for (let dx = 0; dx < blockSize; dx += sampleRate) {
+                    const x = blockX + dx;
+                    const y = blockY + dy;
+                    if (x < canvas.width && y < canvas.height) {
+                        values.push(calculateWaveValue(x, y));
+                    }
+                }
+            }
+
+            if (values.length === 0) return 0;
+
+            switch (mode) {
+                case 'min':
+                    return Math.min(...values);
+                case 'max':
+                    return Math.max(...values);
+                case 'avg':
+                default:
+                    return values.reduce((a, b) => a + b, 0) / values.length;
+            }
+        }
+
+        // Render at a specific resolution
+        function renderAtResolution(imageData, resolutionValue, mode, opacity = 1) {
+            const data = imageData.data;
+            const divisions = getGridDivisions(resolutionValue);
+            const blockSize = Math.ceil(canvas.width / divisions);
+
+            // Track wave value range for this frame
+            let frameMin = Infinity;
+            let frameMax = -Infinity;
+            const waveValues = [];
+
+            // First pass: collect all wave values
+            for (let gridY = 0; gridY < divisions; gridY++) {
+                for (let gridX = 0; gridX < divisions; gridX++) {
+                    const blockX = gridX * blockSize;
+                    const blockY = gridY * blockSize;
+                    const waveValue = calculateBlockValue(blockX, blockY, blockSize, mode);
+                    waveValues.push({x: blockX, y: blockY, value: waveValue});
+                    frameMin = Math.min(frameMin, waveValue);
+                    frameMax = Math.max(frameMax, waveValue);
+                }
+            }
+
+            // Update global range (with smoothing)
+            rangeUpdateCounter++;
+            if (rangeUpdateCounter % 10 === 0) { // Update every 10 frames
+                waveMin = waveMin * 0.9 + frameMin * 0.1;
+                waveMax = waveMax * 0.9 + frameMax * 0.1;
+            }
+
+            // Use actual range or fallback
+            const rangeMin = Math.abs(waveMax - waveMin) > 0.1 ? waveMin : frameMin;
+            const rangeMax = Math.abs(waveMax - waveMin) > 0.1 ? waveMax : frameMax;
+            const rangeDelta = Math.max(0.1, rangeMax - rangeMin);
+
+            // Second pass: render with normalized values
+            for (const {x: blockX, y: blockY, value: waveValue} of waveValues) {
+                // Normalize to 0-1 range
+                const normalized = (waveValue - rangeMin) / rangeDelta;
+
+                // Map to palette with color cycling
+                const palettePos = (normalized * params.colorCycle) % 1.0;
+                const colorIndex = Math.floor(palettePos * (currentPalette.length - 1));
+                const color = currentPalette[colorIndex] || {r: 0, g: 0, b: 0};
+
+                // Fill block
+                for (let dy = 0; dy < blockSize; dy++) {
+                    for (let dx = 0; dx < blockSize; dx++) {
+                        const x = blockX + dx;
+                        const y = blockY + dy;
+                        if (x < canvas.width && y < canvas.height) {
+                            const index = (y * canvas.width + x) * 4;
+                            if (opacity < 1) {
+                                // Blend with existing
+                                data[index] = Math.round(data[index] * (1 - opacity) + color.r * opacity);
+                                data[index + 1] = Math.round(data[index + 1] * (1 - opacity) + color.g * opacity);
+                                data[index + 2] = Math.round(data[index + 2] * (1 - opacity) + color.b * opacity);
+                            } else {
+                                data[index] = color.r;
+                                data[index + 1] = color.g;
+                                data[index + 2] = color.b;
+                            }
+                            data[index + 3] = 255;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Animation loop
+        function animate() {
+            const frameStartTime = performance.now();
+
+            // Poll gamepad
+            pollGamepad();
+
+            const imageData = ctx.createImageData(canvas.width, canvas.height);
+
+            // Render primary resolution
+            renderAtResolution(imageData, params.resolution, params.pixelatorMode, 1);
+
+            // Render dual resolution if enabled
+            if (params.resolution2 > 0) {
+                const blendAmount = params.blend / 100;
+                renderAtResolution(imageData, params.resolution2, params.pixelatorMode, blendAmount);
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+
+            time += params.speed;
+            frameCount++;
+
+            // Watchdog: Monitor frame time and adjust quality
+            const frameTime = performance.now() - frameStartTime;
+            if (frameTime > MAX_FRAME_TIME) {
+                slowFrameCount++;
+                if (slowFrameCount > 3) {
+                    adaptiveQuality = Math.max(0.2, adaptiveQuality * 0.8);
+                    console.warn(`Frame too slow (${frameTime.toFixed(1)}ms), reducing quality to ${(adaptiveQuality * 100).toFixed(0)}%`);
+                    slowFrameCount = 0;
+                }
+            } else if (frameTime < MAX_FRAME_TIME * 0.5 && adaptiveQuality < 1.0) {
+                // Gradually restore quality if frames are fast
+                adaptiveQuality = Math.min(1.0, adaptiveQuality * 1.05);
+                slowFrameCount = 0;
+            }
+
+            // Update FPS
+            const now = performance.now();
+            if (now - lastTime >= 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                lastTime = now;
+                document.getElementById('fps').textContent = fps + (adaptiveQuality < 1.0 ? ' ⚠' : '');
+            }
+            document.getElementById('frame').textContent = Math.floor(time * 100);
+
+            requestAnimationFrame(animate);
+        }
+
+        // Control event listeners
+        document.getElementById('frequency').addEventListener('input', (e) => {
+            params.frequency = parseFloat(e.target.value);
+            document.getElementById('freq-val').textContent = params.frequency.toFixed(1);
+        });
+
+        document.getElementById('amplitude').addEventListener('input', (e) => {
+            params.amplitude = parseFloat(e.target.value);
+            document.getElementById('amp-val').textContent = params.amplitude;
+        });
+
+        document.getElementById('speed').addEventListener('input', (e) => {
+            params.speed = parseFloat(e.target.value);
+            document.getElementById('speed-val').textContent = params.speed.toFixed(3);
+        });
+
+        document.getElementById('sources').addEventListener('input', (e) => {
+            params.sources = parseInt(e.target.value);
+            document.getElementById('sources-val').textContent = params.sources;
+            generateWaveSources();
+        });
+
+        document.getElementById('resolution').addEventListener('input', (e) => {
+            params.resolution = parseInt(e.target.value);
+            document.getElementById('res-val').textContent = formatResolution(params.resolution);
+        });
+
+        document.getElementById('resolution2').addEventListener('input', (e) => {
+            params.resolution2 = parseInt(e.target.value);
+            const val = params.resolution2 === 0 ? 'OFF' : formatResolution(params.resolution2);
+            document.getElementById('res2-val').textContent = val;
+        });
+
+        document.getElementById('blend').addEventListener('input', (e) => {
+            params.blend = parseInt(e.target.value);
+            document.getElementById('blend-val').textContent = params.blend + '%';
+        });
+
+        // Pixelator mode radio buttons
+        document.querySelectorAll('input[name="pixelator-mode"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                params.pixelatorMode = e.target.value;
+                // Update visual selection
+                document.querySelectorAll('.radio-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                e.target.closest('.radio-option').classList.add('selected');
+            });
+        });
+
+        // Set initial selected state
+        document.querySelector('input[name="pixelator-mode"]:checked').closest('.radio-option').classList.add('selected');
+
+        document.getElementById('distortion').addEventListener('input', (e) => {
+            params.distortion = parseFloat(e.target.value);
+            document.getElementById('dist-val').textContent = params.distortion.toFixed(1);
+        });
+
+        document.getElementById('palette-steps').addEventListener('input', (e) => {
+            params.paletteSteps = parseInt(e.target.value);
+            document.getElementById('steps-val').textContent = params.paletteSteps;
+            if (currentPresetIndex >= 0) {
+                loadPresetPalette(currentPresetIndex);
+            } else {
+                loadCustomPalette();
+            }
+        });
+
+        // Color pivot slider
+        document.getElementById('color-pivot').addEventListener('input', (e) => {
+            const pivotVal = parseInt(e.target.value);
+            document.getElementById('pivot-val').textContent = pivotVal + '%';
+            loadCustomPalette();
+        });
+
+        // Auto-apply custom palette changes
+        document.querySelectorAll('.auto-palette').forEach(input => {
+            input.addEventListener('input', () => {
+                loadCustomPalette();
+            });
+        });
+
+        // Compute adjoint colors button
+        document.getElementById('compute-adjoint').addEventListener('click', () => {
+            const startColor = document.getElementById('color-start').value;
+            const triad = computeAdjointTriad(startColor);
+
+            document.getElementById('color-start').value = triad.start;
+            document.getElementById('color-mid').value = triad.mid;
+            document.getElementById('color-end').value = triad.end;
+
+            loadCustomPalette();
+        });
+
+        document.getElementById('color-cycle').addEventListener('input', (e) => {
+            params.colorCycle = parseFloat(e.target.value);
+            document.getElementById('cycle-val').textContent = params.colorCycle.toFixed(1);
+        });
+
+        document.getElementById('cycle-palette').addEventListener('click', () => {
+            currentPresetIndex = (currentPresetIndex + 1) % presetPalettes.length;
+            loadPresetPalette(currentPresetIndex);
+        });
+
+        document.getElementById('randomize').addEventListener('click', () => {
+            params.frequency = Math.random() * 4.5 + 0.5;
+            params.amplitude = Math.random() * 90 + 10;
+            params.speed = Math.random() * 0.095 + 0.005;
+            params.sources = Math.floor(Math.random() * 5) + 2;
+            params.distortion = Math.random() * 2.5 + 0.5;
+            params.colorCycle = Math.random() * 2.9 + 0.1;
+
+            document.getElementById('frequency').value = params.frequency;
+            document.getElementById('freq-val').textContent = params.frequency.toFixed(1);
+            document.getElementById('amplitude').value = params.amplitude;
+            document.getElementById('amp-val').textContent = Math.round(params.amplitude);
+            document.getElementById('speed').value = params.speed;
+            document.getElementById('speed-val').textContent = params.speed.toFixed(3);
+            document.getElementById('sources').value = params.sources;
+            document.getElementById('sources-val').textContent = params.sources;
+            document.getElementById('distortion').value = params.distortion;
+            document.getElementById('dist-val').textContent = params.distortion.toFixed(1);
+            document.getElementById('color-cycle').value = params.colorCycle;
+            document.getElementById('cycle-val').textContent = params.colorCycle.toFixed(1);
+
+            generateWaveSources();
+            loadPresetPalette(Math.floor(Math.random() * presetPalettes.length));
+        });
+
+        // Gamepad mapping buttons
+        document.getElementById('save-gamepad-map').addEventListener('click', () => {
+            saveGamepadMap();
+            alert('Gamepad mapping saved!');
+        });
+
+        document.getElementById('reset-gamepad-map').addEventListener('click', () => {
+            gamepadMap = {...defaultGamepadMap};
+            populateGamepadDropdowns();
+            saveGamepadMap();
+            alert('Gamepad mapping reset to defaults!');
+        });
+
+        // Initialize
+        setupCollapsible();
+        loadGamepadMap();
+        populateGamepadDropdowns();
+        loadPresetPalette(0);
+        generateWaveSources();
+        animate();
+    </script>
+</body>
+</html>

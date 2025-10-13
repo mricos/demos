@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Gamepad Raw Test (stable)</title>
+  <style>
+    body{font-family:monospace;background:#000;color:#0f0;padding:20px}
+    .status{font-size:24px;margin-bottom:20px}
+    .connected{color:#0f0}.disconnected{color:#f00}
+    .axis{margin:10px 0;padding:10px;background:#111}
+    .axis-bar{width:400px;height:30px;background:#222;position:relative;margin:5px 0}
+    .axis-indicator{position:absolute;width:4px;height:30px;background:#0f0;left:50%}
+    .extreme{color:#f00;background:#300}
+    .buttons{margin:20px 0}
+    .button{display:inline-block;width:56px;height:40px;margin:5px;background:#222;text-align:center;line-height:18px;border:2px solid #444;padding-top:4px}
+    .button.pressed{background:#0f0;color:#000;border-color:#0f0}
+    #log{margin-top:20px;height:200px;overflow-y:auto;background:#111;padding:10px;font-size:12px}
+    .log-entry{margin:2px 0}
+  </style>
+</head>
+<body>
+  <h1>Gamepad Raw Data Test</h1>
+  <div class="status">Status: <span id="status" class="disconnected">No gamepad</span></div>
+  <div id="meta"></div>
+  <div id="gamepad-data"></div>
+  <div id="log"></div>
+
+  <script>
+    const logEl = document.getElementById('log');
+    const statusEl = document.getElementById('status');
+    const dataEl = document.getElementById('gamepad-data');
+    const metaEl = document.getElementById('meta');
+
+    // Tunables
+    const AXIS_DEADZONE = 0.05;         // ignore small jitter
+    const AXIS_LOG_STEP = 0.02;         // log only if change exceeds this
+    const BUTTON_EDGE_HYST = 0.60;      // pressed if value >= 0.60, released if <= 0.40
+
+    let lastAxes = null;                // initialize on connect
+    let lastButtons = null;
+    let pressedLatch = [];              // hysteresis latch per button index
+
+    function log(msg){
+      const d=document.createElement('div'); d.className='log-entry';
+      d.textContent = `${new Date().toLocaleTimeString()}: ${msg}`;
+      logEl.insertBefore(d, logEl.firstChild);
+      while (logEl.children.length > 200) logEl.removeChild(logEl.lastChild);
+    }
+
+    function pickFirstPad(){
+      const pads = navigator.getGamepads?.() || [];
+      for (let i=0;i<pads.length;i++) if (pads[i]) return pads[i];
+      return null;
+    }
+
+    function classifyPressed(i, v){ // hysteresis around 0.5 to avoid flapping
+      const prev = pressedLatch[i] ?? false;
+      if (prev) return (v <= 0.40) ? (pressedLatch[i]=false) : true;
+      else      return (v >= BUTTON_EDGE_HYST) ? (pressedLatch[i]=true)  : false;
+    }
+
+    function render(){
+      const gp = pickFirstPad();
+
+      if (!gp){
+        statusEl.textContent = 'No gamepad';
+        statusEl.className = 'disconnected';
+        dataEl.innerHTML = '';
+        requestAnimationFrame(render);
+        return;
+      }
+
+      statusEl.textContent = `Connected: ${gp.id}`;
+      statusEl.className = 'connected';
+      metaEl.textContent = `Index=${gp.index} | Mapping=${gp.mapping || 'none'} | Axes=${gp.axes.length} | Buttons=${gp.buttons.length}`;
+
+      // One-time init of state arrays
+      if (lastAxes === null){ lastAxes = gp.axes.slice(); }
+      if (lastButtons === null){ lastButtons = gp.buttons.map(b => !!b.pressed); }
+
+      // Axes
+      let html = '<h2>Axes</h2>';
+      for (let i=0;i<gp.axes.length;i++){
+        let value = gp.axes[i];
+        // deadzone and rounding to reduce false "extreme" flags
+        if (Math.abs(value) < AXIS_DEADZONE) value = 0;
+        const disp = Math.max(-1, Math.min(1, value));
+        const percent = ((disp + 1) / 2) * 100;
+        const isExtreme = Math.abs(disp) > 0.98;
+
+        html += `
+          <div class="axis ${isExtreme?'extreme':''}">
+            <strong>Axis ${i}:</strong> ${disp.toFixed(3)} ${isExtreme ? '[extreme]' : ''}
+            <div class="axis-bar"><div class="axis-indicator" style="left:${percent}%"></div></div>
+          </div>
+        `;
+
+        // log only meaningful changes
+        if (Math.abs((lastAxes[i] ?? 0) - disp) >= AXIS_LOG_STEP){
+          log(`Axis ${i}: ${(lastAxes[i] ?? 0).toFixed(2)} → ${disp.toFixed(2)}`);
+          lastAxes[i] = disp;
+        }
+      }
+
+      // Buttons
+      html += '<h2>Buttons</h2><div class="buttons">';
+      for (let i=0;i<gp.buttons.length;i++){
+        const b = gp.buttons[i];
+        const val = Number.isFinite(b.value) ? b.value : (b.pressed ? 1 : 0);
+        const pressed = classifyPressed(i, val);
+        html += `<div class="button ${pressed?'pressed':''}"><div>${i}</div><div>${val.toFixed(2)}</div></div>`;
+
+        if ((lastButtons[i] ?? false) !== pressed){
+          log(`Button ${i}: ${pressed ? 'PRESSED' : 'released'} (value=${val.toFixed(2)})`);
+          lastButtons[i] = pressed;
+        }
+      }
+      html += '</div>';
+
+      dataEl.innerHTML = html;
+      requestAnimationFrame(render);
+    }
+
+    window.addEventListener('gamepadconnected', (e)=>{
+      lastAxes = null; lastButtons = null; pressedLatch = [];
+      log(`Gamepad connected: ${e.gamepad.id}`);
+      log(`Initial axes: [${Array.from(e.gamepad.axes).map(v=>v.toFixed(2)).join(', ')}]`);
+    });
+    window.addEventListener('gamepaddisconnected', (e)=>{
+      log(`Gamepad disconnected: ${e.gamepad.id}`);
+    });
+
+    log('Waiting for gamepad...');
+    render();
+  </script>
+</body>
+</html>
+

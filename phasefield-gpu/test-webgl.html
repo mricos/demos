@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebGL2 Detection Test</title>
+</head>
+<body>
+    <h1>WebGL2 Support Test</h1>
+    <div id="result"></div>
+    <script>
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl2');
+        const result = document.getElementById('result');
+        
+        if (gl) {
+            result.innerHTML = `
+                <p style="color: green;">✓ WebGL2 is SUPPORTED</p>
+                <p>Renderer: ${gl.getParameter(gl.RENDERER)}</p>
+                <p>Vendor: ${gl.getParameter(gl.VENDOR)}</p>
+                <p>Version: ${gl.getParameter(gl.VERSION)}</p>
+                <p>GLSL Version: ${gl.getParameter(gl.SHADING_LANGUAGE_VERSION)}</p>
+                <p>Max Texture Size: ${gl.getParameter(gl.MAX_TEXTURE_SIZE)}</p>
+            `;
+        } else {
+            result.innerHTML = '<p style="color: red;">✗ WebGL2 is NOT supported in this browser</p>';
+        }
+    </script>
+</body>
+</html>
