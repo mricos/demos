@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase Field - Spatial Phase Modulation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div id="controls">
+        <h1>Phase Field</h1>
+
+        <h2 id="header-game">Game Parameters</h2>
+        <div class="collapsible-content" id="section-game">
+            <div class="control-group">
+                <label>Frequency <span class="value-display" id="freq-val">2.0</span></label>
+                <input type="range" id="frequency" min="0.5" max="5" step="0.1" value="2">
+            </div>
+
+            <div class="control-group">
+                <label>Amplitude <span class="value-display" id="amp-val">40</span></label>
+                <input type="range" id="amplitude" min="10" max="100" step="1" value="40">
+            </div>
+
+            <div class="control-group">
+                <label>Speed <span class="value-display" id="speed-val">0.02</span></label>
+                <input type="range" id="speed" min="0.005" max="0.1" step="0.005" value="0.02">
+            </div>
+
+            <div class="control-group">
+                <label>Wave Sources <span class="value-display" id="sources-val">2</span></label>
+                <input type="range" id="sources" min="1" max="6" step="1" value="2">
+            </div>
+
+            <div class="control-group">
+                <label>Distortion <span class="value-display" id="dist-val">1.0</span></label>
+                <input type="range" id="distortion" min="0.5" max="3" step="0.1" value="1">
+            </div>
+        </div>
+
+        <h2 id="header-pixelator">Pixelator</h2>
+        <div class="collapsible-content" id="section-pixelator">
+            <div class="control-group">
+                <label>Resolution <span class="value-display" id="res-val">4×4</span></label>
+                <input type="range" id="resolution" min="0" max="10" step="1" value="2">
+            </div>
+
+            <div class="control-group">
+                <label>Downsample Mode</label>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="pixelator-mode" value="avg" checked>
+                        <span>AVG</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="pixelator-mode" value="min">
+                        <span>MIN</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="pixelator-mode" value="max">
+                        <span>MAX</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Dual Resolution <span class="value-display" id="res2-val">OFF</span></label>
+                <input type="range" id="resolution2" min="0" max="10" step="1" value="0">
+            </div>
+
+            <div class="control-group">
+                <label>Blend <span class="value-display" id="blend-val">50%</span></label>
+                <input type="range" id="blend" min="0" max="100" step="1" value="50">
+            </div>
+        </div>
+
+        <h2 id="header-presets" class="collapsed">Preset Palettes</h2>
+        <div class="collapsible-content collapsed" id="section-presets">
+            <div class="palette-grid" id="palette-grid"></div>
+            <button id="cycle-palette">Cycle Palette</button>
+        </div>
+
+        <h2 id="header-custom">Custom Palette</h2>
+        <div class="collapsible-content" id="section-custom">
+            <div class="control-group">
+                <label>Base Colors</label>
+                <div class="color-row">
+                    <div class="color-swatch-group">
+                        <label class="swatch-label">Start</label>
+                        <input type="color" id="color-start" value="#0000ff" class="auto-palette color-swatch">
+                    </div>
+                    <div class="color-swatch-group">
+                        <label class="swatch-label">Mid</label>
+                        <input type="color" id="color-mid" value="#00ffff" class="auto-palette color-swatch">
+                    </div>
+                    <div class="color-swatch-group">
+                        <label class="swatch-label">End</label>
+                        <input type="color" id="color-end" value="#ff00ff" class="auto-palette color-swatch">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Mid Pivot <span class="value-display" id="pivot-val">50%</span></label>
+                <input type="range" id="color-pivot" min="0" max="100" step="1" value="50" class="auto-palette">
+            </div>
+
+            <div class="control-group">
+                <label>Balance <span class="value-display" id="balance-val">50%</span></label>
+                <input type="range" id="color-balance" min="0" max="100" step="1" value="50" class="auto-palette">
+            </div>
+
+            <div class="control-group">
+                <label>Dynamic Range <span class="value-display" id="dynrange-val">256 steps</span></label>
+                <input type="range" id="dynamic-range" min="1" max="8" step="1" value="8" class="auto-palette">
+            </div>
+
+            <div class="control-group">
+                <label>Palette Steps <span class="value-display" id="steps-val">256</span></label>
+                <input type="range" id="palette-steps" min="64" max="512" step="64" value="256" class="auto-palette">
+            </div>
+
+            <div class="control-group">
+                <label>Color Cycle <span class="value-display" id="cycle-val">1.0</span></label>
+                <input type="range" id="color-cycle" min="0.1" max="3" step="0.1" value="1">
+            </div>
+        </div>
+
+        <h2 id="header-adjoint" class="collapsed">The Adjoint Palette (Dual Field Only)</h2>
+        <div class="collapsible-content collapsed" id="section-adjoint">
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="adjoint-enabled">
+                    <span>Enable Adjoint for Dual Resolution</span>
+                </label>
+                <div class="help-text">When enabled, Dual Resolution uses a modified color palette. Blend controls the mix.</div>
+            </div>
+
+            <div class="control-group">
+                <label>Adjoint Mode (How dual colors are derived)</label>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="adjoint-mode" value="complementary" checked>
+                        <span>Complementary</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="adjoint-mode" value="desat">
+                        <span>Desaturated</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="adjoint-mode" value="inverse">
+                        <span>Inverse</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="adjoint-mode" value="triad">
+                        <span>Triad Shift</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Triad Hue Shift <span class="value-display" id="triad-val">120°</span></label>
+                <input type="range" id="adjoint-triad-hue" min="0" max="360" step="10" value="120">
+                <div class="help-text">Only used when Triad Shift mode is selected.</div>
+            </div>
+
+            <div class="control-group">
+                <button id="compute-adjoint">Auto-Generate Triadic Colors</button>
+                <div class="help-text">Sets base colors (above) to a triadic harmony from current start color.</div>
+            </div>
+        </div>
+
+        <h2 id="header-gain" class="collapsed">Final Gain Stage</h2>
+        <div class="collapsible-content collapsed" id="section-gain">
+            <div class="control-group">
+                <label>Desaturation <span class="value-display" id="desat-val">0%</span></label>
+                <input type="range" id="final-desaturation" min="0" max="100" step="1" value="0">
+            </div>
+
+            <div class="control-group">
+                <label>Brightness <span class="value-display" id="brightness-val">50%</span></label>
+                <input type="range" id="final-brightness" min="0" max="100" step="1" value="50">
+            </div>
+        </div>
+
+        <h2 id="header-gamepad" class="collapsed">Gamepad Controls</h2>
+        <div class="collapsible-content collapsed" id="section-gamepad">
+            <div class="control-group">
+                <label>Status: <span class="value-display" id="gamepad-status">Not Connected</span></label>
+            </div>
+
+            <div class="control-group">
+                <label>Left Stick X</label>
+                <select id="map-axis0" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>Left Stick Y</label>
+                <select id="map-axis1" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>Right Stick X</label>
+                <select id="map-axis2" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>Right Stick Y</label>
+                <select id="map-axis3" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>Button A (0)</label>
+                <select id="map-button0" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>Button B (1)</label>
+                <select id="map-button1" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>Button X (2)</label>
+                <select id="map-button2" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>Button Y (3)</label>
+                <select id="map-button3" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>L1 (4)</label>
+                <select id="map-button4" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>R1 (5)</label>
+                <select id="map-button5" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>L2 (6)</label>
+                <select id="map-button6" class="gamepad-map"></select>
+            </div>
+
+            <div class="control-group">
+                <label>R2 (7)</label>
+                <select id="map-button7" class="gamepad-map"></select>
+            </div>
+
+            <button id="save-gamepad-map">Save Mapping</button>
+            <button id="reset-gamepad-map">Reset to Defaults</button>
+        </div>
+
+        <button id="randomize">Randomize All</button>
+    </div>
+
+    <div id="status">
+        FPS: <span class="status-value" id="fps">0</span> |
+        Frame: <span class="status-value" id="frame">0</span>
+    </div>
+
+    <!-- Load JavaScript modules in order -->
+    <script src="js/config.js"></script>
+    <script src="js/palette.js"></script>
+    <script src="js/wave.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/gamepad.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

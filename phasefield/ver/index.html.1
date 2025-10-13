@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase Field - Spatial Phase Modulation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0a0e27;
+            --bg-panel: #141b3a;
+            --border-color: #2a3f5f;
+            --accent-primary: #00d4ff;
+            --accent-secondary: #ff00d4;
+            --text-primary: #e0e6ff;
+            --text-secondary: #8b9dc3;
+            --input-bg: #1a2547;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow: hidden;
+            display: flex;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 0 40px rgba(0, 212, 255, 0.2);
+        }
+
+        #controls {
+            width: 360px;
+            background: var(--bg-panel);
+            border-left: 2px solid var(--border-color);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            color: var(--accent-primary);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--accent-secondary);
+            border-left: 3px solid var(--accent-secondary);
+            padding-left: 8px;
+        }
+
+        .control-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: var(--accent-primary);
+            border: 2px solid var(--bg-dark);
+            cursor: pointer;
+            border-radius: 2px;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: var(--accent-primary);
+            border: 2px solid var(--bg-dark);
+            cursor: pointer;
+            border-radius: 2px;
+        }
+
+        input[type="number"], input[type="color"] {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px;
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+        }
+
+        input[type="color"] {
+            height: 36px;
+            cursor: pointer;
+            padding: 2px;
+        }
+
+        .value-display {
+            float: right;
+            color: var(--accent-primary);
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        button {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 8px;
+        }
+
+        button:hover {
+            background: var(--border-color);
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .palette-preview {
+            height: 30px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .palette-preview:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
+        }
+
+        .palette-preview.active {
+            border: 2px solid var(--accent-primary);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.6);
+        }
+
+        .color-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        #status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(20, 27, 58, 0.9);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            font-size: 10px;
+            color: var(--text-secondary);
+            letter-spacing: 1px;
+        }
+
+        .status-value {
+            color: var(--accent-primary);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-primary);
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div id="controls">
+        <h1>Phase Field</h1>
+
+        <h2>Wave Parameters</h2>
+
+        <div class="control-group">
+            <label>Frequency <span class="value-display" id="freq-val">2.0</span></label>
+            <input type="range" id="frequency" min="0.5" max="5" step="0.1" value="2">
+        </div>
+
+        <div class="control-group">
+            <label>Amplitude <span class="value-display" id="amp-val">40</span></label>
+            <input type="range" id="amplitude" min="10" max="100" step="1" value="40">
+        </div>
+
+        <div class="control-group">
+            <label>Speed <span class="value-display" id="speed-val">0.02</span></label>
+            <input type="range" id="speed" min="0.005" max="0.1" step="0.005" value="0.02">
+        </div>
+
+        <div class="control-group">
+            <label>Wave Sources <span class="value-display" id="sources-val">2</span></label>
+            <input type="range" id="sources" min="1" max="6" step="1" value="2">
+        </div>
+
+        <div class="control-group">
+            <label>Resolution <span class="value-display" id="res-val">2</span></label>
+            <input type="range" id="resolution" min="1" max="32" step="1" value="2">
+        </div>
+
+        <div class="control-group">
+            <label>Distortion <span class="value-display" id="dist-val">1.0</span></label>
+            <input type="range" id="distortion" min="0.5" max="3" step="0.1" value="1">
+        </div>
+
+        <h2>Preset Palettes</h2>
+
+        <div class="palette-grid" id="palette-grid"></div>
+
+        <button id="cycle-palette">Cycle Palette</button>
+
+        <h2>Custom Palette</h2>
+
+        <div class="color-inputs">
+            <div class="control-group">
+                <label>Start Color</label>
+                <input type="color" id="color-start" value="#0000ff">
+            </div>
+            <div class="control-group">
+                <label>Mid Color 1</label>
+                <input type="color" id="color-mid1" value="#00ffff">
+            </div>
+            <div class="control-group">
+                <label>Mid Color 2</label>
+                <input type="color" id="color-mid2" value="#ffff00">
+            </div>
+            <div class="control-group">
+                <label>End Color</label>
+                <input type="color" id="color-end" value="#ff00ff">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Palette Steps <span class="value-display" id="steps-val">256</span></label>
+            <input type="range" id="palette-steps" min="64" max="512" step="64" value="256">
+        </div>
+
+        <div class="control-group">
+            <label>Color Cycle <span class="value-display" id="cycle-val">1.0</span></label>
+            <input type="range" id="color-cycle" min="0.1" max="3" step="0.1" value="1">
+        </div>
+
+        <button id="apply-custom">Apply Custom Palette</button>
+        <button id="randomize">Randomize All</button>
+    </div>
+
+    <div id="status">
+        FPS: <span class="status-value" id="fps">0</span> |
+        Frame: <span class="status-value" id="frame">0</span>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas size
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            canvas.width = Math.min(800, container.clientWidth - 40);
+            canvas.height = Math.min(800, container.clientHeight - 40);
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Wave parameters
+        let params = {
+            frequency: 2,
+            amplitude: 40,
+            speed: 0.02,
+            sources: 2,
+            resolution: 2,
+            distortion: 1,
+            paletteSteps: 256,
+            colorCycle: 1
+        };
+
+        let time = 0;
+        let frameCount = 0;
+        let lastTime = performance.now();
+        let fps = 0;
+
+        // Predefined palettes
+        const presetPalettes = [
+            {name: 'Cyber', colors: ['#0000ff', '#00ffff', '#ffff00', '#ff00ff']},
+            {name: 'Fire', colors: ['#000000', '#ff0000', '#ff8800', '#ffff00']},
+            {name: 'Ocean', colors: ['#001a33', '#0066cc', '#00ccff', '#00ffaa']},
+            {name: 'Sunset', colors: ['#1a0033', '#cc0099', '#ff6600', '#ffcc00']},
+            {name: 'Forest', colors: ['#001a00', '#004400', '#00aa00', '#88ff88']},
+            {name: 'Purple', colors: ['#1a001a', '#6600cc', '#cc00ff', '#ff66ff']},
+            {name: 'Neon', colors: ['#ff00ff', '#00ffff', '#ffff00', '#ff00ff']},
+            {name: 'Grayscale', colors: ['#000000', '#444444', '#888888', '#ffffff']}
+        ];
+
+        let currentPalette = [];
+        let currentPresetIndex = 0;
+
+        // Wave sources
+        let waveSources = [];
+
+        function generateWaveSources() {
+            waveSources = [];
+            const count = params.sources;
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const radius = Math.min(canvas.width, canvas.height) * 0.3;
+                waveSources.push({
+                    x: canvas.width / 2 + Math.cos(angle) * radius,
+                    y: canvas.height / 2 + Math.sin(angle) * radius,
+                    phase: i * Math.PI / count
+                });
+            }
+        }
+
+        // Color interpolation
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : {r: 0, g: 0, b: 0};
+        }
+
+        function interpolateColor(color1, color2, factor) {
+            return {
+                r: Math.round(color1.r + (color2.r - color1.r) * factor),
+                g: Math.round(color1.g + (color2.g - color1.g) * factor),
+                b: Math.round(color1.b + (color2.b - color1.b) * factor)
+            };
+        }
+
+        function generatePalette(colors, steps) {
+            const palette = [];
+            const segmentLength = steps / (colors.length - 1);
+
+            for (let i = 0; i < steps; i++) {
+                const segment = Math.floor(i / segmentLength);
+                const segmentFactor = (i % segmentLength) / segmentLength;
+
+                const color1 = hexToRgb(colors[Math.min(segment, colors.length - 2)]);
+                const color2 = hexToRgb(colors[Math.min(segment + 1, colors.length - 1)]);
+
+                const color = interpolateColor(color1, color2, segmentFactor);
+                palette.push(color); // Store as {r, g, b} object
+            }
+
+            return palette;
+        }
+
+        function loadPresetPalette(index) {
+            currentPresetIndex = index;
+            const preset = presetPalettes[index];
+            currentPalette = generatePalette(preset.colors, params.paletteSteps);
+            updatePaletteUI();
+        }
+
+        function loadCustomPalette() {
+            const colors = [
+                document.getElementById('color-start').value,
+                document.getElementById('color-mid1').value,
+                document.getElementById('color-mid2').value,
+                document.getElementById('color-end').value
+            ];
+            currentPalette = generatePalette(colors, params.paletteSteps);
+            currentPresetIndex = -1;
+            updatePaletteUI();
+        }
+
+        function updatePaletteUI() {
+            const previews = document.querySelectorAll('.palette-preview');
+            previews.forEach((preview, index) => {
+                preview.classList.toggle('active', index === currentPresetIndex);
+            });
+        }
+
+        function renderPalettePreview(colors) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 100;
+            tempCanvas.height = 30;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            const palette = generatePalette(colors, 100);
+            for (let i = 0; i < 100; i++) {
+                const c = palette[i];
+                tempCtx.fillStyle = `rgb(${c.r}, ${c.g}, ${c.b})`;
+                tempCtx.fillRect(i, 0, 1, 30);
+            }
+
+            return tempCanvas.toDataURL();
+        }
+
+        // Initialize palette grid
+        const paletteGrid = document.getElementById('palette-grid');
+        presetPalettes.forEach((preset, index) => {
+            const preview = document.createElement('div');
+            preview.className = 'palette-preview';
+            preview.style.backgroundImage = `url(${renderPalettePreview(preset.colors)})`;
+            preview.style.backgroundSize = 'cover';
+            preview.addEventListener('click', () => loadPresetPalette(index));
+            paletteGrid.appendChild(preview);
+        });
+
+        // Animation loop
+        function animate() {
+            const res = params.resolution;
+            const imageData = ctx.createImageData(canvas.width, canvas.height);
+            const data = imageData.data;
+
+            for (let y = 0; y < canvas.height; y += res) {
+                for (let x = 0; x < canvas.width; x += res) {
+                    let sum = 0;
+
+                    // Calculate interference from all sources
+                    for (const source of waveSources) {
+                        const dx = x - source.x;
+                        const dy = y - source.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        const wave = Math.sin(
+                            distance * params.frequency * 0.05 -
+                            time +
+                            source.phase
+                        ) * params.amplitude;
+
+                        sum += wave / Math.pow(distance * 0.01 + 1, params.distortion);
+                    }
+
+                    // Map to palette with color cycling
+                    const colorIndex = Math.floor(
+                        (Math.abs(sum) * params.colorCycle) % currentPalette.length
+                    );
+                    const color = currentPalette[colorIndex] || {r: 0, g: 0, b: 0};
+
+                    // Fill pixels with resolution scaling
+                    for (let dy = 0; dy < res && y + dy < canvas.height; dy++) {
+                        for (let dx = 0; dx < res && x + dx < canvas.width; dx++) {
+                            const index = ((y + dy) * canvas.width + (x + dx)) * 4;
+                            data[index] = color.r;
+                            data[index + 1] = color.g;
+                            data[index + 2] = color.b;
+                            data[index + 3] = 255;
+                        }
+                    }
+                }
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+
+            time += params.speed;
+            frameCount++;
+
+            // Update FPS
+            const now = performance.now();
+            if (now - lastTime >= 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                lastTime = now;
+                document.getElementById('fps').textContent = fps;
+            }
+            document.getElementById('frame').textContent = Math.floor(time * 100);
+
+            requestAnimationFrame(animate);
+        }
+
+        // Control event listeners
+        document.getElementById('frequency').addEventListener('input', (e) => {
+            params.frequency = parseFloat(e.target.value);
+            document.getElementById('freq-val').textContent = params.frequency.toFixed(1);
+        });
+
+        document.getElementById('amplitude').addEventListener('input', (e) => {
+            params.amplitude = parseFloat(e.target.value);
+            document.getElementById('amp-val').textContent = params.amplitude;
+        });
+
+        document.getElementById('speed').addEventListener('input', (e) => {
+            params.speed = parseFloat(e.target.value);
+            document.getElementById('speed-val').textContent = params.speed.toFixed(3);
+        });
+
+        document.getElementById('sources').addEventListener('input', (e) => {
+            params.sources = parseInt(e.target.value);
+            document.getElementById('sources-val').textContent = params.sources;
+            generateWaveSources();
+        });
+
+        document.getElementById('resolution').addEventListener('input', (e) => {
+            params.resolution = parseInt(e.target.value);
+            document.getElementById('res-val').textContent = params.resolution;
+        });
+
+        document.getElementById('distortion').addEventListener('input', (e) => {
+            params.distortion = parseFloat(e.target.value);
+            document.getElementById('dist-val').textContent = params.distortion.toFixed(1);
+        });
+
+        document.getElementById('palette-steps').addEventListener('input', (e) => {
+            params.paletteSteps = parseInt(e.target.value);
+            document.getElementById('steps-val').textContent = params.paletteSteps;
+            if (currentPresetIndex >= 0) {
+                loadPresetPalette(currentPresetIndex);
+            } else {
+                loadCustomPalette();
+            }
+        });
+
+        document.getElementById('color-cycle').addEventListener('input', (e) => {
+            params.colorCycle = parseFloat(e.target.value);
+            document.getElementById('cycle-val').textContent = params.colorCycle.toFixed(1);
+        });
+
+        document.getElementById('cycle-palette').addEventListener('click', () => {
+            currentPresetIndex = (currentPresetIndex + 1) % presetPalettes.length;
+            loadPresetPalette(currentPresetIndex);
+        });
+
+        document.getElementById('apply-custom').addEventListener('click', () => {
+            loadCustomPalette();
+        });
+
+        document.getElementById('randomize').addEventListener('click', () => {
+            params.frequency = Math.random() * 4.5 + 0.5;
+            params.amplitude = Math.random() * 90 + 10;
+            params.speed = Math.random() * 0.095 + 0.005;
+            params.sources = Math.floor(Math.random() * 5) + 2;
+            params.distortion = Math.random() * 2.5 + 0.5;
+            params.colorCycle = Math.random() * 2.9 + 0.1;
+
+            document.getElementById('frequency').value = params.frequency;
+            document.getElementById('freq-val').textContent = params.frequency.toFixed(1);
+            document.getElementById('amplitude').value = params.amplitude;
+            document.getElementById('amp-val').textContent = Math.round(params.amplitude);
+            document.getElementById('speed').value = params.speed;
+            document.getElementById('speed-val').textContent = params.speed.toFixed(3);
+            document.getElementById('sources').value = params.sources;
+            document.getElementById('sources-val').textContent = params.sources;
+            document.getElementById('distortion').value = params.distortion;
+            document.getElementById('dist-val').textContent = params.distortion.toFixed(1);
+            document.getElementById('color-cycle').value = params.colorCycle;
+            document.getElementById('cycle-val').textContent = params.colorCycle.toFixed(1);
+
+            generateWaveSources();
+            loadPresetPalette(Math.floor(Math.random() * presetPalettes.length));
+        });
+
+        // Initialize
+        loadPresetPalette(0);
+        generateWaveSources();
+        animate();
+    </script>
+</body>
+</html>

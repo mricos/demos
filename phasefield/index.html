@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase Field - Spatial Phase Modulation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div id="controls">
+        <h1>Phase Field</h1>
+
+        <h2 id="header-matter">Matter</h2>
+        <div class="collapsible-content" id="section-matter">
+            <div class="control-group">
+                <label>Particle Size <span class="value-display" id="particle-size-val">8px</span></label>
+                <input type="range" id="particle-size" min="2" max="16" step="1" value="8">
+            </div>
+
+            <div class="control-group">
+                <label>Wall Length <span class="value-display" id="wall-length-val">200px</span></label>
+                <input type="range" id="wall-length" min="50" max="400" step="10" value="200">
+            </div>
+
+            <div class="control-group">
+                <label>Aperture Gap <span class="value-display" id="aperture-gap-val">80px</span></label>
+                <input type="range" id="aperture-gap" min="0" max="200" step="5" value="80">
+                <div class="help-text">Also controlled by gamepad buttons 7 & 9</div>
+            </div>
+
+            <div class="control-group">
+                <label>Aperture Count <span class="value-display" id="aperture-count-val">2</span></label>
+                <input type="range" id="aperture-count" min="1" max="9" step="1" value="2">
+                <div class="help-text">Number of slits (creates multi-slit patterns, middle-out)</div>
+            </div>
+
+            <div class="control-group">
+                <label>Wall Thickness <span class="value-display" id="wall-thickness-val">8px</span></label>
+                <input type="range" id="wall-thickness" min="4" max="16" step="1" value="8">
+            </div>
+
+            <div class="control-group">
+                <label>Lens Curvature <span class="value-display" id="lens-curvature-val">0 (Flat)</span></label>
+                <input type="range" id="lens-curvature" min="-200" max="200" step="10" value="0">
+                <div class="help-text">Applies to lens elements: 0=Flat, +ve=Converging, -ve=Diverging</div>
+            </div>
+
+            <div class="control-group">
+                <label>Wall Curvature <span class="value-display" id="wall-curvature-val">0 (Flat)</span></label>
+                <input type="range" id="wall-curvature" min="-200" max="200" step="10" value="0">
+                <div class="help-text">Applies to walls/apertures: Radius of curvature (0=flat wall)</div>
+            </div>
+
+            <div class="control-group">
+                <label>Reflection Coefficient <span class="value-display" id="reflection-coeff-val">0.50</span></label>
+                <input type="range" id="reflection-coeff" min="0" max="2" step="0.01" value="0.5">
+                <div class="help-text">0: Blackbody absorber | 1: Perfect reflection | 1-2: Color-dependent (color spreading)</div>
+            </div>
+        </div>
+
+        <h2 id="header-object-editor" class="collapsed">Object Editor</h2>
+        <div class="collapsible-content collapsed" id="section-object-editor">
+            <div class="control-group">
+                <label>Selected Object: <span class="value-display" id="selected-object-name">None</span></label>
+                <div class="help-text">B: Create new | X: Select | Left stick: Move | Right stick: Rotate</div>
+            </div>
+
+            <div id="object-params-container">
+                <div class="help-text" style="text-align: center; padding: 20px;">
+                    No object selected. Press B to create or select an object.
+                </div>
+            </div>
+
+            <div class="control-group">
+                <button id="delete-object">Delete Selected Object</button>
+            </div>
+        </div>
+
+        <h2 id="header-game">Game Parameters</h2>
+        <div class="collapsible-content" id="section-game">
+            <div class="control-group">
+                <label>Frequency <span class="value-display" id="freq-val">2.0</span></label>
+                <input type="range" id="frequency" min="0.5" max="5" step="0.1" value="2">
+            </div>
+
+            <div class="control-group">
+                <label>Amplitude <span class="value-display" id="amp-val">40</span></label>
+                <input type="range" id="amplitude" min="10" max="100" step="1" value="40">
+            </div>
+
+            <div class="control-group">
+                <label>Speed <span class="value-display" id="speed-val">0.02</span></label>
+                <input type="range" id="speed" min="0.005" max="0.1" step="0.005" value="0.02">
+            </div>
+
+            <div class="control-group">
+                <label>Wave Sources <span class="value-display" id="sources-val">2</span></label>
+                <input type="range" id="sources" min="1" max="6" step="1" value="2">
+            </div>
+
+            <div class="control-group">
+                <label>Distortion <span class="value-display" id="dist-val">1.0</span></label>
+                <input type="range" id="distortion" min="0.5" max="3" step="0.1" value="1">
+            </div>
+        </div>
+
+        <h2 id="header-pixelator">Pixelator</h2>
+        <div class="collapsible-content" id="section-pixelator">
+            <div class="control-group">
+                <label>Resolution <span class="value-display" id="res-val">64×64</span></label>
+                <input type="range" id="resolution" min="0" max="10" step="1" value="6">
+            </div>
+
+            <div class="control-group">
+                <label>Downsample Mode</label>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="pixelator-mode" value="avg" checked>
+                        <span>AVG</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="pixelator-mode" value="min">
+                        <span>MIN</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="pixelator-mode" value="max">
+                        <span>MAX</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <h2 id="header-adjoint-field" class="collapsed">Adjoint Field</h2>
+        <div class="collapsible-content collapsed" id="section-adjoint-field">
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="adjoint-enabled">
+                    <span>Enable Adjoint Field</span>
+                </label>
+                <div class="help-text">Secondary field for visual composition only (not physics)</div>
+            </div>
+
+            <div class="control-group">
+                <label>Adjoint Resolution <span class="value-display" id="res2-val">OFF</span></label>
+                <input type="range" id="resolution2" min="0" max="10" step="1" value="0">
+            </div>
+
+            <div class="control-group">
+                <label>Palette Mode</label>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="adjoint-mode" value="complementary" checked>
+                        <span>Complementary</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="adjoint-mode" value="desat">
+                        <span>Desaturated</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="adjoint-mode" value="inverse">
+                        <span>Inverse</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="adjoint-mode" value="triad">
+                        <span>Triad Shift</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Triad Hue Shift <span class="value-display" id="triad-val">120°</span></label>
+                <input type="range" id="adjoint-triad-hue" min="0" max="360" step="10" value="120">
+                <div class="help-text">Only used when Triad Shift mode is selected.</div>
+            </div>
+
+            <div class="control-group">
+                <button id="compute-adjoint">Auto-Generate Triadic Colors</button>
+                <div class="help-text">Sets base colors to a triadic harmony from current start color.</div>
+            </div>
+        </div>
+
+        <h2 id="header-coupling" class="collapsed">Coupling</h2>
+        <div class="collapsible-content collapsed" id="section-coupling">
+            <div class="control-group">
+                <label>Blend Mode</label>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="blend-mode" value="linear" checked>
+                        <span>Linear</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="blend-mode" value="multiply">
+                        <span>Multiply</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="blend-mode" value="screen">
+                        <span>Screen</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="blend-mode" value="overlay">
+                        <span>Overlay</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Blend Amount <span class="value-display" id="blend-val">50%</span></label>
+                <input type="range" id="blend" min="0" max="100" step="1" value="50">
+                <div class="help-text">Mix between main and adjoint field</div>
+            </div>
+        </div>
+
+        <h2 id="header-presets" class="collapsed">Preset Palettes</h2>
+        <div class="collapsible-content collapsed" id="section-presets">
+            <div class="palette-grid" id="palette-grid"></div>
+            <button id="cycle-palette">Cycle Palette</button>
+        </div>
+
+        <h2 id="header-custom">Custom Palette</h2>
+        <div class="collapsible-content" id="section-custom">
+            <div class="control-group">
+                <label>Base Colors</label>
+                <div class="color-row">
+                    <div class="color-swatch-group">
+                        <label class="swatch-label">Start</label>
+                        <input type="color" id="color-start" value="#0000ff" class="auto-palette color-swatch">
+                    </div>
+                    <div class="color-swatch-group">
+                        <label class="swatch-label">Mid</label>
+                        <input type="color" id="color-mid" value="#00ffff" class="auto-palette color-swatch">
+                    </div>
+                    <div class="color-swatch-group">
+                        <label class="swatch-label">End</label>
+                        <input type="color" id="color-end" value="#ff00ff" class="auto-palette color-swatch">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Mid Pivot <span class="value-display" id="pivot-val">50%</span></label>
+                <input type="range" id="color-pivot" min="0" max="100" step="1" value="50" class="auto-palette">
+            </div>
+
+            <div class="control-group">
+                <label>Balance <span class="value-display" id="balance-val">50%</span></label>
+                <input type="range" id="color-balance" min="0" max="100" step="1" value="50" class="auto-palette">
+            </div>
+
+            <div class="control-group">
+                <label>Dynamic Range <span class="value-display" id="dynrange-val">256 steps</span></label>
+                <input type="range" id="dynamic-range" min="1" max="8" step="1" value="8" class="auto-palette">
+            </div>
+
+            <div class="control-group">
+                <label>Palette Steps <span class="value-display" id="steps-val">256</span></label>
+                <input type="range" id="palette-steps" min="64" max="512" step="64" value="256" class="auto-palette">
+            </div>
+
+            <div class="control-group">
+                <label>Color Cycle <span class="value-display" id="cycle-val">1.0</span></label>
+                <input type="range" id="color-cycle" min="0.1" max="3" step="0.1" value="1">
+            </div>
+        </div>
+
+        <h2 id="header-gain" class="collapsed">Final Gain Stage</h2>
+        <div class="collapsible-content collapsed" id="section-gain">
+            <div class="control-group">
+                <label>Desaturation <span class="value-display" id="desat-val">0%</span></label>
+                <input type="range" id="final-desaturation" min="0" max="100" step="1" value="0">
+            </div>
+
+            <div class="control-group">
+                <label>Brightness <span class="value-display" id="brightness-val">50%</span></label>
+                <input type="range" id="final-brightness" min="0" max="100" step="1" value="50">
+            </div>
+        </div>
+
+        <h2 id="header-gamepad" class="collapsed">Gamepad Controls</h2>
+        <div class="collapsible-content collapsed" id="section-gamepad">
+            <div class="control-group">
+                <label>Status: <span class="value-display" id="gamepad-status">Not Connected</span></label>
+            </div>
+
+            <div class="control-group">
+                <label>Active Mode</label>
+                <div class="mode-indicators">
+                    <div class="mode-indicator active" id="mode-a-indicator">A</div>
+                    <div class="mode-indicator" id="mode-b-indicator">B</div>
+                </div>
+                <div class="help-text">A: Toggle WAVE/MATTER | B: Create | X: Select</div>
+            </div>
+
+            <div class="control-group">
+                <label>Joystick Positions</label>
+                <div class="joysticks-container">
+                    <div class="joystick-display">
+                        <div class="joystick-label">Left Stick</div>
+                        <div class="joystick-visual" id="left-joystick">
+                            <div class="joystick-stick" id="left-stick"></div>
+                        </div>
+                        <div class="joystick-values" id="left-values">X: 0.00 Y: 0.00</div>
+                    </div>
+                    <div class="joystick-display">
+                        <div class="joystick-label">Right Stick</div>
+                        <div class="joystick-visual" id="right-joystick">
+                            <div class="joystick-stick" id="right-stick"></div>
+                        </div>
+                        <div class="joystick-values" id="right-values">X: 0.00 Y: 0.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Button for A Mode</label>
+                <select id="a-button-select">
+                    <option value="0">Button 0 (A)</option>
+                    <option value="1">Button 1 (B)</option>
+                    <option value="2">Button 2 (X)</option>
+                    <option value="3">Button 3 (Y)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Button for B Mode</label>
+                <select id="b-button-select">
+                    <option value="0">Button 0 (A)</option>
+                    <option value="1">Button 1 (B)</option>
+                    <option value="2">Button 2 (X)</option>
+                    <option value="3">Button 3 (Y)</option>
+                </select>
+            </div>
+
+            <div id="button-config-container"></div>
+
+            <div class="help-text" style="color: #ff6600; margin-bottom: 8px;">
+                <strong>Gamepad Troubleshooting:</strong><br>
+                If sticks are stuck or unresponsive:<br>
+                1. Unplug and replug your gamepad<br>
+                2. Click "Emergency Reset" below<br>
+                3. Try chrome://settings/content/usbDevices to reset permissions<br>
+                4. Check System Preferences → Game Controllers (macOS)
+            </div>
+
+            <button id="reset-gamepad-state" style="background: #ff6600;">Emergency Reset Gamepad</button>
+            <button id="dump-gamepad" style="background: #00aa00;">Dump Gamepad State to Console</button>
+            <button id="save-gamepad">Save Settings</button>
+            <button id="reset-gamepad">Reset to Defaults</button>
+            <button id="clear-storage" style="background: #cc0000;">Clear All Saved Data</button>
+        </div>
+
+        <button id="randomize">Randomize All</button>
+    </div>
+
+    <div id="status">
+        FPS: <span class="status-value" id="fps">0</span>
+    </div>
+
+    <!-- Load JavaScript modules in order -->
+    <script src="js/config.js"></script>
+    <script src="js/palette.js"></script>
+    <!-- New modular architecture -->
+    <script src="js/matter.js"></script>
+    <script src="js/optics.js"></script>
+    <script src="js/field.js"></script>
+    <!-- Renderer and UI -->
+    <script src="js/renderer.js"></script>
+    <script src="js/gamepad.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
