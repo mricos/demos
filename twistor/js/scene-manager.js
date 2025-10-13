@@ -158,11 +158,20 @@ class TwistorScene {
         console.log(`Activating scene: ${this.id}`);
         this.isActive = true;
         
-        // Reload controls for this scene
-        if (this.controls && this.config.controlsConfig.length > 0) {
-            console.log(`Reloading controls for scene: ${this.id}`);
-            this.controls.loadControlsConfig(this.config.controlsConfig);
-            this.setupParameterListeners();
+        // Clear and reload controls for this scene
+        if (this.controls) {
+            console.log(`Clearing existing controls...`);
+            this.controls.clearParameters();
+            
+            if (this.config.controlsConfig.length > 0) {
+                console.log(`Loading ${this.config.controlsConfig.length} controls for scene: ${this.id}`);
+                this.controls.loadControlsConfig(this.config.controlsConfig);
+                
+                // Set up parameter listeners after controls are loaded
+                setTimeout(() => {
+                    this.setupParameterListeners();
+                }, 100);
+            }
         }
         
         // Update view with scene objects

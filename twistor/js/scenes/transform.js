@@ -19,7 +19,7 @@ class TransformScene extends TwistorScene {
             
             controlsConfig: [
                 {
-                    type: 'slider',
+                    type: 'knob',
                     id: 'transformComplexity',
                     label: 'Transform Complexity:',
                     min: 0.5,
@@ -30,14 +30,13 @@ class TransformScene extends TwistorScene {
                     twistorTerm: 'penrose-transform'
                 },
                 {
-                    type: 'slider',
+                    type: 'stepper',
                     id: 'holomorphicDepth',
                     label: 'Holomorphic Depth:',
                     min: 1,
                     max: 6,
                     step: 1,
                     defaultValue: 4,
-                    precision: 0,
                     unit: ' layers',
                     twistorTerm: 'twistor-functions'
                 },
@@ -53,6 +52,38 @@ class TransformScene extends TwistorScene {
                     twistorTerm: 'geometric-evolution'
                 },
                 {
+                    type: 'range',
+                    id: 'projectionRange',
+                    label: 'Projection Range:',
+                    min: 0,
+                    max: 10,
+                    defaultValue: { min: 2, max: 8 },
+                    twistorTerm: 'holomorphic-transforms'
+                },
+                {
+                    type: 'color',
+                    id: 'spacetimeColor',
+                    label: 'Spacetime Color:',
+                    defaultValue: '#9b59b6',
+                    twistorTerm: 'spacetime'
+                },
+                {
+                    type: 'color',
+                    id: 'twistorColor',
+                    label: 'Twistor Space Color:',
+                    defaultValue: '#1abc9c',
+                    twistorTerm: 'projective-twistor'
+                },
+                {
+                    type: 'multihandle',
+                    id: 'functionLevels',
+                    label: 'Function Levels:',
+                    min: 0,
+                    max: 100,
+                    defaultValue: [15, 45, 75, 95],
+                    twistorTerm: 'twistor-functions'
+                },
+                {
                     type: 'select',
                     id: 'transformView',
                     label: 'Transform View:',
@@ -60,9 +91,11 @@ class TransformScene extends TwistorScene {
                         { value: 'unified', label: 'Unified View' },
                         { value: 'spacetime-to-twistor', label: 'Spacetime → Twistor' },
                         { value: 'twistor-to-spacetime', label: 'Twistor → Spacetime' },
-                        { value: 'bidirectional', label: 'Bidirectional' }
+                        { value: 'bidirectional', label: 'Bidirectional' },
+                        { value: 'holomorphic', label: 'Holomorphic Only' }
                     ],
-                    defaultValue: 'unified'
+                    defaultValue: 'unified',
+                    twistorTerm: 'penrose-transform'
                 }
             ],
             
@@ -99,11 +132,15 @@ class TransformScene extends TwistorScene {
             position: { x: 0, y: 0, z: 0 },
             transformComplexity: this.transformComplexity
         });
+        this.penroseTransform.type = 'penrose-transform';
         
         this.twistorSpaceProjection = new TwistorSpaceProjection({
             position: { x: 0, y: 0, z: 0 },
             projectionIntensity: this.spacetimeMapping
         });
+        this.twistorSpaceProjection.type = 'twistor-space-projection';
+        
+        console.log('Transform Scene initialized successfully');
     }
     
     setupParameterListeners() {

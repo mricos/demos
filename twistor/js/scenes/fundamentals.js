@@ -22,7 +22,7 @@ class FundamentalsScene extends TwistorScene {
             // Controls specific to fundamentals
             controlsConfig: [
                 {
-                    type: 'slider',
+                    type: 'knob',
                     id: 'spinorPhase',
                     label: 'Two-Component Phase (+ω):',
                     min: -6.28,
@@ -34,14 +34,12 @@ class FundamentalsScene extends TwistorScene {
                     twistorTerm: 'positive-freq'
                 },
                 {
-                    type: 'slider',
+                    type: 'range',
                     id: 'frequencySplit',
-                    label: 'Frequency Splitting (±ω):',
+                    label: 'Frequency Range (±ω):',
                     min: -3,
                     max: 3,
-                    step: 0.1,
-                    defaultValue: 0.5,
-                    precision: 2,
+                    defaultValue: { min: -0.5, max: 0.5 },
                     unit: ' Hz',
                     twistorTerm: 'frequency-split'
                 },
@@ -58,6 +56,30 @@ class FundamentalsScene extends TwistorScene {
                     twistorTerm: 'spinor-components'
                 },
                 {
+                    type: 'color',
+                    id: 'positiveFreqColor',
+                    label: 'Positive Frequency Color:',
+                    defaultValue: '#3498db',
+                    twistorTerm: 'positive-freq'
+                },
+                {
+                    type: 'color',
+                    id: 'negativeFreqColor',
+                    label: 'Negative Frequency Color:',
+                    defaultValue: '#e74c3c',
+                    twistorTerm: 'negative-freq'
+                },
+                {
+                    type: 'stepper',
+                    id: 'complexityLevel',
+                    label: 'Spinor Complexity:',
+                    min: 1,
+                    max: 8,
+                    step: 1,
+                    defaultValue: 3,
+                    twistorTerm: 'spinor-components'
+                },
+                {
                     type: 'select',
                     id: 'visualizationMode',
                     label: 'Visualization Mode:',
@@ -65,10 +87,20 @@ class FundamentalsScene extends TwistorScene {
                         { value: 'both', label: 'Both Components' },
                         { value: 'positive', label: 'Positive Frequency Only' },
                         { value: 'negative', label: 'Negative Frequency Only' },
-                        { value: 'split', label: 'Split View' }
+                        { value: 'split', label: 'Split View' },
+                        { value: 'overlay', label: 'Superposition' }
                     ],
                     defaultValue: 'both',
-                    twistorTerm: 'two-component-spinors'
+                    twistorTerm: 'spinor-geometry'
+                },
+                {
+                    type: 'multihandle',
+                    id: 'harmonics',
+                    label: 'Harmonic Components:',
+                    min: 0,
+                    max: 100,
+                    defaultValue: [20, 60, 80],
+                    twistorTerm: 'frequency-patterns'
                 }
             ],
             

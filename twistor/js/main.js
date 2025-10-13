@@ -32,6 +32,9 @@ class TwistorExplorationTool {
             // Setup additional interactions
             this.setupGlobalInteractions();
             
+            // Setup guide panel tabs
+            this.setupGuideTabs();
+            
             // Setup resize handling
             this.setupResizeHandler();
             
@@ -45,23 +48,30 @@ class TwistorExplorationTool {
     }
     
     registerScenes() {
-        // Create and register Scene 1: Fundamentals
-        const fundamentalsScene = new FundamentalsScene();
-        this.sceneManager.registerScene(fundamentalsScene);
+        console.log('Registering scenes...');
         
-        // Create and register Scene 2: Fibering
-        const fiberingScene = new FiberingScene();
-        this.sceneManager.registerScene(fiberingScene);
+        // Create and register scenes in order
+        const scenes = [
+            { id: 'fundamentals', class: FundamentalsScene },
+            { id: 'fibering', class: FiberingScene },
+            { id: 'transform', class: TransformScene },
+            { id: 'tool-guide', class: ToolGuideScene }
+        ];
         
-        // Create and register Scene 3: Transform
-        const transformScene = new TransformScene();
-        this.sceneManager.registerScene(transformScene);
-        
-        // Create and register Scene 4: Tool Guide
-        const toolGuideScene = new ToolGuideScene();
-        this.sceneManager.registerScene(toolGuideScene);
+        scenes.forEach(({ id, class: SceneClass }) => {
+            console.log(`Creating ${id} scene...`);
+            const scene = new SceneClass();
+            console.log(`Scene ${id} created with config:`, scene.config.controlsConfig.length, 'controls');
+            this.sceneManager.registerScene(scene);
+        });
         
         console.log('All scenes registered successfully');
+        
+        // Force start with fundamentals scene
+        setTimeout(() => {
+            console.log('Force switching to fundamentals...');
+            this.sceneManager.switchToScene('fundamentals');
+        }, 200);
     }
     
     setupGlobalInteractions() {
@@ -100,6 +110,35 @@ class TwistorExplorationTool {
                 header.style.boxShadow = '';
             });
         });
+    }
+    
+    setupGuideTabs() {
+        // Setup guide panel tab switching
+        document.querySelectorAll('.guide-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const targetTab = e.target.getAttribute('data-tab');
+                this.switchGuideTab(targetTab);
+            });
+        });
+    }
+    
+    switchGuideTab(targetTab) {
+        // Remove active class from all tabs and content
+        document.querySelectorAll('.guide-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelectorAll('.guide-tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        // Add active class to selected tab and content
+        const activeTab = document.querySelector(`[data-tab="${targetTab}"]`);
+        const activeContent = document.getElementById(`${targetTab}-tab`);
+        
+        if (activeTab) activeTab.classList.add('active');
+        if (activeContent) activeContent.classList.add('active');
+        
+        console.log(`Switched to guide tab: ${targetTab}`);
     }
     
     handleKeyboardShortcut(e) {

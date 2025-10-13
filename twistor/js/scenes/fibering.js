@@ -23,7 +23,7 @@ class FiberingScene extends TwistorScene {
             // Controls specific to fibering scene
             controlsConfig: [
                 {
-                    type: 'slider',
+                    type: 'knob',
                     id: 'fiberParam',
                     label: 'Clifford-Hopf Parameter:',
                     min: 0,
@@ -35,26 +35,22 @@ class FiberingScene extends TwistorScene {
                     twistorTerm: 'clifford-hopf'
                 },
                 {
-                    type: 'slider',
-                    id: 'nullFlags',
-                    label: 'Null Flag Orientation:',
+                    type: 'range',
+                    id: 'nullFlagRange',
+                    label: 'Null Flag Range:',
                     min: 0,
                     max: 1,
-                    step: 0.01,
-                    defaultValue: 0.3,
-                    precision: 3,
-                    unit: '',
+                    defaultValue: { min: 0.2, max: 0.8 },
                     twistorTerm: 'null-flags'
                 },
                 {
-                    type: 'slider',
+                    type: 'stepper',
                     id: 'fiberDensity',
                     label: 'Fiber Bundle Density:',
                     min: 4,
                     max: 16,
                     step: 1,
                     defaultValue: 8,
-                    precision: 0,
                     unit: ' fibers',
                     twistorTerm: 'holomorphic-transforms'
                 },
@@ -71,6 +67,29 @@ class FiberingScene extends TwistorScene {
                     twistorTerm: 'bi-twistors'
                 },
                 {
+                    type: 'color',
+                    id: 'fiberColor',
+                    label: 'Fiber Bundle Color:',
+                    defaultValue: '#27ae60',
+                    twistorTerm: 'clifford-hopf'
+                },
+                {
+                    type: 'color',
+                    id: 'flagColor',
+                    label: 'Null Flag Color:',
+                    defaultValue: '#f39c12',
+                    twistorTerm: 'null-flags'
+                },
+                {
+                    type: 'multihandle',
+                    id: 'twistorLevels',
+                    label: 'Twistor Space Levels:',
+                    min: 0,
+                    max: 100,
+                    defaultValue: [25, 50, 75],
+                    twistorTerm: 'bi-twistors'
+                },
+                {
                     type: 'select',
                     id: 'fiberVisualization',
                     label: 'Fiber Visualization:',
@@ -78,7 +97,8 @@ class FiberingScene extends TwistorScene {
                         { value: 'full', label: 'Complete Bundle' },
                         { value: 'individual', label: 'Individual Fibers' },
                         { value: 'cross-section', label: 'Cross Section' },
-                        { value: 'animated', label: 'Animated Flow' }
+                        { value: 'animated', label: 'Animated Flow' },
+                        { value: 'holomorphic', label: 'Holomorphic View' }
                     ],
                     defaultValue: 'full',
                     twistorTerm: 'clifford-hopf'

@@ -327,6 +327,21 @@ class TwistorControls {
                 case 'button':
                     this.addButton(config);
                     break;
+                case 'color':
+                    this.addColorControl(config);
+                    break;
+                case 'range':
+                    this.addRangeControl(config);
+                    break;
+                case 'knob':
+                    this.addKnobControl(config);
+                    break;
+                case 'multihandle':
+                    this.addMultiHandleControl(config);
+                    break;
+                case 'stepper':
+                    this.addStepperControl(config);
+                    break;
                 case 'custom':
                     this.addCustomControl(config);
                     break;
@@ -338,6 +353,8 @@ class TwistorControls {
     
     // Clear parameter controls (but keep base controls)
     clearParameters() {
+        console.log('Clearing parameters...');
+        
         if (this.parametersContainer) {
             this.parametersContainer.innerHTML = '';
         }
@@ -345,14 +362,43 @@ class TwistorControls {
         // Keep only base controls in the maps
         const baseControls = ['rotationToggle', 'resetBtn', 'pauseBtn'];
         
-        for (const [id, value] of this.controlElements) {
+        // Create arrays to avoid iterator issues
+        const elementsToDelete = [];
+        const parametersToDelete = [];
+        const valuesToDelete = [];
+        const listenersToDelete = [];
+        
+        for (const [id] of this.controlElements) {
             if (!baseControls.includes(id)) {
-                this.controlElements.delete(id);
-                this.parameters.delete(id);
-                this.values.delete(id);
-                this.listeners.delete(id);
+                elementsToDelete.push(id);
             }
         }
+        
+        for (const [id] of this.parameters) {
+            if (!baseControls.includes(id)) {
+                parametersToDelete.push(id);
+            }
+        }
+        
+        for (const [id] of this.values) {
+            if (!baseControls.includes(id)) {
+                valuesToDelete.push(id);
+            }
+        }
+        
+        for (const [id] of this.listeners) {
+            if (!baseControls.includes(id)) {
+                listenersToDelete.push(id);
+            }
+        }
+        
+        // Delete all non-base controls
+        elementsToDelete.forEach(id => this.controlElements.delete(id));
+        parametersToDelete.forEach(id => this.parameters.delete(id));
+        valuesToDelete.forEach(id => this.values.delete(id));
+        listenersToDelete.forEach(id => this.listeners.delete(id));
+        
+        console.log('Parameters cleared, remaining controls:', Array.from(this.controlElements.keys()));
     }
     
     // Add event listener for parameter changes
@@ -396,6 +442,17 @@ class TwistorControls {
                     console.error(`Error in parameter listener for ${parameterId}:`, error);
                 }
             });
+        }
+        
+        // Auto-activate related cursors for enhanced cross-referencing
+        this.autoActivateRelatedCursor(parameterId, value);
+    }
+    
+    // Auto-activate related cursors when controls are interacted with
+    autoActivateRelatedCursor(parameterId, value) {
+        const currentScene = window.twistorTool?.sceneManager?.getCurrentScene();
+        if (currentScene && currentScene.cursorManager) {
+            currentScene.cursorManager.autoActivateCursorFromControl(parameterId, value);
         }
     }
     
@@ -526,6 +583,288 @@ class TwistorControls {
         const controlData = this.controlElements.get(parameterId);
         return controlData?.slider || controlData?.checkbox || 
                controlData?.select || controlData?.button || controlData?.wrapper;
+    }
+    
+    // Add color picker control
+    addColorControl(config) {
+        const group = this.createControlGroup(config);
+        
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.id = config.id;
+        colorInput.value = config.defaultValue || '#3498db';
+        colorInput.className = 'color-input';
+        
+        const colorDisplay = document.createElement('div');
+        colorDisplay.className = 'color-display';
+        colorDisplay.style.backgroundColor = colorInput.value;
+        colorDisplay.textContent = colorInput.value;
+        
+        colorInput.addEventListener('change', () => {
+            colorDisplay.style.backgroundColor = colorInput.value;
+            colorDisplay.textContent = colorInput.value;
+            this.notifyListeners(config.id, colorInput.value);
+        });
+        
+        const wrapper = document.createElement('div');
+        wrapper.className = 'color-control-wrapper';
+        wrapper.appendChild(colorInput);
+        wrapper.appendChild(colorDisplay);
+        
+        group.appendChild(wrapper);
+        this.addToContainer(group);
+        
+        this.controlElements.set(config.id, { colorInput, colorDisplay, wrapper });
+        this.parameters.set(config.id, config);
+        this.values.set(config.id, colorInput.value);
+    }
+    
+    // Add range slider (dual handle)
+    addRangeControl(config) {
+        const group = this.createControlGroup(config);
+        
+        const rangeContainer = document.createElement('div');
+        rangeContainer.className = 'range-control-container';
+        
+        const minSlider = document.createElement('input');
+        minSlider.type = 'range';
+        minSlider.min = config.min || 0;
+        minSlider.max = config.max || 100;
+        minSlider.value = config.defaultValue?.min || config.min || 0;
+        minSlider.className = 'range-slider min-slider';
+        
+        const maxSlider = document.createElement('input');
+        maxSlider.type = 'range';
+        maxSlider.min = config.min || 0;
+        maxSlider.max = config.max || 100;
+        maxSlider.value = config.defaultValue?.max || config.max || 100;
+        maxSlider.className = 'range-slider max-slider';
+        
+        const valueDisplay = document.createElement('span');
+        valueDisplay.className = 'range-value-display';
+        valueDisplay.textContent = `${minSlider.value} - ${maxSlider.value}`;
+        
+        const updateRange = () => {
+            const minVal = parseFloat(minSlider.value);
+            const maxVal = parseFloat(maxSlider.value);
+            
+            if (minVal > maxVal) {
+                if (minSlider === document.activeElement) {
+                    maxSlider.value = minVal;
+                } else {
+                    minSlider.value = maxVal;
+                }
+            }
+            
+            valueDisplay.textContent = `${minSlider.value} - ${maxSlider.value}`;
+            this.notifyListeners(config.id, { min: parseFloat(minSlider.value), max: parseFloat(maxSlider.value) });
+        };
+        
+        minSlider.addEventListener('input', updateRange);
+        maxSlider.addEventListener('input', updateRange);
+        
+        rangeContainer.appendChild(minSlider);
+        rangeContainer.appendChild(maxSlider);
+        rangeContainer.appendChild(valueDisplay);
+        
+        group.appendChild(rangeContainer);
+        this.addToContainer(group);
+        
+        this.controlElements.set(config.id, { minSlider, maxSlider, valueDisplay, wrapper: rangeContainer });
+        this.parameters.set(config.id, config);
+        this.values.set(config.id, { min: parseFloat(minSlider.value), max: parseFloat(maxSlider.value) });
+    }
+    
+    // Add knob control
+    addKnobControl(config) {
+        const group = this.createControlGroup(config);
+        
+        const knobContainer = document.createElement('div');
+        knobContainer.className = 'knob-container';
+        
+        const knob = document.createElement('div');
+        knob.className = 'knob';
+        
+        const knobHandle = document.createElement('div');
+        knobHandle.className = 'knob-handle';
+        
+        const valueDisplay = document.createElement('span');
+        valueDisplay.className = 'knob-value';
+        
+        const min = config.min || 0;
+        const max = config.max || 100;
+        const step = config.step || 1;
+        let value = config.defaultValue || min;
+        
+        const updateKnob = (newValue) => {
+            value = Math.round(newValue / step) * step;
+            value = Math.max(min, Math.min(max, value));
+            
+            const angle = ((value - min) / (max - min)) * 270 - 135;
+            knobHandle.style.transform = `rotate(${angle}deg)`;
+            valueDisplay.textContent = value.toFixed(step < 1 ? 2 : 0);
+            
+            this.notifyListeners(config.id, value);
+        };
+        
+        let isDragging = false;
+        
+        const handleMouseMove = (e) => {
+            if (!isDragging) return;
+            
+            const rect = knob.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+            const degrees = (angle * 180 / Math.PI + 135 + 360) % 360;
+            
+            if (degrees <= 270) {
+                const newValue = min + (degrees / 270) * (max - min);
+                updateKnob(newValue);
+            }
+        };
+        
+        knob.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            handleMouseMove(e);
+        });
+        
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', () => { isDragging = false; });
+        
+        knob.appendChild(knobHandle);
+        knobContainer.appendChild(knob);
+        knobContainer.appendChild(valueDisplay);
+        
+        group.appendChild(knobContainer);
+        this.addToContainer(group);
+        
+        updateKnob(value);
+        
+        this.controlElements.set(config.id, { knob, knobHandle, valueDisplay, wrapper: knobContainer });
+        this.parameters.set(config.id, config);
+        this.values.set(config.id, value);
+    }
+    
+    // Add multi-handle slider
+    addMultiHandleControl(config) {
+        const group = this.createControlGroup(config);
+        
+        const container = document.createElement('div');
+        container.className = 'multihandle-container';
+        
+        const track = document.createElement('div');
+        track.className = 'multihandle-track';
+        
+        const handles = [];
+        const values = config.defaultValue || [0, 50, 100];
+        
+        values.forEach((val, index) => {
+            const handle = document.createElement('div');
+            handle.className = 'multihandle-handle';
+            handle.dataset.index = index;
+            
+            const position = ((val - (config.min || 0)) / ((config.max || 100) - (config.min || 0))) * 100;
+            handle.style.left = `${position}%`;
+            
+            handles.push(handle);
+            track.appendChild(handle);
+        });
+        
+        const valueDisplay = document.createElement('span');
+        valueDisplay.className = 'multihandle-value';
+        valueDisplay.textContent = values.join(' | ');
+        
+        let dragIndex = -1;
+        
+        const updateValues = () => {
+            const newValues = handles.map(handle => {
+                const position = parseFloat(handle.style.left) / 100;
+                return ((config.max || 100) - (config.min || 0)) * position + (config.min || 0);
+            });
+            
+            valueDisplay.textContent = newValues.map(v => v.toFixed(1)).join(' | ');
+            this.notifyListeners(config.id, newValues);
+        };
+        
+        handles.forEach((handle, index) => {
+            handle.addEventListener('mousedown', (e) => {
+                dragIndex = index;
+                e.preventDefault();
+            });
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (dragIndex === -1) return;
+            
+            const rect = track.getBoundingClientRect();
+            const position = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+            handles[dragIndex].style.left = `${position}%`;
+            updateValues();
+        });
+        
+        document.addEventListener('mouseup', () => { dragIndex = -1; });
+        
+        container.appendChild(track);
+        container.appendChild(valueDisplay);
+        
+        group.appendChild(container);
+        this.addToContainer(group);
+        
+        this.controlElements.set(config.id, { handles, track, valueDisplay, wrapper: container });
+        this.parameters.set(config.id, config);
+        this.values.set(config.id, values);
+    }
+    
+    // Add stepper control
+    addStepperControl(config) {
+        const group = this.createControlGroup(config);
+        
+        const stepperContainer = document.createElement('div');
+        stepperContainer.className = 'stepper-container';
+        
+        const decreaseBtn = document.createElement('button');
+        decreaseBtn.className = 'stepper-btn decrease';
+        decreaseBtn.textContent = '−';
+        
+        const valueDisplay = document.createElement('span');
+        valueDisplay.className = 'stepper-value';
+        
+        const increaseBtn = document.createElement('button');
+        increaseBtn.className = 'stepper-btn increase';
+        increaseBtn.textContent = '+';
+        
+        const min = config.min || 0;
+        const max = config.max || 100;
+        const step = config.step || 1;
+        let value = config.defaultValue || min;
+        
+        const updateValue = (newValue) => {
+            value = Math.max(min, Math.min(max, newValue));
+            valueDisplay.textContent = value.toFixed(step < 1 ? 2 : 0);
+            
+            decreaseBtn.disabled = value <= min;
+            increaseBtn.disabled = value >= max;
+            
+            this.notifyListeners(config.id, value);
+        };
+        
+        decreaseBtn.addEventListener('click', () => updateValue(value - step));
+        increaseBtn.addEventListener('click', () => updateValue(value + step));
+        
+        stepperContainer.appendChild(decreaseBtn);
+        stepperContainer.appendChild(valueDisplay);
+        stepperContainer.appendChild(increaseBtn);
+        
+        group.appendChild(stepperContainer);
+        this.addToContainer(group);
+        
+        updateValue(value);
+        
+        this.controlElements.set(config.id, { decreaseBtn, increaseBtn, valueDisplay, wrapper: stepperContainer });
+        this.parameters.set(config.id, config);
+        this.values.set(config.id, value);
     }
     
     // Get container element
