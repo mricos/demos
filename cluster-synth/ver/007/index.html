@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CLUSTER • Modular Graph</title>
+  <link rel="stylesheet" href="cluster.css" />
+</head>
+<body>
+  <!-- Primary display: draggable topic graph -->
+  <canvas id="bus-canvas" width="1920" height="1080" aria-label="Topic Graph"></canvas>
+
+  <!-- HUD -->
+  <div id="hud" aria-label="HUD">
+    <div class="hud-left">
+      <button id="btn-audio" class="btn-solid">Start Audio</button>
+    </div>
+    <div class="hud-right">
+      <span id="status-audio" class="badge">audio: off</span>
+      <span id="status-gp" class="badge">gamepad: none</span>
+      <span id="status-fps" class="badge">fps: --</span>
+      <span id="status-bpm" class="badge">bpm: 120</span>
+    </div>
+  </div>
+
+  <!-- joystick cursor overlay -->
+  <div id="gp-cursor" aria-hidden="true"></div>
+
+  <!-- FABs (one per module) - now toggle buttons -->
+  <nav id="fab-stack" aria-label="Modules">
+    <button class="fab" data-module="control1" title="Control.1">C1</button>
+    <button class="fab" data-module="control2" title="Control.2">C2</button>
+    <button class="fab" data-module="control3" title="Control.3">C3</button>
+    <button class="fab" data-module="scope" title="Scope">SC</button>
+    <button class="fab" data-module="gamepad" title="Gamepad">GP</button>
+    <button class="fab" data-module="mapper" title="Mapper">MP</button>
+    <button class="fab" data-module="rhythm" title="Rhythm">RH</button>
+    <button class="fab" data-module="log" title="Log">LG</button>
+    <button class="fab" data-module="ui" title="Design Tokens">UI</button>
+  </nav>
+
+  <!-- Floating Panels (non-modal, draggable, z-managed with three modes: closed, open, fullscreen) -->
+  <section id="panel-control1" class="panel card" data-module="control1" style="left:24px;top:96px;width:420px;height:580px;min-height:480px;">
+    <header class="panel-header">
+      <div class="panel-title">Control.1 • Global & FX</div>
+      <div class="panel-actions">
+        <!-- Mode controls added dynamically by PanelManager -->
+      </div>
+    </header>
+    <div class="panel-body">
+      <fieldset class="cl-fs">
+        <legend>Global</legend>
+        <div class="row">
+          <label>Output Gain <span class="val" data-val="outGain"></span></label>
+          <input data-param="outGain" type="range" min="-36" max="0" step="0.1" value="-10" />
+        </div>
+        <div class="row">
+          <label>Dry/Wet <span class="val" data-val="mix"></span></label>
+          <input data-param="mix" type="range" min="0" max="1" step="0.001" value="0.35" />
+        </div>
+      </fieldset>
+
+      <fieldset class="cl-fs">
+        <legend>FX</legend>
+        <div class="row"><label>Shifter Mix <span class="val" data-val="shiftMix"></span></label><input data-param="shiftMix" type="range" min="0" max="1" step="0.001" value="0.25" /></div>
+        <div class="row"><label>Shifter Freq (Hz) <span class="val" data-val="shiftHz"></span></label><input data-param="shiftHz" type="range" min="0" max="40" step="0.1" value="6" /></div>
+        <div class="row"><label>FX Time (s) <span class="val" data-val="fxTime"></span></label><input data-param="fxTime" type="range" min="0.01" max="1.2" step="0.001" value="0.22" /></div>
+        <div class="row"><label>Feedback <span class="val" data-val="feedback"></span></label><input data-param="feedback" type="range" min="0" max="0.97" step="0.001" value="0.55" /></div>
+        <div class="row"><label>Diffuse <span class="val" data-val="diffuse"></span></label><input data-param="diffuse" type="range" min="0" max="1" step="0.001" value="0.6" /></div>
+        <div class="row"><label>Mod Rate (Hz) <span class="val" data-val="modRate"></span></label><input data-param="modRate" type="range" min="0.05" max="8" step="0.01" value="0.3" /></div>
+        <div class="row"><label>Mod Depth (ms) <span class="val" data-val="modDepth"></span></label><input data-param="modDepth" type="range" min="0" max="25" step="0.1" value="6" /></div>
+      </fieldset>
+
+      <div class="meter">
+        <div class="meter-bar" id="cl-mbar"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-control2" class="panel card" data-module="control2" style="left:468px;top:96px;width:420px;">
+    <header class="panel-header">
+      <div class="panel-title">Control.2 • Left Generator</div>
+      <div class="panel-actions"></div>
+    </header>
+    <div class="panel-body">
+      <fieldset class="cl-fs">
+        <legend>Left Generator</legend>
+        <div class="grid2">
+          <div class="row"><label>Pitch (Hz) <span class="val" data-val="L_freq"></span></label><input data-param="L_freq" data-scale="log" type="range" min="20" max="2000" step="0.1" value="110" /></div>
+          <div class="row"><label>Cluster Size <span class="val" data-val="L_count"></span></label><input data-param="L_count" type="range" min="1" max="6" step="1" value="4" /></div>
+          <div class="row"><label>Detune (cents) <span class="val" data-val="L_spread"></span></label><input data-param="L_spread" type="range" min="0" max="50" step="0.1" value="12" /></div>
+          <div class="row"><label>Warp (FM idx c) <span class="val" data-val="L_fmIndex"></span></label><input data-param="L_fmIndex" type="range" min="0" max="1200" step="1" value="120" /></div>
+          <div class="row"><label>Morph <span class="val" data-val="L_morph"></span></label><input data-param="L_morph" type="range" min="0" max="1" step="0.001" value="0.35" /></div>
+          <div class="row"><label>Fold <span class="val" data-val="L_fold"></span></label><input data-param="L_fold" type="range" min="0" max="1" step="0.001" value="0.2" /></div>
+          <div class="row"><label>Cutoff (Hz) <span class="val" data-val="L_cut"></span></label><input data-param="L_cut" data-scale="log" type="range" min="80" max="10000" step="1" value="3000" /></div>
+          <div class="row"><label>Q <span class="val" data-val="L_q"></span></label><input data-param="L_q" type="range" min="0.2" max="18" step="0.01" value="0.8" /></div>
+          <div class="row"><label>Pan <span class="val" data-val="L_pan"></span></label><input data-param="L_pan" type="range" min="-1" max="1" step="0.001" value="-0.6" /></div>
+          <div class="row"><label>Level (dB) <span class="val" data-val="L_level"></span></label><input data-param="L_level" type="range" min="-36" max="0" step="0.1" value="-6" /></div>
+        </div>
+      </fieldset>
+    </div>
+  </section>
+
+  <section id="panel-control3" class="panel card" data-module="control3" style="left:912px;top:96px;width:420px;">
+    <header class="panel-header">
+      <div class="panel-title">Control.3 • Right Generator</div>
+      <div class="panel-actions"></div>
+    </header>
+    <div class="panel-body">
+      <fieldset class="cl-fs">
+        <legend>Right Generator</legend>
+        <div class="grid2">
+          <div class="row"><label>Pitch (Hz) <span class="val" data-val="R_freq"></span></label><input data-param="R_freq" data-scale="log" type="range" min="20" max="2000" step="0.1" value="147" /></div>
+          <div class="row"><label>Cluster Size <span class="val" data-val="R_count"></span></label><input data-param="R_count" type="range" min="1" max="6" step="1" value="4" /></div>
+          <div class="row"><label>Detune (cents) <span class="val" data-val="R_spread"></span></label><input data-param="R_spread" type="range" min="0" max="50" step="0.1" value="12" /></div>
+          <div class="row"><label>Warp (FM idx c) <span class="val" data-val="R_fmIndex"></span></label><input data-param="R_fmIndex" type="range" min="0" max="1200" step="1" value="180" /></div>
+          <div class="row"><label>Morph <span class="val" data-val="R_morph"></span></label><input data-param="R_morph" type="range" min="0" max="1" step="0.001" value="0.6" /></div>
+          <div class="row"><label>Fold <span class="val" data-val="R_fold"></span></label><input data-param="R_fold" type="range" min="0" max="1" step="0.001" value="0.25" /></div>
+          <div class="row"><label>Cutoff (Hz) <span class="val" data-val="R_cut"></span></label><input data-param="R_cut" data-scale="log" type="range" min="80" max="10000" step="1" value="3200" /></div>
+          <div class="row"><label>Q <span class="val" data-val="R_q"></span></label><input data-param="R_q" type="range" min="0.2" max="18" step="0.01" value="0.9" /></div>
+          <div class="row"><label>Pan <span class="val" data-val="R_pan"></span></label><input data-param="R_pan" type="range" min="-1" max="1" step="0.001" value="0.6" /></div>
+          <div class="row"><label>Level (dB) <span class="val" data-val="R_level"></span></label><input data-param="R_level" type="range" min="-36" max="0" step="0.1" value="-6" /></div>
+        </div>
+      </fieldset>
+    </div>
+  </section>
+
+  <section id="panel-scope" class="panel card" data-module="scope" style="left:24px;top:420px;width:640px;">
+    <header class="panel-header">
+      <div class="panel-title">Scope • Dual</div>
+      <div class="panel-actions"></div>
+    </header>
+    <div class="panel-body">
+      <div class="card">
+        <canvas id="scopeL" width="600" height="140" class="scope"></canvas>
+      </div>
+      <div class="card">
+        <canvas id="scopeR" width="600" height="140" class="scope"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-gamepad" class="panel card" data-module="gamepad" style="left:684px;top:420px;width:840px;">
+    <header class="panel-header">
+      <div class="panel-title">Gamepad • Dynamics</div>
+      <div class="panel-actions">
+        <label class="row-inline small">Stick
+          <select id="gp-stick-select" class="small-select">
+            <option value="left" selected>Left</option>
+            <option value="right">Right</option>
+            <option value="both">Both</option>
+          </select>
+        </label>
+        <label class="row-inline small">Speed <input id="gp-speed" type="range" min="100" max="2000" step="50" value="900"/></label>
+        <label class="row-inline small">Dead <input id="gp-dead" type="range" min="0" max="0.2" step="0.01" value="0.08"/></label>
+        <button class="btn-ghost small" id="gp-calib">Calibrate</button>
+      </div>
+    </header>
+    <div class="panel-body">
+      <!-- Realtime controller data (top section) -->
+      <div class="grid2">
+        <div class="card">
+          <h3>Joystick Position</h3>
+          <canvas id="gp-position" width="280" height="280" class="gp-viz"></canvas>
+        </div>
+        <div class="card">
+          <h3>Axes • Realtime</h3>
+          <canvas id="gp-axes" width="280" height="280" class="scope"></canvas>
+        </div>
+      </div>
+
+      <!-- Button Grid and Stats -->
+      <div class="grid2">
+        <div class="card">
+          <h3>Buttons • Face & D-Pad</h3>
+          <canvas id="gp-buttons" width="280" height="180" class="gp-viz"></canvas>
+        </div>
+        <div class="card">
+          <h3>Stats • Motion Analysis</h3>
+          <pre id="gp-stats" class="kbd"></pre>
+        </div>
+      </div>
+
+      <!-- Duplicate axes visualization (full width at top) -->
+      <div class="card">
+        <h3>Axes • Realtime (Full Width)</h3>
+        <canvas id="gp-axes2" width="800" height="120" class="scope"></canvas>
+      </div>
+
+      <!-- Velocity magnitude -->
+      <div class="card">
+        <h3>Velocity Magnitude • m/s</h3>
+        <canvas id="gp-velocity" width="800" height="100" class="scope"></canvas>
+      </div>
+
+      <!-- Derivative graph -->
+      <div class="card">
+        <h3>Derivatives • Velocity & Acceleration</h3>
+        <canvas id="gp-deriv" width="800" height="140" class="scope"></canvas>
+      </div>
+
+      <!-- Acceleration magnitude -->
+      <div class="card">
+        <h3>Acceleration Magnitude • m/s²</h3>
+        <canvas id="gp-accel" width="800" height="100" class="scope"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-mapper" class="panel card" data-module="mapper" style="left:1344px;top:420px;width:640px;height:720px;min-height:600px;">
+    <header class="panel-header">
+      <div class="panel-title">Mapper • Gamepad ↔ Synth</div>
+      <div class="panel-actions">
+        <button class="btn-ghost small" id="map-clear">Clear</button>
+        <button class="btn-ghost small" id="map-defaults">Load Defaults</button>
+        <button class="btn-ghost small" id="map-export">Export Params</button>
+      </div>
+    </header>
+    <div class="panel-body">
+      <div class="card" style="background:#1a2540;border-color:#2a3a60;padding:8px;margin-bottom:8px;">
+        <h3 style="color:#8bd5ca;margin-bottom:4px;">📖 Quick Guide</h3>
+        <div style="font-size:11px;color:#9fb2e0;line-height:1.4;">
+          <b>Axes:</b> Right-click parameter → Move stick • Continuous control<br>
+          <b>Buttons:</b> Edit table below • Panel (toggle), Inc/Dec (adjust), Set (fixed value)<br>
+          <b>Scale Types:</b> Lin (linear) • Log (frequency) • Exp (exponential)<br>
+          <b>Example:</b> Y/B/A toggle panels C1/C2/C3 • X triggers tap tempo
+        </div>
+      </div>
+
+      <div class="card" style="background:#0e1a25;border-color:#1e2a40;padding:10px;margin-bottom:8px;">
+        <h3 style="color:#7aa2f7;margin-bottom:8px;">🎮 Live Input Monitor</h3>
+        <div id="mapper-live-inputs" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font:11px ui-monospace,monospace;color:#9fb2e0;"></div>
+      </div>
+
+      <h3 style="color:#8bd5ca;margin:8px 0 4px;">Button Actions</h3>
+      <table class="map-table" aria-label="Button Actions">
+        <thead><tr><th>Button</th><th>Type</th><th>Panel</th><th>Param</th><th>Step</th><th>Del</th></tr></thead>
+        <tbody id="action-body"></tbody>
+      </table>
+
+      <h3 style="color:#8bd5ca;margin:16px 0 4px;">Axis Mappings</h3>
+      <table class="map-table" aria-label="Axis Mappings">
+        <thead><tr><th>Source</th><th>Param</th><th>Type</th><th>Scale</th><th>Offset</th><th>Inv</th><th>Dead</th><th>Del</th></tr></thead>
+        <tbody id="map-body"></tbody>
+      </table>
+
+      <div class="card">
+        <h3>Params JSON</h3>
+        <textarea id="params-json" spellcheck="false"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-rhythm" class="panel card" data-module="rhythm" style="left:684px;top:720px;width:640px;">
+    <header class="panel-header">
+      <div class="panel-title">Rhythm • BPM Modulation</div>
+      <div class="panel-actions">
+        <label class="row-inline small">BPM <input id="rhythm-bpm" type="number" min="30" max="300" step="0.1" value="120" style="width:60px;background:#0a0f1a;border:1px solid #262c40;border-radius:6px;padding:4px;color:#cbd3ea"/></label>
+        <button class="btn-ghost small" id="rhythm-tap">Tap</button>
+        <button class="btn-ghost small" id="rhythm-toggle">Start</button>
+      </div>
+    </header>
+    <div class="panel-body">
+      <table class="map-table" aria-label="Rhythm Mapping Table">
+        <thead>
+          <tr>
+            <th>Param</th>
+            <th>Rate</th>
+            <th>Wave</th>
+            <th>Depth</th>
+            <th>Phase</th>
+            <th>Del</th>
+          </tr>
+        </thead>
+        <tbody id="rhythm-body"></tbody>
+      </table>
+
+      <!-- Collapsible Parameters Reference -->
+      <details class="card" style="cursor:pointer">
+        <summary style="font-weight:bold;color:#cbd3ea;padding:4px 0">📋 All Parameters Reference</summary>
+        <div id="rhythm-params-list" style="margin-top:8px;font-size:11px;color:#9fb2e0;max-height:200px;overflow-y:auto"></div>
+      </details>
+
+      <div class="card">
+        <h3>Add Mapping</h3>
+        <div class="grid2">
+          <div class="row">
+            <label>Parameter</label>
+            <select id="rhythm-param-select" class="small-select" style="width:100%;padding:6px">
+              <option value="">-- Select Parameter --</option>
+            </select>
+          </div>
+          <div class="row">
+            <label>Rate</label>
+            <select id="rhythm-rate-select" class="small-select" style="width:100%;padding:6px">
+              <option value="1">1 (Whole)</option>
+              <option value="1/2">1/2 (Half)</option>
+              <option value="1/4" selected>1/4 (Quarter)</option>
+              <option value="1/8">1/8 (Eighth)</option>
+              <option value="1/16">1/16 (Sixteenth)</option>
+              <option value="1/32">1/32 (32nd)</option>
+              <option value="1/4T">1/4T (Quarter Triplet)</option>
+              <option value="1/8T">1/8T (Eighth Triplet)</option>
+              <option value="1/4.">1/4. (Dotted Quarter)</option>
+              <option value="1/8.">1/8. (Dotted Eighth)</option>
+            </select>
+          </div>
+          <div class="row">
+            <label>Waveform</label>
+            <select id="rhythm-wave-select" class="small-select" style="width:100%;padding:6px">
+              <option value="sine" selected>Sine</option>
+              <option value="triangle">Triangle</option>
+              <option value="saw-up">Saw Up</option>
+              <option value="saw-down">Saw Down</option>
+              <option value="square">Square</option>
+              <option value="random">Random</option>
+            </select>
+          </div>
+          <div class="row">
+            <label>Depth <span class="val" id="rhythm-depth-val">0.50</span></label>
+            <input id="rhythm-depth" type="range" min="0" max="1" step="0.01" value="0.5"/>
+          </div>
+          <div class="row">
+            <label>Phase <span class="val" id="rhythm-phase-val">0°</span></label>
+            <input id="rhythm-phase" type="range" min="0" max="360" step="1" value="0"/>
+          </div>
+          <div class="row">
+            <button class="btn-ghost small" id="rhythm-add" style="width:100%">Add Mapping</button>
+          </div>
+        </div>
+      </div>
+      <div class="kbd">Rhythm mappings modulate parameters in sync with BPM. Use tap tempo (gamepad X button or Tap button) to set tempo.</div>
+    </div>
+  </section>
+
+  <section id="panel-log" class="panel card" data-module="log" style="left:1344px;top:96px;width:520px;">
+    <header class="panel-header">
+      <div class="panel-title">Log • Parsed Snapshot</div>
+      <div class="panel-actions">
+        <label class="row-inline small">Parsed <input id="log-mode" type="checkbox" checked/></label>
+        <button class="btn-ghost small" id="log-clear">Clear</button>
+      </div>
+    </header>
+    <div class="panel-body">
+      <table class="log-table tight" aria-label="Realtime Log (Parsed)">
+        <thead>
+          <tr>
+            <th>T</th><th>Δms</th>
+            <th>Ax</th><th>Ay</th>
+            <th>DPad</th>
+            <th>Face</th>
+            <th>Should</th>
+            <th>Trig</th>
+            <th>Meta</th>
+          </tr>
+        </thead>
+        <tbody id="log-body"></tbody>
+      </table>
+      <pre id="log-raw" class="kbd" style="display:none;"></pre>
+    </div>
+  </section>
+
+  <section id="panel-ui" class="panel card" data-module="ui" style="left:24px;top:720px;width:640px;">
+    <header class="panel-header">
+      <div class="panel-title">UI • Design Tokens</div>
+      <div class="panel-actions">
+        <button class="btn-ghost small" id="tokens-reset">Reset</button>
+      </div>
+    </header>
+    <div class="panel-body">
+      <div id="tokens-grid" class="grid2"></div>
+      <div class="kbd">Edits persist in localStorage. All styles reference tokens.</div>
+    </div>
+  </section>
+
+  <!-- Modular JS Architecture -->
+  <script src="js/core.js"></script>
+  <script src="js/state-manager.js"></script>
+  <script src="js/panel-manager.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/scope.js"></script>
+  <script src="js/canvas.js"></script>
+  <script src="js/gamepad.js"></script>
+  <script src="js/mapper.js"></script>
+  <script src="js/rhythm.js"></script>
+  <script src="js/log.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
+

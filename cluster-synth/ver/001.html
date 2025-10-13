@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vhikk‑style Stereo Cluster Synth (Vanilla JS)</title>
+<style>
+  :root{
+    --bg:#0b0c10;--fg:#c5c8d4;--ui:#12141b;--ui2:#191c25;--acc:#7aa2f7;--mut:#8a8f9d;
+    --ok:#8bd5ca;--warn:#f6c177;--err:#eb6f92
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:13px/1.35 system-ui,Segoe UI,Roboto,Arial,sans-serif}
+  .wrap{display:grid;grid-template-columns: 340px 1fr;gap:16px;height:100%;}
+  .sidebar{background:var(--ui);padding:14px;overflow:auto;border-right:1px solid #222}
+  .main{display:grid;grid-template-rows:auto 1fr;gap:8px;padding:12px}
+  h1{margin:0 0 8px 0;font-size:16px;color:var(--acc)}
+  h2{margin:14px 0 6px 0;font-size:13px;color:var(--mut)}
+  fieldset{border:1px solid #262a36;border-radius:10px;padding:10px;margin:0 0 10px 0}
+  legend{padding:0 6px;color:#98a2b3}
+  .row{display:grid;grid-template-columns: 1fr 70px;gap:8px;align-items:center;margin:6px 0}
+  .row input[type=range]{width:100%}
+  .meter{height:10px;background:var(--ui2);border-radius:6px;position:relative;overflow:hidden}
+  .bar{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,var(--ok),var(--acc))}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .btn{display:inline-block;background:var(--acc);color:#0a0b0f;padding:8px 10px;border:none;border-radius:10px;font-weight:600;cursor:pointer}
+  .btn[disabled]{opacity:.4;cursor:not-allowed}
+  .note{color:#8b91a1;font-size:12px}
+  .scope{background:#0a0b12;border:1px solid #222;border-radius:12px;height:240px}
+  .mono{opacity:.9}
+  .kbd{font:12px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;color:#aab;user-select:text}
+  .sep{height:1px;background:#1d2030;margin:10px 0}
+  label{display:flex;justify-content:space-between;gap:8px}
+  .val{color:#9fb;min-width:70px;text-align:right}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="sidebar">
+    <h1>Vhikk‑style Stereo Cluster Synth</h1>
+    <button id="btnStart" class="btn">Start Audio</button>
+    <div class="sep"></div>
+
+    <fieldset>
+      <legend>Global</legend>
+      <div class="row"><label>Output Gain <span class="val" id="v_out">-</span></label>
+        <input id="outGain" type="range" min="-36" max="0" step="0.1" value="-10"></div>
+      <div class="row"><label>Dry/Wet (FX) <span class="val" id="v_mix">-</span></label>
+        <input id="mix" type="range" min="0" max="1" step="0.001" value="0.35"></div>
+      <div class="row"><label>Shifter Mix <span class="val" id="v_smx">-</span></label>
+        <input id="shiftMix" type="range" min="0" max="1" step="0.001" value="0.25"></div>
+      <div class="row"><label>Shifter Freq (Hz) <span class="val" id="v_sfq">-</span></label>
+        <input id="shiftHz" type="range" min="0" max="40" step="0.1" value="6"></div>
+      <div class="row"><label>FX Time (s) <span class="val" id="v_dly">-</span></label>
+        <input id="fxTime" type="range" min="0.01" max="1.2" step="0.001" value="0.22"></div>
+      <div class="row"><label>Feedback <span class="val" id="v_fb">-</span></label>
+        <input id="feedback" type="range" min="0" max="0.97" step="0.001" value="0.55"></div>
+      <div class="row"><label>Diffuse (allpass) <span class="val" id="v_diff">-</span></label>
+        <input id="diffuse" type="range" min="0" max="1" step="0.001" value="0.6"></div>
+      <div class="row"><label>Mod Rate (Hz) <span class="val" id="v_mr">-</span></label>
+        <input id="modRate" type="range" min="0.05" max="8" step="0.01" value="0.3"></div>
+      <div class="row"><label>Mod Depth (ms) <span class="val" id="v_md">-</span></label>
+        <input id="modDepth" type="range" min="0" max="25" step="0.1" value="6"></div>
+    </fieldset>
+
+    <div class="sep"></div>
+
+    <div class="cols">
+      <fieldset>
+        <legend>Left Generator</legend>
+        <div class="row"><label>Pitch (Hz) <span class="val" id="v_lf">-</span></label>
+          <input id="L_freq" type="range" min="20" max="2000" step="0.1" value="110"></div>
+        <div class="row"><label>Cluster Size <span class="val" id="v_lcs">-</span></label>
+          <input id="L_count" type="range" min="1" max="6" step="1" value="4"></div>
+        <div class="row"><label>Cluster Detune (cent) <span class="val" id="v_ld">-</span></label>
+          <input id="L_spread" type="range" min="0" max="50" step="0.1" value="12"></div>
+        <div class="row"><label>Warp (FM index) <span class="val" id="v_lw">-</span></label>
+          <input id="L_fmIndex" type="range" min="0" max="1200" step="1" value="120"></div>
+        <div class="row"><label>Morph (sin↔saw) <span class="val" id="v_lm">-</span></label>
+          <input id="L_morph" type="range" min="0" max="1" step="0.001" value="0.35"></div>
+        <div class="row"><label>Fold (waveshaper) <span class="val" id="v_lfo">-</span></label>
+          <input id="L_fold" type="range" min="0" max="1" step="0.001" value="0.2"></div>
+        <div class="row"><label>Filter Cutoff (Hz) <span class="val" id="v_lc">-</span></label>
+          <input id="L_cut" type="range" min="80" max="10000" step="1" value="3000"></div>
+        <div class="row"><label>Filter Q <span class="val" id="v_lq">-</span></label>
+          <input id="L_q" type="range" min="0.2" max="18" step="0.01" value="0.8"></div>
+        <div class="row"><label>Pan <span class="val" id="v_lp">-</span></label>
+          <input id="L_pan" type="range" min="-1" max="1" step="0.001" value="-0.6"></div>
+        <div class="row"><label>Level (dB) <span class="val" id="v_ll">-</span></label>
+          <input id="L_level" type="range" min="-36" max="0" step="0.1" value="-6"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Right Generator</legend>
+        <div class="row"><label>Pitch (Hz) <span class="val" id="v_rf">-</span></label>
+          <input id="R_freq" type="range" min="20" max="2000" step="0.1" value="147"></div>
+        <div class="row"><label>Cluster Size <span class="val" id="v_rcs">-</span></label>
+          <input id="R_count" type="range" min="1" max="6" step="1" value="4"></div>
+        <div class="row"><label>Cluster Detune (cent) <span class="val" id="v_rd">-</span></label>
+          <input id="R_spread" type="range" min="0" max="50" step="0.1" value="12"></div>
+        <div class="row"><label>Warp (FM index) <span class="val" id="v_rw">-</span></label>
+          <input id="R_fmIndex" type="range" min="0" max="1200" step="1" value="180"></div>
+        <div class="row"><label>Morph (sin↔saw) <span class="val" id="v_rm">-</span></label>
+          <input id="R_morph" type="range" min="0" max="1" step="0.001" value="0.6"></div>
+        <div class="row"><label>Fold (waveshaper) <span class="val" id="v_rfo">-</span></label>
+          <input id="R_fold" type="range" min="0" max="1" step="0.001" value="0.25"></div>
+        <div class="row"><label>Filter Cutoff (Hz) <span class="val" id="v_rc">-</span></label>
+          <input id="R_cut" type="range" min="80" max="10000" step="1" value="3200"></div>
+        <div class="row"><label>Filter Q <span class="val" id="v_rq">-</span></label>
+          <input id="R_q" type="range" min="0.2" max="18" step="0.01" value="0.9"></div>
+        <div class="row"><label>Pan <span class="val" id="v_rp">-</span></label>
+          <input id="R_pan" type="range" min="-1" max="1" step="0.001" value="0.6"></div>
+        <div class="row"><label>Level (dB) <span class="val" id="v_rl">-</span></label>
+          <input id="R_level" type="range" min="-36" max="0" step="0.1" value="-6"></div>
+      </fieldset>
+    </div>
+
+    <div class="sep"></div>
+    <div class="note kbd">Space: mute/unmute · Double‑click scope to reset meters.</div>
+  </aside>
+
+  <section class="main">
+    <h2>Output Scope (stereo)</h2>
+    <canvas id="scope" class="scope" width="1000" height="240"></canvas>
+    <div class="meter" title="Output meter (peak)"><div class="bar" id="mbar"></div></div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const $ = sel => document.querySelector(sel);
+  const ctxVals = new Map();
+  const fmtdB = v => `${(+v).toFixed(1)} dB`;
+  const fmt = v => `${(+v).toFixed(3)}`;
+
+  // UI value mirrors
+  const vmap = {
+    outGain:['#outGain','#v_out',fmtdB], mix:['#mix','#v_mix',fmt],
+    shiftMix:['#shiftMix','#v_smx',fmt], shiftHz:['#shiftHz','#v_sfq',fmt],
+    fxTime:['#fxTime','#v_dly',fmt], feedback:['#feedback','#v_fb',fmt],
+    diffuse:['#diffuse','#v_diff',fmt], modRate:['#modRate','#v_mr',fmt],
+    modDepth:['#modDepth','#v_md',v=>`${(+v).toFixed(1)} ms`],
+    L_freq:['#L_freq','#v_lf',fmt], L_count:['#L_count','#v_lcs',v=>v], L_spread:['#L_spread','#v_ld',v=>`${(+v).toFixed(1)} c`],
+    L_fmIndex:['#L_fmIndex','#v_lw',v=>`${(+v).toFixed(0)} c`], L_morph:['#L_morph','#v_lm',fmt], L_fold:['#L_fold','#v_lfo',fmt],
+    L_cut:['#L_cut','#v_lc',v=>`${(+v).toFixed(0)} Hz`], L_q:['#L_q','#v_lq',fmt], L_pan:['#L_pan','#v_lp',fmt], L_level:['#L_level','#v_ll',fmtdB],
+    R_freq:['#R_freq','#v_rf',fmt], R_count:['#R_count','#v_rcs',v=>v], R_spread:['#R_spread','#v_rd',v=>`${(+v).toFixed(1)} c`],
+    R_fmIndex:['#R_fmIndex','#v_rw',v=>`${(+v).toFixed(0)} c`], R_morph:['#R_morph','#v_rm',fmt], R_fold:['#R_fold','#v_rfo',fmt],
+    R_cut:['#R_cut','#v_rc',v=>`${(+v).toFixed(0)} Hz`], R_q:['#R_q','#v_rq',fmt], R_pan:['#R_pan','#v_rp',fmt], R_level:['#R_level','#v_rl',fmtdB]
+  };
+  for (const k in vmap){
+    const [is, vs, f] = vmap[k];
+    const input = $(is), view=$(vs);
+    view.textContent = f(input.value);
+    input.addEventListener('input', () => view.textContent = f(input.value));
+  }
+
+  // Audio graph
+  let AC, master, oscL = [], oscR = [],
+      L = {}, R = {}, fx = {}, analyser, muting=false;
+
+  // Utility
+  const dbToGain = db => Math.pow(10, db/20);
+  function makePeriodicWave(context, morph){
+    // morph: 0 = sine, 1 = saw
+    const N = 64;
+    const re = new Float32Array(N), im = new Float32Array(N);
+    // sine part (k=1)
+    im[1] = (1 - morph);
+    // saw part: sum 1/k, alternating sign for sine series (imag)
+    for(let k=1;k<N;k++){
+      im[k] += morph * ( (k%2?1:-1) * (1/k) );
+    }
+    return context.createPeriodicWave(re, im, {disableNormalization:false});
+  }
+  function makeWaveshaper(amount){
+    const n=2048; const s=new Float32Array(n);
+    const a = Math.max(0.0001, amount); // 0..1
+    for(let i=0;i<n;i++){
+      const x = (i/(n-1))*2-1; // -1..1
+      // Soft fold: sine fold + tanh blend controlled by a
+      const fold = Math.sin(3*x);
+      const sat = Math.tanh(2.5*x);
+      s[i] = (1-a)*sat + a*fold;
+    }
+    const sh = AC.createWaveShaper();
+    sh.curve = s; sh.oversample = '4x';
+    return sh;
+  }
+  function makeCluster(channel){
+    const baseHz = +$(channel+"_freq").value;
+    const count  = +$(channel+"_count").value|0;
+    const spread = +$(channel+"_spread").value; // cents
+    const morph  = +$(channel+"_morph").value;
+    const fmCents= +$(channel+"_fmIndex").value; // connect to detune
+
+    const out = AC.createGain(); out.gain.value = 1.0;
+
+    // Common modulator for FM via detune (AudioParam)
+    const mod = AC.createOscillator();
+    mod.type = 'sine'; mod.frequency.value = baseHz; // ratio 1:1 simple PM-like
+    const modGain = AC.createGain(); modGain.gain.value = fmCents; // cents
+    mod.connect(modGain);
+
+    const osc = [];
+    const pw = makePeriodicWave(AC, morph);
+
+    for(let i=0;i<count;i++){
+      const o = AC.createOscillator();
+      o.setPeriodicWave(pw);
+      const frac = (i - (count-1)/2) / Math.max(1,(count-1));
+      const det = frac * spread; // cents
+      o.frequency.value = baseHz;
+      // detune is in cents; sum static detune + modulator
+      const sum = AC.createGain(); sum.gain.value = 1.0; // signal adder for detune
+      const dc = AC.createConstantSource(); dc.offset.value = det; dc.start();
+      dc.connect(sum);
+      modGain.connect(sum);
+      sum.connect(o.detune);
+
+      // Per‑osc chain: shaper -> filter -> pan -> sum
+      const sh = makeWaveshaper(+$(channel+"_fold").value);
+      const biq = AC.createBiquadFilter(); biq.type='lowpass';
+      biq.frequency.value = +$(channel+"_cut").value;
+      biq.Q.value = +$(channel+"_q").value;
+
+      const pan = AC.createStereoPanner(); pan.pan.value = +$(channel+"_pan").value;
+      o.connect(sh).connect(biq).connect(pan).connect(out);
+
+      o.start();
+      osc.push({o, sh, biq, pan, sum, dc});
+    }
+
+    mod.start();
+    return {group:out, osc, mod, modGain};
+  }
+
+  function rebuildChannel(which){
+    // tear down previous
+    const S = which==='L'?L:R;
+    if (S.group){ try{ S.mod.stop(); }catch{}
+      S.osc?.forEach(x=>{ try{x.o.stop();}catch{} });
+    }
+    const made = makeCluster('#'+which);
+    if (which==='L') L = made; else R = made;
+    // route to pre‑FX bus with per‑channel level
+    const lvl = AC.createGain();
+    lvl.gain.value = dbToGain(+$('#'+which+'_level').value);
+    made.group.connect(lvl).connect(fx.pre);
+    // retain to allow future updates
+    if (which==='L') L.lvl = lvl; else R.lvl = lvl;
+  }
+
+  function buildFX(){
+    fx = {};
+    fx.pre = AC.createGain(); fx.pre.gain.value = 1;
+
+    // Stereo delay with diffusion and feedback network
+    fx.delayL = AC.createDelay(1.5);
+    fx.delayR = AC.createDelay(1.5);
+
+    // Allpass diffusion blocks (simple pair per side)
+    function mkAllpass(time){
+      const ap = AC.createBiquadFilter(); ap.type='allpass'; ap.frequency.value = 1000 + 3000*Math.random(); ap.Q.value = 0.7 + 1.3*Math.random();
+      return ap;
+    }
+    fx.apL1 = mkAllpass(); fx.apL2 = mkAllpass();
+    fx.apR1 = mkAllpass(); fx.apR2 = mkAllpass();
+
+    // Feedback path
+    fx.fbL = AC.createGain(); fx.fbR = AC.createGain();
+
+    // Simple ring‑mod "shifter" (approximate) placed in feedback blend
+    fx.shiftOscL = AC.createOscillator(); fx.shiftOscR = AC.createOscillator();
+    fx.shiftOscL.type='sine'; fx.shiftOscR.type='sine';
+    fx.shiftGainL = AC.createGain(); fx.shiftGainR = AC.createGain();
+
+    // Ring mod implementation with GainNode as multiplier via AudioWorklet fallback
+    // Here: use periodic modulation as AM; it is not true SSB frequency shift, but approximates spectral shift.
+    fx.mulL = AC.createGain(); fx.mulR = AC.createGain(); fx.mulL.gain.value=0; fx.mulR.gain.value=0;
+
+    // Wet/Dry
+    fx.wet = AC.createGain(); fx.dry = AC.createGain();
+
+    // Modulation of delay time
+    fx.modL = AC.createOscillator(); fx.modR = AC.createOscillator();
+    fx.modGainL = AC.createGain(); fx.modGainR = AC.createGain();
+
+    // Routing
+    // pre -> split L/R via channelMerger like pan: we feed stereo already; use channel splitter if needed
+    fx.split = AC.createChannelSplitter(2);
+    fx.merge = AC.createChannelMerger(2);
+
+    fx.pre.connect(fx.split);
+
+    // Left chain: split[0] -> delayL -> apL1 -> apL2 -> fb mix -> merge ch0
+    fx.split.connect(fx.delayL,0);
+    fx.delayL.connect(fx.apL1).connect(fx.apL2).connect(fx.fbL)
+               .connect(fx.mulL).connect(fx.merge,0,0);
+
+    // Right chain
+    fx.split.connect(fx.delayR,1);
+    fx.delayR.connect(fx.apR1).connect(fx.apR2).connect(fx.fbR)
+               .connect(fx.mulR).connect(fx.merge,0,1);
+
+    // Feedback taps: delay outputs back to inputs
+    fx.apL2.connect(fx.delayL);
+    fx.apR2.connect(fx.delayR);
+
+    // Ring‑mod injection: multiply by LFO and mix using shiftMix
+    fx.shiftOscL.connect(fx.shiftGainL).connect(fx.mulL.gain);
+    fx.shiftOscR.connect(fx.shiftGainR).connect(fx.mulR.gain);
+
+    // Wet/Dry out
+    fx.merge.connect(fx.wet);
+    fx.pre.connect(fx.dry);
+
+    // Master
+    master = AC.createGain();
+    const outGain = dbToGain(+$('#outGain').value);
+    master.gain.value = outGain;
+
+    const mix = +$('#mix').value; fx.wet.gain.value = mix; fx.dry.gain.value = 1 - mix;
+
+    // Connect to destination
+    fx.wet.connect(master); fx.dry.connect(master);
+    master.connect(AC.destination);
+
+    // Analyser for scope
+    analyser = AC.createAnalyser(); analyser.fftSize = 2048;
+    master.connect(analyser);
+
+    // Start modulation oscillators
+    fx.modL.type='sine'; fx.modR.type='sine';
+    fx.modL.frequency.value = +$('#modRate').value; fx.modR.frequency.value = +$('#modRate').value * 1.01;
+    fx.modGainL.gain.value = (+$('#modDepth').value)/1000; // seconds
+    fx.modGainR.gain.value = (+$('#modDepth').value)/1000;
+    fx.modL.connect(fx.modGainL).connect(fx.delayL.delayTime);
+    fx.modR.connect(fx.modGainR).connect(fx.delayR.delayTime);
+    fx.modL.start(); fx.modR.start();
+
+    fx.shiftOscL.frequency.value = +$('#shiftHz').value;
+    fx.shiftOscR.frequency.value = +$('#shiftHz').value * 1.003;
+    fx.shiftGainL.gain.value = +$('#shiftMix').value;
+    fx.shiftGainR.gain.value = +$('#shiftMix').value;
+    fx.shiftOscL.start(); fx.shiftOscR.start();
+
+    // Param links
+    const bind = (id, fn) => $(id).addEventListener('input', fn);
+    bind('#fxTime', () => { fx.delayL.delayTime.value = +$('#fxTime').value; fx.delayR.delayTime.value = +$('#fxTime').value; });
+    bind('#feedback', () => { fx.fbL.gain.value = +$('#feedback').value; fx.fbR.gain.value = +$('#feedback').value; });
+    bind('#diffuse', () => { const d = +$('#diffuse').value; fx.apL1.Q.value=0.5+2*d; fx.apL2.Q.value=0.5+2.5*d; fx.apR1.Q.value=0.5+2*d; fx.apR2.Q.value=0.5+2.5*d; });
+    bind('#modRate', () => { fx.modL.frequency.value = +$('#modRate').value; fx.modR.frequency.value = +$('#modRate').value*1.01; });
+    bind('#modDepth', () => { fx.modGainL.gain.value = (+$('#modDepth').value)/1000; fx.modGainR.gain.value = (+$('#modDepth').value)/1000; });
+    bind('#shiftHz', () => { fx.shiftOscL.frequency.value = +$('#shiftHz').value; fx.shiftOscR.frequency.value = +$('#shiftHz').value*1.003; });
+    bind('#shiftMix', () => { fx.shiftGainL.gain.value = +$('#shiftMix').value; fx.shiftGainR.gain.value = +$('#shiftMix').value; });
+    bind('#mix', () => { fx.wet.gain.value = +$('#mix').value; fx.dry.gain.value = 1- +$('#mix').value; });
+
+    // Safety: limit feedback by clamping
+    const clk = () => { const g = +$('#feedback').value; const cl = Math.min(0.97, Math.max(0, g)); fx.fbL.gain.value = cl; fx.fbR.gain.value = cl; };
+    setInterval(clk, 100);
+  }
+
+  function attachParamUpdates(){
+    const updChan = (which) => {
+      const W = which==='L'?L:R; const p = which==='L'?'#L_':'#R_';
+      const freq = +$(p+'freq').value;
+      const morph= +$(p+'morph').value;
+      const fold = +$(p+'fold').value;
+      const cut  = +$(p+'cut').value;
+      const q    = +$(p+'q').value;
+      const pan  = +$(p+'pan').value;
+      const lvl  = dbToGain(+$(p+'level').value);
+      const fmix = +$(p+'fmIndex').value;
+      // update shared modulator
+      if (W.mod){ W.mod.frequency.setTargetAtTime(freq, AC.currentTime, 0.01);
+                  W.modGain.gain.setTargetAtTime(fmix, AC.currentTime, 0.02); }
+      const pw = makePeriodicWave(AC, morph);
+      W.osc.forEach(x => {
+        x.o.setPeriodicWave(pw);
+        x.biq.frequency.setTargetAtTime(cut, AC.currentTime, 0.01);
+        x.biq.Q.setTargetAtTime(q, AC.currentTime, 0.01);
+        x.pan.pan.setTargetAtTime(pan, AC.currentTime, 0.01);
+        const sh = makeWaveshaper(fold); x.o.disconnect(); x.o.connect(sh).connect(x.biq).connect(x.pan);
+      });
+      W.lvl.gain.setTargetAtTime(lvl, AC.currentTime, 0.02);
+    };
+
+    const bind = (sel, fn) => $(sel).addEventListener('input', fn);
+
+    // Structural updates require rebuild: count or spread changes
+    const rebuildOn = ['#L_count','#L_spread','#R_count','#R_spread'];
+    rebuildOn.forEach(id => $(id).addEventListener('change', () => {
+      rebuildChannel(id[1]); // 'L' or 'R'
+    }));
+
+    // Continuous controls
+    ['#L_freq','#L_morph','#L_fold','#L_cut','#L_q','#L_pan','#L_level','#L_fmIndex']
+      .forEach(id => bind(id, ()=>updChan('L')));
+    ['#R_freq','#R_morph','#R_fold','#R_cut','#R_q','#R_pan','#R_level','#R_fmIndex']
+      .forEach(id => bind(id, ()=>updChan('R')));
+
+    // Output gain
+    $('#outGain').addEventListener('input',()=>{
+      master.gain.setTargetAtTime(dbToGain(+$('#outGain').value), AC.currentTime, 0.01);
+    });
+  }
+
+  function scope(){
+    const cvs = $('#scope'); const c = cvs.getContext('2d');
+    const W = cvs.width, H=cvs.height;
+    const buf = new Float32Array(analyser.fftSize);
+    const meter = $('#mbar');
+    function draw(){
+      requestAnimationFrame(draw);
+      analyser.getFloatTimeDomainData(buf);
+      c.clearRect(0,0,W,H);
+      // split into two pseudo‑channels by sampling even/odd indices (approximation)
+      c.strokeStyle = '#7aa2f7'; c.lineWidth=1.5; c.beginPath();
+      let peak=0;
+      for(let i=0;i<W;i++){
+        const idx = (i*buf.length/W)|0; const v = buf[idx]; peak=Math.max(peak,Math.abs(v));
+        const y = (0.5 - v*0.45) * H;
+        i?c.lineTo(i,y):c.moveTo(i,y);
+      }
+      c.stroke();
+      // Meter
+      meter.style.width = (Math.min(1,peak)*100)+"%";
+    }
+    draw();
+    cvs.ondblclick = ()=>{ meter.style.width='0%'; };
+  }
+
+  function start(){
+    if (AC) return;
+    AC = new (window.AudioContext || window.webkitAudioContext)({sampleRate: 48000});
+    buildFX();
+    rebuildChannel('L');
+    rebuildChannel('R');
+    attachParamUpdates();
+
+    // Global feedback and time init
+    fx.delayL.delayTime.value = +$('#fxTime').value;
+    fx.delayR.delayTime.value = +$('#fxTime').value;
+    fx.fbL.gain.value = +$('#feedback').value;
+    fx.fbR.gain.value = +$('#feedback').value;
+
+    // Keyboard mute toggle
+    window.addEventListener('keydown', (e)=>{
+      if (e.code==='Space'){ e.preventDefault(); muting=!muting; master.gain.setTargetAtTime(muting?0:dbToGain(+$('#outGain').value), AC.currentTime, 0.01); }
+    });
+
+    scope();
+  }
+
+  $('#btnStart').onclick = async () => {
+    await start(); $('#btnStart').disabled = true; $('#btnStart').textContent='Running';
+  };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cluster Synth • Stereo + Gamepad</title>
+  <link rel="stylesheet" href="cluster.css" />
+</head>
+<body>
+  <div id="app" class="cl-wrap">
+    <aside class="cl-side">
+      <h1 class="cl-h">Cluster Synth</h1>
+      <button id="cl-start" class="cl-btn">Start Audio</button>
+      <div class="cl-sep"></div>
+
+      <fieldset class="cl-fs"><legend>Global</legend>
+        <div class="cl-row"><label>Output Gain <span data-val="outGain"></span></label>
+          <input data-param="outGain" type="range" min="-36" max="0" step="0.1" value="-10"></div>
+        <div class="cl-row"><label>Dry/Wet <span data-val="mix"></span></label>
+          <input data-param="mix" type="range" min="0" max="1" step="0.001" value="0.35"></div>
+        <div class="cl-row"><label>Shifter Mix <span data-val="shiftMix"></span></label>
+          <input data-param="shiftMix" type="range" min="0" max="1" step="0.001" value="0.25"></div>
+        <div class="cl-row"><label>Shifter Freq (Hz) <span data-val="shiftHz"></span></label>
+          <input data-param="shiftHz" type="range" min="0" max="40" step="0.1" value="6"></div>
+        <div class="cl-row"><label>FX Time (s) <span data-val="fxTime"></span></label>
+          <input data-param="fxTime" type="range" min="0.01" max="1.2" step="0.001" value="0.22"></div>
+        <div class="cl-row"><label>Feedback <span data-val="feedback"></span></label>
+          <input data-param="feedback" type="range" min="0" max="0.97" step="0.001" value="0.55"></div>
+        <div class="cl-row"><label>Diffuse <span data-val="diffuse"></span></label>
+          <input data-param="diffuse" type="range" min="0" max="1" step="0.001" value="0.6"></div>
+        <div class="cl-row"><label>Mod Rate (Hz) <span data-val="modRate"></span></label>
+          <input data-param="modRate" type="range" min="0.05" max="8" step="0.01" value="0.3"></div>
+        <div class="cl-row"><label>Mod Depth (ms) <span data-val="modDepth"></span></label>
+          <input data-param="modDepth" type="range" min="0" max="25" step="0.1" value="6"></div>
+      </fieldset>
+
+      <div class="cl-sep"></div>
+
+      <div class="cl-cols">
+        <fieldset class="cl-fs"><legend>Left Generator</legend>
+          <div class="cl-row"><label>Pitch (Hz) <span data-val="L_freq"></span></label>
+            <input data-param="L_freq" type="range" min="20" max="2000" step="0.1" value="110"></div>
+          <div class="cl-row"><label>Cluster Size <span data-val="L_count"></span></label>
+            <input data-param="L_count" type="range" min="1" max="6" step="1" value="4"></div>
+          <div class="cl-row"><label>Detune (cents) <span data-val="L_spread"></span></label>
+            <input data-param="L_spread" type="range" min="0" max="50" step="0.1" value="12"></div>
+          <div class="cl-row"><label>Warp (FM idx c) <span data-val="L_fmIndex"></span></label>
+            <input data-param="L_fmIndex" type="range" min="0" max="1200" step="1" value="120"></div>
+          <div class="cl-row"><label>Morph (sin↔saw) <span data-val="L_morph"></span></label>
+            <input data-param="L_morph" type="range" min="0" max="1" step="0.001" value="0.35"></div>
+          <div class="cl-row"><label>Fold <span data-val="L_fold"></span></label>
+            <input data-param="L_fold" type="range" min="0" max="1" step="0.001" value="0.2"></div>
+          <div class="cl-row"><label>Cutoff (Hz) <span data-val="L_cut"></span></label>
+            <input data-param="L_cut" type="range" min="80" max="10000" step="1" value="3000"></div>
+          <div class="cl-row"><label>Q <span data-val="L_q"></span></label>
+            <input data-param="L_q" type="range" min="0.2" max="18" step="0.01" value="0.8"></div>
+          <div class="cl-row"><label>Pan <span data-val="L_pan"></span></label>
+            <input data-param="L_pan" type="range" min="-1" max="1" step="0.001" value="-0.6"></div>
+          <div class="cl-row"><label>Level (dB) <span data-val="L_level"></span></label>
+            <input data-param="L_level" type="range" min="-36" max="0" step="0.1" value="-6"></div>
+        </fieldset>
+
+        <fieldset class="cl-fs"><legend>Right Generator</legend>
+          <div class="cl-row"><label>Pitch (Hz) <span data-val="R_freq"></span></label>
+            <input data-param="R_freq" type="range" min="20" max="2000" step="0.1" value="147"></div>
+          <div class="cl-row"><label>Cluster Size <span data-val="R_count"></span></label>
+            <input data-param="R_count" type="range" min="1" max="6" step="1" value="4"></div>
+          <div class="cl-row"><label>Detune (cents) <span data-val="R_spread"></span></label>
+            <input data-param="R_spread" type="range" min="0" max="50" step="0.1" value="12"></div>
+          <div class="cl-row"><label>Warp (FM idx c) <span data-val="R_fmIndex"></span></label>
+            <input data-param="R_fmIndex" type="range" min="0" max="1200" step="1" value="180"></div>
+          <div class="cl-row"><label>Morph (sin↔saw) <span data-val="R_morph"></span></label>
+            <input data-param="R_morph" type="range" min="0" max="1" step="0.001" value="0.6"></div>
+          <div class="cl-row"><label>Fold <span data-val="R_fold"></span></label>
+            <input data-param="R_fold" type="range" min="0" max="1" step="0.001" value="0.25"></div>
+          <div class="cl-row"><label>Cutoff (Hz) <span data-val="R_cut"></span></label>
+            <input data-param="R_cut" type="range" min="80" max="10000" step="1" value="3200"></div>
+          <div class="cl-row"><label>Q <span data-val="R_q"></span></label>
+            <input data-param="R_q" type="range" min="0.2" max="18" step="0.01" value="0.9"></div>
+          <div class="cl-row"><label>Pan <span data-val="R_pan"></span></label>
+            <input data-param="R_pan" type="range" min="-1" max="1" step="0.001" value="0.6"></div>
+          <div class="cl-row"><label>Level (dB) <span data-val="R_level"></span></label>
+            <input data-param="R_level" type="range" min="-36" max="0" step="0.1" value="-6"></div>
+        </fieldset>
+      </div>
+    </aside>
+
+    <section class="cl-main">
+      <h2 class="cl-sub">Output Scope</h2>
+      <canvas id="cl-scope" class="cl-scope" width="1000" height="260"></canvas>
+      <div class="cl-meter"><div class="cl-bar" id="cl-mbar"></div></div>
+    </section>
+  </div>
+
+  <!-- unobtrusive mapping widget -->
+  <div id="cl-mapfab" class="cl-mapfab" title="Gamepad mapping">🎛️</div>
+  <div id="cl-mapdock" class="cl-mapdock" hidden>
+    <header>Gamepad Map <button id="cl-closemap" class="cl-x">×</button></header>
+    <div class="cl-mapbody">
+      <div class="cl-maprow"><label>Mode</label>
+        <select id="cl-mapmode"><option value="off">Off</option><option value="learn">Learn</option><option value="view">View</option></select>
+      </div>
+      <div class="cl-maprow"><label>Deadzone</label>
+        <input id="cl-deadzone" type="range" min="0" max="0.5" step="0.01" value="0.1"><span data-val="dead"></span>
+      </div>
+      <div class="cl-maplog" id="cl-maplog"></div>
+    </div>
+  </div>
+
+  <script src="cluster.js"></script>
+</body>
+</html>

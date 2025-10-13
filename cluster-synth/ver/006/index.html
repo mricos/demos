@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CLUSTER • Modular Panels</title>
+  <link rel="stylesheet" href="cluster.css" />
+</head>
+<body>
+  <div id="hud" role="banner" aria-label="Heads-up Display">
+    <button id="btn-audio" class="cl-btn">Start Audio</button>
+    <div class="hud-right">
+      <span id="status-audio" class="badge">audio: off</span>
+      <span id="status-gp" class="badge">gamepad: none</span>
+      <span id="status-fps" class="badge">fps: --</span>
+      <span id="status-bpm" class="badge">bpm: 120</span>
+    </div>
+  </div>
+
+  <!-- joystick cursor overlay -->
+  <div id="gp-cursor" aria-hidden="true"></div>
+
+  <!-- FAB stack -->
+  <nav id="fab-stack" aria-label="Module Launcher">
+    <button class="fab" data-open="#panel-control1" title="Control.1">C1</button>
+    <button class="fab" data-open="#panel-control2" title="Control.2">C2</button>
+    <button class="fab" data-open="#panel-control3" title="Control.3">C3</button>
+    <button class="fab" data-open="#panel-scope" title="Scope">SC</button>
+    <button class="fab" data-open="#panel-gamepad" title="Gamepad">GP</button>
+    <button class="fab" data-open="#panel-mapper" title="Mapper">MP</button>
+    <button class="fab" data-open="#panel-log" title="Log">LG</button>
+    <button class="fab" data-open="#panel-pubsub" title="PubSub">PS</button>
+  </nav>
+
+  <!-- Panels -->
+  <section id="panel-control1" class="panel" role="dialog" aria-label="Control Module 1: Global/FX">
+    <header>
+      <span class="title">Control.1 • Global & FX</span>
+      <div class="actions">
+        <button class="iconbtn" data-close="#panel-control1">Close</button>
+      </div>
+    </header>
+    <div class="panel-body">
+      <fieldset class="cl-fs">
+        <legend>Global</legend>
+        <div class="cl-row">
+          <label for="outGain">Output Gain <span class="val" data-val="outGain"></span></label>
+          <input id="outGain" data-param="outGain" type="range" min="-36" max="0" step="0.1" value="-10" />
+        </div>
+        <div class="cl-row">
+          <label for="mix">Dry/Wet <span class="val" data-val="mix"></span></label>
+          <input id="mix" data-param="mix" type="range" min="0" max="1" step="0.001" value="0.35" />
+        </div>
+      </fieldset>
+
+      <fieldset class="cl-fs">
+        <legend>FX</legend>
+        <div class="cl-row"><label for="shiftMix">Shifter Mix <span class="val" data-val="shiftMix"></span></label><input id="shiftMix" data-param="shiftMix" type="range" min="0" max="1" step="0.001" value="0.25" /></div>
+        <div class="cl-row"><label for="shiftHz">Shifter Freq (Hz) <span class="val" data-val="shiftHz"></span></label><input id="shiftHz" data-param="shiftHz" type="range" min="0" max="40" step="0.1" value="6" /></div>
+        <div class="cl-row"><label for="fxTime">FX Time (s) <span class="val" data-val="fxTime"></span></label><input id="fxTime" data-param="fxTime" type="range" min="0.01" max="1.2" step="0.001" value="0.22" /></div>
+        <div class="cl-row"><label for="feedback">Feedback <span class="val" data-val="feedback"></span></label><input id="feedback" data-param="feedback" type="range" min="0" max="0.97" step="0.001" value="0.55" /></div>
+        <div class="cl-row"><label for="diffuse">Diffuse <span class="val" data-val="diffuse"></span></label><input id="diffuse" data-param="diffuse" type="range" min="0" max="1" step="0.001" value="0.6" /></div>
+        <div class="cl-row"><label for="modRate">Mod Rate (Hz) <span class="val" data-val="modRate"></span></label><input id="modRate" data-param="modRate" type="range" min="0.05" max="8" step="0.01" value="0.3" /></div>
+        <div class="cl-row"><label for="modDepth">Mod Depth (ms) <span class="val" data-val="modDepth"></span></label><input id="modDepth" data-param="modDepth" type="range" min="0" max="25" step="0.1" value="6" /></div>
+      </fieldset>
+
+      <div class="meter-wrap">
+        <div class="cl-meter" aria-label="Peak Meter"><div class="cl-bar" id="cl-mbar"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-control2" class="panel" role="dialog" aria-label="Control Module 2: Left Generator">
+    <header>
+      <span class="title">Control.2 • Left Generator</span>
+      <div class="actions"><button class="iconbtn" data-close="#panel-control2">Close</button></div>
+    </header>
+    <div class="panel-body">
+      <fieldset class="cl-fs">
+        <legend>Left Generator</legend>
+        <div class="cl-grid2">
+          <div class="cl-row"><label>Pitch (Hz) <span class="val" data-val="L_freq"></span></label><input data-param="L_freq" type="range" min="20" max="2000" step="0.1" value="110" /></div>
+          <div class="cl-row"><label>Cluster Size <span class="val" data-val="L_count"></span></label><input data-param="L_count" type="range" min="1" max="6" step="1" value="4" /></div>
+          <div class="cl-row"><label>Detune (cents) <span class="val" data-val="L_spread"></span></label><input data-param="L_spread" type="range" min="0" max="50" step="0.1" value="12" /></div>
+          <div class="cl-row"><label>Warp (FM idx c) <span class="val" data-val="L_fmIndex"></span></label><input data-param="L_fmIndex" type="range" min="0" max="1200" step="1" value="120" /></div>
+          <div class="cl-row"><label>Morph <span class="val" data-val="L_morph"></span></label><input data-param="L_morph" type="range" min="0" max="1" step="0.001" value="0.35" /></div>
+          <div class="cl-row"><label>Fold <span class="val" data-val="L_fold"></span></label><input data-param="L_fold" type="range" min="0" max="1" step="0.001" value="0.2" /></div>
+          <div class="cl-row"><label>Cutoff (Hz) <span class="val" data-val="L_cut"></span></label><input data-param="L_cut" type="range" min="80" max="10000" step="1" value="3000" /></div>
+          <div class="cl-row"><label>Q <span class="val" data-val="L_q"></span></label><input data-param="L_q" type="range" min="0.2" max="18" step="0.01" value="0.8" /></div>
+          <div class="cl-row"><label>Pan <span class="val" data-val="L_pan"></span></label><input data-param="L_pan" type="range" min="-1" max="1" step="0.001" value="-0.6" /></div>
+          <div class="cl-row"><label>Level (dB) <span class="val" data-val="L_level"></span></label><input data-param="L_level" type="range" min="-36" max="0" step="0.1" value="-6" /></div>
+        </div>
+      </fieldset>
+    </div>
+  </section>
+
+  <section id="panel-control3" class="panel" role="dialog" aria-label="Control Module 3: Right Generator">
+    <header>
+      <span class="title">Control.3 • Right Generator</span>
+      <div class="actions"><button class="iconbtn" data-close="#panel-control3">Close</button></div>
+    </header>
+    <div class="panel-body">
+      <fieldset class="cl-fs">
+        <legend>Right Generator</legend>
+        <div class="cl-grid2">
+          <div class="cl-row"><label>Pitch (Hz) <span class="val" data-val="R_freq"></span></label><input data-param="R_freq" type="range" min="20" max="2000" step="0.1" value="147" /></div>
+          <div class="cl-row"><label>Cluster Size <span class="val" data-val="R_count"></span></label><input data-param="R_count" type="range" min="1" max="6" step="1" value="4" /></div>
+          <div class="cl-row"><label>Detune (cents) <span class="val" data-val="R_spread"></span></label><input data-param="R_spread" type="range" min="0" max="50" step="0.1" value="12" /></div>
+          <div class="cl-row"><label>Warp (FM idx c) <span class="val" data-val="R_fmIndex"></span></label><input data-param="R_fmIndex" type="range" min="0" max="1200" step="1" value="180" /></div>
+          <div class="cl-row"><label>Morph <span class="val" data-val="R_morph"></span></label><input data-param="R_morph" type="range" min="0" max="1" step="0.001" value="0.6" /></div>
+          <div class="cl-row"><label>Fold <span class="val" data-val="R_fold"></span></label><input data-param="R_fold" type="range" min="0" max="1" step="0.001" value="0.25" /></div>
+          <div class="cl-row"><label>Cutoff (Hz) <span class="val" data-val="R_cut"></span></label><input data-param="R_cut" type="range" min="80" max="10000" step="1" value="3200" /></div>
+          <div class="cl-row"><label>Q <span class="val" data-val="R_q"></span></label><input data-param="R_q" type="range" min="0.2" max="18" step="0.01" value="0.9" /></div>
+          <div class="cl-row"><label>Pan <span class="val" data-val="R_pan"></span></label><input data-param="R_pan" type="range" min="-1" max="1" step="0.001" value="0.6" /></div>
+          <div class="cl-row"><label>Level (dB) <span class="val" data-val="R_level"></span></label><input data-param="R_level" type="range" min="-36" max="0" step="0.1" value="-6" /></div>
+        </div>
+      </fieldset>
+    </div>
+  </section>
+
+  <section id="panel-scope" class="panel" role="dialog" aria-label="Scope Module">
+    <header>
+      <span class="title">Scope • Dual Channel</span>
+      <div class="actions"><button class="iconbtn" data-close="#panel-scope">Close</button></div>
+    </header>
+    <div class="panel-body">
+      <div class="card">
+        <canvas id="scopeL" width="1400" height="220" class="cl-scope" aria-label="Left Scope"></canvas>
+      </div>
+      <div class="card">
+        <canvas id="scopeR" width="1400" height="220" class="cl-scope" aria-label="Right Scope"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-gamepad" class="panel" role="dialog" aria-label="Gamepad Module">
+    <header>
+      <span class="title">Gamepad • Dynamics</span>
+      <div class="actions">
+        <button class="iconbtn" id="gp-calib">Calibrate</button>
+        <button class="iconbtn" data-close="#panel-gamepad">Close</button>
+      </div>
+    </header>
+    <div class="panel-body cl-grid2">
+      <div class="card">
+        <h3>Axes</h3>
+        <canvas id="gp-axes" width="1200" height="200" class="cl-scope"></canvas>
+      </div>
+      <div class="card">
+        <h3>Derivatives</h3>
+        <canvas id="gp-deriv" width="1200" height="200" class="cl-scope"></canvas>
+      </div>
+      <div class="card">
+        <h3>Stats</h3>
+        <pre id="gp-stats" class="kbd"></pre>
+      </div>
+      <div class="card">
+        <h3>Events</h3>
+        <pre id="gp-events" class="kbd"></pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-mapper" class="panel" role="dialog" aria-label="Mapper Module">
+    <header>
+      <span class="title">Mapper • Gamepad ↔ Synth</span>
+      <div class="actions">
+        <button class="iconbtn" id="map-clear">Clear</button>
+        <button class="iconbtn" id="map-export">Export Params</button>
+        <button class="iconbtn" data-close="#panel-mapper">Close</button>
+      </div>
+    </header>
+    <div class="panel-body">
+      <table class="map-table" aria-label="Mapping Table">
+        <thead><tr><th>Source</th><th>Parameter</th><th>Scale</th><th>Offset</th><th>Invert</th><th>Deadzone</th><th>Delete</th></tr></thead>
+        <tbody id="map-body"></tbody>
+      </table>
+      <div class="card">
+        <h3>Params JSON</h3>
+        <textarea id="params-json" spellcheck="false"></textarea>
+      </div>
+      <div class="kbd">Right-click a control to learn; move a stick or press a button to bind.</div>
+    </div>
+  </section>
+
+  <section id="panel-log" class="panel" role="dialog" aria-label="Log Module">
+    <header>
+      <span class="title">Log • Time Formats</span>
+      <div class="actions">
+        <label class="row-inline">BPM <input id="log-bpm" type="number" min="10" max="300" step="0.1" value="120"/></label>
+        <button class="iconbtn" id="log-clear">Clear</button>
+        <button class="iconbtn" data-close="#panel-log">Close</button>
+      </div>
+    </header>
+    <div class="panel-body">
+      <table class="log-table" aria-label="Realtime Log">
+        <thead><tr><th>Topic</th><th>Local</th><th>ISO</th><th>Δt (ms)</th><th>Beat</th><th>Payload</th></tr></thead>
+        <tbody id="log-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="panel-pubsub" class="panel" role="dialog" aria-label="PubSub Module">
+    <header>
+      <span class="title">PubSub • Draggable Topic Graph</span>
+      <div class="actions">
+        <span class="kbd">LB+Stick to drag selected • D-Pad to select • A to focus nearest control</span>
+        <button class="iconbtn" data-close="#panel-pubsub">Close</button>
+      </div>
+    </header>
+    <div class="panel-body">
+      <canvas id="bus-canvas" width="1600" height="900" aria-label="PubSub Canvas"></canvas>
+    </div>
+  </section>
+
+  <script src="cluster.js"></script>
+</body>
+</html>
+

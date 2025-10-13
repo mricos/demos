@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cluster Synth • Stereo + Gamepad Lab</title>
+  <link rel="stylesheet" href="cluster.css" />
+</head>
+<body>
+  <div id="app" class="cl-wrap" aria-label="Cluster Synth Application">
+    <aside class="cl-side" role="complementary" aria-label="Control Panel">
+      <h1 class="cl-h" id="title">Cluster Synth</h1>
+      <button id="cl-start" class="cl-btn" aria-describedby="title">Start Audio</button>
+      <div class="cl-sep" role="separator" aria-hidden="true"></div>
+
+      <fieldset class="cl-fs" aria-labelledby="glegend">
+        <legend id="glegend">Global</legend>
+        <div class="cl-row">
+          <label for="outGain">Output Gain <span class="val" data-val="outGain" aria-live="polite"></span></label>
+          <input id="outGain" data-param="outGain" type="range" min="-36" max="0" step="0.1" value="-10" aria-label="Output Gain (dB)" />
+        </div>
+        <div class="cl-row">
+          <label for="mix">Dry/Wet <span class="val" data-val="mix" aria-live="polite"></span></label>
+          <input id="mix" data-param="mix" type="range" min="0" max="1" step="0.001" value="0.35" aria-label="FX Dry Wet Mix" />
+        </div>
+        <div class="cl-row">
+          <label for="shiftMix">Shifter Mix <span class="val" data-val="shiftMix" aria-live="polite"></span></label>
+          <input id="shiftMix" data-param="shiftMix" type="range" min="0" max="1" step="0.001" value="0.25" aria-label="Shifter Mix" />
+        </div>
+        <div class="cl-row">
+          <label for="shiftHz">Shifter Freq (Hz) <span class="val" data-val="shiftHz" aria-live="polite"></span></label>
+          <input id="shiftHz" data-param="shiftHz" type="range" min="0" max="40" step="0.1" value="6" aria-label="Shifter Frequency in Hertz" />
+        </div>
+        <div class="cl-row">
+          <label for="fxTime">FX Time (s) <span class="val" data-val="fxTime" aria-live="polite"></span></label>
+          <input id="fxTime" data-param="fxTime" type="range" min="0.01" max="1.2" step="0.001" value="0.22" aria-label="FX Time Seconds" />
+        </div>
+        <div class="cl-row">
+          <label for="feedback">Feedback <span class="val" data-val="feedback" aria-live="polite"></span></label>
+          <input id="feedback" data-param="feedback" type="range" min="0" max="0.97" step="0.001" value="0.55" aria-label="FX Feedback" />
+        </div>
+        <div class="cl-row">
+          <label for="diffuse">Diffuse <span class="val" data-val="diffuse" aria-live="polite"></span></label>
+          <input id="diffuse" data-param="diffuse" type="range" min="0" max="1" step="0.001" value="0.6" aria-label="Diffusion Amount" />
+        </div>
+        <div class="cl-row">
+          <label for="modRate">Mod Rate (Hz) <span class="val" data-val="modRate" aria-live="polite"></span></label>
+          <input id="modRate" data-param="modRate" type="range" min="0.05" max="8" step="0.01" value="0.3" aria-label="Modulation Rate Hertz" />
+        </div>
+        <div class="cl-row">
+          <label for="modDepth">Mod Depth (ms) <span class="val" data-val="modDepth" aria-live="polite"></span></label>
+          <input id="modDepth" data-param="modDepth" type="range" min="0" max="25" step="0.1" value="6" aria-label="Modulation Depth Milliseconds" />
+        </div>
+      </fieldset>
+
+      <div class="cl-sep" role="separator" aria-hidden="true"></div>
+
+      <div class="cl-cols">
+        <fieldset class="cl-fs" aria-labelledby="llegend">
+          <legend id="llegend">Left Generator</legend>
+          <div class="cl-row">
+            <label for="L_freq">Pitch (Hz) <span class="val" data-val="L_freq" aria-live="polite"></span></label>
+            <input id="L_freq" data-param="L_freq" type="range" min="20" max="2000" step="0.1" value="110" aria-label="Left Pitch Hertz" />
+          </div>
+          <div class="cl-row">
+            <label for="L_count">Cluster Size <span class="val" data-val="L_count" aria-live="polite"></span></label>
+            <input id="L_count" data-param="L_count" type="range" min="1" max="6" step="1" value="4" aria-label="Left Cluster Size" />
+          </div>
+          <div class="cl-row">
+            <label for="L_spread">Detune (cents) <span class="val" data-val="L_spread" aria-live="polite"></span></label>
+            <input id="L_spread" data-param="L_spread" type="range" min="0" max="50" step="0.1" value="12" aria-label="Left Detune Cents" />
+          </div>
+          <div class="cl-row">
+            <label for="L_fmIndex">Warp (FM idx c) <span class="val" data-val="L_fmIndex" aria-live="polite"></span></label>
+            <input id="L_fmIndex" data-param="L_fmIndex" type="range" min="0" max="1200" step="1" value="120" aria-label="Left FM Index Cents" />
+          </div>
+          <div class="cl-row">
+            <label for="L_morph">Morph (sin to saw) <span class="val" data-val="L_morph" aria-live="polite"></span></label>
+            <input id="L_morph" data-param="L_morph" type="range" min="0" max="1" step="0.001" value="0.35" aria-label="Left Morph" />
+          </div>
+          <div class="cl-row">
+            <label for="L_fold">Fold <span class="val" data-val="L_fold" aria-live="polite"></span></label>
+            <input id="L_fold" data-param="L_fold" type="range" min="0" max="1" step="0.001" value="0.2" aria-label="Left Fold" />
+          </div>
+          <div class="cl-row">
+            <label for="L_cut">Cutoff (Hz) <span class="val" data-val="L_cut" aria-live="polite"></span></label>
+            <input id="L_cut" data-param="L_cut" type="range" min="80" max="10000" step="1" value="3000" aria-label="Left Filter Cutoff" />
+          </div>
+          <div class="cl-row">
+            <label for="L_q">Q <span class="val" data-val="L_q" aria-live="polite"></span></label>
+            <input id="L_q" data-param="L_q" type="range" min="0.2" max="18" step="0.01" value="0.8" aria-label="Left Filter Q" />
+          </div>
+          <div class="cl-row">
+            <label for="L_pan">Pan <span class="val" data-val="L_pan" aria-live="polite"></span></label>
+            <input id="L_pan" data-param="L_pan" type="range" min="-1" max="1" step="0.001" value="-0.6" aria-label="Left Pan" />
+          </div>
+          <div class="cl-row">
+            <label for="L_level">Level (dB) <span class="val" data-val="L_level" aria-live="polite"></span></label>
+            <input id="L_level" data-param="L_level" type="range" min="-36" max="0" step="0.1" value="-6" aria-label="Left Level dB" />
+          </div>
+        </fieldset>
+
+        <fieldset class="cl-fs" aria-labelledby="rlegend">
+          <legend id="rlegend">Right Generator</legend>
+          <div class="cl-row">
+            <label for="R_freq">Pitch (Hz) <span class="val" data-val="R_freq" aria-live="polite"></span></label>
+            <input id="R_freq" data-param="R_freq" type="range" min="20" max="2000" step="0.1" value="147" aria-label="Right Pitch Hertz" />
+          </div>
+          <div class="cl-row">
+            <label for="R_count">Cluster Size <span class="val" data-val="R_count" aria-live="polite"></span></label>
+            <input id="R_count" data-param="R_count" type="range" min="1" max="6" step="1" value="4" aria-label="Right Cluster Size" />
+          </div>
+          <div class="cl-row">
+            <label for="R_spread">Detune (cents) <span class="val" data-val="R_spread" aria-live="polite"></span></label>
+            <input id="R_spread" data-param="R_spread" type="range" min="0" max="50" step="0.1" value="12" aria-label="Right Detune Cents" />
+          </div>
+          <div class="cl-row">
+            <label for="R_fmIndex">Warp (FM idx c) <span class="val" data-val="R_fmIndex" aria-live="polite"></span></label>
+            <input id="R_fmIndex" data-param="R_fmIndex" type="range" min="0" max="1200" step="1" value="180" aria-label="Right FM Index Cents" />
+          </div>
+          <div class="cl-row">
+            <label for="R_morph">Morph (sin to saw) <span class="val" data-val="R_morph" aria-live="polite"></span></label>
+            <input id="R_morph" data-param="R_morph" type="range" min="0" max="1" step="0.001" value="0.6" aria-label="Right Morph" />
+          </div>
+          <div class="cl-row">
+            <label for="R_fold">Fold <span class="val" data-val="R_fold" aria-live="polite"></span></label>
+            <input id="R_fold" data-param="R_fold" type="range" min="0" max="1" step="0.001" value="0.25" aria-label="Right Fold" />
+          </div>
+          <div class="cl-row">
+            <label for="R_cut">Cutoff (Hz) <span class="val" data-val="R_cut" aria-live="polite"></span></label>
+            <input id="R_cut" data-param="R_cut" type="range" min="80" max="10000" step="1" value="3200" aria-label="Right Filter Cutoff" />
+          </div>
+          <div class="cl-row">
+            <label for="R_q">Q <span class="val" data-val="R_q" aria-live="polite"></span></label>
+            <input id="R_q" data-param="R_q" type="range" min="0.2" max="18" step="0.01" value="0.9" aria-label="Right Filter Q" />
+          </div>
+          <div class="cl-row">
+            <label for="R_pan">Pan <span class="val" data-val="R_pan" aria-live="polite"></span></label>
+            <input id="R_pan" data-param="R_pan" type="range" min="-1" max="1" step="0.001" value="0.6" aria-label="Right Pan" />
+          </div>
+          <div class="cl-row">
+            <label for="R_level">Level (dB) <span class="val" data-val="R_level" aria-live="polite"></span></label>
+            <input id="R_level" data-param="R_level" type="range" min="-36" max="0" step="0.1" value="-6" aria-label="Right Level dB" />
+          </div>
+        </fieldset>
+      </div>
+    </aside>
+
+    <section class="cl-main" role="main" aria-label="Output">
+      <h2 class="cl-sub">Output Scope (Left / Right)</h2>
+      <div class="scope-grid">
+        <canvas id="scopeL" class="cl-scope" width="800" height="160" aria-label="Left Scope"></canvas>
+        <canvas id="scopeR" class="cl-scope" width="800" height="160" aria-label="Right Scope"></canvas>
+      </div>
+      <div class="cl-meter" aria-label="Peak Meter"><div class="cl-bar" id="cl-mbar"></div></div>
+    </section>
+  </div>
+
+  <!-- FABs -->
+  <button id="fab-scope" class="fab" aria-label="Open Scope Panel">📈</button>
+  <button id="fab-lab" class="fab" aria-label="Open Gamepad Lab">🧪</button>
+  <button id="fab-map" class="fab" aria-label="Open Mapping Panel">🎚️</button>
+
+  <!-- Full-screen Panels -->
+  <section id="panel-scope" class="panel" aria-label="Oscilloscope Panel" aria-modal="true" role="dialog">
+    <header>
+      <span class="title">Oscilloscope</span>
+      <div class="actions">
+        <button class="iconbtn" data-close="#panel-scope" aria-label="Close Scope Panel">Close</button>
+      </div>
+    </header>
+    <div class="panel-body">
+      <div class="card">
+        <h3>Dual-channel Scope</h3>
+        <canvas id="scopeFullL" width="1400" height="280" class="cl-scope" aria-label="Full Left Scope"></canvas>
+        <canvas id="scopeFullR" width="1400" height="280" class="cl-scope" aria-label="Full Right Scope"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-lab" class="panel" aria-label="Gamepad Dynamics Lab" aria-modal="true" role="dialog">
+    <header>
+      <span class="title">Gamepad Dynamics Lab</span>
+      <div class="actions">
+        <button class="iconbtn" id="gp-calib" aria-label="Calibrate">Calibrate</button>
+        <button class="iconbtn" data-close="#panel-lab" aria-label="Close Lab Panel">Close</button>
+      </div>
+    </header>
+    <div class="panel-body lab-grid">
+      <div class="card">
+        <h3>Axes (time series)</h3>
+        <canvas id="gp-axes" width="1200" height="220" class="cl-scope" aria-label="Axes Time Series"></canvas>
+      </div>
+      <div class="card">
+        <h3>Velocity / Acceleration</h3>
+        <canvas id="gp-deriv" width="1200" height="220" class="cl-scope" aria-label="Derivatives"></canvas>
+      </div>
+      <div class="card">
+        <h3>Events</h3>
+        <div id="gp-events" class="kbd" aria-live="polite"></div>
+      </div>
+      <div class="card">
+        <h3>Cursor</h3>
+        <div class="kbd">Left stick moves cursor. A focuses nearest control. D-pad tabs. Flick detection emits events.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-map" class="panel" aria-label="Parameter Mapping Panel" aria-modal="true" role="dialog">
+    <header>
+      <span class="title">Gamepad ↔ Synth Mapping</span>
+      <div class="actions">
+        <button class="iconbtn" id="map-clear" aria-label="Clear Mappings">Clear</button>
+        <button class="iconbtn" data-close="#panel-map" aria-label="Close Mapping Panel">Close</button>
+      </div>
+    </header>
+    <div class="panel-body">
+      <table class="map-table" aria-label="Mapping Table">
+        <thead>
+          <tr><th>Source</th><th>Parameter</th><th>Scale</th><th>Offset</th><th>Invert</th><th>Deadzone</th><th>Remove</th></tr>
+        </thead>
+        <tbody id="map-body"></tbody>
+      </table>
+      <div class="cl-sep" role="separator"></div>
+      <div class="kbd">Right-click a control to enter learn mode, then move a stick or press a button to bind.</div>
+    </div>
+  </section>
+
+  <!-- Gamepad cursor overlay -->
+  <div id="gp-cursor" aria-hidden="true"></div>
+
+  <script src="cluster.js"></script>
+</body>
+</html>
+

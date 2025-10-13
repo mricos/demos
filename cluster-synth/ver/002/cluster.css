@@ -1,0 +1,25 @@
+:root{--bg:#0b0c10;--fg:#c5c8d4;--ui:#12141b;--ui2:#191c25;--acc:#7aa2f7;--mut:#8a8f9d;--ok:#8bd5ca}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:13px/1.35 system-ui,Segoe UI,Roboto,Arial,sans-serif}
+.cl-wrap{display:grid;grid-template-columns:340px 1fr;gap:16px;height:100%}
+.cl-side{background:var(--ui);padding:14px;overflow:auto;border-right:1px solid #222}
+.cl-main{display:grid;grid-template-rows:auto 1fr;gap:8px;padding:12px}
+.cl-h{margin:0 0 8px 0;font-size:16px;color:var(--acc)}
+.cl-sub{margin:4px 0 6px;color:#97a0b3;font-size:12px}
+.cl-fs{border:1px solid #262a36;border-radius:10px;padding:10px;margin:0 0 10px}
+.cl-row{display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center;margin:6px 0}
+.cl-row input[type=range]{width:100%}
+.cl-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cl-btn{background:var(--acc);color:#0a0b0f;padding:8px 10px;border:none;border-radius:10px;font-weight:600;cursor:pointer}
+.cl-sep{height:1px;background:#1d2030;margin:10px 0}
+.cl-scope{background:#0a0b12;border:1px solid #222;border-radius:12px;height:260px}
+.cl-meter{height:10px;background:var(--ui2);border-radius:6px;overflow:hidden}
+.cl-bar{height:100%;width:0;background:linear-gradient(90deg,var(--ok),var(--acc))}
+.cl-mapfab{position:fixed;right:14px;bottom:14px;background:#1a1f2b;border:1px solid #30364a;border-radius:999px;padding:10px 12px;cursor:pointer;opacity:.7}
+.cl-mapfab:hover{opacity:1}
+.cl-mapdock{position:fixed;right:14px;bottom:64px;width:320px;background:#0f1320;border:1px solid #2a3046;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
+.cl-mapdock header{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid #2a3046;color:#9fb2e0}
+.cl-x{background:#25304e;color:#cbd3ea;border:none;border-radius:8px;padding:2px 8px;cursor:pointer}
+.cl-mapbody{padding:10px}
+.cl-maprow{display:grid;grid-template-columns:100px 1fr auto;gap:8px;align-items:center;margin:6px 0}
+.cl-maplog{font:12px/1.3 ui-monospace,monospace;color:#9aa7c1;background:#0b0f1e;border:1px solid #222;border-radius:8px;padding:8px;height:120px;overflow:auto}
+
