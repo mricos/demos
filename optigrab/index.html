@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Circle+Line Pose Tracker (x,y,θ) — Vanilla JS</title>
+<style>
+  :root { color-scheme: dark; --fg:#e6e6e6; --bg:#0c0c0f; --acc:#4da3ff; --ok:#43d17a; --warn:#ffb84d; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  #wrap { display:grid; grid-template-columns: 1fr 320px; grid-auto-rows: minmax(0,1fr); height:100%; }
+  #view { position:relative; background:#000; }
+  #out { width:100%; height:100%; display:block; background:#000; }
+  #overlay { position:absolute; inset:0; pointer-events:none; }
+  #ui { border-left:1px solid #222; padding:10px; overflow:auto; }
+  fieldset { border:1px solid #333; margin:0 0 10px; }
+  legend { padding:0 6px; color:#aaa; }
+  .row { display:grid; grid-template-columns: 1fr 60px; column-gap:6px; align-items:center; margin:6px 0; }
+  input[type=range] { width:100%; }
+  button { width:100%; padding:6px; margin:4px 0; background:#1b1b22; color:var(--fg); border:1px solid #333; cursor:pointer; }
+  button.ok { border-color:#295; }
+  code { color:#bbb; }
+  .kv { font-size:11px; color:#cfd; }
+  #cursor { position:absolute; width:14px; height:14px; border:2px solid var(--acc); border-radius:50%; box-shadow:0 0 0 1px #000, 0 0 8px var(--acc); pointer-events:none; left:50%; top:50%; transform:translate(-50%,-50%); }
+  #note { color:#aaa; font-size:11px; }
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:6px; }
+  .mono { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="view">
+    <!-- Hidden live video -->
+    <video id="vid" autoplay playsinline muted style="display:none"></video>
+    <!-- Processing/output canvas -->
+    <canvas id="out"></canvas>
+    <canvas id="overlay"></canvas>
+    <div id="cursor"></div>
+  </div>
+  <div id="ui">
+    <fieldset>
+      <legend>I/O</legend>
+      <button id="start" class="ok">Start Camera</button>
+      <button id="stop">Stop</button>
+      <div id="note">Browser can only control a page-local cursor (Pointer Lock). OS cursor control is not available.</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Detection</legend>
+      <div class="row"><label>Downscale (px)</label><input id="ds" type="range" min="160" max="480" step="20" value="320"><span id="dsV">320</span></div>
+      <div class="row"><label>Edge thresh</label><input id="edge" type="range" min="10" max="200" step="2" value="60"><span id="edgeV">60</span></div>
+      <div class="row"><label>Radius min</label><input id="rmin" type="range" min="10" max="180" step="2" value="30"><span id="rminV">30</span></div>
+      <div class="row"><label>Radius max</label><input id="rmax" type="range" min="20" max="220" step="2" value="120"><span id="rmaxV">120</span></div>
+      <div class="row"><label>Radius step</label><input id="rstep" type="range" min="2" max="12" step="1" value="6"><span id="rstepV">6</span></div>
+      <div class="row"><label>Line θ bins</label><input id="tbin" type="range" min="36" max="180" step="4" value="90"><span id="tbinV">90</span></div>
+      <div class="row"><label>Blur (box)</label><input id="blur" type="range" min="0" max="4" step="1" value="1"><span id="blurV">1</span></div>
+      <div class="row"><label>FPS limit</label><input id="fps" type="range" min="5" max="60" step="1" value="24"><span id="fpsV">24</span></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Calibration / Mapping</legend>
+      <div class="row"><label>Learn deadzone ±°</label><input id="dz" type="range" min="0" max="15" step="0.5" value="3"><span id="dzV">3</span></div>
+      <div class="row"><label>Gain X</label><input id="gx" type="range" min="0" max="3" step="0.05" value="1.2"><span id="gxV">1.2</span></div>
+      <div class="row"><label>Gain Y</label><input id="gy" type="range" min="0" max="3" step="0.05" value="1.2"><span id="gyV">1.2</span></div>
+      <div class="row"><label>Gain θ</label><input id="gth" type="range" min="0" max="6" step="0.1" value="2.0"><span id="gthV">2.0</span></div>
+      <div class="row"><label>Vel smoothing</label><input id="sm" type="range" min="0" max="0.99" step="0.01" value="0.85"><span id="smV">0.85</span></div>
+      <div class="grid2">
+        <button id="learn">Learn nominal (x,y,θ)</button>
+        <button id="resetNom">Reset nominal</button>
+      </div>
+      <button id="ptr">Take over mouse (Pointer Lock)</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Telemetry</legend>
+      <div class="mono kv" id="stat"></div>
+    </fieldset>
+  </div>
+</div>
+
+<script>
+(async function() {
+  // --- DOM refs ---
+  const vid = document.getElementById('vid');
+  const out = document.getElementById('out');
+  const ov  = document.getElementById('overlay');
+  const ctx = out.getContext('2d', { willReadFrequently:true });
+  const ox  = ov.getContext('2d');
+  const cursor = document.getElementById('cursor');
+  const stat = document.getElementById('stat');
+
+  // Controls
+  const ctrl = id => document.getElementById(id);
+  const toSpan = (id, fmt=(v)=>v)=>{ const r=ctrl(id), s=ctrl(id+'V'); const upd=()=>s.textContent=fmt(r.value); r.addEventListener('input',upd); upd(); return r; };
+  const ds=toSpan('ds'), edge=toSpan('edge'), rmin=toSpan('rmin'), rmax=toSpan('rmax'), rstep=toSpan('rstep'),
+        tbin=toSpan('tbin'), blur=toSpan('blur'), fps=toSpan('fps'),
+        dz=toSpan('dz'), gx=toSpan('gx'), gy=toSpan('gy'), gth=toSpan('gth'), sm=toSpan('sm');
+
+  const startBtn=ctrl('start'), stopBtn=ctrl('stop'), ptrBtn=ctrl('ptr'), learnBtn=ctrl('learn'), resetNomBtn=ctrl('resetNom');
+
+  // --- State ---
+  let running=false, raf=0, lastTick=0;
+  let W=0,H=0; // processing dims
+  let nominal={ x:null, y:null, th:null }; // learned baseline
+  let vState={ vx:0, vy:0 }; // smoothed velocity
+  let plocked=false; // pointer lock
+  let stream=null;
+
+  // --- Utils ---
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const now=()=>performance.now();
+
+  // image buffers
+  let gBuf = null;   // grayscale Uint8
+  let eBuf = null;   // edge mask Uint8 (0/255)
+  let gxBuf = null;  // sobel gx Int16
+  let gyBuf = null;  // sobel gy Int16
+
+  function allocBuffers(w,h) {
+    gBuf = new Uint8ClampedArray(w*h);
+    eBuf = new Uint8ClampedArray(w*h);
+    gxBuf = new Int16Array(w*h);
+    gyBuf = new Int16Array(w*h);
+  }
+
+  // Box blur (r passes of 3x1 separable)
+  function boxBlur(src, w, h, passes) {
+    if (passes<=0) return;
+    let tmp = new Uint8ClampedArray(w*h);
+    for (let p=0;p<passes;p++) {
+      // horizontal
+      for (let y=0;y<h;y++){
+        let o=y*w;
+        let a=src[o], b=src[o], c=src[o+1]|0;
+        tmp[o]=((a+b+c)/3)|0;
+        for (let x=1;x<w-1;x++){
+          a=b; b=c; c=src[o+x+1]|0;
+          tmp[o+x]=((a+b+c)/3)|0;
+        }
+        tmp[o+w-1]=tmp[o+w-2];
+      }
+      // vertical
+      for (let x=0;x<w;x++){
+        let o=x;
+        let a=tmp[o], b=tmp[o], c=tmp[o+w]|0;
+        src[o]=((a+b+c)/3)|0;
+        for (let y=1;y<h-1;y++){
+          a=b; b=c; c=tmp[o+(y+1)*w]|0;
+          src[o+y*w]=((a+b+c)/3)|0;
+        }
+        src[o+(h-1)*w]=src[o+(h-2)*w];
+      }
+    }
+  }
+
+  function sobel(src, w, h, gxOut, gyOut, magOut, thresh) {
+    // Simple Sobel kernels (no border)
+    const m = magOut;
+    m.fill(0); gxOut.fill(0); gyOut.fill(0);
+    for (let y=1;y<h-1;y++){
+      for (let x=1;x<w-1;x++){
+        const i = y*w + x;
+        const tl=src[i-w-1], tc=src[i-w], tr=src[i-w+1];
+        const ml=src[i-1],   mc=src[i],   mr=src[i+1];
+        const bl=src[i+w-1], bc=src[i+w], br=src[i+w+1];
+        const gx = (tr + 2*mr + br) - (tl + 2*ml + bl);
+        const gy = (bl + 2*bc + br) - (tl + 2*tc + tr);
+        gxOut[i]=gx; gyOut[i]=gy;
+        const mag = Math.hypot(gx, gy);
+        m[i]=mag>thresh?255:0;
+      }
+    }
+  }
+
+  // Hough Circle (gradient-direction voting, layered by radius)
+  function houghCircle(edgeMask, gx, gy, w, h, r0, r1, rStep) {
+    const rList=[];
+    for (let r=r0; r<=r1; r+=rStep) rList.push(r|0);
+    const layers = rList.map(()=>new Uint16Array(w*h)); // may be memory heavy but small w,h
+    // vote
+    for (let y=1;y<h-1;y++){
+      for (let x=1;x<w-1;x++){
+        const i=y*w+x;
+        if (edgeMask[i]===0) continue;
+        const gxx=gx[i], gyy=gy[i];
+        const gl = Math.hypot(gxx, gyy) || 1e-6;
+        const ux = gxx/gl, uy = gyy/gl; // gradient unit (points outward)
+        for (let li=0; li<rList.length; li++){
+          const r = rList[li];
+          const cx = (x - ux*r) |0;
+          const cy = (y - uy*r) |0;
+          if (cx>1 && cx<w-2 && cy>1 && cy<h-2){
+            layers[li][cy*w+cx]++;
+          }
+        }
+      }
+    }
+    // find best (center, radius)
+    let best={score:0, x:0, y:0, r:0, li:-1};
+    for (let li=0; li<rList.length; li++){
+      const acc=layers[li];
+      for (let i=0;i<acc.length;i++){
+        const v=acc[i];
+        if (v>best.score){
+          best.score=v;
+          best.x = i%w;
+          best.y = (i/w)|0;
+          best.r = rList[li];
+          best.li=li;
+        }
+      }
+    }
+    return best.score>0? best : null;
+  }
+
+  // Masked Hough Line inside the detected circle. Return angle θ in radians ∈ [0,π)
+  function houghLineMasked(edgeMask, w, h, cx, cy, r, thetaBins) {
+    const tb = thetaBins|0;
+    const acc = Array.from({length:tb}, ()=>new Map()); // θ-sliced rho accumulators (sparse)
+    const tStep = Math.PI/tb;
+    const rMax = Math.hypot(w,h);
+    // iterate edge pixels near/inside circle
+    const r2 = r*r;
+    for (let y=1;y<h-1;y++){
+      for (let x=1;x<w-1;x++){
+        const i=y*w+x;
+        if (!edgeMask[i]) continue;
+        const dx=x-cx, dy=y-cy;
+        if (dx*dx+dy*dy > r2) continue;
+        for (let ti=0; ti<tb; ti++){
+          const th = ti*tStep;
+          const rho = x*Math.cos(th)+y*Math.sin(th);
+          const k = Math.round(rho*2); // quantize
+          const m = acc[ti];
+          m.set(k, (m.get(k)||0)+1);
+        }
+      }
+    }
+    // find best θ by max vote on its best ρ
+    let best={score:0, theta:0, rho:0};
+    for (let ti=0; ti<tb; ti++){
+      const m = acc[ti];
+      for (const [k,v] of m){
+        if (v>best.score){ best.score=v; best.theta=ti*tStep; best.rho=k/2; }
+      }
+    }
+    // normalize orientation to pass through circle center (choose θ so line goes near (cx,cy))
+    // Flip θ by π/2 if needed to make normal point away consistently (not critical here)
+    return best.score>0 ? best.theta : null;
+  }
+
+  // Map (x,y,θ) → velocity with deadzone and gains; keep page-local "cursor"
+  function updateVelocity(meas, dt) {
+    if (!meas) return;
+    const dzDeg = parseFloat(dz.value);
+    const gains = { x:parseFloat(gx.value), y:parseFloat(gy.value), th:parseFloat(gth.value) };
+    let { x,y,th } = meas;
+
+    if (nominal.x==null) return;
+
+    let dx = x - nominal.x;
+    let dy = y - nominal.y;
+    let dth = ((th - nominal.th + Math.PI)% (Math.PI)) ; // ∈ [0,π)
+    if (dth>Math.PI/2) dth -= Math.PI; // center around 0 in (-π/2, π/2)
+
+    // apply deadzone on θ in degrees
+    const dthDeg = dth*180/Math.PI;
+    const thEff = Math.abs(dthDeg) < dzDeg ? 0 : (dthDeg - Math.sign(dthDeg)*dzDeg) * (Math.PI/180);
+
+    // velocity model: vx,vy from dx,dy; add rotational component on vy for demonstration
+    const vx = gains.x * dx;
+    const vy = gains.y * dy + gains.th * thEff;
+
+    // exponential smoothing
+    const a = clamp(parseFloat(sm.value), 0, 0.99);
+    vState.vx = lerp(vState.vx, vx, 1-a);
+    vState.vy = lerp(vState.vy, vy, 1-a);
+
+    // move local cursor
+    const rect = out.getBoundingClientRect();
+    const cur = cursor.getBoundingClientRect();
+    const cx = (cursor.offsetLeft + vState.vx*dt*0.06); // scale dt
+    const cy = (cursor.offsetTop + vState.vy*dt*0.06);
+    const nx = clamp(cx, 0, rect.width);
+    const ny = clamp(cy, 0, rect.height);
+    cursor.style.left = nx + "px";
+    cursor.style.top  = ny + "px";
+  }
+
+  function drawOverlay(circ, theta) {
+    ox.clearRect(0,0,ov.width,ov.height);
+    if (!circ) return;
+    ox.strokeStyle = 'rgba(77,163,255,0.9)';
+    ox.lineWidth = 2;
+    ox.beginPath();
+    ox.arc(circ.x * (out.width/W), circ.y * (out.height/H), circ.r * (out.width/W), 0, Math.PI*2);
+    ox.stroke();
+
+    // center marker
+    ox.fillStyle = '#43d17a';
+    ox.beginPath();
+    ox.arc(circ.x*(out.width/W), circ.y*(out.height/H), 3, 0, Math.PI*2);
+    ox.fill();
+
+    // orientation line
+    if (theta!=null) {
+      const cx = circ.x*(out.width/W), cy = circ.y*(out.height/H), R=circ.r*(out.width/W);
+      const ux = Math.cos(theta), uy=Math.sin(theta);
+      ox.strokeStyle='#ffb84d';
+      ox.beginPath();
+      ox.moveTo(cx - ux*R, cy - uy*R);
+      ox.lineTo(cx + ux*R, cy + uy*R);
+      ox.stroke();
+    }
+  }
+
+  function report(meas, fpsReal, circScore) {
+    const lines=[];
+    lines.push(`fps=${fpsReal.toFixed(1)}  size=${W}x${H}`);
+    if (meas) {
+      const { x,y,th } = meas;
+      const deg = (th*180/Math.PI).toFixed(1);
+      lines.push(`x=${x.toFixed(1)}  y=${y.toFixed(1)}  θ=${deg}°  votes=${circScore}`);
+    } else {
+      lines.push(`x=NA y=NA θ=NA votes=0`);
+    }
+    lines.push(`nominal: x=${nominal.x??'NA'} y=${nominal.y??'NA'} θ=${ nominal.th!=null ? (nominal.th*180/Math.PI).toFixed(1)+'°' : 'NA' }`);
+    lines.push(`vel: vx=${vState.vx.toFixed(2)} vy=${vState.vy.toFixed(2)}  dz±=${dz.value}°  gain(x,y,θ)=(${gx.value},${gy.value},${gth.value})`);
+    stat.textContent = lines.join('\n');
+  }
+
+  // --- Main loop ---
+  const magTmp = new Uint8ClampedArray(1); // placeholder; will resize in process()
+  async function tick(ts) {
+    if (!running) return;
+    const limit = 1000/parseFloat(fps.value);
+    if (ts - lastTick < limit) { raf=requestAnimationFrame(tick); return; }
+    const dt = (ts - lastTick) || limit;
+    lastTick = ts;
+
+    // read frame, resize, grayscale
+    const dw = parseInt(ds.value)|0;
+    const vh = vid.videoHeight, vw = vid.videoWidth;
+    if (vw===0 || vh===0) { raf=requestAnimationFrame(tick); return; }
+
+    // keep aspect, fit to dw width
+    const scale = dw / vw;
+    W = dw; H = (vh*scale)|0;
+
+    if (out.width !== W || out.height !== H) {
+      out.width=W; out.height=H; ov.width=W; ov.height=H;
+      allocBuffers(W,H);
+    }
+
+    ctx.drawImage(vid, 0, 0, W, H);
+    const img = ctx.getImageData(0,0,W,H);
+    const data = img.data;
+    // grayscale
+    for (let i=0,j=0; i<data.length; i+=4, j++){
+      // luma
+      gBuf[j] = (data[i]*0.2126 + data[i+1]*0.7152 + data[i+2]*0.0722)|0;
+    }
+    // blur
+    boxBlur(gBuf, W, H, parseInt(blur.value));
+
+    // edges
+    sobel(gBuf, W, H, gxBuf, gyBuf, eBuf, parseInt(edge.value));
+
+    // circle hough
+    const circ = houghCircle(eBuf, gxBuf, gyBuf, W, H, parseInt(rmin.value), parseInt(rmax.value), parseInt(rstep.value));
+    let meas=null, theta=null, votes=0;
+    if (circ) {
+      theta = houghLineMasked(eBuf, W, H, circ.x, circ.y, circ.r*0.9|0, parseInt(tbin.value));
+      meas = { x:circ.x, y:circ.y, th: (theta==null?0:theta) };
+      votes = circ.score;
+    }
+
+    // visualization: show edge map
+    for (let j=0, i=0; j<eBuf.length; j++, i+=4) {
+      const v=eBuf[j];
+      data[i]=data[i+1]=data[i+2]=v; data[i+3]=255;
+    }
+    ctx.putImageData(img, 0, 0);
+    drawOverlay(circ, theta);
+
+    // velocity + synthetic cursor
+    updateVelocity(meas, dt);
+
+    // telemetry
+    const fpsReal = 1000/dt;
+    report(meas, fpsReal, votes);
+
+    raf = requestAnimationFrame(tick);
+  }
+
+  // --- Camera control ---
+  async function start() {
+    if (running) return;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'environment' }, audio:false });
+      vid.srcObject = stream;
+      await vid.play();
+      running = true;
+      lastTick=0;
+      raf=requestAnimationFrame(tick);
+    } catch(e) {
+      alert('getUserMedia failed: '+e);
+    }
+  }
+
+  function stop() {
+    running=false;
+    cancelAnimationFrame(raf);
+    if (stream) { stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  }
+
+  // --- Pointer Lock (page-local) ---
+  function enablePointerLock() {
+    out.requestPointerLock = out.requestPointerLock || out.mozRequestPointerLock || out.webkitRequestPointerLock;
+    document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock || document.webkitExitPointerLock;
+    out.requestPointerLock?.();
+  }
+  document.addEventListener('pointerlockchange', ()=>{ plocked = (document.pointerLockElement === out); });
+  document.addEventListener('mousemove', (ev)=>{
+    // if pointer locked, allow user physical mouse to "nudge" the local cursor as well
+    if (plocked) {
+      const rect = out.getBoundingClientRect();
+      const nx = clamp(cursor.offsetLeft + ev.movementX, 0, rect.width);
+      const ny = clamp(cursor.offsetTop + ev.movementY, 0, rect.height);
+      cursor.style.left = nx + "px";
+      cursor.style.top  = ny + "px";
+    }
+  });
+
+  // --- Calibration ---
+  learnBtn.addEventListener('click', ()=>{
+    // Use most recent measurement (from stat parsing fallback)
+    // Prefer taking center of canvas and θ=0 if no detection
+    // For robustness, set from last overlay if available via readback from stat text is not ideal; so we sample from last computed circ/theta by caching:
+    // Here, trigger a one-shot capture to learn nominal if a circle is detected.
+    const snap = snapshotMeasure();
+    if (snap) {
+      nominal = { x:snap.x, y:snap.y, th:snap.th };
+    }
+  });
+  resetNomBtn.addEventListener('click', ()=>{ nominal={x:null,y:null,th:null}; });
+
+  // Capture one frame synchronously for learn
+  function snapshotMeasure() {
+    if (!running) return null;
+    // reuse current canvas buffers to compute a single pass quickly
+    // (We do a minimal re-run to ensure meas is contemporaneous)
+    const dw = parseInt(ds.value)|0;
+    const vh = vid.videoHeight, vw = vid.videoWidth;
+    if (vw===0 || vh===0) return null;
+    const scale = dw / vw;
+    const w = dw, h = (vh*scale)|0;
+
+    if (out.width !== w || out.height !== h) {
+      out.width=w; out.height=h; ov.width=w; ov.height=h;
+      allocBuffers(w,h);
+    }
+    ctx.drawImage(vid,0,0,w,h);
+    const img = ctx.getImageData(0,0,w,h);
+    const data = img.data;
+    for (let i=0,j=0;i<data.length;i+=4,j++){ gBuf[j]=(data[i]*0.2126+data[i+1]*0.7152+data[i+2]*0.0722)|0; }
+    boxBlur(gBuf,w,h,parseInt(blur.value));
+    sobel(gBuf,w,h,gxBuf,gyBuf,eBuf,parseInt(edge.value));
+    const circ = houghCircle(eBuf,gxBuf,gyBuf,w,h,parseInt(rmin.value),parseInt(rmax.value),parseInt(rstep.value));
+    if (!circ) return null;
+    const theta = houghLineMasked(eBuf,w,h,circ.x,circ.y,(circ.r*0.9)|0,parseInt(tbin.value));
+    return { x:circ.x, y:circ.y, th: theta??0 };
+  }
+
+  // --- Wire controls ---
+  startBtn.onclick = start;
+  stopBtn.onclick = stop;
+  ptrBtn.onclick = enablePointerLock;
+
+  // Initialize
+  if (!('mediaDevices' in navigator)) alert('navigator.mediaDevices not available.');
+})();
+</script>
+</body>
+</html>
