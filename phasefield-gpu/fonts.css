@@ -1,0 +1,41 @@
+/**
+ * Font Declarations
+ * Azeret Mono - Technical monospace font
+ * Space Grotesk - Technical sans-serif font
+ */
+
+/* Azeret Mono Regular */
+@font-face {
+    font-family: 'Azeret Mono';
+    src: url('fonts/azeret-mono-400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Azeret Mono Bold */
+@font-face {
+    font-family: 'Azeret Mono';
+    src: url('fonts/azeret-mono-700.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Space Grotesk Regular */
+@font-face {
+    font-family: 'Space Grotesk';
+    src: url('fonts/space-grotesk-400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Space Grotesk Bold */
+@font-face {
+    font-family: 'Space Grotesk';
+    src: url('fonts/space-grotesk-700.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}

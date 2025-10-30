@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Phase Field - Spatial Phase Modulation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -15,51 +18,48 @@
     <div id="controls">
         <h1>Phase Field</h1>
 
-        <h2 id="header-matter">Matter</h2>
+        <h2 id="header-matter">Barrier Defaults</h2>
         <div class="collapsible-content" id="section-matter">
             <div class="control-group">
-                <label>Particle Size <span class="value-display" id="particle-size-val">8px</span></label>
-                <input type="range" id="particle-size" min="2" max="16" step="1" value="8">
-            </div>
-
-            <div class="control-group">
-                <label>Wall Length <span class="value-display" id="wall-length-val">200px</span></label>
+                <label>Barrier Length <span class="value-display" id="wall-length-val">200px</span></label>
                 <input type="range" id="wall-length" min="50" max="400" step="10" value="200">
+                <div class="help-text">Total length of barrier (fixed)</div>
             </div>
 
             <div class="control-group">
-                <label>Aperture Gap <span class="value-display" id="aperture-gap-val">80px</span></label>
-                <input type="range" id="aperture-gap" min="0" max="200" step="5" value="80">
-                <div class="help-text">Also controlled by gamepad buttons 7 & 9</div>
+                <label>Barrier Thickness <span class="value-display" id="wall-thickness-val">8px</span></label>
+                <input type="range" id="wall-thickness" min="4" max="32" step="1" value="8">
+                <div class="help-text">How fat or thin the barrier is</div>
             </div>
 
             <div class="control-group">
-                <label>Aperture Count <span class="value-display" id="aperture-count-val">2</span></label>
-                <input type="range" id="aperture-count" min="1" max="9" step="1" value="2">
-                <div class="help-text">Number of slits (creates multi-slit patterns, middle-out)</div>
-            </div>
-
-            <div class="control-group">
-                <label>Wall Thickness <span class="value-display" id="wall-thickness-val">8px</span></label>
-                <input type="range" id="wall-thickness" min="4" max="16" step="1" value="8">
-            </div>
-
-            <div class="control-group">
-                <label>Lens Curvature <span class="value-display" id="lens-curvature-val">0 (Flat)</span></label>
-                <input type="range" id="lens-curvature" min="-200" max="200" step="10" value="0">
-                <div class="help-text">Applies to lens elements: 0=Flat, +ve=Converging, -ve=Diverging</div>
-            </div>
-
-            <div class="control-group">
-                <label>Wall Curvature <span class="value-display" id="wall-curvature-val">0 (Flat)</span></label>
+                <label>Curvature <span class="value-display" id="wall-curvature-val">0 (Flat)</span></label>
                 <input type="range" id="wall-curvature" min="-200" max="200" step="10" value="0">
-                <div class="help-text">Applies to walls/apertures: Radius of curvature (0=flat wall)</div>
+                <div class="help-text">Parabolic bend: 0=Flat, +ve=Concave (mirror), -ve=Convex</div>
+            </div>
+
+            <div class="control-group">
+                <label>Slit Width <span class="value-display" id="aperture-gap-val">80px</span></label>
+                <input type="range" id="aperture-gap" min="0" max="200" step="5" value="80">
+                <div class="help-text">Width of each slit (0=solid barrier)</div>
+            </div>
+
+            <div class="control-group">
+                <label>Slit Count <span class="value-display" id="aperture-count-val">0</span></label>
+                <input type="range" id="aperture-count" min="0" max="9" step="1" value="0">
+                <div class="help-text">Number of slits: 0=solid, 1+=slits placed middle-out</div>
+            </div>
+
+            <div class="control-group">
+                <label>Brick Size <span class="value-display" id="particle-size-val">8px</span></label>
+                <input type="range" id="particle-size" min="2" max="16" step="1" value="8">
+                <div class="help-text">Size of material segments (visual only)</div>
             </div>
 
             <div class="control-group">
                 <label>Reflection Coefficient <span class="value-display" id="reflection-coeff-val">0.50</span></label>
-                <input type="range" id="reflection-coeff" min="0" max="2" step="0.01" value="0.5">
-                <div class="help-text">0: Blackbody absorber | 1: Perfect reflection | 1-2: Color-dependent (color spreading)</div>
+                <input type="range" id="reflection-coeff" min="0" max="1" step="0.01" value="0.5">
+                <div class="help-text">0: Blackbody (black) | 0.5: Gray | 1: Mirror (white)</div>
             </div>
         </div>
 
@@ -100,12 +100,18 @@
 
             <div class="control-group">
                 <label>Wave Sources <span class="value-display" id="sources-val">2</span></label>
-                <input type="range" id="sources" min="1" max="6" step="1" value="2">
+                <input type="range" id="sources" min="0" max="6" step="1" value="2">
             </div>
 
             <div class="control-group">
                 <label>Distortion <span class="value-display" id="dist-val">1.0</span></label>
                 <input type="range" id="distortion" min="0.5" max="3" step="0.1" value="1">
+            </div>
+
+            <div class="control-group">
+                <label>Diffraction <span class="value-display" id="diffraction-val">50%</span></label>
+                <input type="range" id="diffraction-strength" min="0" max="100" step="5" value="50">
+                <div class="help-text">How much waves wrap around obstacles (wavelength-dependent)</div>
             </div>
         </div>
 
@@ -164,18 +170,18 @@
             </div>
         </div>
 
-        <h2 id="header-adjoint-field" class="collapsed">Adjoint Field</h2>
-        <div class="collapsible-content collapsed" id="section-adjoint-field">
+        <h2 id="header-dual-field" class="collapsed">Dual Field</h2>
+        <div class="collapsible-content collapsed" id="section-dual-field">
             <div class="control-group">
                 <label>
-                    <input type="checkbox" id="adjoint-enabled">
-                    <span>Enable Adjoint Field</span>
+                    <input type="checkbox" id="dual-enabled">
+                    <span>Enable Dual Field</span>
                 </label>
                 <div class="help-text">Secondary field for visual composition only (not physics)</div>
             </div>
 
             <div class="control-group">
-                <label>Adjoint Resolution <span class="value-display" id="res2-val">OFF</span></label>
+                <label>Dual Resolution <span class="value-display" id="res2-val">OFF</span></label>
                 <input type="range" id="resolution2" min="0" max="10" step="1" value="0">
             </div>
 
@@ -183,19 +189,19 @@
                 <label>Palette Mode</label>
                 <div class="radio-group">
                     <label class="radio-option">
-                        <input type="radio" name="adjoint-mode" value="complementary" checked>
+                        <input type="radio" name="dual-mode" value="complementary" checked>
                         <span>Complementary</span>
                     </label>
                     <label class="radio-option">
-                        <input type="radio" name="adjoint-mode" value="desat">
+                        <input type="radio" name="dual-mode" value="desat">
                         <span>Desaturated</span>
                     </label>
                     <label class="radio-option">
-                        <input type="radio" name="adjoint-mode" value="inverse">
+                        <input type="radio" name="dual-mode" value="inverse">
                         <span>Inverse</span>
                     </label>
                     <label class="radio-option">
-                        <input type="radio" name="adjoint-mode" value="triad">
+                        <input type="radio" name="dual-mode" value="triad">
                         <span>Triad Shift</span>
                     </label>
                 </div>
@@ -203,12 +209,12 @@
 
             <div class="control-group">
                 <label>Triad Hue Shift <span class="value-display" id="triad-val">120°</span></label>
-                <input type="range" id="adjoint-triad-hue" min="0" max="360" step="10" value="120">
+                <input type="range" id="dual-triad-hue" min="0" max="360" step="10" value="120">
                 <div class="help-text">Only used when Triad Shift mode is selected.</div>
             </div>
 
             <div class="control-group">
-                <button id="compute-adjoint">Auto-Generate Triadic Colors</button>
+                <button id="compute-dual">Auto-Generate Triadic Colors</button>
                 <div class="help-text">Sets base colors to a triadic harmony from current start color.</div>
             </div>
         </div>
@@ -240,18 +246,15 @@
             <div class="control-group">
                 <label>Blend Amount <span class="value-display" id="blend-val">50%</span></label>
                 <input type="range" id="blend" min="0" max="100" step="1" value="50">
-                <div class="help-text">Mix between main and adjoint field</div>
+                <div class="help-text">Mix between main and dual field</div>
             </div>
         </div>
 
-        <h2 id="header-presets" class="collapsed">Preset Palettes</h2>
-        <div class="collapsible-content collapsed" id="section-presets">
-            <div class="palette-grid" id="palette-grid"></div>
-            <button id="cycle-palette">Cycle Palette</button>
-        </div>
+        <h2 id="header-design" class="collapsed">Design</h2>
+        <div class="collapsible-content collapsed" id="section-design">
 
-        <h2 id="header-custom">Custom Palette</h2>
-        <div class="collapsible-content" id="section-custom">
+            <h3 id="header-color" class="subsection-header">Color</h3>
+            <div class="subsection-content" id="section-color">
             <div class="control-group">
                 <label>Base Colors</label>
                 <div class="color-row">
@@ -294,6 +297,53 @@
                 <label>Color Cycle <span class="value-display" id="cycle-val">1.0</span></label>
                 <input type="range" id="color-cycle" min="0.1" max="3" step="0.1" value="1">
             </div>
+            </div>
+
+            <h3 id="header-opacity" class="subsection-header collapsed">Opacity</h3>
+            <div class="subsection-content collapsed" id="section-opacity">
+                <div class="control-group">
+                    <label>Docs Panel <span class="value-display" id="docs-opacity-val">90%</span></label>
+                    <input type="range" id="docs-opacity" min="0" max="100" step="5" value="90">
+                    <div class="help-text">Background opacity for documentation/help text</div>
+                </div>
+
+                <div class="control-group">
+                    <label>Controls Panel <span class="value-display" id="controls-opacity-val">95%</span></label>
+                    <input type="range" id="controls-opacity" min="0" max="100" step="5" value="95">
+                    <div class="help-text">Background opacity for the controls sidebar</div>
+                </div>
+
+                <div class="control-group">
+                    <label>Headers (h1) <span class="value-display" id="h1-opacity-val">100%</span></label>
+                    <input type="range" id="h1-opacity" min="20" max="100" step="5" value="100">
+                    <div class="help-text">Opacity for main title text</div>
+                </div>
+
+                <div class="control-group">
+                    <label>Section Headers (h2) <span class="value-display" id="h2-opacity-val">95%</span></label>
+                    <input type="range" id="h2-opacity" min="20" max="100" step="5" value="95">
+                    <div class="help-text">Opacity for section header text</div>
+                </div>
+
+                <div class="control-group">
+                    <label>Labels & Text <span class="value-display" id="label-opacity-val">90%</span></label>
+                    <input type="range" id="label-opacity" min="20" max="100" step="5" value="90">
+                    <div class="help-text">Opacity for control labels and primary text</div>
+                </div>
+
+                <div class="control-group">
+                    <label>Help Text <span class="value-display" id="help-opacity-val">70%</span></label>
+                    <input type="range" id="help-opacity" min="20" max="100" step="5" value="70">
+                    <div class="help-text">Opacity for secondary help text</div>
+                </div>
+            </div>
+
+            <h3 id="header-presets-design" class="subsection-header collapsed">Preset Palettes</h3>
+            <div class="subsection-content collapsed" id="section-presets-design">
+                <div class="palette-grid" id="palette-grid"></div>
+                <button id="cycle-palette">Cycle Palette</button>
+            </div>
+
         </div>
 
         <h2 id="header-gain" class="collapsed">Final Gain Stage</h2>
@@ -321,7 +371,7 @@
                     <div class="mode-indicator active" id="mode-a-indicator">A</div>
                     <div class="mode-indicator" id="mode-b-indicator">B</div>
                 </div>
-                <div class="help-text">A: Toggle WAVE/MATTER | B: Create | X: Select</div>
+                <div class="help-text">A: Toggle WAVE/MATTER | B: Create | X: Select | Y: Place puck → Move with stick → Y+flick to launch</div>
             </div>
 
             <div class="control-group">
@@ -390,20 +440,22 @@
     </div>
 
     <!-- Load JavaScript modules in order -->
-    <script src="js/config.js"></script>
-    <script src="js/palette.js"></script>
+    <script src="js/config.js?v=8"></script>
+    <script src="js/palette.js?v=8"></script>
     <!-- New modular architecture -->
-    <script src="js/matter.js"></script>
-    <script src="js/optics.js"></script>
-    <script src="js/field.js"></script>
+    <script src="js/matter.js?v=8"></script>
+    <script src="js/optics.js?v=8"></script>
+    <script src="js/field.js?v=8"></script>
+    <script src="js/lightpuck.js?v=8"></script>
     <!-- Compute engines -->
-    <script src="js/compute-engine.js"></script>
-    <script src="js/engines/cpu-engine.js"></script>
-    <script src="js/engines/webgl-engine.js"></script>
+    <script src="js/compute-engine.js?v=8"></script>
+    <script src="js/engines/cpu-engine.js?v=8"></script>
+    <script src="js/engines/webgl-engine.js?v=8"></script>
     <!-- Renderer and UI -->
-    <script src="js/renderer.js"></script>
-    <script src="js/gamepad.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/main.js"></script>
+    <script src="js/renderer.js?v=8"></script>
+    <script src="js/virtual-gamepad-bridge.js?v=8"></script>
+    <script src="js/gamepad.js?v=8"></script>
+    <script src="js/ui.js?v=8"></script>
+    <script src="js/main.js?v=8"></script>
 </body>
 </html>

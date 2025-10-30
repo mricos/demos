@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Virtual Gamepad Controller</title>
+    <link rel="stylesheet" href="fonts.css">
+    <style>
+        :root {
+            /* Will be populated by design-tokens.js */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: var(--font-sans, 'Space Grotesk', sans-serif);
+            background: linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-primary) 100%);
+            color: var(--color-text-primary);
+            min-height: 100vh;
+            padding: var(--space-md);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: var(--space-xl);
+        }
+
+        h1 {
+            font-size: var(--text-3xl);
+            font-weight: 700;
+            margin-bottom: var(--space-sm);
+            color: var(--color-spectrum-cyan);
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        .status {
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+            padding: var(--space-sm) var(--space-md);
+            border-radius: 20px;
+            background: rgba(0, 212, 255, 0.1);
+            border: 2px solid var(--color-border-accent);
+            display: inline-block;
+            font-weight: 600;
+        }
+
+        .status.connected {
+            background: rgba(0, 255, 100, 0.15);
+            border-color: var(--color-success);
+            color: var(--color-success);
+            box-shadow: 0 0 20px rgba(0, 255, 100, 0.3);
+        }
+
+        /* Collapsible Sections */
+        .section {
+            background: var(--color-bg-elevated);
+            border: 1px solid var(--color-border-medium);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-md);
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: var(--space-md);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--color-bg-tertiary);
+            border-bottom: 1px solid var(--color-border-subtle);
+            transition: background var(--transition-fast);
+        }
+
+        .section-header:hover {
+            background: var(--color-interactive-hover);
+        }
+
+        .section-header h2 {
+            font-family: var(--font-mono);
+            font-size: var(--text-lg);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--color-spectrum-cyan);
+        }
+
+        .section-toggle {
+            font-family: var(--font-mono);
+            font-size: var(--text-xl);
+            color: var(--color-text-secondary);
+            transition: transform var(--transition-fast);
+        }
+
+        .section.collapsed .section-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .section-content {
+            padding: var(--space-lg);
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .section.collapsed .section-content {
+            max-height: 0;
+            padding: 0 var(--space-lg);
+        }
+
+        /* Gamepad Controls */
+        .gamepad {
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px solid var(--color-border-accent);
+            border-radius: var(--radius-xl);
+            padding: var(--space-xl);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .joysticks {
+            display: flex;
+            justify-content: space-around;
+            gap: var(--space-lg);
+            margin-bottom: var(--space-2xl);
+            flex-wrap: wrap;
+        }
+
+        .joystick-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .joystick-label {
+            font-family: var(--font-mono);
+            margin-bottom: var(--space-sm);
+            font-size: var(--text-sm);
+            font-weight: 700;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .joystick {
+            width: 200px;
+            height: 200px;
+            position: relative;
+            background: radial-gradient(circle, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6));
+            border: 3px solid var(--color-border-accent);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .joystick-stick {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--color-spectrum-cyan) 0%, var(--color-spectrum-purple) 50%, var(--color-spectrum-magenta) 100%);
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.6);
+            transition: box-shadow 0.1s;
+        }
+
+        .joystick.active .joystick-stick {
+            box-shadow: 0 6px 30px rgba(0, 212, 255, 0.9);
+        }
+
+        .joystick-values {
+            margin-top: var(--space-sm);
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+            color: var(--color-text-tertiary);
+        }
+
+        /* Buttons */
+        .shoulders {
+            display: flex;
+            justify-content: space-between;
+            gap: var(--space-lg);
+            margin-bottom: var(--space-xl);
+        }
+
+        .shoulder-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .button, .shoulder-button {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-bounce);
+            text-align: center;
+            border-radius: var(--radius-lg);
+        }
+
+        .button {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.25), rgba(102, 0, 255, 0.25));
+            border: 2px solid var(--color-spectrum-cyan);
+            padding: var(--space-lg);
+            font-size: var(--text-lg);
+        }
+
+        .shoulder-button {
+            background: linear-gradient(135deg, rgba(255, 184, 0, 0.25), rgba(255, 102, 0, 0.25));
+            border: 2px solid var(--color-warning);
+            padding: var(--space-md);
+            font-size: var(--text-sm);
+        }
+
+        .button:active, .button.pressed {
+            background: linear-gradient(135deg, rgba(0, 255, 100, 0.5), rgba(0, 212, 255, 0.5));
+            border-color: var(--color-success);
+            transform: scale(0.92);
+            box-shadow: 0 0 25px var(--color-success);
+        }
+
+        .shoulder-button:active, .shoulder-button.pressed {
+            background: linear-gradient(135deg, rgba(255, 255, 0, 0.5), rgba(255, 184, 0, 0.5));
+            border-color: var(--color-warning);
+            transform: scale(0.92);
+            box-shadow: 0 0 25px var(--color-warning);
+        }
+
+        .button-row {
+            display: flex;
+            gap: var(--space-md);
+            justify-content: center;
+            margin-bottom: var(--space-md);
+        }
+
+        .button-row .button {
+            flex: 1;
+            max-width: 150px;
+        }
+
+        /* Logger */
+        .log-container {
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-border-subtle);
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+        }
+
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid var(--color-border-subtle);
+            white-space: pre-wrap;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-debug { color: var(--color-spectrum-cyan); }
+        .log-info { color: var(--color-success); }
+        .log-warn { color: var(--color-warning); }
+        .log-error { color: var(--color-error); }
+
+        /* Curve Mapper */
+        .curve-canvas {
+            width: 100%;
+            height: 300px;
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-border-medium);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-md);
+        }
+
+        .curve-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-md);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+        }
+
+        .control-group label {
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+            color: var(--color-text-secondary);
+            font-weight: 600;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+        }
+
+        .control-group select {
+            font-family: var(--font-mono);
+            background: var(--color-bg-tertiary);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-border-medium);
+            padding: var(--space-sm);
+            border-radius: var(--radius-sm);
+        }
+
+        .value-display {
+            font-family: var(--font-mono);
+            color: var(--color-spectrum-cyan);
+            font-weight: 700;
+        }
+
+        /* Mobile */
+        @media (max-width: 600px) {
+            .joystick {
+                width: 150px;
+                height: 150px;
+            }
+
+            .joystick-stick {
+                width: 50px;
+                height: 50px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Virtual Gamepad Controller</h1>
+            <div class="status" id="status">Initializing...</div>
+        </div>
+
+        <!-- Gamepad Section -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection('gamepad')">
+                <h2>🎮 Gamepad Controls</h2>
+                <span class="section-toggle">▼</span>
+            </div>
+            <div class="section-content">
+                <div class="gamepad">
+                    <!-- Joysticks -->
+                    <div class="joysticks">
+                        <div class="joystick-wrapper">
+                            <div class="joystick-label">Left Stick</div>
+                            <div class="joystick" id="left-joystick" data-axis-x="0" data-axis-y="1">
+                                <div class="joystick-stick"></div>
+                            </div>
+                            <div class="joystick-values" id="left-values">X: 0.00 Y: 0.00</div>
+                        </div>
+
+                        <div class="joystick-wrapper">
+                            <div class="joystick-label">Right Stick</div>
+                            <div class="joystick" id="right-joystick" data-axis-x="2" data-axis-y="3">
+                                <div class="joystick-stick"></div>
+                            </div>
+                            <div class="joystick-values" id="right-values">X: 0.00 Y: 0.00</div>
+                        </div>
+                    </div>
+
+                    <!-- Shoulder Buttons -->
+                    <div class="shoulders">
+                        <div class="shoulder-group">
+                            <div class="shoulder-button" id="btn-6" data-button="6">L1 (6)</div>
+                            <div class="shoulder-button" id="btn-8" data-button="8">L2 (8)</div>
+                        </div>
+                        <div class="shoulder-group">
+                            <div class="shoulder-button" id="btn-7" data-button="7">R1 (7)</div>
+                            <div class="shoulder-button" id="btn-9" data-button="9">R2 (9)</div>
+                        </div>
+                    </div>
+
+                    <!-- Face Buttons -->
+                    <div class="button-row">
+                        <div class="button" id="btn-2" data-button="2">Y (2)</div>
+                    </div>
+                    <div class="button-row">
+                        <div class="button" id="btn-0" data-button="0">X (0)</div>
+                        <div class="button" id="btn-1" data-button="1">A (1)</div>
+                    </div>
+                    <div class="button-row">
+                        <div class="button" id="btn-3" data-button="3">B (3)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Curve Mapper Section -->
+        <div class="section collapsed">
+            <div class="section-header" onclick="toggleSection('curve')">
+                <h2>📈 Curve Mapper</h2>
+                <span class="section-toggle">▼</span>
+            </div>
+            <div class="section-content">
+                <canvas class="curve-canvas" id="curve-canvas" width="800" height="300"></canvas>
+
+                <div class="curve-controls">
+                    <div class="control-group">
+                        <label>Attack <span class="value-display" id="attack-val">0.50</span></label>
+                        <input type="range" id="curve-attack" min="0" max="100" value="50">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Sustain <span class="value-display" id="sustain-val">0.50</span></label>
+                        <input type="range" id="curve-sustain" min="0" max="100" value="50">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Release <span class="value-display" id="release-val">0.50</span></label>
+                        <input type="range" id="curve-release" min="0" max="100" value="50">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Gain <span class="value-display" id="gain-val">1.00</span></label>
+                        <input type="range" id="curve-gain" min="0" max="200" value="100">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Preset</label>
+                        <select id="curve-preset">
+                            <option value="linear">Linear</option>
+                            <option value="fastAttack">Fast Attack</option>
+                            <option value="slowAttack">Slow Attack</option>
+                            <option value="fastRelease">Fast Release</option>
+                            <option value="slowRelease">Slow Release</option>
+                            <option value="sCurve" selected>S-Curve</option>
+                            <option value="exponential">Exponential</option>
+                            <option value="logarithmic">Logarithmic</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logger Section -->
+        <div class="section collapsed">
+            <div class="section-header" onclick="toggleSection('logger')">
+                <h2>📋 Logger</h2>
+                <span class="section-toggle">▼</span>
+            </div>
+            <div class="section-content">
+                <div class="log-container" id="log-output"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load modules -->
+    <script src="js/design-tokens.js"></script>
+    <script src="js/logger.js"></script>
+    <script src="js/curve-mapper.js"></script>
+    <script src="js/storage-manager.js"></script>
+
+    <script>
+        // Initialize design system
+        DesignTokens.init();
+
+        // Initialize logger
+        const Logger = window.FP.Logger;
+        Logger.setLevel('INFO');
+        Logger.setUIElement(document.getElementById('log-output'));
+
+        // Initialize curve mapper
+        const CurveMapper = window.FP.CurveMapper;
+        const curveId = 'main-curve';
+        CurveMapper.createCurve(curveId, {
+            attack: 0.5,
+            sustain: 0.5,
+            release: 0.5,
+            gain: 1.0
+        });
+
+        // Collapsible sections
+        function toggleSection(sectionId) {
+            const sections = {
+                'gamepad': document.querySelector('.section:nth-child(2)'),
+                'curve': document.querySelector('.section:nth-child(3)'),
+                'logger': document.querySelector('.section:nth-child(4)')
+            };
+
+            const section = sections[sectionId];
+            if (section) {
+                section.classList.toggle('collapsed');
+            }
+        }
+
+        // Curve mapper controls
+        function updateCurve() {
+            const attack = parseFloat(document.getElementById('curve-attack').value) / 100;
+            const sustain = parseFloat(document.getElementById('curve-sustain').value) / 100;
+            const release = parseFloat(document.getElementById('curve-release').value) / 100;
+            const gain = parseFloat(document.getElementById('curve-gain').value) / 100;
+
+            CurveMapper.updateCurve(curveId, { attack, sustain, release, gain });
+
+            // Update displays
+            document.getElementById('attack-val').textContent = attack.toFixed(2);
+            document.getElementById('sustain-val').textContent = sustain.toFixed(2);
+            document.getElementById('release-val').textContent = release.toFixed(2);
+            document.getElementById('gain-val').textContent = gain.toFixed(2);
+
+            // Redraw curve
+            const canvas = document.getElementById('curve-canvas');
+            CurveMapper.drawCurve(canvas, curveId, { padding: 20 });
+        }
+
+        ['curve-attack', 'curve-sustain', 'curve-release', 'curve-gain'].forEach(id => {
+            document.getElementById(id).addEventListener('input', updateCurve);
+        });
+
+        document.getElementById('curve-preset').addEventListener('change', (e) => {
+            CurveMapper.loadPreset(curveId, e.target.value);
+            const curve = CurveMapper.getCurve(curveId);
+
+            // Update sliders
+            document.getElementById('curve-attack').value = curve.attack * 100;
+            document.getElementById('curve-sustain').value = curve.sustain * 100;
+            document.getElementById('curve-release').value = curve.release * 100;
+            document.getElementById('curve-gain').value = curve.gain * 100;
+
+            updateCurve();
+        });
+
+        // Initial curve draw
+        updateCurve();
+
+        // Virtual Gamepad Logic
+        const CHANNEL_NAME = 'phasefield-virtual-gamepad';
+        let channel = null;
+        let isConnected = false;
+
+        const gamepadState = {
+            axes: [0, 0, 0, 0, 0, 0],
+            buttons: Array(16).fill(null).map(() => ({
+                pressed: false,
+                value: 0,
+                touched: false
+            })),
+            connected: true,
+            id: "Virtual Gamepad (Cross-Tab)",
+            index: 99,
+            timestamp: Date.now(),
+            mapping: "standard"
+        };
+
+        function init() {
+            if (!window.BroadcastChannel) {
+                Logger.error('VirtualGamepad', 'BroadcastChannel not supported');
+                document.getElementById('status').textContent = 'BroadcastChannel not supported';
+                return;
+            }
+
+            try {
+                channel = new BroadcastChannel(CHANNEL_NAME);
+                isConnected = true;
+                updateStatus();
+                Logger.info('VirtualGamepad', `Broadcasting on: ${CHANNEL_NAME}`);
+
+                setInterval(broadcastState, 16); // ~60 FPS
+            } catch (error) {
+                Logger.error('VirtualGamepad', 'Failed to initialize', error);
+            }
+        }
+
+        function broadcastState() {
+            if (!channel || !isConnected) return;
+
+            gamepadState.timestamp = Date.now();
+            channel.postMessage({
+                type: 'gamepad-state',
+                state: gamepadState
+            });
+        }
+
+        function updateStatus() {
+            const statusEl = document.getElementById('status');
+            if (isConnected) {
+                statusEl.textContent = 'Connected - Broadcasting';
+                statusEl.classList.add('connected');
+            } else {
+                statusEl.textContent = 'Disconnected';
+                statusEl.classList.remove('connected');
+            }
+        }
+
+        // Joystick handling
+        const joysticks = document.querySelectorAll('.joystick');
+        const activeJoysticks = new Map();
+
+        joysticks.forEach(joystick => {
+            const stick = joystick.querySelector('.joystick-stick');
+            const axisX = parseInt(joystick.dataset.axisX);
+            const axisY = parseInt(joystick.dataset.axisY);
+            const valuesEl = joystick.parentElement.querySelector('.joystick-values');
+
+            function updateJoystick(clientX, clientY) {
+                const rect = joystick.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
+                const offsetX = clientX - centerX;
+                const offsetY = clientY - centerY;
+                const maxDist = (rect.width / 2) - 30;
+                const dist = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
+                const clampedDist = Math.min(dist, maxDist);
+                const angle = Math.atan2(offsetY, offsetX);
+                const clampedX = Math.cos(angle) * clampedDist;
+                const clampedY = Math.sin(angle) * clampedDist;
+
+                stick.style.transform = `translate(calc(-50% + ${clampedX}px), calc(-50% + ${clampedY}px))`;
+
+                const normalizedX = clampedX / maxDist;
+                const normalizedY = clampedY / maxDist;
+                gamepadState.axes[axisX] = parseFloat(normalizedX.toFixed(3));
+                gamepadState.axes[axisY] = parseFloat(normalizedY.toFixed(3));
+
+                valuesEl.textContent = `X: ${gamepadState.axes[axisX].toFixed(2)} Y: ${gamepadState.axes[axisY].toFixed(2)}`;
+            }
+
+            function resetJoystick() {
+                stick.style.transform = 'translate(-50%, -50%)';
+                gamepadState.axes[axisX] = 0;
+                gamepadState.axes[axisY] = 0;
+                valuesEl.textContent = 'X: 0.00 Y: 0.00';
+                joystick.classList.remove('active');
+            }
+
+            joystick.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                joystick.classList.add('active');
+                activeJoysticks.set('mouse', { joystick, updateJoystick, resetJoystick });
+                updateJoystick(e.clientX, e.clientY);
+                Logger.debug('Joystick', `Axis ${axisX}/${axisY} activated`);
+            });
+
+            joystick.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                joystick.classList.add('active');
+                const touch = e.touches[0];
+                activeJoysticks.set(touch.identifier, { joystick, updateJoystick, resetJoystick });
+                updateJoystick(touch.clientX, touch.clientY);
+            });
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            const active = activeJoysticks.get('mouse');
+            if (active) active.updateJoystick(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mouseup', () => {
+            const active = activeJoysticks.get('mouse');
+            if (active) {
+                active.resetJoystick();
+                activeJoysticks.delete('mouse');
+            }
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                const active = activeJoysticks.get(touch.identifier);
+                if (active) active.updateJoystick(touch.clientX, touch.clientY);
+            }
+        });
+
+        document.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const active = activeJoysticks.get(touch.identifier);
+                if (active) {
+                    active.resetJoystick();
+                    activeJoysticks.delete(touch.identifier);
+                }
+            }
+        });
+
+        // Button handling
+        const buttons = document.querySelectorAll('[data-button]');
+
+        buttons.forEach(button => {
+            const buttonIndex = parseInt(button.dataset.button);
+
+            function pressButton() {
+                button.classList.add('pressed');
+                gamepadState.buttons[buttonIndex].pressed = true;
+                gamepadState.buttons[buttonIndex].value = 1;
+                gamepadState.buttons[buttonIndex].touched = true;
+                Logger.debug('Button', `Button ${buttonIndex} pressed`);
+            }
+
+            function releaseButton() {
+                button.classList.remove('pressed');
+                gamepadState.buttons[buttonIndex].pressed = false;
+                gamepadState.buttons[buttonIndex].value = 0;
+                gamepadState.buttons[buttonIndex].touched = false;
+            }
+
+            button.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                pressButton();
+            });
+
+            button.addEventListener('mouseup', releaseButton);
+            button.addEventListener('mouseleave', releaseButton);
+
+            button.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                pressButton();
+            });
+
+            button.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                releaseButton();
+            });
+        });
+
+        // Initialize
+        init();
+    </script>
+</body>
+</html>
