@@ -1,0 +1,792 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scientific Visualization Tool (SVT) - Prototype</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Floating Tab System */
+        .floating-tabs {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #e1e8ed;
+            z-index: 1000;
+            padding: 10px 20px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .floating-tab {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.2s ease;
+        }
+
+        .floating-tab:hover {
+            background: rgba(52, 152, 219, 0.1);
+            color: #3498db;
+        }
+
+        .floating-tab.active {
+            background: #3498db;
+            color: white;
+        }
+
+        /* Main Container */
+        .container {
+            margin-top: 60px;
+            padding: 20px;
+            min-height: calc(100vh - 60px);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+            height: calc(100vh - 100px);
+        }
+
+        .left-panel, .right-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow-y: auto;
+        }
+
+        /* Guide Section */
+        .guide-section {
+            margin-bottom: 30px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .guide-header {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .guide-tabs {
+            display: flex;
+            background: #ecf0f1;
+            border-bottom: 1px solid #bdc3c7;
+        }
+
+        .guide-tab {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: #7f8c8d;
+            transition: all 0.3s ease;
+        }
+
+        .guide-tab:hover {
+            background: rgba(52, 152, 219, 0.1);
+            color: #3498db;
+        }
+
+        .guide-tab.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .guide-content {
+            padding: 20px;
+        }
+
+        /* Concept Sections */
+        .concept-section {
+            margin-bottom: 20px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .concept-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e1e8ed;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .concept-header:hover {
+            background: #ecf0f1;
+        }
+
+        .concept-content {
+            padding: 20px;
+        }
+
+        .concept-meta {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 10px;
+            padding: 8px;
+            background: #f1f2f6;
+            border-radius: 4px;
+        }
+
+        /* Visualization Panel */
+        .visualization-area {
+            background: #f8f9fa;
+            border: 2px dashed #bdc3c7;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .visualization-area:hover {
+            border-color: #3498db;
+            background: #ecf0f1;
+        }
+
+        .controls-area {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .control-widget {
+            background: #f8f9fa;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .control-widget:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .widget-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+
+        .widget-type {
+            font-size: 0.8em;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+
+        .widget-demo {
+            height: 20px;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            border-radius: 10px;
+        }
+
+        /* Inspector Modal */
+        .inspector-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .inspector-modal {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80%;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .inspector-header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+
+        .inspector-title {
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .inspector-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .inspector-tabs {
+            display: flex;
+            background: #ecf0f1;
+            border-bottom: 1px solid #bdc3c7;
+        }
+
+        .inspector-tab {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: #7f8c8d;
+            transition: all 0.3s ease;
+        }
+
+        .inspector-tab:hover {
+            background: rgba(52, 152, 219, 0.1);
+            color: #3498db;
+        }
+
+        .inspector-tab.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .inspector-content {
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .inspector-panel {
+            display: none;
+        }
+
+        .inspector-panel.active {
+            display: block;
+        }
+
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .property-list {
+            list-style: none;
+        }
+
+        .property-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #f1f2f6;
+            display: flex;
+        }
+
+        .property-name {
+            font-weight: 600;
+            min-width: 150px;
+            color: #2c3e50;
+        }
+
+        .property-value {
+            color: #7f8c8d;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        /* Clickable Element Highlight */
+        .svt-inspectable {
+            outline: 2px dashed transparent;
+            transition: outline 0.2s ease;
+        }
+
+        .svt-inspectable:hover {
+            outline-color: #f39c12;
+            outline-offset: 2px;
+        }
+
+        /* Utility Classes */
+        .collapse-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .hide {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating Navigation Tabs -->
+    <div class="floating-tabs">
+        <button class="floating-tab active" data-notebook="mathematics">Mathematics</button>
+        <button class="floating-tab" data-notebook="physics">Physics</button>
+        <button class="floating-tab" data-notebook="chemistry">Chemistry</button>
+        <button class="floating-tab" data-notebook="biology">Biology</button>
+    </div>
+
+    <div class="container">
+        <div class="main-layout">
+            <!-- Left Panel: Concepts and Guide -->
+            <div class="left-panel">
+                <!-- Guide Section -->
+                <div class="guide-section svt-inspectable" data-svt-type="guide-section" data-svt-concept="system-guide">
+                    <div class="guide-header">
+                        <span class="collapse-icon">▼</span>
+                        System Guide
+                    </div>
+                    <div class="guide-tabs">
+                        <button class="guide-tab active" data-tab="overview">Overview</button>
+                        <button class="guide-tab" data-tab="controls">Controls</button>
+                        <button class="guide-tab" data-tab="navigation">Navigation</button>
+                    </div>
+                    <div class="guide-content">
+                        <div class="tab-content active" id="overview">
+                            <h3>Scientific Visualization Tool (SVT)</h3>
+                            <p>A modular framework for interactive scientific exploration. Click on any element to inspect its structure and SVT metadata.</p>
+                            <ul>
+                                <li>Notebook-based organization</li>
+                                <li>Concept-driven sections</li>
+                                <li>Interactive widget system</li>
+                                <li>Cross-referencing capabilities</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Concept Section 1 -->
+                <div class="concept-section svt-inspectable" data-svt-type="concept-section" data-svt-concept="functions-limits">
+                    <div class="concept-header">
+                        <span class="collapse-icon">▼</span>
+                        Functions & Limits
+                    </div>
+                    <div class="concept-content">
+                        <h4>Understanding Continuous Functions</h4>
+                        <p>Explore the fundamental concept of functions and their limits through interactive visualization.</p>
+                        <p>A <strong class="svt-inspectable" data-svt-type="mathematical-term" data-svt-concept="function-definition">function</strong> is a relation between a set of inputs and outputs.</p>
+                        <div class="concept-meta">
+                            <strong>SVT Metadata:</strong> concept-id: functions-limits | widgets: 4 | references: 7
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Concept Section 2 -->
+                <div class="concept-section svt-inspectable" data-svt-type="concept-section" data-svt-concept="differential-equations">
+                    <div class="concept-header">
+                        <span class="collapse-icon">▼</span>
+                        Differential Equations
+                    </div>
+                    <div class="concept-content">
+                        <h4>Dynamic Systems & Change</h4>
+                        <p>Investigate how systems change over time using differential equations and phase portraits.</p>
+                        <p>The general form: <strong class="svt-inspectable" data-svt-type="equation" data-svt-concept="ode-general">dy/dx = f(x,y)</strong></p>
+                        <div class="concept-meta">
+                            <strong>SVT Metadata:</strong> concept-id: differential-equations | widgets: 6 | references: 12
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Concept Section 3 -->
+                <div class="concept-section svt-inspectable" data-svt-type="concept-section" data-svt-concept="vector-fields">
+                    <div class="concept-header">
+                        <span class="collapse-icon">▼</span>
+                        Vector Fields
+                    </div>
+                    <div class="concept-content">
+                        <h4>Field Visualization</h4>
+                        <p>Vector fields represent quantities that have both magnitude and direction at every point in space.</p>
+                        <div class="concept-meta">
+                            <strong>SVT Metadata:</strong> concept-id: vector-fields | widgets: 5 | references: 9
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Visualization -->
+            <div class="right-panel">
+                <div class="visualization-area svt-inspectable" data-svt-type="visualization-canvas" data-svt-concept="active-visualization">
+                    <h3>Interactive Visualization Area</h3>
+                    <p>Click to inspect the canvas element</p>
+                    <div style="width: 100px; height: 100px; background: #3498db; border-radius: 50%; margin: 20px auto;"></div>
+                </div>
+
+                <div class="controls-area">
+                    <div class="control-widget svt-inspectable" data-svt-type="slider-widget" data-svt-concept="parameter-a">
+                        <div class="widget-label">Parameter A</div>
+                        <div class="widget-type">Slider Widget</div>
+                        <div class="widget-demo"></div>
+                    </div>
+
+                    <div class="control-widget svt-inspectable" data-svt-type="knob-widget" data-svt-concept="parameter-b">
+                        <div class="widget-label">Parameter B</div>
+                        <div class="widget-type">Knob Widget</div>
+                        <div class="widget-demo" style="background: linear-gradient(90deg, #e74c3c, #c0392b);"></div>
+                    </div>
+
+                    <div class="control-widget svt-inspectable" data-svt-type="color-widget" data-svt-concept="visualization-color">
+                        <div class="widget-label">Color Scheme</div>
+                        <div class="widget-type">Color Picker Widget</div>
+                        <div class="widget-demo" style="background: linear-gradient(90deg, #f39c12, #e67e22);"></div>
+                    </div>
+
+                    <div class="control-widget svt-inspectable" data-svt-type="toggle-widget" data-svt-concept="animation-toggle">
+                        <div class="widget-label">Animation</div>
+                        <div class="widget-type">Toggle Widget</div>
+                        <div class="widget-demo" style="background: linear-gradient(90deg, #27ae60, #229954);"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inspector Modal -->
+    <div class="inspector-overlay" id="inspector">
+        <div class="inspector-modal">
+            <div class="inspector-header">
+                <div class="inspector-title">Element Inspector</div>
+                <button class="inspector-close" onclick="closeInspector()">×</button>
+            </div>
+            <div class="inspector-tabs">
+                <button class="inspector-tab active" data-inspector-tab="html">HTML</button>
+                <button class="inspector-tab" data-inspector-tab="css">CSS</button>
+                <button class="inspector-tab" data-inspector-tab="dom">DOM</button>
+                <button class="inspector-tab" data-inspector-tab="svt">SVT</button>
+            </div>
+            <div class="inspector-content">
+                <div class="inspector-panel active" id="html-panel">
+                    <h4>HTML Structure</h4>
+                    <div class="code-block" id="html-content"></div>
+                </div>
+                <div class="inspector-panel" id="css-panel">
+                    <h4>CSS Properties</h4>
+                    <ul class="property-list" id="css-content"></ul>
+                </div>
+                <div class="inspector-panel" id="dom-panel">
+                    <h4>DOM Information</h4>
+                    <ul class="property-list" id="dom-content"></ul>
+                </div>
+                <div class="inspector-panel" id="svt-panel">
+                    <h4>SVT Framework Data</h4>
+                    <ul class="property-list" id="svt-content"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentElement = null;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            setupInspector();
+            setupFloatingTabs();
+            setupCollapsibleSections();
+            setupGuideTabs();
+        });
+
+        // Setup element inspection
+        function setupInspector() {
+            document.addEventListener('click', function(e) {
+                // Don't inspect if clicking on inspector itself
+                if (e.target.closest('.inspector-overlay')) {
+                    return;
+                }
+
+                // Only inspect elements with svt-inspectable class
+                if (e.target.classList.contains('svt-inspectable') || e.target.closest('.svt-inspectable')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const element = e.target.classList.contains('svt-inspectable') 
+                        ? e.target 
+                        : e.target.closest('.svt-inspectable');
+                    
+                    inspectElement(element);
+                }
+            });
+
+            // Close inspector with Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeInspector();
+                }
+            });
+
+            // Setup inspector tabs
+            document.querySelectorAll('.inspector-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    switchInspectorTab(this.dataset.inspectorTab);
+                });
+            });
+        }
+
+        // Inspect an element
+        function inspectElement(element) {
+            currentElement = element;
+            
+            // Populate HTML panel
+            populateHTMLPanel(element);
+            
+            // Populate CSS panel
+            populateCSSPanel(element);
+            
+            // Populate DOM panel
+            populateDOMPanel(element);
+            
+            // Populate SVT panel
+            populateSVTPanel(element);
+            
+            // Show inspector
+            document.getElementById('inspector').style.display = 'flex';
+        }
+
+        // Populate HTML panel
+        function populateHTMLPanel(element) {
+            const htmlContent = document.getElementById('html-content');
+            const html = element.outerHTML;
+            htmlContent.textContent = formatHTML(html);
+        }
+
+        // Populate CSS panel
+        function populateCSSPanel(element) {
+            const cssContent = document.getElementById('css-content');
+            const computedStyle = window.getComputedStyle(element);
+            const relevantProperties = [
+                'display', 'position', 'width', 'height', 'margin', 'padding',
+                'background-color', 'color', 'font-family', 'font-size',
+                'border', 'border-radius', 'box-shadow', 'transform'
+            ];
+
+            cssContent.innerHTML = '';
+            relevantProperties.forEach(prop => {
+                const value = computedStyle.getPropertyValue(prop);
+                if (value) {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="property-name">${prop}:</span>
+                        <span class="property-value">${value}</span>
+                    `;
+                    cssContent.appendChild(li);
+                }
+            });
+        }
+
+        // Populate DOM panel
+        function populateDOMPanel(element) {
+            const domContent = document.getElementById('dom-content');
+            const properties = [
+                { name: 'Tag Name', value: element.tagName.toLowerCase() },
+                { name: 'ID', value: element.id || 'none' },
+                { name: 'Classes', value: element.className || 'none' },
+                { name: 'Children', value: element.children.length },
+                { name: 'Parent', value: element.parentElement ? element.parentElement.tagName.toLowerCase() : 'none' },
+                { name: 'Text Content', value: element.textContent ? element.textContent.substring(0, 50) + '...' : 'none' },
+                { name: 'Offset Width', value: element.offsetWidth + 'px' },
+                { name: 'Offset Height', value: element.offsetHeight + 'px' }
+            ];
+
+            domContent.innerHTML = '';
+            properties.forEach(prop => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span class="property-name">${prop.name}:</span>
+                    <span class="property-value">${prop.value}</span>
+                `;
+                domContent.appendChild(li);
+            });
+        }
+
+        // Populate SVT panel
+        function populateSVTPanel(element) {
+            const svtContent = document.getElementById('svt-content');
+            
+            // Extract SVT-specific data attributes
+            const svtData = [];
+            
+            // Get all data-svt attributes
+            Array.from(element.attributes).forEach(attr => {
+                if (attr.name.startsWith('data-svt-')) {
+                    svtData.push({
+                        name: attr.name.replace('data-svt-', ''),
+                        value: attr.value
+                    });
+                }
+            });
+
+            // Add framework-specific metadata
+            const frameworkData = [
+                { name: 'Framework Version', value: 'SVT v1.0.0' },
+                { name: 'Element Type', value: element.dataset.svtType || 'unknown' },
+                { name: 'Concept ID', value: element.dataset.svtConcept || 'undefined' },
+                { name: 'Inspectable', value: element.classList.contains('svt-inspectable') ? 'true' : 'false' },
+                { name: 'Widget Count', value: element.querySelectorAll('[data-svt-type]').length },
+                { name: 'Cross References', value: Math.floor(Math.random() * 10) + 1 } // Mock data
+            ];
+
+            svtContent.innerHTML = '';
+            
+            // Add framework data
+            frameworkData.forEach(prop => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span class="property-name">${prop.name}:</span>
+                    <span class="property-value">${prop.value}</span>
+                `;
+                svtContent.appendChild(li);
+            });
+
+            // Add SVT data attributes if any
+            if (svtData.length > 0) {
+                const separator = document.createElement('li');
+                separator.innerHTML = '<hr style="margin: 10px 0;">';
+                svtContent.appendChild(separator);
+
+                svtData.forEach(prop => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="property-name">SVT ${prop.name}:</span>
+                        <span class="property-value">${prop.value}</span>
+                    `;
+                    svtContent.appendChild(li);
+                });
+            }
+        }
+
+        // Switch inspector tab
+        function switchInspectorTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.inspector-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`[data-inspector-tab="${tabName}"]`).classList.add('active');
+
+            // Update panels
+            document.querySelectorAll('.inspector-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            document.getElementById(`${tabName}-panel`).classList.add('active');
+        }
+
+        // Close inspector
+        function closeInspector() {
+            document.getElementById('inspector').style.display = 'none';
+            currentElement = null;
+        }
+
+        // Setup floating tabs
+        function setupFloatingTabs() {
+            document.querySelectorAll('.floating-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Update active tab
+                    document.querySelectorAll('.floating-tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Here you would load different notebook content
+                    console.log('Switched to notebook:', this.dataset.notebook);
+                });
+            });
+        }
+
+        // Setup collapsible sections
+        function setupCollapsibleSections() {
+            document.querySelectorAll('.concept-header, .guide-header').forEach(header => {
+                header.addEventListener('click', function() {
+                    const section = this.parentElement;
+                    const content = section.querySelector('.concept-content, .guide-content');
+                    const icon = this.querySelector('.collapse-icon');
+                    
+                    if (content.style.display === 'none') {
+                        content.style.display = 'block';
+                        section.classList.remove('collapsed');
+                    } else {
+                        content.style.display = 'none';
+                        section.classList.add('collapsed');
+                    }
+                });
+            });
+        }
+
+        // Setup guide tabs
+        function setupGuideTabs() {
+            document.querySelectorAll('.guide-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Update tab buttons
+                    this.parentElement.querySelectorAll('.guide-tab').forEach(t => {
+                        t.classList.remove('active');
+                    });
+                    this.classList.add('active');
+
+                    // Here you would switch guide content
+                    console.log('Switched to guide tab:', this.dataset.tab);
+                });
+            });
+        }
+
+        // Utility function to format HTML
+        function formatHTML(html) {
+            // Simple HTML formatting
+            return html
+                .replace(/></g, '>\n<')
+                .replace(/^\s+|\s+$/g, '')
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0)
+                .join('\n');
+        }
+    </script>
+</body>
+</html>

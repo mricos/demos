@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>1939 Voder Simulation</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <h1>Voder 1939 Simulation</h1>
+  <p>Click the phoneme buttons below to simulate speech sounds.</p>
+  
+  <div class="voder-container">
+    <div class="section">
+      <h2>Vowels (Tones)</h2>
+      <button onclick="playFormant('a')">A (as in 'cat')</button>
+      <button onclick="playFormant('e')">E (as in 'bed')</button>
+      <button onclick="playFormant('i')">I (as in 'bit')</button>
+      <button onclick="playFormant('o')">O (as in 'hot')</button>
+      <button onclick="playFormant('u')">U (as in 'put')</button>
+    </div>
+    
+    <div class="section">
+      <h2>Consonants (Noise)</h2>
+      <button onclick="playNoise('s')">S</button>
+      <button onclick="playNoise('sh')">Sh</button>
+      <button onclick="playNoise('f')">F</button>
+      <button onclick="playNoise('h')">H</button>
+      <button onclick="playClick()">Tap</button>
+    </div>
+  </div>
+
+  <script src="voder.js"></script>
+</body>
+</html>

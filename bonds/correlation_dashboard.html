@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Financial Correlation Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+  <style>
+    body { background: #111; color: #ddd; font-family: sans-serif; }
+    h1 { color: #fff; }
+    #vis { margin-top: 1em; }
+  </style>
+</head>
+<body>
+  <h1>US Bonds, Stocks, and Interest Rate Correlations (1995–2024)</h1>
+  <div id="vis"></div>
+  <script>
+    fetch('data.json')
+      .then(res => res.json())
+      .then(table => {
+        const spec = {
+          "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+          "datasets": { "table": table },
+          "vconcat": [
+            {
+              "hconcat": [
+                {
+                  "data": { "name": "table" },
+                  "mark": "line",
+                  "encoding": {
+                    "x": { "field": "year", "type": "ordinal" },
+                    "y": { "field": "stock", "type": "quantitative" },
+                    "color": { "value": "#1f77b4" }
+                  },
+                  "title": "S&P 500 Return (%)"
+                },
+                {
+                  "data": { "name": "table" },
+                  "mark": "line",
+                  "encoding": {
+                    "x": { "field": "year", "type": "ordinal" },
+                    "y": { "field": "bond", "type": "quantitative" },
+                    "color": { "value": "#2ca02c" }
+                  },
+                  "title": "30-Year Treasury Yield (%)"
+                },
+                {
+                  "data": { "name": "table" },
+                  "mark": "line",
+                  "encoding": {
+                    "x": { "field": "year", "type": "ordinal" },
+                    "y": { "field": "rate", "type": "quantitative" },
+                    "color": { "value": "#d62728" }
+                  },
+                  "title": "Federal Funds Rate (%)"
+                }
+              ]
+            },
+            {
+              "hconcat": [
+                {
+                  "data": { "name": "table" },
+                  "layer": [
+                    {
+                      "mark": "point",
+                      "encoding": {
+                        "x": { "field": "bond", "type": "quantitative" },
+                        "y": { "field": "stock", "type": "quantitative" },
+                        "color": { "field": "year", "type": "ordinal" }
+                      }
+                    },
+                    {
+                      "transform": [{ "regression": "stock", "on": "bond" }],
+                      "mark": { "type": "line", "color": "white", "strokeDash": [4,2] },
+                      "encoding": {
+                        "x": { "field": "bond", "type": "quantitative" },
+                        "y": { "field": "stock", "type": "quantitative" }
+                      }
+                    }
+                  ],
+                  "title": "Stock vs Bond"
+                },
+                {
+                  "data": { "name": "table" },
+                  "layer": [
+                    {
+                      "mark": "point",
+                      "encoding": {
+                        "x": { "field": "rate", "type": "quantitative" },
+                        "y": { "field": "stock", "type": "quantitative" },
+                        "color": { "field": "year", "type": "ordinal" }
+                      }
+                    },
+                    {
+                      "transform": [{ "regression": "stock", "on": "rate" }],
+                      "mark": { "type": "line", "color": "white", "strokeDash": [4,2] },
+                      "encoding": {
+                        "x": { "field": "rate", "type": "quantitative" },
+                        "y": { "field": "stock", "type": "quantitative" }
+                      }
+                    }
+                  ],
+                  "title": "Stock vs Fed Rate"
+                },
+                {
+                  "data": { "name": "table" },
+                  "layer": [
+                    {
+                      "mark": "point",
+                      "encoding": {
+                        "x": { "field": "rate", "type": "quantitative" },
+                        "y": { "field": "bond", "type": "quantitative" },
+                        "color": { "field": "year", "type": "ordinal" }
+                      }
+                    },
+                    {
+                      "transform": [{ "regression": "bond", "on": "rate" }],
+                      "mark": { "type": "line", "color": "white", "strokeDash": [4,2] },
+                      "encoding": {
+                        "x": { "field": "rate", "type": "quantitative" },
+                        "y": { "field": "bond", "type": "quantitative" }
+                      }
+                    }
+                  ],
+                  "title": "Bond vs Fed Rate"
+                }
+              ]
+            },
+            {
+              "layer": [
+                {
+                  "mark": "rect",
+                  "data": {
+                    "values": [
+                      { "x": "stock", "y": "stock", "value": 1.00 },
+                      { "x": "stock", "y": "bond", "value": -0.32 },
+                      { "x": "stock", "y": "rate", "value": -0.25 },
+                      { "x": "bond", "y": "stock", "value": -0.32 },
+                      { "x": "bond", "y": "bond", "value": 1.00 },
+                      { "x": "bond", "y": "rate", "value": 0.85 },
+                      { "x": "rate", "y": "stock", "value": -0.25 },
+                      { "x": "rate", "y": "bond", "value": 0.85 },
+                      { "x": "rate", "y": "rate", "value": 1.00 }
+                    ]
+                  },
+                  "encoding": {
+                    "x": { "field": "x", "type": "ordinal" },
+                    "y": { "field": "y", "type": "ordinal" },
+                    "color": {
+                      "field": "value", "type": "quantitative",
+                      "scale": { "scheme": "redblue", "domain": [-1, 1] }
+                    }
+                  }
+                },
+                {
+                  "mark": { "type": "text", "color": "white", "fontSize": 14 },
+                  "encoding": {
+                    "x": { "field": "x", "type": "ordinal" },
+                    "y": { "field": "y", "type": "ordinal" },
+                    "text": { "field": "value", "type": "quantitative", "format": ".2f" }
+                  }
+                }
+              ],
+              "width": 300,
+              "height": 300,
+              "title": "Correlation Heatmap"
+            }
+          ]
+        };
+
+        vegaEmbed("#vis", spec, { actions: false });
+      });
+  </script>
+</body>
+</html>

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Penrose Twistor Theory - Two-Component Spinors and Clifford-Hopf Fibering</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Penrose Twistor Theory</h1>
+            <p>Interactive exploration of two-component spinors and Clifford-Hopf fibering</p>
+        </header>
+
+        <main>
+            <div class="left-panel">
+                <div class="collapsible-section">
+                    <h2 class="section-header">
+                        <span class="collapse-icon">▼</span>
+                        Guide Section
+                    </h2>
+                    <div class="section-content">
+                        <div class="guide-tabs">
+                            <button class="guide-tab active" data-tab="overview">Overview</button>
+                            <button class="guide-tab" data-tab="controls">Controls</button>
+                            <button class="guide-tab" data-tab="cursors">Cursors</button>
+                            <button class="guide-tab" data-tab="scene-graph">Scene Graph</button>
+                            <button class="guide-tab" data-tab="meta">Meta</button>
+                        </div>
+                        
+                        <div class="guide-content">
+                    <div class="guide-tab-content active" id="overview-tab">
+                        <h3>System Overview</h3>
+                        <p>This interactive tool explores <strong>Penrose twistor theory</strong> through modular scenes, each focusing on different mathematical concepts.</p>
+                        <h4>Key Features:</h4>
+                        <ul>
+                            <li><strong>Scene-based exploration</strong>: Each section reveals different geometric aspects</li>
+                            <li><strong>Cursor system</strong>: Click highlighted terms to see related visualizations</li>
+                            <li><strong>Dynamic controls</strong>: Adjust parameters specific to each scene's focus</li>
+                            <li><strong>Cross-referencing</strong>: Mathematical terms link to visual elements</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="guide-tab-content" id="controls-tab">
+                        <h3>Interactive Controls</h3>
+                        <p>Each scene has specialized controls that reveal different aspects:</p>
+                        <h4>Control Types:</h4>
+                        <ul>
+                            <li><strong>Sliders</strong>: Adjust continuous parameters like phases and amplitudes</li>
+                            <li><strong>Dropdowns</strong>: Switch between visualization modes</li>
+                            <li><strong>Toggles</strong>: Enable/disable features like rotation</li>
+                            <li><strong>Buttons</strong>: Reset state or pause animation</li>
+                        </ul>
+                        <div class="widget-showcase">
+                            <h4>Advanced Widget Library:</h4>
+                            <div class="showcase-grid">
+                                <div class="widget-example">
+                                    <label>Standard Slider:</label>
+                                    <input type="range" min="0" max="100" value="50">
+                                    <span>50</span>
+                                </div>
+                                <div class="widget-example">
+                                    <label class="toggle-example">
+                                        <input type="checkbox" checked>
+                                        <span class="toggle-slider"></span>
+                                        Toggle Switch
+                                    </label>
+                                </div>
+                                <div class="widget-example">
+                                    <label>Color Picker:</label>
+                                    <div class="color-control-wrapper">
+                                        <input type="color" class="color-input" value="#3498db">
+                                        <div class="color-display" style="background-color: #3498db;">#3498db</div>
+                                    </div>
+                                </div>
+                                <div class="widget-example">
+                                    <label>Knob Control:</label>
+                                    <div class="knob-container">
+                                        <div class="knob">
+                                            <div class="knob-handle" style="transform: rotate(-45deg);"></div>
+                                        </div>
+                                        <span class="knob-value">25</span>
+                                    </div>
+                                </div>
+                                <div class="widget-example">
+                                    <label>Stepper:</label>
+                                    <div class="stepper-container">
+                                        <button class="stepper-btn decrease">−</button>
+                                        <span class="stepper-value">42</span>
+                                        <button class="stepper-btn increase">+</button>
+                                    </div>
+                                </div>
+                                <div class="widget-example">
+                                    <label>Multi-Handle Slider:</label>
+                                    <div class="multihandle-container">
+                                        <div class="multihandle-track">
+                                            <div class="multihandle-handle" style="left: 20%;"></div>
+                                            <div class="multihandle-handle" style="left: 60%;"></div>
+                                            <div class="multihandle-handle" style="left: 80%;"></div>
+                                        </div>
+                                        <span class="multihandle-value">20 | 60 | 80</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p><em>Each widget type offers unique interaction patterns optimized for different parameter types and mathematical concepts.</em></p>
+                        </div>
+                    </div>
+                    
+                    <div class="guide-tab-content" id="cursors-tab">
+                        <h3>Cursor System</h3>
+                        <p>The <span class="twistor-term" data-highlight="system-overview">cursor system</span> creates connections between text and visualization:</p>
+                        <h4>How it Works:</h4>
+                        <ul>
+                            <li><strong>Clickable terms</strong>: Blue highlighted terms are interactive</li>
+                            <li><strong>Visual highlighting</strong>: Activates related geometric elements</li>
+                            <li><strong>Parameter adjustment</strong>: Some cursors auto-adjust controls</li>
+                            <li><strong>Single activation</strong>: Only one cursor active at a time for clarity</li>
+                        </ul>
+                        <p><em>Try clicking on any highlighted term to see it in action!</em></p>
+                    </div>
+                    
+                    <div class="guide-tab-content" id="scene-graph-tab">
+                        <h3>Scene Graph Primitives</h3>
+                        <p>Each scene uses specialized geometric objects to represent mathematical concepts:</p>
+                        <h4>Primitive Types:</h4>
+                        <ul>
+                            <li><strong>TwoComponentSpinor</strong>: Dual rotating structures for spinor visualization</li>
+                            <li><strong>CliffordHopfFiber</strong>: Fiber bundle geometry for geometric connections</li>
+                            <li><strong>NullFlagStructure</strong>: Oriented flags representing null directions</li>
+                            <li><strong>TwistorSpaceProjection</strong>: Mapping between different mathematical spaces</li>
+                            <li><strong>PenroseTransform</strong>: Holomorphic mapping visualization</li>
+                        </ul>
+                        <h4>Object Hierarchy:</h4>
+                        <div class="primitive-tree">
+                            <div class="tree-node">TwistorObject (base)
+                                <div class="tree-children">
+                                    <div class="tree-child">├── TwoComponentSpinor</div>
+                                    <div class="tree-child">├── CliffordHopfFiber</div>
+                                    <div class="tree-child">├── NullFlagStructure</div>
+                                    <div class="tree-child">├── TwistorSpaceProjection</div>
+                                    <div class="tree-child">└── PenroseTransform</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="guide-tab-content" id="meta-tab">
+                        <h3>Meta: Interactive Features</h3>
+                        <p>This tool represents advanced <strong>interactive mathematical education</strong>:</p>
+                        
+                        <h4>🎯 Animated Slider Feature</h4>
+                        <p>When you click on highlighted mathematical terms, the system automatically adjusts related control sliders with smooth animations. This creates a seamless connection between theoretical concepts and their visual parameters.</p>
+                        <ul>
+                            <li><strong>Auto-adjustment</strong>: Cursors automatically move sliders to relevant values</li>
+                            <li><strong>Smooth transitions</strong>: Parameters animate over 1-2 seconds for clarity</li>
+                            <li><strong>Educational scaffolding</strong>: Shows relationships between theory and visualization</li>
+                        </ul>
+                        
+                        <h4>🔗 Cross-Modal Interactions</h4>
+                        <p>The system creates dynamic connections between:</p>
+                        <ul>
+                            <li><strong>Text concepts</strong> ↔ <strong>Visual elements</strong></li>
+                            <li><strong>Control parameters</strong> ↔ <strong>Geometric changes</strong></li>
+                            <li><strong>Mathematical notation</strong> ↔ <strong>Interactive widgets</strong></li>
+                        </ul>
+                        
+                        <h4>⌨️ Keyboard Shortcuts</h4>
+                        <ul>
+                            <li><strong>Ctrl+1-4</strong>: Switch between scenes</li>
+                            <li><strong>Ctrl+R</strong>: Reset current scene</li>
+                            <li><strong>Ctrl+Space</strong>: Toggle pause</li>
+                            <li><strong>Escape</strong>: Deactivate all cursors</li>
+                        </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Theory Sections -->
+                <div class="collapsible-section">
+                    <h2 class="section-header" data-section="fundamentals">
+                        <span class="collapse-icon">▼</span>
+                        Twistor Fundamentals & Two-Component Spinors
+                    </h2>
+                    <div class="section-content" id="fundamentals-content">
+                        <p>
+                            <span class="twistor-term" data-highlight="twistor-objects">Twistors</span> are fundamental geometric objects that encode both the spin and momentum 
+                            of massless particles. They live in a complex 4-dimensional space and provide the foundation 
+                            for understanding <span class="twistor-term" data-highlight="spinor-geometry">two-component spinor geometry</span>.
+                        </p>
+                        
+                        <h3>The Fundamental Spaces</h3>
+                        <p>
+                            Penrose's theory establishes correspondences between:
+                        </p>
+                        <ul>
+                            <li><strong class="twistor-term" data-highlight="spinor-space">S</strong>: Two-component spinor space (SL(2,ℂ))</li>
+                            <li><strong class="twistor-term" data-highlight="spacetime">M</strong>: Complexified Minkowski spacetime</li>
+                            <li><strong class="twistor-term" data-highlight="projective-twistor">PT</strong>: Projective twistor space ℂP³</li>
+                        </ul>
+                        
+                        <h4>Two-Component Spinor Structure</h4>
+                        <p>
+                            The <span class="twistor-term" data-highlight="spinor-components">two-component spinors</span> split into:
+                        </p>
+                        <ul>
+                            <li><strong class="twistor-term" data-highlight="positive-freq">ψ_A</strong>: Undotted spinor (positive helicity, +ω frequency)</li>
+                            <li><strong class="twistor-term" data-highlight="negative-freq">ψ'_A'</strong>: Dotted spinor (negative helicity, -ω frequency)</li>
+                        </ul>
+                        
+                        <p>
+                            This frequency splitting <strong class="twistor-term" data-highlight="frequency-split">±ω</strong> is fundamental to quantum field theory, 
+                            where positive frequencies correspond to particles and negative frequencies to antiparticles.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="collapsible-section">
+                    <h2 class="section-header" data-section="fibering">
+                        <span class="collapse-icon">▼</span>
+                        Clifford-Hopf Fibering & Geometric Connections
+                    </h2>
+                    <div class="section-content" id="fibering-content">
+                        <p>
+                            The <span class="twistor-term" data-highlight="clifford-hopf">Clifford-Hopf fibering</span> provides the crucial geometric bridge 
+                            connecting spinor space <strong>S</strong> to projective twistor space <strong>PT</strong>. 
+                            This fibration reveals how rotational dynamics in real spacetime correspond to 
+                            <span class="twistor-term" data-highlight="holomorphic-transforms">holomorphic transformations</span> in twistor space.
+                        </p>
+                        
+                        <h3>The Null Flag Geometry</h3>
+                        <p>
+                            Each point in complexified spacetime <strong>M</strong> corresponds to a line in projective 
+                            twistor space <strong>PT</strong>. This correspondence is mediated by the 
+                            <span class="twistor-term" data-highlight="null-flags">null flag structure</span> of two-component spinors:
+                        </p>
+                        <ul>
+                            <li><strong>α-planes</strong>: Spanned by undotted spinors ψ_A</li>
+                            <li><strong>β-planes</strong>: Spanned by dotted spinors ψ'_A'</li>
+                        </ul>
+                        
+                        <h4>Bi-twistors and Split-Octonions</h4>
+                        <p>
+                            The geometric structure extends to <span class="twistor-term" data-highlight="bi-twistors">bi-twistors</span> and connects to 
+                            <span class="twistor-term" data-highlight="split-octonions">split-octonion</span> geometry, revealing deeper algebraic relationships 
+                            in the foundations of spacetime geometry.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="collapsible-section">
+                    <h2 class="section-header" data-section="transform">
+                        <span class="collapse-icon">▼</span>
+                        The Penrose Transform & Physical Interpretation
+                    </h2>
+                    <div class="section-content" id="transform-content">
+                        <p>
+                            The <span class="twistor-term" data-highlight="penrose-transform">Penrose transform</span> provides the ultimate connection between 
+                            the holomorphic world of twistors and the real geometry of spacetime. It shows how 
+                            <span class="twistor-term" data-highlight="twistor-functions">twistor functions</span> map to physical fields in spacetime.
+                        </p>
+                        
+                        <h3>The Complete Picture</h3>
+                        <p>
+                            What emerges is a unified framework where:
+                        </p>
+                        <ul>
+                            <li><strong>Quantum mechanics</strong>: Encoded in spinor frequency decomposition ±ω</li>
+                            <li><strong>General relativity</strong>: Emerges from spacetime-twistor correspondence</li>
+                            <li><strong>Complex analysis</strong>: Drives the holomorphic structure of PT</li>
+                        </ul>
+                        
+                        <h4>Visualizing the Theory</h4>
+                        <p>
+                            The rotating visualization demonstrates these concepts in action. Each element represents:
+                        </p>
+                        <ul>
+                            <li><strong class="twistor-term" data-highlight="rotation-axes">Rotation axes</strong>: Correspond to spinor field orientations</li>
+                            <li><strong class="twistor-term" data-highlight="frequency-patterns">Oscillation patterns</strong>: Encode ±ω frequency splitting</li>
+                            <li><strong class="twistor-term" data-highlight="geometric-evolution">Geometric evolution</strong>: Shows Clifford-Hopf fibering dynamics</li>
+                        </ul>
+                        
+                        <p>
+                            This is not merely a spinning top, but a window into the geometric foundations 
+                            of physical reality as understood through Penrose's revolutionary twistor theory.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="collapsible-section">
+                    <h2 class="section-header" data-section="tool-guide">
+                        <span class="collapse-icon">▼</span>
+                        Interactive Science Exploration Tool Guide
+                    </h2>
+                    <div class="section-content" id="tool-guide-content">
+                        <p>
+                            This interactive tool represents a new paradigm in <strong>science exploration</strong> - 
+                            bridging the gap between abstract mathematical theory and intuitive understanding through 
+                            dynamic visualization and multi-modal interaction.
+                        </p>
+                        
+                        <h3>Modular Architecture</h3>
+                        <p>
+                            Built with a <strong>scene-based architecture</strong>, each section focuses on specific 
+                            aspects of twistor theory while maintaining conceptual continuity. The system employs:
+                        </p>
+                        <ul>
+                            <li><strong>Cursor System</strong>: Links mathematical terminology to visual elements</li>
+                            <li><strong>Dynamic Controls</strong>: Context-aware parameters for each scene</li>
+                            <li><strong>Cross-referencing</strong>: Real-time connections between theory and visualization</li>
+                        </ul>
+                        
+                        <h3>Navigation Guide</h3>
+                        <p>
+                            Explore the tool through multiple interaction modes:
+                        </p>
+                        <ul>
+                            <li><strong>Click highlighted terms</strong> to activate related visualizations</li>
+                            <li><strong>Navigate sections</strong> by clicking collapsible headers</li>
+                            <li><strong>Adjust parameters</strong> to see real-time geometric changes</li>
+                            <li><strong>Use keyboard shortcuts</strong>: Ctrl+1-4 for scenes, Ctrl+R to reset</li>
+                        </ul>
+                        
+                        <p>
+                            This represents the future of <em>interactive mathematical education</em> - where 
+                            complex theories become explorable, tangible experiences.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <div class="visualization-section">
+                    <canvas id="twistorCanvas" width="600" height="600"></canvas>
+                    <div id="twistorControls" class="controls"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Geometry Classes -->
+    <script src="js/geometry/rotor.js"></script>
+    <script src="js/geometry/bivector.js"></script>
+    <script src="js/geometry/twistor-objects.js"></script>
+    
+    <!-- Core Components -->
+    <script src="js/cursor-system.js"></script>
+    <script src="js/components/view.js"></script>
+    <script src="js/components/controls.js"></script>
+    
+    <!-- Scene Management -->
+    <script src="js/scene-manager.js"></script>
+    
+    <!-- Scene Implementations -->
+    <script src="js/scenes/fundamentals.js"></script>
+    <script src="js/scenes/fibering.js"></script>
+    <script src="js/scenes/transform.js"></script>
+    <script src="js/scenes/tool-guide.js"></script>
+    
+    <!-- Main Application -->
+    <script src="js/main.js"></script>
+</body>
+</html>

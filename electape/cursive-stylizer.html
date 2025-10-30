@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cursive Stylizer - 70s Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(45deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #svg-canvas {
+            width: 95vw;
+            height: 95vh;
+        }
+
+        /* FAB Button */
+        .fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.6);
+            transition: all 0.3s;
+            font-size: 28px;
+            z-index: 1000;
+        }
+
+        .fab:hover {
+            transform: scale(1.1) rotate(90deg);
+            box-shadow: 0 8px 30px rgba(255, 107, 53, 0.8);
+        }
+
+        /* Control Panel */
+        .control-panel {
+            position: fixed;
+            bottom: 110px;
+            right: 30px;
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #ff6b35;
+            border-radius: 12px;
+            padding: 20px;
+            display: none;
+            max-width: 380px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+            z-index: 999;
+        }
+
+        .control-panel.active {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .control-panel h2 {
+            font-size: 14px;
+            margin: 15px 0 10px 0;
+            color: #ffd700;
+            text-transform: uppercase;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+
+        .control-panel h2:first-child {
+            margin-top: 0;
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 11px;
+            color: #aaa;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            background: #0f3460;
+            border: 1px solid #ff6b35;
+            color: #fff;
+            font-size: 18px;
+            font-family: 'Dancing Script', cursive;
+            border-radius: 4px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+            accent-color: #ff6b35;
+        }
+
+        input[type="number"] {
+            width: 60px;
+            padding: 4px;
+            background: #0f3460;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        input[type="color"] {
+            width: 35px;
+            height: 28px;
+            border: 1px solid #555;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #ff6b35;
+        }
+
+        select {
+            width: 100%;
+            padding: 8px;
+            background: #0f3460;
+            border: 1px solid #ff6b35;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        button {
+            padding: 8px 12px;
+            margin: 5px 5px 5px 0;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            transition: transform 0.1s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .preset-grid button {
+            width: 100%;
+            margin: 0;
+        }
+
+        .layer-row {
+            display: grid;
+            grid-template-columns: 30px 1fr 1fr 55px 55px;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 6px;
+            padding: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .layer-row label {
+            margin: 0;
+            font-size: 10px;
+            text-align: center;
+        }
+
+        .range-value {
+            display: inline-block;
+            min-width: 35px;
+            text-align: right;
+            color: #ffd700;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-row button {
+            flex: 1;
+            min-width: 80px;
+        }
+
+        .layer-indicator {
+            text-align: center;
+            padding: 8px;
+            background: rgba(255, 107, 53, 0.2);
+            border-radius: 4px;
+            margin: 8px 0;
+            font-size: 16px;
+            color: #ffd700;
+            font-weight: bold;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+            padding: 5px 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+
+        .toggle-row label {
+            margin: 0;
+            font-size: 11px;
+            flex: 1;
+        }
+
+        /* Scrollbar styling */
+        .control-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .control-panel::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+
+        .control-panel::-webkit-scrollbar-thumb {
+            background: #ff6b35;
+            border-radius: 4px;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <svg id="svg-canvas" viewBox="0 0 1200 600" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <filter id="glow">
+                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+            </filter>
+        </defs>
+        <g id="layers-group"></g>
+    </svg>
+
+    <div class="fab" id="fab">⚙</div>
+
+    <div class="control-panel" id="control-panel">
+        <div class="control-group">
+            <label>TEXT</label>
+            <input type="text" id="text-input" value="electape" maxlength="15">
+        </div>
+
+        <div class="control-group">
+            <input type="checkbox" id="connected-mode" style="display: inline-block; width: auto;">
+            <label style="display: inline; margin-left: 5px;">Connected Mode (with lead-in curl)</label>
+        </div>
+
+        <h2>⚡ Presets</h2>
+        <div class="preset-grid">
+            <button data-preset="70s-funk">70s Funk</button>
+            <button data-preset="disco">Disco</button>
+            <button data-preset="psychedelic">Psychedelic</button>
+            <button data-preset="neon">Neon</button>
+            <button data-preset="sunset">Sunset</button>
+            <button data-preset="chrome">Chrome</button>
+            <button data-preset="rainbow">Rainbow</button>
+            <button data-preset="minimal">Minimal</button>
+        </div>
+
+        <h2>Extrusion</h2>
+        <div class="control-group">
+            <label>GROWTH ALGORITHM</label>
+            <select id="growth-algo">
+                <option value="linear">Linear</option>
+                <option value="exponential" selected>Exponential</option>
+                <option value="fibonacci">Fibonacci</option>
+                <option value="sine">Sine Wave</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>BASE OFFSET: <span class="range-value" id="base-offset-val">3</span>px</label>
+            <input type="range" id="base-offset" min="0" max="15" value="3" step="0.5">
+        </div>
+
+        <div class="control-group">
+            <label>GROWTH RATE: <span class="range-value" id="growth-rate-val">1.4</span></label>
+            <input type="range" id="growth-rate" min="1.0" max="3.0" value="1.4" step="0.1">
+        </div>
+
+        <div class="control-group">
+            <label>ZOOM ANGLE: <span class="range-value" id="zoom-angle-val">225</span>°</label>
+            <input type="range" id="zoom-angle" min="0" max="360" value="225" step="15">
+        </div>
+
+        <h2>Layer Control</h2>
+        <div class="layer-indicator">Layer: <span id="current-layer">ALL</span></div>
+        <div class="btn-row">
+            <button id="prev-layer">← PREV</button>
+            <button id="next-layer">NEXT →</button>
+            <button id="show-all">ALL</button>
+        </div>
+
+        <h2>Animation</h2>
+        <div class="btn-row">
+            <button id="play-anim">▶ PLAY</button>
+            <button id="pause-anim">⏸ PAUSE</button>
+            <button id="reset-anim">⏹ RESET</button>
+        </div>
+        <div class="control-group">
+            <label>SPEED: <span class="range-value" id="anim-speed-val">0.8</span>s</label>
+            <input type="range" id="anim-speed" min="0.2" max="3.0" value="0.8" step="0.1">
+        </div>
+        <div class="control-group">
+            <input type="checkbox" id="anim-reverse" style="display: inline-block; width: auto;">
+            <label style="display: inline; margin-left: 5px;">Reverse Direction</label>
+        </div>
+
+        <h2>Color Palette</h2>
+        <div id="palette-editor"></div>
+
+        <h2>Layer Editor</h2>
+        <div class="control-group">
+            <label>CURRENT LAYER: <span class="range-value" id="layer-num">1</span></label>
+            <input type="range" id="layer-selector" min="0" max="7" value="0" step="1">
+        </div>
+        <div id="layer-editor"></div>
+
+        <h2>Layer Visibility</h2>
+        <div id="layer-toggles"></div>
+
+        <div class="btn-row" style="margin-top: 15px;">
+            <button id="regenerate" style="width: 100%;">🔄 REGENERATE</button>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const config = {
+            layers: 8,
+            baseOffset: 3,
+            growthRate: 1.4,
+            growthAlgo: 'exponential',
+            zoomAngle: 225,
+            animSpeed: 0.8,
+            currentLayer: 0, // -1 means show all, 0-7 is current layer for editing
+            isAnimating: false,
+            connectedMode: false,
+            animReverse: false, // false = move last to first, true = move first to last
+            palette: {
+                primary: [],   // primary1-8
+                secondary: []  // secondary1-8
+            },
+            layerMapping: [], // which palette index each layer uses
+            outlineWidths: [],
+            opacities: []
+        };
+
+        // Initialize default 70s palette
+        const init70sPalette = () => {
+            config.palette.primary = [
+                '#ff6b35', '#f7931e', '#ffd700', '#c1ff72',
+                '#00d4ff', '#9d4edd', '#ff006e', '#ff8500'
+            ];
+            config.palette.secondary = [
+                '#d84315', '#e65100', '#f57f17', '#7cb342',
+                '#0277bd', '#6a1b9a', '#c2185b', '#ef6c00'
+            ];
+            config.layerMapping = [0, 1, 2, 3, 4, 5, 6, 7]; // layer i uses palette[i]
+            config.outlineWidths = [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+            config.opacities = [1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65];
+        };
+
+        init70sPalette();
+
+        // Growth algorithms (now for stroke-width, not translation)
+        const growthAlgorithms = {
+            linear: (i, base, rate) => base + (i * base * (rate - 1)),
+            exponential: (i, base, rate) => base * Math.pow(rate, i),
+            fibonacci: (i, base, rate) => {
+                const fib = (n) => n <= 1 ? 1 : fib(n-1) + fib(n-2);
+                return base * fib(i) * (rate / 2);
+            },
+            sine: (i, base, rate) => base + (Math.sin(i * Math.PI / 8) * base * rate * 3)
+        };
+
+        // Create cursive text path with optional connected mode
+        function createCursivePath(text, connected = false) {
+            let pathData = '';
+
+            if (connected) {
+                // Add decorative lead-in curl (Denali-style)
+                // This is a simplified curl that leads into the text
+                pathData = 'M 80,320 Q 60,280 70,260 Q 80,240 100,250 L 120,280 ';
+            }
+
+            // For now, we'll use SVG text element
+            // In a full implementation, you'd convert font glyphs to paths
+            return { pathData, useText: true };
+        }
+
+        // Generate layers with TRUE path offsetting (stroke-based extrusion)
+        function generateLayers(text) {
+            const layersGroup = document.getElementById('layers-group');
+            layersGroup.innerHTML = '';
+
+            // Calculate zoom translation based on angle (inverted so 0 offset = center)
+            const angleRad = (config.zoomAngle * Math.PI) / 180;
+
+            // Create base text once
+            const centerX = 600;
+            const centerY = 300;
+
+            for (let i = config.layers - 1; i >= 0; i--) {
+                // Calculate stroke width for this layer (this creates the extrusion effect)
+                const strokeWidth = growthAlgorithms[config.growthAlgo](
+                    i,
+                    config.baseOffset,
+                    config.growthRate
+                );
+
+                // FIXED: Invert zoom so layer 0 is at center, outer layers bloom outward
+                // Layer 0 has 0 offset, layer 7 has max offset
+                const layerFromCenter = config.layers - 1 - i; // 0 for outermost, 7 for innermost
+                const zoomOffset = layerFromCenter * config.baseOffset * 1.5;
+                const xOffset = Math.cos(angleRad) * zoomOffset;
+                const yOffset = Math.sin(angleRad) * zoomOffset;
+
+                // Create layer group
+                const layerGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                layerGroup.setAttribute('class', `layer layer-${i}`);
+                layerGroup.setAttribute('data-layer', i);
+                layerGroup.setAttribute('opacity', config.opacities[i]);
+
+                if (config.connectedMode) {
+                    // Add lead-in curl
+                    const curl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    const curlPath = `M ${centerX - 400 + xOffset},${centerY + 20 + yOffset}
+                                     Q ${centerX - 420 + xOffset},${centerY - 20 + yOffset}
+                                     ${centerX - 410 + xOffset},${centerY - 40 + yOffset}
+                                     Q ${centerX - 400 + xOffset},${centerY - 60 + yOffset}
+                                     ${centerX - 380 + xOffset},${centerY - 50 + yOffset}
+                                     L ${centerX - 360 + xOffset},${centerY - 20 + yOffset}`;
+
+                    const paletteIndex = config.layerMapping[i];
+                    curl.setAttribute('d', curlPath);
+                    curl.setAttribute('fill', 'none');
+                    curl.setAttribute('stroke', config.palette.secondary[paletteIndex]);
+                    curl.setAttribute('stroke-width', strokeWidth + config.outlineWidths[i]);
+                    curl.setAttribute('stroke-linecap', 'round');
+                    curl.setAttribute('stroke-linejoin', 'round');
+                    layerGroup.appendChild(curl);
+                }
+
+                // Create text with stroke (this is the key to extrusion)
+                const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                textElement.setAttribute('x', centerX - 300 + xOffset);
+                textElement.setAttribute('y', centerY + yOffset);
+                textElement.setAttribute('font-family', "'Dancing Script', cursive");
+                textElement.setAttribute('font-size', '140');
+                textElement.setAttribute('font-weight', 'bold');
+                textElement.textContent = text;
+
+                // The magic: each layer has increasing stroke-width creating the extrusion
+                // Colors come from palette via mapping
+                const paletteIndex = config.layerMapping[i];
+                textElement.setAttribute('fill', config.palette.primary[paletteIndex]);
+                textElement.setAttribute('stroke', config.palette.secondary[paletteIndex]);
+                textElement.setAttribute('stroke-width', strokeWidth + config.outlineWidths[i]);
+                textElement.setAttribute('paint-order', 'stroke fill');
+                textElement.setAttribute('stroke-linejoin', 'round');
+                textElement.setAttribute('stroke-linecap', 'round');
+
+                // Add glow for inner layers
+                if (i < 3) {
+                    textElement.setAttribute('filter', 'url(#glow)');
+                }
+
+                layerGroup.appendChild(textElement);
+                layersGroup.appendChild(layerGroup);
+            }
+        }
+
+        // Update layer visibility
+        function updateLayerVisibility() {
+            const layers = document.querySelectorAll('.layer');
+            layers.forEach((layer, i) => {
+                const layerIndex = config.layers - 1 - i; // Reverse index
+                if (config.currentLayer === -1) {
+                    layer.style.display = 'block';
+                } else {
+                    layer.style.display = (layerIndex === config.currentLayer) ? 'block' : 'none';
+                }
+            });
+
+            document.getElementById('current-layer').textContent =
+                config.currentLayer === -1 ? 'ALL' : config.currentLayer + 1;
+        }
+
+        // Animation - cycles z-order and/or color mapping (keeps all visible)
+        let animInterval = null;
+        function startAnimation() {
+            if (config.isAnimating) return;
+            config.isAnimating = true;
+
+            let currentFrame = 0;
+            animInterval = setInterval(() => {
+                // Cycle the color mapping array
+                if (config.animReverse) {
+                    // Shift: move first to last
+                    const first = config.layerMapping.shift();
+                    config.layerMapping.push(first);
+                } else {
+                    // Unshift: move last to first
+                    const last = config.layerMapping.pop();
+                    config.layerMapping.unshift(last);
+                }
+
+                // Regenerate with new color mapping
+                regenerate();
+
+                currentFrame++;
+            }, config.animSpeed * 1000);
+        }
+
+        function pauseAnimation() {
+            config.isAnimating = false;
+            if (animInterval) {
+                clearInterval(animInterval);
+                animInterval = null;
+            }
+        }
+
+        function resetAnimation() {
+            pauseAnimation();
+            config.currentLayer = -1;
+            updateLayerVisibility();
+        }
+
+        // Presets
+        const presets = {
+            '70s-funk': {
+                primary: ['#ff6b35', '#f7931e', '#ffd700', '#c1ff72', '#00d4ff', '#9d4edd', '#ff006e', '#ff8500'],
+                secondary: ['#d84315', '#e65100', '#f57f17', '#7cb342', '#0277bd', '#6a1b9a', '#c2185b', '#ef6c00'],
+                widths: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5],
+                opacities: [1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65],
+                algo: 'exponential',
+                rate: 1.4,
+                baseOffset: 3
+            },
+            'disco': {
+                colors: [
+                    { fill: '#ffd700', outline: '#ffed4e' },
+                    { fill: '#ff69b4', outline: '#ff1493' },
+                    { fill: '#00ffff', outline: '#00ced1' },
+                    { fill: '#ff4500', outline: '#ff6347' },
+                    { fill: '#9370db', outline: '#8a2be2' },
+                    { fill: '#32cd32', outline: '#00ff00' },
+                    { fill: '#ff1493', outline: '#c71585' },
+                    { fill: '#1e90ff', outline: '#4169e1' }
+                ],
+                widths: [2, 2, 2, 2, 2, 2, 2, 2],
+                algo: 'linear',
+                rate: 1.8,
+                baseOffset: 4
+            },
+            'psychedelic': {
+                colors: [
+                    { fill: '#ff00ff', outline: '#ff00aa' },
+                    { fill: '#00ff00', outline: '#00cc00' },
+                    { fill: '#ffff00', outline: '#cccc00' },
+                    { fill: '#00ffff', outline: '#00cccc' },
+                    { fill: '#ff0000', outline: '#cc0000' },
+                    { fill: '#0000ff', outline: '#0000cc' },
+                    { fill: '#ff8800', outline: '#cc6600' },
+                    { fill: '#8800ff', outline: '#6600cc' }
+                ],
+                widths: [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5],
+                algo: 'fibonacci',
+                rate: 1.3,
+                baseOffset: 2.5
+            },
+            'neon': {
+                colors: [
+                    { fill: '#000000', outline: '#ff00ff' },
+                    { fill: '#000000', outline: '#00ffff' },
+                    { fill: '#000000', outline: '#ff0080' },
+                    { fill: '#000000', outline: '#00ff80' },
+                    { fill: '#000000', outline: '#8000ff' },
+                    { fill: '#000000', outline: '#ff8000' },
+                    { fill: '#000000', outline: '#0080ff' },
+                    { fill: '#000000', outline: '#80ff00' }
+                ],
+                widths: [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4],
+                algo: 'exponential',
+                rate: 1.5,
+                baseOffset: 2
+            },
+            'sunset': {
+                colors: [
+                    { fill: '#ff4e50', outline: '#fc913a' },
+                    { fill: '#f9d423', outline: '#ff4e50' },
+                    { fill: '#ff6b6b', outline: '#ee5a6f' },
+                    { fill: '#ffd93d', outline: '#ffa931' },
+                    { fill: '#ff9068', outline: '#fd746c' },
+                    { fill: '#ffb347', outline: '#ff7f50' },
+                    { fill: '#ff6f61', outline: '#e84a5f' },
+                    { fill: '#ffa07a', outline: '#ff8c69' }
+                ],
+                widths: [1.5, 2, 2.5, 3, 3, 3, 3, 3],
+                algo: 'sine',
+                rate: 2.0,
+                baseOffset: 3.5
+            },
+            'chrome': {
+                colors: [
+                    { fill: '#f8f8f8', outline: '#b0b0b0' },
+                    { fill: '#e0e0e0', outline: '#a0a0a0' },
+                    { fill: '#d0d0d0', outline: '#909090' },
+                    { fill: '#c0c0c0', outline: '#808080' },
+                    { fill: '#b0b0b0', outline: '#707070' },
+                    { fill: '#a0a0a0', outline: '#606060' },
+                    { fill: '#909090', outline: '#505050' },
+                    { fill: '#808080', outline: '#404040' }
+                ],
+                widths: [0.5, 1, 2, 3, 4, 5, 6, 7],
+                algo: 'linear',
+                rate: 1.5,
+                baseOffset: 2
+            },
+            'rainbow': {
+                colors: [
+                    { fill: '#ff0000', outline: '#990000' },
+                    { fill: '#ff7f00', outline: '#994d00' },
+                    { fill: '#ffff00', outline: '#999900' },
+                    { fill: '#00ff00', outline: '#009900' },
+                    { fill: '#0000ff', outline: '#000099' },
+                    { fill: '#4b0082', outline: '#2d004e' },
+                    { fill: '#9400d3', outline: '#5a007f' },
+                    { fill: '#ff00ff', outline: '#990099' }
+                ],
+                widths: [2, 2, 2, 2, 2, 2, 2, 2],
+                algo: 'exponential',
+                rate: 1.35,
+                baseOffset: 3
+            },
+            'minimal': {
+                colors: [
+                    { fill: '#ffffff', outline: '#000000' },
+                    { fill: '#e8e8e8', outline: '#1a1a1a' },
+                    { fill: '#d0d0d0', outline: '#333333' },
+                    { fill: '#b8b8b8', outline: '#4d4d4d' },
+                    { fill: '#a0a0a0', outline: '#666666' },
+                    { fill: '#888888', outline: '#808080' },
+                    { fill: '#707070', outline: '#999999' },
+                    { fill: '#585858', outline: '#b3b3b3' }
+                ],
+                widths: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+                algo: 'linear',
+                rate: 1.4,
+                baseOffset: 2
+            }
+        };
+
+        function applyPreset(presetName) {
+            const preset = presets[presetName];
+            if (!preset) return;
+
+            // Convert old color format to new palette format if needed
+            if (preset.colors) {
+                config.palette.primary = preset.colors.map(c => c.fill);
+                config.palette.secondary = preset.colors.map(c => c.outline);
+            } else {
+                config.palette.primary = preset.primary;
+                config.palette.secondary = preset.secondary;
+            }
+
+            config.layerMapping = [0, 1, 2, 3, 4, 5, 6, 7]; // Reset mapping
+            config.outlineWidths = preset.widths;
+            config.opacities = preset.opacities || [1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65];
+            config.growthAlgo = preset.algo;
+            config.growthRate = preset.rate;
+            config.baseOffset = preset.baseOffset || 3;
+
+            document.getElementById('growth-algo').value = preset.algo;
+            document.getElementById('growth-rate').value = preset.rate;
+            document.getElementById('growth-rate-val').textContent = preset.rate;
+            document.getElementById('base-offset').value = preset.baseOffset || 3;
+            document.getElementById('base-offset-val').textContent = preset.baseOffset || 3;
+
+            updateControls();
+            regenerate();
+        }
+
+        // UI Controls
+        function updateControls() {
+            // Palette Editor - shows all 8 primary and secondary colors
+            const paletteEditor = document.getElementById('palette-editor');
+            paletteEditor.innerHTML = '';
+
+            for (let i = 0; i < config.layers; i++) {
+                const paletteRow = document.createElement('div');
+                paletteRow.className = 'layer-row';
+                paletteRow.innerHTML = `
+                    <label>P${i + 1}</label>
+                    <input type="color" class="primary-color" data-index="${i}" value="${config.palette.primary[i]}">
+                    <label style="text-align: center;">S${i + 1}</label>
+                    <input type="color" class="secondary-color" data-index="${i}" value="${config.palette.secondary[i]}">
+                    <span></span>
+                `;
+                paletteEditor.appendChild(paletteRow);
+
+                paletteRow.querySelector('.primary-color').addEventListener('change', (e) => {
+                    config.palette.primary[i] = e.target.value;
+                    regenerate();
+                });
+
+                paletteRow.querySelector('.secondary-color').addEventListener('change', (e) => {
+                    config.palette.secondary[i] = e.target.value;
+                    regenerate();
+                });
+            }
+
+            // Layer Editor - shows current layer details
+            updateLayerEditor();
+
+            // Layer Visibility Toggles
+            const layerToggles = document.getElementById('layer-toggles');
+            layerToggles.innerHTML = '';
+
+            for (let i = 0; i < config.layers; i++) {
+                const toggle = document.createElement('div');
+                toggle.className = 'toggle-row';
+                toggle.innerHTML = `
+                    <input type="checkbox" id="layer-${i}" checked>
+                    <label for="layer-${i}">Layer ${i + 1}</label>
+                `;
+                layerToggles.appendChild(toggle);
+
+                toggle.querySelector('input').addEventListener('change', (e) => {
+                    const layer = document.querySelector(`.layer[data-layer="${i}"]`);
+                    if (layer) {
+                        layer.style.display = e.target.checked ? 'block' : 'none';
+                    }
+                });
+            }
+        }
+
+        function updateLayerEditor() {
+            const layerEditor = document.getElementById('layer-editor');
+            const i = config.currentLayer;
+
+            layerEditor.innerHTML = `
+                <div class="control-group">
+                    <label>OPACITY: <span class="range-value">${config.opacities[i]}</span></label>
+                    <input type="range" id="layer-opacity" min="0" max="1" value="${config.opacities[i]}" step="0.05">
+                </div>
+                <div class="control-group">
+                    <label>OUTLINE WIDTH: <span class="range-value">${config.outlineWidths[i]}</span></label>
+                    <input type="range" id="layer-width" min="0" max="10" value="${config.outlineWidths[i]}" step="0.5">
+                </div>
+                <div class="control-group">
+                    <label>COLOR MAPPING: Palette <span class="range-value">${config.layerMapping[i] + 1}</span></label>
+                    <input type="range" id="layer-mapping" min="0" max="7" value="${config.layerMapping[i]}" step="1">
+                </div>
+            `;
+
+            // Add event listeners
+            layerEditor.querySelector('#layer-opacity').addEventListener('input', (e) => {
+                config.opacities[i] = parseFloat(e.target.value);
+                e.target.previousElementSibling.querySelector('.range-value').textContent = config.opacities[i];
+                regenerate();
+            });
+
+            layerEditor.querySelector('#layer-width').addEventListener('input', (e) => {
+                config.outlineWidths[i] = parseFloat(e.target.value);
+                e.target.previousElementSibling.querySelector('.range-value').textContent = config.outlineWidths[i];
+                regenerate();
+            });
+
+            layerEditor.querySelector('#layer-mapping').addEventListener('input', (e) => {
+                config.layerMapping[i] = parseInt(e.target.value);
+                e.target.previousElementSibling.querySelector('.range-value').textContent = config.layerMapping[i] + 1;
+                regenerate();
+            });
+        }
+
+        function regenerate() {
+            const text = document.getElementById('text-input').value || 'electape';
+            generateLayers(text);
+            updateLayerVisibility();
+        }
+
+        // Event Listeners
+        document.getElementById('text-input').addEventListener('input', regenerate);
+
+        document.getElementById('connected-mode').addEventListener('change', (e) => {
+            config.connectedMode = e.target.checked;
+            regenerate();
+        });
+
+        document.getElementById('growth-algo').addEventListener('change', (e) => {
+            config.growthAlgo = e.target.value;
+            regenerate();
+        });
+
+        document.getElementById('base-offset').addEventListener('input', (e) => {
+            config.baseOffset = parseFloat(e.target.value);
+            document.getElementById('base-offset-val').textContent = config.baseOffset;
+            regenerate();
+        });
+
+        document.getElementById('growth-rate').addEventListener('input', (e) => {
+            config.growthRate = parseFloat(e.target.value);
+            document.getElementById('growth-rate-val').textContent = config.growthRate;
+            regenerate();
+        });
+
+        document.getElementById('zoom-angle').addEventListener('input', (e) => {
+            config.zoomAngle = parseInt(e.target.value);
+            document.getElementById('zoom-angle-val').textContent = config.zoomAngle;
+            regenerate();
+        });
+
+        document.getElementById('anim-speed').addEventListener('input', (e) => {
+            config.animSpeed = parseFloat(e.target.value);
+            document.getElementById('anim-speed-val').textContent = config.animSpeed;
+            if (config.isAnimating) {
+                pauseAnimation();
+                startAnimation();
+            }
+        });
+
+        document.getElementById('prev-layer').addEventListener('click', () => {
+            pauseAnimation();
+            config.currentLayer--;
+            if (config.currentLayer < -1) config.currentLayer = config.layers - 1;
+            updateLayerVisibility();
+        });
+
+        document.getElementById('next-layer').addEventListener('click', () => {
+            pauseAnimation();
+            config.currentLayer++;
+            if (config.currentLayer >= config.layers) config.currentLayer = -1;
+            updateLayerVisibility();
+        });
+
+        document.getElementById('show-all').addEventListener('click', () => {
+            pauseAnimation();
+            config.currentLayer = -1;
+            updateLayerVisibility();
+        });
+
+        document.getElementById('play-anim').addEventListener('click', startAnimation);
+        document.getElementById('pause-anim').addEventListener('click', pauseAnimation);
+        document.getElementById('reset-anim').addEventListener('click', resetAnimation);
+
+        document.getElementById('regenerate').addEventListener('click', regenerate);
+
+        document.getElementById('anim-reverse').addEventListener('change', (e) => {
+            config.animReverse = e.target.checked;
+        });
+
+        document.getElementById('layer-selector').addEventListener('input', (e) => {
+            config.currentLayer = parseInt(e.target.value);
+            document.getElementById('layer-num').textContent = config.currentLayer + 1;
+            updateLayerEditor();
+        });
+
+        // FAB menu
+        const fab = document.getElementById('fab');
+        const controlPanel = document.getElementById('control-panel');
+
+        fab.addEventListener('click', () => {
+            controlPanel.classList.toggle('active');
+        });
+
+        document.querySelectorAll('[data-preset]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                applyPreset(e.target.dataset.preset);
+            });
+        });
+
+        // Close control panel when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!fab.contains(e.target) && !controlPanel.contains(e.target)) {
+                controlPanel.classList.remove('active');
+            }
+        });
+
+        // Initialize
+        updateControls();
+        regenerate();
+    </script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+// bootloader.js
+import { configureStore, createSlice } from '@reduxjs/toolkit';
+import { createEventBus } from './eventBus';
+import { renderApp } from './ui';
+import { fetchFile } from './api';
+
+// =========================
+// Redux Slices
+// =========================
+
+const authSlice = createSlice({
+  name: 'auth',
+  initialState: { loggedIn: false, user: null },
+  reducers: {
+    setAuth(state, action) {
+      state.loggedIn = action.payload.loggedIn;
+      state.user = action.payload.user;
+    },
+    logout(state) {
+      state.loggedIn = false;
+      state.user = null;
+    }
+  }
+});
+
+const pathSlice = createSlice({
+  name: 'path',
+  initialState: { currentPath: '' },
+  reducers: {
+    setPath(state, action) {
+      state.currentPath = action.payload;
+    }
+  }
+});
+
+const fileSlice = createSlice({
+  name: 'file',
+  initialState: { content: '', status: 'idle', error: null },
+  reducers: {
+    fetchStart(state) {
+      state.status = 'loading';
+      state.error = null;
+    },
+    fetchSuccess(state, action) {
+      state.status = 'succeeded';
+      state.content = action.payload;
+    },
+    fetchError(state, action) {
+      state.status = 'failed';
+      state.error = action.payload;
+    }
+  }
+});
+
+// =========================
+// Store and Event Bus
+// =========================
+
+const store = configureStore({
+  reducer: {
+    auth: authSlice.reducer,
+    path: pathSlice.reducer,
+    file: fileSlice.reducer,
+  }
+});
+
+function appDispatch(action) {
+  store.dispatch(action);
+}
+
+const eventBus = createEventBus();
+
+window.APP = { store, eventBus };
+
+// =========================
+// Bootloader Logic
+// =========================
+
+async function bootloader() {
+  const state = store.getState();
+  if (state.auth.loggedIn) {
+    const pathname = state.path.currentPath || 'README.md';
+    appDispatch(fileSlice.actions.fetchStart());
+    try {
+      const content = await fetchFile(pathname);
+      appDispatch(fileSlice.actions.fetchSuccess(content));
+    } catch (err) {
+      appDispatch(fileSlice.actions.fetchError(String(err)));
+    }
+  }
+  renderApp();
+}
+
+// =========================
+// UI Root Stub
+// =========================
+
+// ui.js
+export function renderApp() {
+  // Mounts the <canvas> and top bar with PathManagerComponent and AuthManagerComponent
+}
+
+// =========================
+// API
+// =========================
+
+// api.js
+export async function fetchFile(pathname) {
+  const res = await fetch(`/api/file/get?pathname=${encodeURIComponent(pathname)}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.text();
+}
+
+// =========================
+// Event Bus
+// =========================
+
+// eventBus.js
+export function createEventBus() {
+  const listeners = {};
+  return {
+    on(event, cb) {
+      (listeners[event] = listeners[event] || []).push(cb);
+    },
+    off(event, cb) {
+      if (listeners[event]) {
+        listeners[event] = listeners[event].filter(f => f !== cb);
+      }
+    },
+    emit(event, data) {
+      (listeners[event] || []).forEach(cb => cb(data));
+    }
+  };
+}
+
+// =========================
+// Entry
+// =========================
+
+document.addEventListener('DOMContentLoaded', bootloader);

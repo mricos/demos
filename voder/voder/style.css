@@ -1,0 +1,28 @@
+body {
+  font-family: sans-serif;
+  background: #111;
+  color: #eee;
+  text-align: center;
+  padding: 2em;
+}
+.controls {
+  margin-top: 2em;
+}
+.filters {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  margin-top: 1em;
+  gap: 10px;
+}
+.filters button {
+  padding: 1em;
+  font-size: 1em;
+  background: #444;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+.filters button.active {
+  background: #0c0;
+}
+

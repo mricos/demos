@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Side-Aperture Camera Demo (No Moving Parts)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --fg: #cdd5df;
+      --accent: #6aa6ff;
+      --ok: #4fd1c5;
+      --warn: #f6ad55;
+      --muted: #2a2f36;
+    }
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font: 12px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif; }
+    #app { position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr; }
+    header {
+      padding: 8px 12px; background: linear-gradient(180deg, #0c1117, #0b0d10);
+      display: flex; gap: 16px; align-items: center; border-bottom: 1px solid #0f141b;
+    }
+    header .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+    header h1 { font-size: 12px; margin: 0; font-weight: 600; letter-spacing: .05em; color: #9fb5d1; }
+    #scene { position: relative; }
+    #overlay {
+      position: absolute; inset: 0; pointer-events: none; display: grid; align-content: start;
+      padding: 8px; color: #94a3b8; font-size: 11px;
+    }
+    #legend {
+      background: rgba(20, 24, 29, .55); border: 1px solid #1b212a; border-radius: 8px; padding: 8px 10px; width: max-content;
+      backdrop-filter: blur(4px);
+    }
+    #legend .row { display: grid; grid-template-columns: 110px auto; gap: 8px; }
+    #legend .key { color: #7f8ea3; }
+    canvas { display: block; }
+    /* lil-gui theme */
+    .lil-gui.root { --background-color:#0f141b; --text-color:#cad4e0; --title-background-color:#0b0f15; --widget-color:#16202c; --hover-color:#1e2a39; --focus-color:#1b2736; --number-color:#8fb0ff; --color-space-h:217; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="dot"></div>
+    <h1>Side-Aperture Camera: Edge Slit → Folded Optics → Metasurface → Sensor (Three.js)</h1>
+  </header>
+  <div id="scene">
+    <div id="overlay">
+      <div id="legend">
+        <div class="row"><div class="key">Aperture</div><div>Edge slit (cyan)</div></div>
+        <div class="row"><div class="key">Fold Mirror</div><div>45° plane (orange)</div></div>
+        <div class="row"><div class="key">Metasurface</div><div>Phase plate (purple)</div></div>
+        <div class="row"><div class="key">Sensor</div><div>Planar BSI (green)</div></div>
+        <div class="row"><div class="key">Rays</div><div>Side capture → fold → focus (white)</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+  import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+  import GUI from "https://unpkg.com/lil-gui@0.19/dist/lil-gui.esm.js";
+
+  // ---------- Scene / Renderer ----------
+  const sceneEl = document.getElementById("scene");
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(sceneEl.clientWidth, sceneEl.clientHeight);
+  renderer.setClearColor(0x0b0d10);
+  sceneEl.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x0b0d10, 40, 160);
+
+  const camera = new THREE.PerspectiveCamera(45, sceneEl.clientWidth / sceneEl.clientHeight, 0.1, 1000);
+  camera.position.set(28, 14, 40);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+
+  // ---------- Lighting ----------
+  const hemi = new THREE.HemisphereLight(0x8fb0ff, 0x0b0d10, 0.8);
+  scene.add(hemi);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+  dir.position.set(20, 30, 10);
+  scene.add(dir);
+
+  // ---------- Helpers ----------
+  const grid = new THREE.GridHelper(120, 60, 0x203040, 0x151b24);
+  grid.position.y = -8;
+  scene.add(grid);
+
+  // ---------- Phone Body ----------
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x182028, metalness: 0.2, roughness: 0.8 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(70, 8, 10), bodyMat);
+  scene.add(body);
+
+  // Coordinate system:
+  // +X along phone length, +Y up (thickness), +Z depth.
+  // Edge slit on -Z face (side).
+
+  // ---------- Components (Planes/Surfaces) ----------
+  const cyan = 0x38bdf8, orange = 0xf6ad55, purple = 0xb794f4, green = 0x34d399, white = 0xffffff;
+
+  // Edge Slit (aperture window) — thin rectangular box to visualize side pupil
+  const slitGeom = new THREE.BoxGeometry(60, 2.5, 0.6);
+  const slitMat = new THREE.MeshBasicMaterial({ color: cyan, transparent: true, opacity: 0.65 });
+  const slit = new THREE.Mesh(slitGeom, slitMat);
+  slit.position.set(0, 0, -5.3);
+  scene.add(slit);
+
+  // Fold Mirror at 45°
+  const mirrorGeom = new THREE.PlaneGeometry(16, 8);
+  const mirrorMat = new THREE.MeshStandardMaterial({
+    color: orange, metalness: 1.0, roughness: 0.1, emissive: 0x000000
+  });
+  const mirror = new THREE.Mesh(mirrorGeom, mirrorMat);
+  mirror.position.set(-12, 0, 0); // inside body
+  mirror.rotation.y = Math.PI / 4; // 45° to fold Z to X
+  scene.add(mirror);
+
+  // Metasurface (phase plate) — planar optic
+  const msfGeom = new THREE.PlaneGeometry(18, 8);
+  const msfMat = new THREE.MeshStandardMaterial({ color: purple, metalness: 0.6, roughness: 0.3 });
+  const metasurface = new THREE.Mesh(msfGeom, msfMat);
+  metasurface.position.set(6, 0, 0); // downstream after mirror
+  metasurface.rotation.y = 0;
+  scene.add(metasurface);
+
+  // Sensor plane
+  const sensorGeom = new THREE.PlaneGeometry(14, 8);
+  const sensorMat = new THREE.MeshStandardMaterial({ color: green, metalness: 0.2, roughness: 0.7, side: THREE.DoubleSide });
+  const sensor = new THREE.Mesh(sensorGeom, sensorMat);
+  sensor.position.set(18, 0, 0);
+  sensor.rotation.y = 0;
+  scene.add(sensor);
+
+  // ---------- Ray Bundle (visual)
+  const rayGroup = new THREE.Group();
+  scene.add(rayGroup);
+
+  // ---------- Controls / Parameters ----------
+  const P = {
+    rays: 24,                 // number of rays sampled along the slit
+    slitLength: 60,           // mm (scene units)
+    slitHeight: 2.5,          // mm
+    mirrorAngleDeg: 45,       // degrees
+    msfFocal: 22,             // effective focal length to sensor plane (scene units)
+    msfAberration: 0.06,      // simple phase "curvature" factor for visualization
+    showBody: true,
+    showFog: true,
+    rayJitter: 0.15,          // randomness on incoming directions
+    maxRayLen: 120,
+  };
+
+  const gui = new GUI({ title: "Parameters" });
+  gui.add(P, "rays", 6, 96, 2).name("rays");
+  gui.add(P, "slitLength", 20, 68, 1).name("slitLength").onChange(v => {
+    slit.scale.x = v / 60;
+  });
+  gui.add(P, "slitHeight", 1.0, 4.0, 0.1).name("slitHeight").onChange(v => {
+    slit.scale.y = v / 2.5;
+  });
+  gui.add(P, "mirrorAngleDeg", 20, 70, 0.5).name("mirrorAngle");
+  gui.add(P, "msfFocal", 10, 40, 0.5).name("msfFocal");
+  gui.add(P, "msfAberration", 0.0, 0.25, 0.005).name("phaseCurv");
+  gui.add(P, "rayJitter", 0.0, 0.6, 0.01).name("rayJitter");
+  gui.add(P, "showBody").name("showBody").onChange(v => { body.visible = v; });
+  gui.add(P, "showFog").name("showFog").onChange(v => { scene.fog.density = v ? undefined : 0.0; scene.fog = v ? new THREE.Fog(0x0b0d10, 40, 160) : null; });
+
+  // ---------- Math Utilities ----------
+  function reflect(dir, normal) {
+    // Assumes normal normalized
+    const d = dir.clone();
+    const n = normal.clone();
+    const r = d.add(n.multiplyScalar(-2 * d.dot(normal)));
+    return r.normalize();
+  }
+
+  // parametric weak "focusing" by metasurface: bend toward sensor center with simple quadratic
+  function msfRefract(dir, hitPoint, sensorPlaneX, curvature) {
+    const toSensorCenter = new THREE.Vector3(sensorPlaneX, 0, 0).sub(hitPoint).normalize();
+    // mix original direction with sensor-aimed direction; curvature controls strength
+    const mixed = dir.clone().multiplyScalar(1 - curvature).add(toSensorCenter.multiplyScalar(curvature)).normalize();
+    return mixed;
+  }
+
+  function intersectPlane(origin, dir, planeMesh) {
+    const ray = new THREE.Ray(origin, dir.normalize());
+    const plane = new THREE.Plane();
+    plane.setFromNormalAndCoplanarPoint(planeMesh.getWorldDirection(new THREE.Vector3()).normalize(), planeMesh.getWorldPosition(new THREE.Vector3>()));
+    const target = new THREE.Vector3();
+    const hit = ray.intersectPlane(plane, target);
+    return hit ? target.clone() : null;
+  }
+
+  function planeNormalFromMesh(mesh) {
+    // For rectangles aligned by rotation, the plane's normal is its local +Z after rotation
+    const normal = new THREE.Vector3(0, 0, 1);
+    normal.applyQuaternion(mesh.quaternion);
+    return normal.normalize();
+  }
+
+  // ---------- Ray Construction ----------
+  const rayMat1 = new THREE.LineBasicMaterial({ color: white, linewidth: 2, transparent: true, opacity: 0.95 });
+  const rayMat2 = new THREE.LineDashedMaterial({ color: 0x94a3b8, linewidth: 1, dashSize: 0.6, gapSize: 0.25, transparent: true, opacity: 0.9 });
+
+  function buildRays() {
+    // clear
+    rayGroup.children.slice().forEach(c => { c.geometry.dispose?.(); rayGroup.remove(c); });
+
+    // update mirror orientation
+    const ang = THREE.MathUtils.degToRad(P.mirrorAngleDeg);
+    mirror.rotation.y = ang;
+
+    // recompute surface normals
+    const mirrorNormal = planeNormalFromMesh(mirror);
+    const metasurfaceNormal = planeNormalFromMesh(metasurface);
+    const sensorNormal = planeNormalFromMesh(sensor);
+    const msfPlaneX = metasurface.getWorldPosition(new THREE.Vector3()).x;
+    const sensorPlaneX = sensor.getWorldPosition(new THREE.Vector3()).x;
+
+    // sample along slit (X axis)
+    const n = Math.max(2, Math.floor(P.rays));
+    for (let i = 0; i < n; i++) {
+      const u = (i + 0.5) / n - 0.5;               // [-0.5, 0.5]
+      const x = u * P.slitLength;                  // along long edge
+      const y = (Math.random() - 0.5) * P.slitHeight * 0.25; // small vertical variation
+      const origin = new THREE.Vector3(x, y, -5.0 - 0.4);    // just outside slit
+
+      // incoming direction toward mirror volume (roughly +Z with jitter toward center)
+      const jitter = new THREE.Vector3(
+        0.02 * (Math.random() - 0.5),
+        0.02 * (Math.random() - 0.5),
+        0
+      );
+      const d0 = new THREE.Vector3(0.25, 0.0, 1.0 + P.rayJitter * (Math.random() - 0.5)).add(jitter).normalize();
+
+      // segment 1: origin -> mirror hit
+      const hitMirror = intersectPlane(origin, d0, mirror);
+      if (!hitMirror) continue;
+
+      const dir1 = reflect(d0, mirrorNormal);
+
+      // segment 2: mirror -> metasurface
+      const hitMSF = intersectPlane(hitMirror, dir1, metasurface);
+      if (!hitMSF) continue;
+
+      const dir2 = msfRefract(dir1, hitMSF, sensorPlaneX, P.msfAberration + (P.msfFocal * 0.0)); // curvature-based "refocus"
+
+      // segment 3: metasurface -> sensor
+      const hitSensor = intersectPlane(hitMSF, dir2, sensor);
+      if (!hitSensor) continue;
+
+      // Limit ray length if necessary
+      const pts = [origin, hitMirror, hitMSF, hitSensor].map(v => v.clone());
+      for (let s = 0; s < 3; s++) {
+        const segLen = pts[s].distanceTo(pts[s + 1]);
+        if (segLen > P.maxRayLen) {
+          const dir = pts[s + 1].clone().sub(pts[s]).normalize();
+          pts[s + 1] = pts[s].clone().add(dir.multiplyScalar(P.maxRayLen));
+        }
+      }
+
+      // Build polylines for the three segments
+      const g = new THREE.BufferGeometry().setFromPoints([pts[0], pts[1], pts[2], pts[3]]);
+      const line = new THREE.Line(g, rayMat1);
+      rayGroup.add(line);
+
+      // Dashed continuation beyond sensor (for visualization)
+      const beyond = pts[3].clone().add(dir2.clone().multiplyScalar(4.0));
+      const gd = new THREE.BufferGeometry().setFromPoints([pts[3], beyond]);
+      const dashed = new THREE.Line(gd, rayMat2);
+      dashed.computeLineDistances();
+      rayGroup.add(dashed);
+    }
+  }
+
+  buildRays();
+
+  // ---------- Resize ----------
+  function onResize() {
+    const { clientWidth: w, clientHeight: h } = sceneEl;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", onResize);
+
+  // ---------- Animate ----------
+  const clock = new THREE.Clock();
+  function tick() {
+    const t = clock.getElapsedTime();
+    // mild emissive pulse for metasurface
+    const e = 0.06 + 0.04 * Math.sin(t * 1.2);
+    msfMat.emissive = new THREE.Color(purple).multiplyScalar(e);
+
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  }
+  tick();
+
+  // ---------- GUI Rebuild Rays ----------
+  const rebuild = () => buildRays();
+  gui.controllers.forEach(c => c.onChange && c.onChange(rebuild));
+  // Also rebuild when changing dependent transforms
+  ["mirrorAngleDeg", "msfFocal", "msfAberration", "rayJitter", "rays"].forEach(k => gui.controllers.find(c => c._name === (k === "mirrorAngleDeg" ? "mirrorAngle" : k))?.onFinishChange(rebuild));
+</script>
+</body>
+</html>
+

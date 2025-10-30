@@ -1,0 +1,33 @@
+SVT FRAMEWORK STATUS & NEXT ACTIONS
+
+CURRENT STATE:
+- Cell-based widget system (1c/2c/takeover sizing)
+- Gear state machine: closed->open->takeover (unstacking works)
+- Design tokens added, reduced complexity
+- Visual Stage integrated as control cell
+- Gear-only takeover exit (clean UX)
+
+CONFIRMED DUPLICATIONS:
+1. Inspector display: modal (878-889) + takeover (1009-1025) 
+2. Populate functions: 4x modal + updateSelectedModeInspector()
+3. CSS: .inspector-tab styles duplicated for both contexts
+
+SEMANTICS CLARIFIED:
+Panel > Section > Cell > Widget
+- Widget: individual control (slider, button)
+- Cell: grid unit in control panel (1c, 2c, takeover)
+- Panel: full interface (control panel, inspector)  
+- Section: content group (concept-section)
+
+PRIORITY REFACTOR:
+1. Unify inspector rendering (eliminate duplication)
+2. Make left column data-driven (conceptSections array)
+3. Single InspectorRenderer class for both modal/takeover
+
+CURRENT LINE COUNT: ~1400 lines
+WORKING FEATURES: All cell transitions, gear navigation, real-time updates
+
+NEXT SESSION GOALS:
+- Refactor inspector duplication
+- Data-driven left column
+- Code cleanup/organization

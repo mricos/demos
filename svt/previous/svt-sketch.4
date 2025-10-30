@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scientific Visualization Tool (SVT) - Prototype</title>
+    <style>
+        :root {
+            /* Design Tokens - Reduces State Management Complexity */
+            --primary: #3498db; --success: #27ae60;
+            --warning: #f39c12; --danger: #e74c3c;
+            --text: #2c3e50; --gray: #7f8c8d;
+            --bg: #f8f9fa; --border: #e1e8ed;
+            --transition: 0.3s ease; --border-radius: 8px;
+            --spacing: 20px;
+            --takeover-bg: rgba(255,255,255,0.98);
+            --z-takeover: 2000;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana,
+                         sans-serif;
+            background:
+                linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Floating Tab System */
+        .floating-tabs {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #e1e8ed;
+            z-index: 1000;
+            padding: 10px 20px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .floating-tab {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.2s ease;
+        }
+        .floating-tab:hover {
+            background: rgba(52, 152, 219, 0.1);
+            color: #3498db;
+        }
+        .floating-tab.active {
+            background: #3498db;
+            color: white;
+        }
+
+        /* Main Container */
+        .container {
+            margin-top: 60px;
+            padding: 20px;
+            min-height: calc(100vh - 60px);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+            height: calc(100vh - 100px);
+        }
+
+        .left-panel, .right-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow-y: auto;
+        }
+
+        /* Guide Section */
+        .guide-section {
+            margin-bottom: 30px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .guide-header {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .guide-tabs {
+            display: flex;
+            background: #ecf0f1;
+            border-bottom: 1px solid #bdc3c7;
+        }
+
+        .guide-tab {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: #7f8c8d;
+            transition: all 0.3s ease;
+        }
+
+        .guide-tab:hover {
+            background: rgba(52, 152, 219, 0.1);
+            color: #3498db;
+        }
+
+        .guide-tab.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .guide-content {
+            padding: 20px;
+        }
+
+        /* Concept Sections */
+        .concept-section {
+            margin-bottom: 20px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .concept-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e1e8ed;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .concept-header:hover {
+            background: #ecf0f1;
+        }
+
+        .concept-content {
+            padding: 20px;
+        }
+
+        .concept-meta {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 10px;
+            padding: 8px;
+            background: #f1f2f6;
+            border-radius: 4px;
+        }
+
+        /* Visualization Panel */
+        .visualization-area {
+            background: #f8f9fa;
+            border: 2px dashed #bdc3c7;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .visualization-area:hover {
+            border-color: #3498db;
+            background: #ecf0f1;
+        }
+
+        .controls-area {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .control-widget {
+            background: #f8f9fa;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .control-widget:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .widget-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+
+        .widget-type {
+            font-size: 0.8em;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+
+        .widget-demo {
+            height: 20px;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            border-radius: 10px;
+        }
+
+        /* Inspector Modal */
+        .inspector-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .inspector-modal {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80%;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .inspector-header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .inspector-title {
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .inspector-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .inspector-tabs {
+            display: flex;
+            background: #ecf0f1;
+            border-bottom: 1px solid #bdc3c7;
+        }
+
+        .inspector-tab {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: #7f8c8d;
+            transition: all 0.3s ease;
+        }
+
+        .inspector-tab:hover {
+            background: rgba(52, 152, 219, 0.1);
+            color: #3498db;
+        }
+
+        .inspector-tab.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .inspector-content {
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .inspector-panel {
+            display: none;
+        }
+
+        .inspector-panel.active {
+            display: block;
+        }
+
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .property-list {
+            list-style: none;
+        }
+
+        .property-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #f1f2f6;
+            display: flex;
+        }
+
+        .property-name {
+            font-weight: 600;
+            min-width: 150px;
+            color: #2c3e50;
+        }
+
+        .property-value {
+            color: #7f8c8d;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        /* Clickable Element Highlight */
+        .svt-inspectable {
+            outline: 2px dashed transparent;
+            transition: outline 0.2s ease;
+        }
+
+        .svt-inspectable:hover {
+            outline-color: #f39c12;
+            outline-offset: 2px;
+        }
+
+        /* Utility Classes */
+        .collapse-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .hide {
+            display: none !important;
+        }
+
+        /* SVT Control Panel System */
+        .svt-control-gear {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: #3498db;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .svt-control-gear:hover {
+            background: #2980b9;
+            transform: rotate(90deg) scale(1.1);
+        }
+
+        .svt-control-gear::before {
+            content: '⚙️';
+            font-size: 20px;
+        }
+
+        .svt-control-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid #e1e8ed;
+            transform: translateY(100%);
+            transition: transform 0.4s ease;
+            z-index: 1400;
+            max-height: 40vh;
+            overflow-y: auto;
+        }
+
+        .svt-control-panel.active {
+            transform: translateY(0);
+        }
+
+        .svt-control-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e1e8ed;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+        }
+
+        .svt-control-title {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .svt-control-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #7f8c8d;
+            padding: 5px;
+        }
+
+        .svt-control-body {
+            padding: 20px;
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .svt-cell {
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+        }
+
+        .svt-cell-header {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .svt-cell-content {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            line-height: 1.4;
+        }
+
+        .svt-data-link {
+            display: inline-block;
+            background: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.8em;
+            margin: 2px;
+            color: #34495e;
+        }
+
+        /* Floating Tab Element System */
+        .floating-tab-element {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid #e1e8ed;
+            border-radius: 10px;
+            padding: 15px;
+            min-width: 200px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 1200;
+        }
+
+        .floating-tab-header {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .floating-tab-content {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            line-height: 1.4;
+        }
+
+        .visual-stage-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .stage-ready { background: #27ae60; }
+        .stage-loading { background: #f39c12; }
+        .stage-error { background: #e74c3c; }
+
+        /* Cell Sizing System */
+        .cell-2c { grid-column: span 2; }
+        .cell-2cv { grid-row: span 2; }
+        .cell-takeover {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            z-index: 2000;
+            background: white;
+            border: none;
+            border-radius: 0;
+            padding: 20px;
+        }
+
+        .selected-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .selected-type {
+            background: #3498db;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+        }
+
+        .selected-actions {
+            margin-top: 10px;
+        }
+
+        .action-btn {
+            background: #ecf0f1;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            cursor: pointer;
+            margin-right: 5px;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background: #3498db;
+            color: white;
+        }
+
+        /* Selected Mode Inspector Styles */
+        .selected-mode-inspector {
+            width: 100%;
+            min-height: 400px;
+        }
+
+        .selected-mode-inspector .inspector-tabs {
+            display: flex;
+            border-bottom: 1px solid #e1e8ed;
+            margin-bottom: 15px;
+        }
+
+        .selected-mode-inspector .inspector-tab {
+            background: none;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: #7f8c8d;
+            font-weight: 500;
+        }
+
+        .selected-mode-inspector .inspector-tab.active {
+            color: #2c3e50;
+            border-bottom-color: #3498db;
+        }
+
+        .selected-mode-inspector .inspector-tab:hover {
+            background: #f8f9fa;
+        }
+
+        .selected-mode-inspector .inspector-content {
+            height: 350px;
+            position: relative;
+        }
+
+        .selected-mode-inspector .inspector-tab-content {
+            display: none;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .selected-mode-inspector .inspector-tab-content.active {
+            display: block;
+        }
+
+        .selected-mode-inspector pre {
+            margin: 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 12px;
+            line-height: 1.4;
+            overflow-x: auto;
+        }
+
+        .takeover-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #e74c3c;
+            margin-left: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .takeover-close:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Gear State Visual Feedback - Using Design Tokens */
+        .svt-control-gear {
+            transition: var(--transition);
+            border: 2px solid transparent;
+        }
+
+        .svt-control-gear[data-state="closed"] {
+            border-color: var(--gray);
+        }
+        .svt-control-gear[data-state="open"] {
+            border-color: var(--primary);
+        }
+        .svt-control-gear[data-state="takeover"] {
+            border-color: var(--warning);
+            box-shadow: 0 0 20px rgba(243, 156, 18, 0.5);
+        }
+
+        /* Simplified Takeover Header */
+        .takeover-header {
+            padding: 15px;
+            background: var(--warning);
+            color: white;
+            margin-bottom: 20px;
+            border-radius: var(--border-radius);
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .action-btn.active {
+            background: #2c3e50;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating Navigation Tabs -->
+    <div class="floating-tabs">
+        <button class="floating-tab active"
+                data-notebook="mathematics">Mathematics</button>
+        <button class="floating-tab"
+                data-notebook="physics">Physics</button>
+        <button class="floating-tab"
+                data-notebook="chemistry">Chemistry</button>
+        <button class="floating-tab"
+                data-notebook="biology">Biology</button>
+    </div>
+
+    <div class="container">
+        <div class="main-layout">
+            <!-- Left Panel: Concepts and Guide -->
+            <div class="left-panel">
+                <!-- Guide Section -->
+                <div class="guide-section svt-inspectable"
+                     data-svt-type="guide-section"
+                     data-svt-concept="system-guide">
+                    <div class="guide-header">
+                        <span class="collapse-icon">▼</span>
+                        System Guide
+                    </div>
+                    <div class="guide-tabs">
+                        <button class="guide-tab active"
+                                data-tab="overview">Overview</button>
+                        <button class="guide-tab"
+                                data-tab="controls">Controls</button>
+                        <button class="guide-tab"
+                                data-tab="navigation">Navigation</button>
+                    </div>
+                    <div class="guide-content">
+                        <div class="tab-content active" id="overview">
+                            <h3>Scientific Visualization Tool (SVT)</h3>
+                            <p>A modular framework for interactive scientific
+                               exploration. Click elements to inspect SVT
+                               metadata.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Concept Section 1 -->
+                <div class="concept-section svt-inspectable"
+                     data-svt-type="concept-section"
+                     data-svt-concept="functions-limits"
+                     svt-data="tree:concept-functions">
+                    <div class="concept-header">
+                        <span class="collapse-icon">▼</span>
+                        Functions & Limits
+                    </div>
+                    <div class="concept-content"
+                         svt-data="leaf:concept-content">
+                        <h4>Functions & Limits</h4>
+                        <p>A <strong class="svt-inspectable"
+                                    data-svt-type="mathematical-term"
+                                    svt-data="ref:math-term">function</strong>
+                           relates inputs to outputs.</p>
+                        <div class="concept-meta">
+                            <strong>SVT:</strong> concept-id:
+                            functions-limits | widgets: 4
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Concept Section 2 -->
+                <div class="concept-section svt-inspectable"
+                     data-svt-type="concept-section"
+                     data-svt-concept="differential-equations">
+                    <div class="concept-header">
+                        <span class="collapse-icon">▼</span>
+                        Differential Equations
+                    </div>
+                    <div class="concept-content">
+                        <h4>Differential Equations</h4>
+                        <p>Form: <strong class="svt-inspectable"
+                                        data-svt-type="equation">dy/dx =
+                                        f(x,y)</strong></p>
+                        <div class="concept-meta">
+                            <strong>SVT:</strong> concept-id:
+                            differential-equations | widgets: 6
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Concept Section 3 -->
+                <div class="concept-section svt-inspectable"
+                     data-svt-type="concept-section"
+                     data-svt-concept="vector-fields">
+                    <div class="concept-header">
+                        <span class="collapse-icon">▼</span>
+                        Vector Fields
+                    </div>
+                    <div class="concept-content">
+                        <h4>Vector Fields</h4>
+                        <p>Fields with magnitude and direction at each point.</p>
+                        <div class="concept-meta">
+                            <strong>SVT:</strong> concept-id:
+                            vector-fields | widgets: 5
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Visualization -->
+            <div class="right-panel">
+                <div class="visualization-area svt-inspectable"
+                     data-svt-type="visualization-canvas"
+                     data-svt-concept="active-visualization">
+                    <h3>Interactive Visualization Area</h3>
+                    <p>Click to inspect the canvas element</p>
+                    <div style="width: 100px; height: 100px;
+                               background: #3498db; border-radius: 50%;
+                               margin: 20px auto;"></div>
+                </div>
+
+                <div class="controls-area"
+                     svt-data="bundle:widget-cluster">
+                    <div class="control-widget svt-inspectable"
+                         data-svt-type="slider-widget"
+                         data-svt-concept="parameter-a"
+                         svt-data="widget:param-a">
+                        <div class="widget-label">Parameter A</div>
+                        <div class="widget-type">Slider Widget</div>
+                        <div class="widget-demo"></div>
+                    </div>
+
+                    <div class="control-widget svt-inspectable"
+                         data-svt-type="knob-widget"
+                         data-svt-concept="parameter-b"
+                         svt-data="widget:param-b">
+                        <div class="widget-label">Parameter B</div>
+                        <div class="widget-type">Knob Widget</div>
+                        <div class="widget-demo"
+                             style="background:
+                                    linear-gradient(90deg, #e74c3c,
+                                                   #c0392b);"></div>
+                    </div>
+
+                    <div class="control-widget svt-inspectable"
+                         data-svt-type="color-widget"
+                         data-svt-concept="visualization-color"
+                         svt-data="widget:color-scheme">
+                        <div class="widget-label">Color Scheme</div>
+                        <div class="widget-type">Color Picker Widget</div>
+                        <div class="widget-demo"
+                             style="background:
+                                    linear-gradient(90deg, #f39c12,
+                                                   #e67e22);"></div>
+                    </div>
+
+                    <div class="control-widget svt-inspectable"
+                         data-svt-type="toggle-widget"
+                         data-svt-concept="animation-toggle"
+                         svt-data="widget:animation">
+                        <div class="widget-label">Animation</div>
+                        <div class="widget-type">Toggle Widget</div>
+                        <div class="widget-demo"
+                             style="background:
+                                    linear-gradient(90deg, #27ae60,
+                                                   #229954);"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- SVT Control System -->
+    <div class="svt-control-gear" id="svtControlGear"></div>
+    
+    <div class="svt-control-panel" id="svtControlPanel">
+        <div class="svt-control-header">
+            <div class="svt-control-title">SVT System Control</div>
+            <button class="svt-control-close">×</button>
+        </div>
+        <div class="svt-control-body">
+            <div class="svt-cell" svt-data="cell:dom-tree">
+                <div class="svt-cell-header">DOM Tree</div>
+                <div class="svt-cell-content">
+                    Active Elements: <strong>24</strong><br>
+                    Bundles: <strong>6</strong><br>
+                    Links: <span class="svt-data-link">concept→widget</span> 
+                    <span class="svt-data-link">guide→section</span>
+                </div>
+            </div>
+            
+            <div class="svt-cell" svt-data="cell:concept-map">
+                <div class="svt-cell-header">Concept Mapping</div>
+                <div class="svt-cell-content">
+                    Cross-refs: <strong>12</strong><br>
+                    Active: <span class="svt-data-link">functions-limits</span><br>
+                    Related: <span class="svt-data-link">differential-equations</span>
+                </div>
+            </div>
+            
+            <div class="svt-cell" svt-data="cell:widget-system">
+                <div class="svt-cell-header">Widget System</div>
+                <div class="svt-cell-content">
+                    Active Widgets: <strong>4</strong><br>
+                    Types: <span class="svt-data-link">slider</span> <span class="svt-data-link">knob</span> 
+                    <span class="svt-data-link">color</span> <span class="svt-data-link">toggle</span>
+                </div>
+            </div>
+            
+            <div class="svt-cell" svt-data="cell:notebook-state">
+                <div class="svt-cell-header">Notebook State</div>
+                <div class="svt-cell-content">
+                    Current: <span class="svt-data-link">mathematics</span><br>
+                    Progress: <strong>3/8</strong> concepts<br>
+                    Modified: <strong>2min ago</strong>
+                </div>
+            </div>
+            
+            <div class="svt-cell" svt-data="cell:framework-info">
+                <div class="svt-cell-header">Framework Info</div>
+                <div class="svt-cell-content">
+                    Version: <strong>SVT v1.0.0</strong><br>
+                    Mode: <span class="svt-data-link">development</span><br>
+                    Performance: <strong>60fps</strong>
+                </div>
+            </div>
+            
+            <div class="svt-cell" svt-data="cell:data-flow">
+                <div class="svt-cell-header">Data Flow</div>
+                <div class="svt-cell-content">
+                    Links: <strong>18</strong> active<br>
+                    Events: <span class="svt-data-link">click</span> <span class="svt-data-link">hover</span><br>
+                    Bindings: <strong>concept↔visual</strong>
+                </div>
+            </div>
+
+            <div class="svt-cell" svt-data="cell:visual-stage">
+                <div class="svt-cell-header">Visual Stage</div>
+                <div class="svt-cell-content">
+                    Status: <span class="visual-stage-indicator stage-ready"></span> <strong>Ready</strong><br>
+                    Objects: <strong>12</strong> active<br>
+                    Render: <strong>60fps</strong>
+                </div>
+            </div>
+
+            <div class="svt-cell cell-2c" svt-data="cell:selected" id="selectedCell">
+                <div class="svt-cell-header">Selected</div>
+                <div class="svt-cell-content">
+                    <div class="selected-summary">
+                        <div>
+                            <span class="selected-type" id="selectedType">None</span>
+                            <span id="selectedName">No element selected</span>
+                        </div>
+                        <div id="selectedId"
+                             style="font-family: monospace;
+                                    font-size: 0.8em;
+                                    color: #7f8c8d;"></div>
+                    </div>
+                    <div id="selectedDetails">Click any inspectable element to see real-time details</div>
+                    <div class="selected-actions">
+                        <button class="action-btn" id="expandBtn">Expand</button>
+                        <button class="action-btn" id="selectedModeBtn">Takeover</button>
+                        <button class="action-btn" id="inspectBtn">Float</button>
+                        <button class="action-btn" id="clearBtn">Clear</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inspector Modal -->
+    <div class="inspector-overlay" id="inspector">
+        <div class="inspector-modal">
+            <div class="inspector-header">
+                <div class="inspector-title">Element Inspector</div>
+                <button class="inspector-close"
+                        onclick="closeInspector()">×</button>
+            </div>
+            <div class="inspector-tabs">
+                <button class="inspector-tab active"
+                        data-inspector-tab="html">HTML</button>
+                <button class="inspector-tab"
+                        data-inspector-tab="css">CSS</button>
+                <button class="inspector-tab"
+                        data-inspector-tab="dom">DOM</button>
+                <button class="inspector-tab"
+                        data-inspector-tab="svt">SVT</button>
+            </div>
+            <div class="inspector-content">
+                <div class="inspector-panel active" id="html-panel">
+                    <h4>HTML Structure</h4>
+                    <div class="code-block" id="html-content"></div>
+                </div>
+                <div class="inspector-panel" id="css-panel">
+                    <h4>CSS Properties</h4>
+                    <ul class="property-list" id="css-content"></ul>
+                </div>
+                <div class="inspector-panel" id="dom-panel">
+                    <h4>DOM Information</h4>
+                    <ul class="property-list" id="dom-content"></ul>
+                </div>
+                <div class="inspector-panel" id="svt-panel">
+                    <h4>SVT Framework Data</h4>
+                    <ul class="property-list" id="svt-content"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentElement = null;
+        let selectedElement = null;
+        let selectedMode = false;
+
+        // SVT Control Panel Object
+        class SVTControlPanel {
+            constructor() {
+                this.element = document.getElementById('svtControlPanel');
+                this.gear = document.getElementById('svtControlGear');
+                this.isActive = false;
+                this.cells = new Map();
+                this.state = 'closed'; // closed -> open -> takeover
+                
+                // Initialize visual state
+                this.gear.setAttribute('data-state', 'closed');
+                
+                this.init();
+            }
+
+            init() {
+                // Gear click handler - now handles state machine
+                this.gear.addEventListener('click', () => this.handleGearClick());
+                
+                // Close button handler
+                this.element.querySelector('.svt-control-close').addEventListener('click', () => this.close());
+                
+                // ESC key handler
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && this.isActive) this.close();
+                });
+                
+                // Cell size transition buttons - use event delegation
+                document.addEventListener('click', (e) => {
+                    if (e.target.id === 'expandBtn') 
+                        this.expandSelectedCell();
+                    if (e.target.id === 'selectedModeBtn') 
+                        this.takeoverSelectedCell();
+                    if (e.target.id === 'inspectBtn') 
+                        this.floatSelectedCell();
+                    if (e.target.id === 'clearBtn') 
+                        this.clearSelected();
+                });
+                
+                // Initialize cells
+                this.scanCells();
+            }
+
+            // Cell size transition methods
+            expandSelectedCell() {
+                const selectedCell = document.getElementById('selectedCell');
+                const expandBtn = document.getElementById('expandBtn');
+                
+                if (selectedCell.classList.contains('cell-2c')) {
+                    // Contract to 1c
+                    selectedCell.classList.remove('cell-2c');
+                    expandBtn.textContent = 'Expand';
+                } else {
+                    // Expand to 2c
+                    selectedCell.classList.add('cell-2c');
+                    expandBtn.textContent = 'Contract';
+                }
+            }
+
+            takeoverSelectedCell() {
+                const selectedCell = document.getElementById('selectedCell');
+                
+                if (!selectedCell) return;
+                
+                if (selectedCell.classList.contains('cell-takeover')) {
+                    this.exitTakeover();
+                } else {
+                    // Enter takeover mode
+                    selectedCell.classList.add('cell-takeover');
+                    this.enterSelectedMode();
+                    this.state = 'takeover';
+                    // Visual feedback - gear becomes exit indicator
+                    this.gear.style.transform = 'rotate(90deg) scale(1.1)';
+                    this.gear.setAttribute('data-state', 'takeover');
+                }
+            }
+
+            floatSelectedCell() {
+                if (selectedElement) {
+                    inspectElement(selectedElement);
+                }
+            }
+
+
+            enterSelectedMode() {
+                selectedMode = true;
+                const controlTitle = this.element.querySelector('.svt-control-title');
+                const selectedCell = document.getElementById('selectedCell');
+                
+                controlTitle.innerHTML =
+                    'SVT Inspector Mode (Takeover) - Click Gear to Exit';
+                
+                // Add inspector content to selected cell in takeover mode
+                const cellContent =
+                    selectedCell.querySelector('.svt-cell-content');
+                cellContent.innerHTML = `
+                    <div class="selected-mode-inspector">
+                        <div class="inspector-tabs">
+                            <button class="inspector-tab active"
+                                    data-inspector-tab="html">HTML</button>
+                            <button class="inspector-tab"
+                                    data-inspector-tab="css">CSS</button>
+                            <button class="inspector-tab"
+                                    data-inspector-tab="dom">DOM</button>
+                            <button class="inspector-tab"
+                                    data-inspector-tab="svt">SVT</button>
+                        </div>
+                        <div class="inspector-content">
+                            <div class="inspector-tab-content active"
+                                 id="html-content-selected">
+                                <pre>${selectedElement ?
+                                     formatHTML(selectedElement.outerHTML) :
+                                     'No element selected'}</pre>
+                            </div>
+                            <div class="inspector-tab-content"
+                                 id="css-content-selected">
+                                <pre>Select an element to view CSS</pre>
+                            </div>
+                            <div class="inspector-tab-content"
+                                 id="dom-content-selected">
+                                <pre>Select an element to view DOM tree</pre>
+                            </div>
+                            <div class="inspector-tab-content"
+                                 id="svt-content-selected">
+                                <pre>Select an element to view SVT data</pre>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                this.setupSelectedModeInspector();
+            }
+
+            exitSelectedMode() {
+                selectedMode = false;
+                const controlTitle =
+                    this.element.querySelector('.svt-control-title');
+                const selectedCell =
+                    document.getElementById('selectedCell');
+                
+                controlTitle.textContent = 'SVT System Control';
+                
+                // Restore original selected cell content
+                const cellContent =
+                    selectedCell.querySelector('.svt-cell-content');
+                cellContent.innerHTML = `
+                    <div class="selected-summary">
+                        <div>
+                            <span class="selected-type" id="selectedType">None</span>
+                            <span id="selectedName">No element selected</span>
+                        </div>
+                        <div id="selectedId"
+                             style="font-family: monospace;
+                                    font-size: 0.8em;
+                                    color: #7f8c8d;"></div>
+                    </div>
+                    <div id="selectedDetails">Click any inspectable element to see real-time details</div>
+                    <div class="selected-actions">
+                        <button class="action-btn" id="expandBtn">Expand</button>
+                        <button class="action-btn" id="selectedModeBtn">Takeover</button>
+                        <button class="action-btn" id="inspectBtn">Float</button>
+                        <button class="action-btn" id="clearBtn">Clear</button>
+                    </div>
+                `;
+                
+                // Reconnect event listeners
+                this.reconnectSelectedCellListeners();
+                
+                // Update selected cell with current element
+                this.updateSelectedCell();
+            }
+
+            reconnectSelectedCellListeners() {
+                // Reconnect event listeners after DOM recreation
+                document.getElementById('expandBtn')
+                    .addEventListener('click',
+                                    () => this.expandSelectedCell());
+                document.getElementById('selectedModeBtn')
+                    .addEventListener('click',
+                                    () => this.takeoverSelectedCell());
+                document.getElementById('inspectBtn')
+                    .addEventListener('click',
+                                    () => this.floatSelectedCell());
+                document.getElementById('clearBtn')
+                    .addEventListener('click',
+                                    () => this.clearSelected());
+            }
+
+            setupSelectedModeInspector() {
+                // Setup tab switching in selected mode
+                this.element.querySelectorAll('.inspector-tab')
+                    .forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        this.switchSelectedModeTab(
+                            tab.dataset.inspectorTab);
+                    });
+                });
+
+                // Update inspector content if element is selected
+                if (selectedElement) {
+                    this.updateSelectedModeInspector(selectedElement);
+                }
+            }
+
+            switchSelectedModeTab(tabName) {
+                // Switch tabs in selected mode
+                this.element.querySelectorAll('.inspector-tab')
+                    .forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                this.element.querySelectorAll('.inspector-tab-content')
+                    .forEach(content => {
+                    content.classList.remove('active');
+                });
+
+                this.element.querySelector(
+                    `[data-inspector-tab="${tabName}"]`)
+                    .classList.add('active');
+                this.element.querySelector(
+                    `#${tabName}-content-selected`)
+                    .classList.add('active');
+            }
+
+            updateSelectedModeInspector(element) {
+                if (!selectedMode || !element) return;
+
+                // Update HTML content
+                const htmlContent = this.element.querySelector(
+                    '#html-content-selected pre');
+                if (htmlContent) {
+                    htmlContent.textContent = formatHTML(element.outerHTML);
+                }
+
+                // Update CSS content
+                const cssContent = this.element.querySelector(
+                    '#css-content-selected pre');
+                if (cssContent) {
+                    const styles = window.getComputedStyle(element);
+                    const props = ['display', 'position', 'width',
+                                  'height', 'margin', 'padding',
+                                  'background-color', 'color'];
+                    cssContent.innerHTML = props.map(p => {
+                        const v = styles.getPropertyValue(p);
+                        return v ? `${p}: ${v};` : '';
+                    }).filter(Boolean).join('\n');
+                }
+
+                // Update DOM content
+                const domContent = this.element.querySelector(
+                    '#dom-content-selected pre');
+                if (domContent) {
+                    domContent.textContent = this.getDOMTree(element);
+                }
+
+                // Update SVT content
+                const svtContent = this.element.querySelector(
+                    '#svt-content-selected pre');
+                if (svtContent) {
+                    svtContent.textContent = this.getSVTData(element);
+                }
+            }
+
+            clearSelected() {
+                selectedElement = null;
+                this.updateSelectedCell();
+                
+                if (selectedMode) {
+                    this.updateSelectedModeInspector(null);
+                }
+            }
+
+            updateSelectedCell() {
+                // Skip update if in takeover mode - DOM structure
+                // is different
+                if (selectedMode) return;
+                
+                const typeEl =
+                    document.getElementById('selectedType');
+                const nameEl =
+                    document.getElementById('selectedName');
+                const idEl =
+                    document.getElementById('selectedId');
+                const detailsEl =
+                    document.getElementById('selectedDetails');
+
+                // Check if elements exist (they won't in takeover mode)
+                if (!typeEl || !nameEl || !idEl || !detailsEl)
+                    return;
+
+                if (selectedElement) {
+                    const svtType =
+                        selectedElement.getAttribute('data-svt-type') ||
+                        'element';
+                    const tagName =
+                        selectedElement.tagName.toLowerCase();
+                    const id = selectedElement.id ?
+                        `#${selectedElement.id}` : '';
+                    const className = selectedElement.className ?
+                        `.${selectedElement.className.split(' ').join('.')}` :
+                        '';
+
+                    typeEl.textContent = svtType;
+                    nameEl.textContent = `<${tagName}>${id}${className}`;
+                    idEl.textContent = selectedElement.id || 'no-id';
+                    
+                    // Show real-time details
+                    const svtData =
+                        selectedElement.getAttribute('svt-data') || 'none';
+                    const bounds =
+                        selectedElement.getBoundingClientRect();
+                    detailsEl.innerHTML = `
+                        <div><strong>svt-data:</strong>
+                             ${svtData}</div>
+                        <div><strong>Position:</strong>
+                             ${Math.round(bounds.left)}x${Math.round(bounds.top)}</div>
+                        <div><strong>Size:</strong>
+                             ${Math.round(bounds.width)}×${Math.round(bounds.height)}</div>
+                        <div><strong>Children:</strong>
+                             ${selectedElement.children.length}</div>
+                    `;
+                } else {
+                    typeEl.textContent = 'None';
+                    nameEl.textContent = 'No element selected';
+                    idEl.textContent = '';
+                    detailsEl.textContent =
+                        'Click any inspectable element to see real-time details';
+                }
+            }
+
+            getDOMTree(element) {
+                const fmt = (el) =>
+                    `${el.tagName.toLowerCase()}${
+                        el.id ? `#${el.id}` : ''
+                    }${el.className ?
+                        `.${el.className.split(' ').join('.')}` : ''
+                    }`;
+                return fmt(element) + '\n' +
+                    [...element.children].map(child =>
+                        `  ├─ ${fmt(child)}`
+                    ).join('\n');
+            }
+
+            getSVTData(element) {
+                const attrs = [...element.attributes].filter(a =>
+                    a.name.startsWith('svt-') ||
+                    a.name.startsWith('data-svt-')
+                );
+                return `SVT Data:\n${
+                    attrs.map(a => `${a.name}: ${a.value}`).join('\n')
+                }\ninspectable: ${element.classList.contains('svt-inspectable')}`;
+            }
+
+            // Unified Gear State Machine - Proper Unstacking
+            handleGearClick() {
+                switch(this.state) {
+                    case 'closed':
+                        this.open();
+                        break;
+                    case 'open':
+                        this.close();
+                        break;
+                    case 'takeover':
+                        // Unstack: takeover -> open (not closed)
+                        this.exitTakeover();
+                        // This sets state back to 'open'
+                        break;
+                }
+            }
+
+            toggle() {
+                this.isActive ? this.close() : this.open();
+            }
+
+            open() {
+                this.element.classList.add('active');
+                this.gear.style.transform = 'rotate(180deg) scale(0.8)';
+                this.gear.setAttribute('data-state', 'open');
+                this.isActive = true;
+                this.state = 'open';
+                this.updateCells();
+            }
+
+            close() {
+                this.element.classList.remove('active');
+                this.gear.style.transform = 'rotate(0deg) scale(1)';
+                this.gear.setAttribute('data-state', 'closed');
+                this.isActive = false;
+                this.state = 'closed';
+            }
+
+            exitTakeover() {
+                // Clean exit from takeover mode
+                const selectedCell = document.getElementById('selectedCell');
+                
+                // Remove takeover class
+                if (selectedCell) {
+                    selectedCell.classList.remove('cell-takeover');
+                }
+                
+                // Exit selected mode
+                selectedMode = false;
+                this.exitSelectedMode();
+                
+                // Return to open state (unstacking)
+                this.state = 'open';
+                
+                // Reset gear visuals
+                this.gear.style.transform = 'rotate(180deg) scale(0.8)';
+                this.gear.setAttribute('data-state', 'open');
+                
+                // Ensure panel stays open
+                this.element.classList.add('active');
+                this.isActive = true;
+            }
+
+            scanCells() {
+                // Scan DOM for svt-data cells and collect metadata
+                document.querySelectorAll('[svt-data]')
+                    .forEach(element => {
+                    const cellData = element.getAttribute('svt-data');
+                    this.cells.set(cellData, {
+                        element,
+                        type: cellData.split(':')[1],
+                        lastUpdate: Date.now()
+                    });
+                });
+            }
+
+            updateCells() {
+                // Update cell content with current DOM state
+                const inspectableCount = document.querySelectorAll('.svt-inspectable').length;
+                const conceptSections = document.querySelectorAll('[data-svt-type="concept-section"]').length;
+                const widgets = document.querySelectorAll('.control-widget').length;
+                
+            }
+
+            getCellData(cellId) {
+                return this.cells.get(cellId);
+            }
+        }
+
+        // Global SVT Control Panel instance
+        let svtControlPanel;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            setupInspector();
+            setupFloatingTabs();
+            setupCollapsibleSections();
+            setupGuideTabs();
+            
+            // Initialize SVT Control Panel
+            svtControlPanel = new SVTControlPanel();
+        });
+
+        // Setup element inspection
+        function setupInspector() {
+            document.addEventListener('click', function(e) {
+                // Don't inspect if clicking on inspector itself
+                if (e.target.closest('.inspector-overlay')) {
+                    return;
+                }
+
+                // Only inspect elements with svt-inspectable class
+                if (e.target.classList.contains('svt-inspectable') || e.target.closest('.svt-inspectable')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const element =
+                        e.target.classList.contains('svt-inspectable') ?
+                        e.target :
+                        e.target.closest('.svt-inspectable');
+                    
+                    // Update selected element
+                    selectedElement = element;
+                    svtControlPanel.updateSelectedCell();
+                    
+                    // In selected mode, update the inspector within control panel
+                    if (selectedMode) {
+                        svtControlPanel.updateSelectedModeInspector(element);
+                    }
+                    // Note: Modal inspector only shows when Float button is clicked
+                }
+            });
+
+            // Only ESC to close modal inspector, not takeover mode
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeInspector();
+                    // Takeover mode only exits via gear - no ESC exit
+                }
+            });
+
+            // Setup inspector tabs
+            document.querySelectorAll('.inspector-tab')
+                .forEach(tab => {
+                tab.addEventListener('click', function() {
+                    switchInspectorTab(this.dataset.inspectorTab);
+                });
+            });
+        }
+
+        // Inspect an element
+        function inspectElement(element) {
+            currentElement = element;
+            
+            // Populate HTML panel
+            populateHTMLPanel(element);
+            
+            // Populate CSS panel
+            populateCSSPanel(element);
+            
+            // Populate DOM panel
+            populateDOMPanel(element);
+            
+            // Populate SVT panel
+            populateSVTPanel(element);
+            
+            // Show inspector
+            document.getElementById('inspector').style.display = 'flex';
+        }
+
+        function populateHTMLPanel(element) {
+            document.getElementById('html-content').textContent = formatHTML(element.outerHTML);
+        }
+
+        function populateCSSPanel(element) {
+            const styles = window.getComputedStyle(element);
+            const props = [
+                'display', 'position', 'width', 'height', 
+                'margin', 'padding', 'background-color', 'color'
+            ];
+            document.getElementById('css-content').innerHTML = 
+                props.map(p => {
+                    const v = styles.getPropertyValue(p);
+                    return v ? 
+                        `<li><span class="property-name">${p}:</span>
+                         <span class="property-value">${v}</span></li>` : '';
+                }).join('');
+        }
+
+        function populateDOMPanel(element) {
+            const props = [
+                ['Tag', element.tagName.toLowerCase()],
+                ['ID', element.id || 'none'],
+                ['Classes', element.className || 'none'],
+                ['Children', element.children.length],
+                ['Size',
+                 `${element.offsetWidth}×${element.offsetHeight}px`]
+            ];
+            document.getElementById('dom-content').innerHTML =
+                props.map(([n, v]) =>
+                    `<li><span class="property-name">${n}:</span>
+                     <span class="property-value">${v}</span></li>`
+                ).join('');
+        }
+
+        // Populate SVT panel
+        function populateSVTPanel(element) {
+            const svtContent = document.getElementById('svt-content');
+            
+            // Extract SVT-specific data attributes
+            const svtData = [];
+            
+            // Get all data-svt attributes
+            Array.from(element.attributes).forEach(attr => {
+                if (attr.name.startsWith('data-svt-')) {
+                    svtData.push({
+                        name: attr.name.replace('data-svt-', ''),
+                        value: attr.value
+                    });
+                }
+            });
+
+            // Get svt-data attribute (the gluing mechanism)
+            const svtDataGlue = element.getAttribute('svt-data');
+
+            // Add framework-specific metadata
+            const frameworkData = [
+                { name: 'Framework Version', value: 'SVT v1.0.0' },
+                { name: 'Element Type', value: element.dataset.svtType || 'unknown' },
+                { name: 'Concept ID', value: element.dataset.svtConcept || 'undefined' },
+                { name: 'SVT Data Glue', value: svtDataGlue || 'none' },
+                { name: 'Tree Level', value: svtDataGlue ? svtDataGlue.split(':')[0] : 'unlinked' },
+                { name: 'Bundle ID', value: svtDataGlue ? svtDataGlue.split(':')[1] : 'unbundled' },
+                { name: 'Inspectable', value: element.classList.contains('svt-inspectable') ? 'true' : 'false' },
+                { name: 'Widget Count', value: element.querySelectorAll('[data-svt-type]').length },
+                { name: 'Cross References', value: Math.floor(Math.random() * 10) + 1 } // Mock data
+            ];
+
+            svtContent.innerHTML = '';
+            
+            // Add framework data
+            frameworkData.forEach(prop => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span class="property-name">${prop.name}:</span>
+                    <span class="property-value">${prop.value}</span>
+                `;
+                svtContent.appendChild(li);
+            });
+
+            // Add SVT data attributes if any
+            if (svtData.length > 0) {
+                const separator = document.createElement('li');
+                separator.innerHTML = '<hr style="margin: 10px 0;">';
+                svtContent.appendChild(separator);
+
+                svtData.forEach(prop => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="property-name">SVT ${prop.name}:</span>
+                        <span class="property-value">${prop.value}</span>
+                    `;
+                    svtContent.appendChild(li);
+                });
+            }
+        }
+
+        // Switch inspector tab
+        function switchInspectorTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.inspector-tab')
+                .forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`[data-inspector-tab="${tabName}"]`).classList.add('active');
+
+            // Update panels
+            document.querySelectorAll('.inspector-panel')
+                .forEach(panel => {
+                panel.classList.remove('active');
+            });
+            document.getElementById(`${tabName}-panel`).classList.add('active');
+        }
+
+        // Close inspector
+        function closeInspector() {
+            document.getElementById('inspector').style.display = 'none';
+            currentElement = null;
+        }
+
+        // Setup floating tabs
+        function setupFloatingTabs() {
+            document.querySelectorAll('.floating-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Update active tab
+                    document.querySelectorAll('.floating-tab')
+                        .forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Here you would load different notebook content
+                });
+            });
+        }
+
+        // Setup collapsible sections
+        function setupCollapsibleSections() {
+            document.querySelectorAll('.concept-header, .guide-header')
+                .forEach(header => {
+                header.addEventListener('click', function() {
+                    const section = this.parentElement;
+                    const content = section.querySelector('.concept-content, .guide-content');
+                    const icon = this.querySelector('.collapse-icon');
+                    
+                    if (content.style.display === 'none') {
+                        content.style.display = 'block';
+                        section.classList.remove('collapsed');
+                    } else {
+                        content.style.display = 'none';
+                        section.classList.add('collapsed');
+                    }
+                });
+            });
+        }
+
+        // Setup guide tabs
+        function setupGuideTabs() {
+            document.querySelectorAll('.guide-tab')
+                .forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Update tab buttons
+                    this.parentElement.querySelectorAll('.guide-tab')
+                        .forEach(t => {
+                        t.classList.remove('active');
+                    });
+                    this.classList.add('active');
+
+                    // Here you would switch guide content
+                });
+            });
+        }
+
+        // Utility function to format HTML
+        function formatHTML(html) {
+            // Simple HTML formatting
+            return html
+                .replace(/></g, '>\n<')
+                .replace(/^\s+|\s+$/g, '')
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0)
+                .join('\n');
+        }
+    </script>
+</body>
+</html>
