@@ -1,0 +1,534 @@
+/* =============================================================================
+   TYPOGRAPHY.CSS - Academic Typography & Enhanced Math Rendering
+   ============================================================================= */
+
+/* CSS Variables for Typography */
+:root {
+    /* Colors */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #e9ecef;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --accent-primary: #0066cc;
+    --accent-secondary: #004499;
+    --border-color: #dee2e6;
+    --highlight-bg: #fff3cd;
+    --highlight-border: #ffc107;
+    --success: #28a745;
+    --danger: #dc3545;
+    --info: #17a2b8;
+
+    /* Variable colors for math elements */
+    --math-time: #0066cc;
+    --math-frequency: #dc3545;
+    --math-parameter: #28a745;
+    --math-function: #6f42c1;
+    --math-operator: #6c757d;
+}
+
+/* Base Typography */
+body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 17px;
+    line-height: 1.7;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-weight: 400;
+    line-height: 1.3;
+    color: var(--text-primary);
+}
+
+/* Code and Monospace */
+code, kbd, samp {
+    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Courier New', monospace;
+    font-size: 0.9em;
+    background: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+/* Links */
+a {
+    color: var(--accent-primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+a:hover {
+    color: var(--accent-secondary);
+    text-decoration: underline;
+}
+
+/* ============================================================================
+   ENHANCED MATH RENDERING - KaTeX Improvements
+   ============================================================================ */
+
+/* Make math bigger and more prominent */
+.katex {
+    font-size: 1.15em !important;
+    line-height: 1.6 !important;
+}
+
+.katex-display {
+    font-size: 1.25em !important;
+    margin: 1.5em 0 !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 10px 0;
+}
+
+/* Improve math spacing */
+.katex .mord {
+    letter-spacing: 0.02em;
+}
+
+/* Better fractions */
+.katex .frac-line {
+    border-bottom-width: 0.06em !important;
+}
+
+.katex .mfrac {
+    vertical-align: 0.05em;
+}
+
+/* Better operators */
+.katex .mbin, .katex .mrel {
+    padding: 0 0.3em;
+}
+
+/* Better integral signs */
+.katex .mop {
+    font-size: 1.1em;
+}
+
+/* Subscripts and superscripts - slightly larger */
+.katex .sizing.reset-size6.size3 {
+    font-size: 0.75em !important;
+}
+
+/* ============================================================================
+   EQUATION BLOCKS
+   ============================================================================ */
+
+.equation-block {
+    position: relative;
+    margin: 30px 0;
+    padding: 25px 60px 25px 30px;
+    background: linear-gradient(to right, var(--bg-secondary) 0%, white 100%);
+    border-left: 4px solid var(--accent-primary);
+    border-radius: 6px;
+    overflow-x: auto;
+    transition: all 0.3s;
+}
+
+.equation-block:hover {
+    background: linear-gradient(to right, rgba(0, 102, 204, 0.03) 0%, white 100%);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.equation-block.featured {
+    background: linear-gradient(135deg, rgba(0, 102, 204, 0.05) 0%, rgba(124, 58, 237, 0.03) 100%);
+    border-left-width: 6px;
+    padding: 30px 60px 30px 35px;
+}
+
+.equation-content {
+    text-align: center;
+    user-select: none; /* Prevent accidental text selection while clicking math */
+}
+
+.equation-number {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-family: 'Georgia', serif;
+}
+
+/* Inline Math */
+.math-inline {
+    display: inline-block;
+    padding: 2px 4px;
+    margin: 0 2px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.math-inline:hover {
+    background: rgba(0, 102, 204, 0.08);
+    transform: scale(1.05);
+}
+
+.math-inline:active {
+    transform: scale(0.98);
+}
+
+/* Margin Anchors - Clickable text that shows margin notes */
+.margin-anchor {
+    display: inline;
+    padding: 1px 3px;
+    border-bottom: 2px dotted var(--accent-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.margin-anchor:hover {
+    background: rgba(0, 102, 204, 0.08);
+    border-bottom-color: var(--accent-secondary);
+    color: var(--accent-primary);
+}
+
+.margin-anchor:active {
+    transform: translateY(1px);
+}
+
+/* Vargraph tags */
+.vg-var, .vg-concept, .vg-insight, .vg-data {
+    padding: 1px 2px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.vg-var:hover, .vg-concept:hover, .vg-data:hover {
+    background: rgba(0, 102, 204, 0.1);
+}
+
+.vg-highlighted {
+    background: rgba(0, 102, 204, 0.25) !important;
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+.vg-insight {
+    border-bottom: 2px dotted var(--accent-primary);
+    font-weight: 500;
+}
+
+/* Interactive Math Elements - Applied by Symbolizer */
+.math-element {
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 3px;
+    padding: 2px 4px;
+    margin: -2px -4px;
+    display: inline-block;
+}
+
+.math-element:hover {
+    background: rgba(0, 102, 204, 0.1);
+    transform: scale(1.08);
+}
+
+.math-element.selected {
+    background: var(--accent-primary);
+    color: white;
+    font-weight: 600;
+}
+
+.math-element.related {
+    background: rgba(255, 193, 7, 0.3);
+    outline: 2px solid var(--highlight-border);
+}
+
+/* Variable Type Styling */
+.math-element[data-type="time"],
+.math-inline[data-var*="t"],
+.math-inline[data-var*="time"] {
+    color: var(--math-time);
+}
+
+.math-element[data-type="frequency"],
+.math-inline[data-var*="f"],
+.math-inline[data-var*="omega"],
+.math-inline[data-var*="freq"] {
+    color: var(--math-frequency);
+}
+
+.math-element[data-type="parameter"],
+.math-inline[data-var*="alpha"],
+.math-inline[data-var*="beta"],
+.math-inline[data-var*="gamma"],
+.math-inline[data-var*="lambda"] {
+    color: var(--math-parameter);
+}
+
+.math-element[data-type="function"],
+.math-inline[data-var*="lambda"] {
+    color: var(--math-function);
+    font-weight: 500;
+}
+
+/* ============================================================================
+   MARGIN NOTE TYPOGRAPHY
+   ============================================================================ */
+
+.margin-note {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.margin-note h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 10px 0;
+    color: var(--accent-primary);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 6px;
+}
+
+.margin-note p {
+    margin-bottom: 10px;
+}
+
+.margin-note .math-block {
+    background: var(--bg-secondary);
+    padding: 12px;
+    border-radius: 4px;
+    margin: 12px 0;
+    border-left: 3px solid var(--accent-primary);
+}
+
+.margin-note ul {
+    margin: 10px 0 10px 20px;
+}
+
+.margin-note li {
+    margin-bottom: 6px;
+}
+
+.margin-note code {
+    font-size: 12px;
+}
+
+/* Definition Lists in Margin Notes */
+.margin-note dl {
+    margin: 12px 0;
+}
+
+.margin-note dt {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 8px;
+}
+
+.margin-note dd {
+    margin: 4px 0 4px 16px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+/* ============================================================================
+   SPECIAL TEXT ELEMENTS
+   ============================================================================ */
+
+/* Emphasis and Strong */
+em {
+    font-style: italic;
+    color: var(--text-primary);
+}
+
+strong {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Blockquotes */
+blockquote {
+    margin: 25px 0;
+    padding: 16px 24px;
+    border-left: 4px solid var(--accent-primary);
+    background: var(--bg-secondary);
+    font-style: italic;
+    color: var(--text-secondary);
+}
+
+blockquote p {
+    margin: 0;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 25px 0;
+    font-size: 15px;
+}
+
+thead th {
+    background: var(--bg-secondary);
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+tbody td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+tbody tr:hover {
+    background: var(--bg-secondary);
+}
+
+/* ============================================================================
+   FIGURE CAPTIONS
+   ============================================================================ */
+
+figure {
+    margin: 30px 0;
+}
+
+figcaption {
+    margin-top: 10px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-style: italic;
+    text-align: center;
+}
+
+/* ============================================================================
+   REFERENCES AND CITATIONS
+   ============================================================================ */
+
+.citation {
+    color: var(--accent-primary);
+    font-size: 0.9em;
+    vertical-align: super;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 2px;
+    transition: background 0.2s;
+}
+
+.citation:hover {
+    background: var(--highlight-bg);
+}
+
+.reference-list {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 2px solid var(--border-color);
+}
+
+.reference-list ol {
+    list-style: none;
+    counter-reset: reference-counter;
+}
+
+.reference-list li {
+    counter-increment: reference-counter;
+    margin-bottom: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.reference-list li::before {
+    content: "[" counter(reference-counter) "] ";
+    font-weight: 600;
+    color: var(--accent-primary);
+}
+
+/* ============================================================================
+   TOOLTIPS
+   ============================================================================ */
+
+[data-tooltip] {
+    position: relative;
+    cursor: help;
+    border-bottom: 1px dotted var(--text-secondary);
+}
+
+[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 1000;
+}
+
+[data-tooltip]:hover::after {
+    opacity: 1;
+}
+
+/* ============================================================================
+   RESPONSIVE TYPOGRAPHY
+   ============================================================================ */
+
+@media (max-width: 768px) {
+    body {
+        font-size: 16px;
+    }
+
+    .katex {
+        font-size: 1.1em !important;
+    }
+
+    .katex-display {
+        font-size: 1.15em !important;
+    }
+
+    .equation-block {
+        padding: 20px 50px 20px 20px;
+    }
+
+    .equation-number {
+        right: 15px;
+        font-size: 14px;
+    }
+}
+
+/* ============================================================================
+   PRINT TYPOGRAPHY
+   ============================================================================ */
+
+@media print {
+    body {
+        font-size: 11pt;
+        line-height: 1.5;
+        color: black;
+    }
+
+    .equation-block {
+        background: none;
+        border-left-color: black;
+        page-break-inside: avoid;
+    }
+
+    .math-element:hover {
+        background: none;
+        transform: none;
+    }
+
+    a {
+        color: black;
+        text-decoration: underline;
+    }
+}

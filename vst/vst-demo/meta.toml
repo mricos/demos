@@ -1,0 +1,30 @@
+# Paper Metadata
+
+[paper]
+id = "vst-demo"
+title = "The Variable Scale Transform"
+subtitle = "Logarithmic Resolution in Time-Frequency Analysis"
+authors = ["An Interactive Mathematical Exploration"]
+date = "2025"
+
+[config]
+sample_rate = 8000
+default_alpha = 0.75
+default_q_factor = 15
+default_bins_per_octave = 36
+default_fft_size = 4096
+
+[guitar_notes]
+f1 = 82.41  # E2
+f2 = 87.31  # F2
+f3 = 329.63 # E4
+f4 = 349.23 # F4
+num_harmonics = 3
+harmonic_amplitudes = [1.0, 0.5, 0.25]
+decay_rate = 2.5
+signal_duration = 2.0
+
+[ui]
+show_left_gutter = true
+show_right_gutter = true
+default_section = "introduction"

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vargraph - Symbol Dependency Graph</title>
+
+    <!-- Cytoscape.js from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+        #graph-container {
+            position: absolute;
+            left: 0;
+            top: 60px;
+            right: 350px;
+            bottom: 0;
+            background: #fafafa;
+        }
+
+        #sidebar {
+            position: absolute;
+            right: 0;
+            top: 60px;
+            width: 350px;
+            bottom: 0;
+            background: white;
+            border-left: 1px solid #ddd;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #0066cc;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 3px solid #0052a3;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .stats {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 6px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 14px;
+        }
+
+        .stat-label {
+            color: #666;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #0066cc;
+        }
+
+        .occurrence-list {
+            margin-top: 15px;
+        }
+
+        .occurrence {
+            margin: 10px 0;
+            padding: 12px;
+            background: #f9f9f9;
+            border-left: 3px solid #0066cc;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .occurrence-type {
+            font-weight: 600;
+            color: #0066cc;
+            margin-bottom: 4px;
+        }
+
+        .occurrence-context {
+            color: #666;
+            font-size: 12px;
+            margin-top: 6px;
+            font-style: italic;
+        }
+
+        #symbol-info h3 {
+            margin: 15px 0 10px 0;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .symbol-desc {
+            color: #666;
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+
+        .placeholder {
+            color: #999;
+            text-align: center;
+            padding: 40px 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Vargraph - Symbol Dependency Graph</h1>
+    </div>
+
+    <div id="graph-container"></div>
+
+    <div id="sidebar">
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">Symbols:</span>
+                <span class="stat-value" id="stat-symbols">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Equations:</span>
+                <span class="stat-value" id="stat-equations">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Total Occurrences:</span>
+                <span class="stat-value" id="stat-occurrences">0</span>
+            </div>
+        </div>
+
+        <div id="symbol-info">
+            <div class="placeholder">
+                Click a node to see details
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load vargraph client from parent window if in iframe, else create dummy
+        const vg = window.parent && window.parent.vg ? window.parent.vg : {
+            buildDependencyGraph: () => ({ nodes: [], edges: [] }),
+            getSymbol: () => null,
+            getStats: () => ({ symbols: 0, equations: 0, total_occurrences: 0 })
+        };
+
+        // Update stats
+        const stats = vg.getStats();
+        document.getElementById('stat-symbols').textContent = stats.symbols || 0;
+        document.getElementById('stat-equations').textContent = stats.equations || 0;
+        document.getElementById('stat-occurrences').textContent = stats.total_occurrences || 0;
+
+        // Build graph data
+        const graphData = vg.buildDependencyGraph();
+
+        // Cytoscape configuration
+        const cy = cytoscape({
+            container: document.getElementById('graph-container'),
+
+            elements: {
+                nodes: graphData.nodes.map(n => ({
+                    data: {
+                        id: n.id,
+                        label: n.label || n.id,
+                        type: n.type,
+                        count: n.count || 0
+                    }
+                })),
+                edges: graphData.edges.map(e => ({
+                    data: {
+                        id: `${e.source}-${e.target}`,
+                        source: e.source,
+                        target: e.target,
+                        type: e.type
+                    }
+                }))
+            },
+
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color': function(ele) {
+                            return ele.data('type') === 'equation' ? '#6f42c1' : '#0066cc';
+                        },
+                        'label': 'data(label)',
+                        'color': '#333',
+                        'font-size': '12px',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'width': function(ele) {
+                            return ele.data('type') === 'equation' ? 25 : Math.max(20, ele.data('count') * 3);
+                        },
+                        'height': function(ele) {
+                            return ele.data('type') === 'equation' ? 25 : Math.max(20, ele.data('count') * 3);
+                        },
+                        'border-width': 2,
+                        'border-color': '#fff',
+                        'text-outline-color': '#fff',
+                        'text-outline-width': 2
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 2,
+                        'line-color': '#ccc',
+                        'target-arrow-color': '#ccc',
+                        'target-arrow-shape': 'triangle',
+                        'curve-style': 'bezier'
+                    }
+                },
+                {
+                    selector: 'node:selected',
+                    style: {
+                        'border-width': 4,
+                        'border-color': '#ff6b6b'
+                    }
+                }
+            ],
+
+            layout: {
+                name: 'cose',
+                idealEdgeLength: 100,
+                nodeOverlap: 20,
+                refresh: 20,
+                fit: true,
+                padding: 30,
+                randomize: false,
+                componentSpacing: 100,
+                nodeRepulsion: 400000,
+                edgeElasticity: 100,
+                nestingFactor: 5,
+                gravity: 80,
+                numIter: 1000,
+                initialTemp: 200,
+                coolingFactor: 0.95,
+                minTemp: 1.0
+            },
+
+            minZoom: 0.5,
+            maxZoom: 3
+        });
+
+        // Handle node clicks
+        cy.on('tap', 'node', function(evt) {
+            const node = evt.target;
+            const nodeId = node.data('id');
+            const nodeType = node.data('type');
+
+            if (nodeType === 'equation') {
+                showEquationInfo(nodeId);
+            } else {
+                showSymbolInfo(nodeId);
+            }
+
+            // Highlight in parent document
+            if (window.parent && window.parent.vg) {
+                window.parent.vg.highlight(nodeId);
+            }
+        });
+
+        function showSymbolInfo(symbolId) {
+            const symbol = vg.getSymbol(symbolId);
+            if (!symbol) return;
+
+            const html = `
+                <h3>${symbolId}</h3>
+                <div class="symbol-desc">
+                    <strong>Type:</strong> ${symbol.type || 'unknown'}<br>
+                    ${symbol.value ? `<strong>Value:</strong> ${symbol.value} ${symbol.unit || ''}<br>` : ''}
+                    <strong>Occurrences:</strong> ${symbol.occurrences.length}
+                </div>
+
+                <h4>Found in:</h4>
+                <div class="occurrence-list">
+                    ${symbol.occurrences.map(occ => `
+                        <div class="occurrence">
+                            <div class="occurrence-type">${occ.type || 'text'}</div>
+                            ${occ.section ? `<div>Section: ${occ.section}</div>` : ''}
+                            ${occ.paragraph ? `<div>Paragraph: ${occ.paragraph}</div>` : ''}
+                            ${occ.equation ? `<div>Equation: ${occ.equation}</div>` : ''}
+                            ${occ.context ? `<div class="occurrence-context">"...${occ.context}..."</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            document.getElementById('symbol-info').innerHTML = html;
+        }
+
+        function showEquationInfo(equationId) {
+            const html = `
+                <h3>Equation: ${equationId}</h3>
+                <div class="symbol-desc">
+                    Click the equation node to see which symbols it uses.
+                </div>
+            `;
+
+            document.getElementById('symbol-info').innerHTML = html;
+        }
+    </script>
+</body>
+</html>

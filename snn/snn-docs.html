@@ -1,0 +1,401 @@
+<div class="docs-tabs">
+    <button class="docs-tab active" data-tab="overview">Overview</button>
+    <button class="docs-tab" data-tab="model">Model</button>
+    <button class="docs-tab" data-tab="parameters">Parameters</button>
+    <button class="docs-tab" data-tab="controls">Controls</button>
+</div>
+
+<div class="docs-content">
+    <div class="docs-tab-content active" id="overview-tab">
+        <h3>What is a Spiking Neural Network?</h3>
+        <p>
+            Spiking Neural Networks (SNNs) are biologically-inspired artificial neural networks that
+            more closely mimic how real neurons in the brain communicate.
+        </p>
+
+        <div class="figure-container">
+            <div id="neuronPulseCanvas" class="neuron-pulse-canvas"></div>
+            <p class="figure-caption">Neurotransmitters bind to ligand-gated receptors on dendrites, generating excitatory or inhibitory postsynaptic potentials (EPSPs/IPSPs). These graded potentials summate at the <strong>axon hillock</strong> (the integration zone where the axon originates from the soma). If the membrane potential (V) crosses threshold (Vth), voltage-gated Na⁺ channels open, initiating an action potential. The spike propagates via sequential Na⁺ influx (depolarization) and K⁺ efflux (repolarization) along the axon, generating a spike train—the temporal code that transmits information to downstream neurons.</p>
+        </div>
+
+        <p>
+            Unlike traditional neural networks that use continuous activation values, SNNs use discrete
+            <strong>spikes</strong> (action potentials) to transmit information. Each neuron's output is
+            a temporal pattern of these electrical pulses.
+        </p>
+
+        <h3>This Demo: 4-bit Binary Addition</h3>
+        <p>
+            This visualization demonstrates an SNN learning to perform binary addition of two 4-bit numbers.
+            The network has:
+        </p>
+        <ul>
+            <li><strong>8 input neurons</strong>: Two 4-bit numbers (A and B)</li>
+            <li><strong>16 hidden neurons</strong>: Process temporal spike patterns</li>
+            <li><strong>5 output neurons</strong>: Produce a 5-bit sum (0-30)</li>
+        </ul>
+
+        <h3>How It Works</h3>
+        <p>
+            Input bits are encoded as spike trains: a '1' bit produces early spikes, while a '0' bit
+            produces late or no spikes. The network learns through a learning rate
+            <span class="param-set" data-param="learningRate" data-value="0.01">η=0.01</span>,
+            using a rule inspired by <strong>Spike-Timing-Dependent Plasticity (STDP)</strong>.
+        </p>
+
+        <div class="figure-container">
+            <div class="canvas-container">
+                <canvas id="spikeTrainCanvas"></canvas>
+                <button class="canvas-control-btn" id="spikeTrainToggle">▶ Play Animation</button>
+            </div>
+            <p class="figure-caption">Spike Train Encoding - Binary bits are encoded temporally. Bit '1' fires early/frequently; bit '0' fires late/rarely.</p>
+        </div>
+
+        <div class="equation-block">
+            <p><strong>Loss Function:</strong></p>
+            $$L = \frac{1}{N}\sum_{i=1}^{N}(y_i - \hat{y}_i)^2$$
+            <p class="equation-note">Where \(y_i\) is the expected output and \(\hat{y}_i\) is the predicted output</p>
+        </div>
+    </div>
+
+    <div class="docs-tab-content" id="model-tab">
+        <h3>Leaky Integrate-and-Fire (LIF) Neuron</h3>
+        <p>
+            Each neuron uses the LIF model with membrane time constant
+            <span class="param-set" data-param="tau" data-value="20">τ=20ms</span>
+            and threshold <span class="param-set" data-param="threshold" data-value="1.0">V<sub>th</sub>=1.0</span>.
+        </p>
+
+        <div class="equation-block">
+            <p><strong>Membrane Potential Dynamics:</strong></p>
+            $$\tau \frac{dV}{dt} = -V(t) + I(t)$$
+            <p class="equation-note">Where \(\tau\) is the membrane time constant, \(V(t)\) is membrane potential, and \(I(t)\) is input current</p>
+        </div>
+
+        <div class="figure-container">
+            <svg viewBox="0 0 600 250" class="diagram-svg">
+                <rect width="600" height="250" fill="#0c1219"/>
+                <line x1="50" y1="200" x2="550" y2="200" stroke="#1a2636" stroke-width="1"/>
+                <line x1="50" y1="30" x2="50" y2="210" stroke="#9fb2c6" stroke-width="2"/>
+                <line x1="50" y1="200" x2="560" y2="200" stroke="#9fb2c6" stroke-width="2"/>
+                <line x1="50" y1="80" x2="550" y2="80" stroke="#f7b955" stroke-width="2" stroke-dasharray="6,3"/>
+                <text x="555" y="85" fill="#f7b955" font-size="12" font-weight="600">V<tspan baseline-shift="sub" font-size="10">th</tspan></text>
+                <path d="M 50 200 L 80 190 L 110 175 L 140 155 L 170 130 L 200 100 L 230 75 L 250 60" stroke="#4aa3ff" stroke-width="3" fill="none"/>
+                <line x1="250" y1="60" x2="250" y2="20" stroke="#ff6b6b" stroke-width="4"/>
+                <circle cx="250" cy="20" r="4" fill="#ff6b6b"/>
+                <line x1="250" y1="20" x2="260" y2="200" stroke="#ff6b6b" stroke-width="2" stroke-dasharray="3,3"/>
+                <path d="M 260 200 L 290 190 L 320 180 L 350 170 L 380 158 L 410 145 L 440 130 L 470 112 L 500 92 L 530 75" stroke="#4aa3ff" stroke-width="3" fill="none"/>
+                <text x="300" y="225" fill="#9fb2c6" font-size="14" text-anchor="middle">Time (ms)</text>
+                <text x="260" y="15" fill="#ff6b6b" font-size="12" font-weight="600">Spike!</text>
+            </svg>
+            <p class="figure-caption">LIF Neuron Dynamics - Membrane potential integrates input until threshold, triggering a spike and reset.</p>
+        </div>
+
+        <h3>STDP-Inspired Learning</h3>
+        <p>
+            The learning rate <span class="param-set" data-param="learningRate" data-value="0.01">η</span>
+            controls weight updates. Try <span class="param-set" data-param="learningRate" data-value="0.001">slow</span>,
+            <span class="param-set" data-param="learningRate" data-value="0.05">fast</span>, or
+            <span class="param-set" data-param="learningRate" data-value="0.1">very fast</span> learning.
+        </p>
+
+        <div class="equation-block">
+            $$\Delta w_{ij} = \eta \cdot \text{spike}_j \cdot (\text{spike}_i - \text{baseline}) \cdot \text{error}$$
+            <p class="equation-note">Click η values above to adjust learning rate dynamically</p>
+        </div>
+
+        <h3>Network Architecture</h3>
+        <p>
+            The 8-16-5 fully-connected topology processes binary addition. Each neuron has refractory period of 5ms.
+        </p>
+    </div>
+
+    <div class="docs-tab-content" id="parameters-tab">
+        <h3>Key Parameters</h3>
+        <p style="margin-bottom: 24px;">
+            Each parameter is governed by mathematical relationships. The equations on the left are the "metaphysical controls"
+            that define how the network behaves. Click preset values to experiment.
+        </p>
+
+        <!-- Learning Rate -->
+        <div class="control-row">
+            <div class="control-widget equation-widget">
+                <div class="equation-block" style="margin: 0;">
+                    $$\Delta w = \eta \cdot \text{error} \cdot \text{activation}$$
+                </div>
+                <div class="equation-block" style="margin: 12px 0 0 0;">
+                    $$w_{new} = w_{old} + \Delta w$$
+                </div>
+            </div>
+            <div class="control-description">
+                <h4>Learning Rate (η)</h4>
+                <p>
+                    Controls weight change magnitude per training step. The learning rate scales the error gradient,
+                    determining how aggressively the network updates its synaptic strengths. Higher values enable faster
+                    learning but risk overshooting optimal solutions and causing oscillations. Lower values provide
+                    stable convergence but require more epochs.
+                </p>
+                <div class="preset-options">
+                    <strong>Try:</strong>
+                    <div class="preset-values">
+                        <span class="param-set" data-param="learningRate" data-value="0.001">0.001 (conservative)</span>
+                        <span class="param-set" data-param="learningRate" data-value="0.01">0.01 (default)</span>
+                        <span class="param-set" data-param="learningRate" data-value="0.05">0.05 (aggressive)</span>
+                        <span class="param-set" data-param="learningRate" data-value="0.1">0.1 (very fast)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Membrane Time Constant -->
+        <div class="control-row">
+            <div class="control-widget equation-widget">
+                <div class="equation-block" style="margin: 0;">
+                    $$\tau \frac{dV}{dt} = -V(t) + I(t)$$
+                </div>
+                <div class="equation-block" style="margin: 12px 0 0 0;">
+                    $$V(t+\Delta t) = V(t) \cdot e^{-\Delta t/\tau} + I(t)$$
+                </div>
+            </div>
+            <div class="control-description">
+                <h4>Membrane Time Constant (τ)</h4>
+                <p>
+                    Governs the decay rate of membrane potential and temporal integration window. The time constant
+                    determines how long a neuron "remembers" past inputs. Smaller τ values cause rapid exponential
+                    decay, making neurons respond quickly but forget immediately. Larger τ values provide longer
+                    temporal integration, allowing neurons to accumulate input over extended periods.
+                </p>
+                <div class="preset-options">
+                    <strong>Try:</strong>
+                    <div class="preset-values">
+                        <span class="param-set" data-param="tau" data-value="5">5ms (rapid)</span>
+                        <span class="param-set" data-param="tau" data-value="10">10ms (fast)</span>
+                        <span class="param-set" data-param="tau" data-value="20">20ms (default)</span>
+                        <span class="param-set" data-param="tau" data-value="40">40ms (slow)</span>
+                        <span class="param-set" data-param="tau" data-value="50">50ms (very slow)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Membrane Threshold -->
+        <div class="control-row">
+            <div class="control-widget equation-widget">
+                <div class="equation-block" style="margin: 0;">
+                    $$\text{Spike} =
+                    \begin{cases}
+                    1 & \text{if } V(t) \geq V_{th} \\
+                    0 & \text{otherwise}
+                    \end{cases}$$
+                </div>
+                <div class="equation-block" style="margin: 12px 0 0 0;">
+                    $$V(t) \leftarrow 0 \text{ when spike occurs}$$
+                </div>
+            </div>
+            <div class="control-description">
+                <h4>Membrane Threshold (V<sub>th</sub>)</h4>
+                <p>
+                    The critical voltage that triggers an action potential (spike). When membrane potential reaches
+                    this threshold, the neuron fires and resets to zero. Lower thresholds make neurons more excitable,
+                    increasing spike frequency and network activity but potentially introducing noise. Higher thresholds
+                    require stronger accumulated input, reducing spontaneous firing but making learning slower.
+                </p>
+                <div class="preset-options">
+                    <strong>Try:</strong>
+                    <div class="preset-values">
+                        <span class="param-set" data-param="threshold" data-value="0.5">0.5 (very excitable)</span>
+                        <span class="param-set" data-param="threshold" data-value="0.7">0.7 (excitable)</span>
+                        <span class="param-set" data-param="threshold" data-value="1.0">1.0 (default)</span>
+                        <span class="param-set" data-param="threshold" data-value="1.5">1.5 (conservative)</span>
+                        <span class="param-set" data-param="threshold" data-value="2.0">2.0 (very conservative)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Training Speed -->
+        <div class="control-row">
+            <div class="control-widget equation-widget">
+                <div class="equation-block" style="margin: 0;">
+                    $$\text{FPS} = \frac{1}{\Delta t_{frame}}$$
+                </div>
+                <div class="equation-block" style="margin: 12px 0 0 0;">
+                    $$\text{Epochs/sec} = \text{speed} \times \text{FPS}$$
+                </div>
+            </div>
+            <div class="control-description">
+                <h4>Training Speed</h4>
+                <p>
+                    Number of training iterations executed per animation frame. This is purely a visualization
+                    parameter that doesn't affect the underlying learning dynamics or final accuracy. Higher values
+                    accelerate training visualization but reduce smoothness and make individual weight updates
+                    harder to observe. Lower values provide detailed frame-by-frame visualization of network behavior.
+                </p>
+                <div class="preset-options">
+                    <strong>Try:</strong>
+                    <div class="preset-values">
+                        <span class="param-set" data-param="speed" data-value="1">1 (slow-motion)</span>
+                        <span class="param-set" data-param="speed" data-value="10">10 (default)</span>
+                        <span class="param-set" data-param="speed" data-value="50">50 (fast)</span>
+                        <span class="param-set" data-param="speed" data-value="100">100 (turbo)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3 style="margin-top: 32px;">Visualization Guide</h3>
+        <ul>
+            <li><strong>Connections</strong>: Green = positive weights (excitatory), Red = negative weights (inhibitory), thickness = magnitude</li>
+            <li><strong>Neurons</strong>: Blue intensity = membrane potential level</li>
+            <li><strong>Bits</strong>: Active (green glow) when value = 1, inactive when 0</li>
+            <li><strong>Spikes</strong>: Brief yellow flash indicates neuron firing</li>
+        </ul>
+    </div>
+
+    <div class="docs-tab-content" id="controls-tab">
+        <h3>Training Controls</h3>
+        <p style="margin-bottom: 24px;">
+            Use these controls to train and test the network. Each control directly affects the network's
+            behavior and learning dynamics. Changes sync with the main control panel in real-time.
+        </p>
+
+        <!-- Training Actions -->
+        <div class="control-row">
+            <div class="control-widget">
+                <button class="btn btn-primary" id="docTrainBtn">Start Training</button>
+                <button class="btn btn-secondary" id="docPauseBtn">Pause</button>
+                <button class="btn btn-secondary" id="docResetBtn">Reset Network</button>
+            </div>
+            <div class="control-description">
+                <h4>Training Actions</h4>
+                <p>
+                    <strong>Start Training:</strong> Begins continuous training on random 4-bit addition problems. The network learns
+                    from its errors using gradient descent with STDP-inspired weight updates. Watch accuracy improve as the network
+                    discovers patterns in binary arithmetic.
+                </p>
+                <p>
+                    <strong>Pause:</strong> Temporarily stops training while preserving all learned weights and network state.
+                    Useful for examining the current configuration or adjusting parameters mid-training.
+                </p>
+                <p>
+                    <strong>Reset:</strong> Reinitializes all synaptic weights to random values and resets training metrics to zero.
+                    Use this to test different parameter configurations from a clean slate.
+                </p>
+            </div>
+        </div>
+
+        <!-- Learning Rate -->
+        <div class="control-row">
+            <div class="control-widget">
+                <input type="range" id="docLearningRate" min="0.001" max="0.1" step="0.001" value="0.01">
+                <div class="value-display" id="docLrValue">0.01</div>
+            </div>
+            <div class="control-description">
+                <h4>Learning Rate (η)</h4>
+                <p>
+                    The learning rate determines how much weights change in response to errors. A higher learning
+                    rate enables faster learning but may cause instability or oscillation around optimal solutions.
+                    A lower rate is more stable but requires more training epochs to converge.
+                </p>
+                <div class="equation-block">
+                    $$\Delta w = \eta \cdot \text{error} \cdot \text{activation}$$
+                    <p class="equation-note">Weight updates scale linearly with η</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Training Speed -->
+        <div class="control-row">
+            <div class="control-widget">
+                <input type="range" id="docSpeed" min="1" max="100" step="1" value="10">
+                <div class="value-display" id="docSpeedValue">10</div>
+            </div>
+            <div class="control-description">
+                <h4>Training Speed</h4>
+                <p>
+                    Controls how many training iterations run per animation frame. Higher values speed up training
+                    but reduce visualization smoothness. Lower values let you observe individual spike patterns
+                    and weight updates in detail. This doesn't affect learning quality, only visualization speed.
+                </p>
+            </div>
+        </div>
+
+        <!-- Membrane Threshold -->
+        <div class="control-row">
+            <div class="control-widget">
+                <input type="range" id="docThreshold" min="0.5" max="2.0" step="0.1" value="1.0">
+                <div class="value-display" id="docThresholdValue">1.0</div>
+                <div class="figure-container" style="margin: 0; padding: 0;">
+                    <canvas id="thresholdVisualization" class="threshold-canvas"></canvas>
+                </div>
+            </div>
+            <div class="control-description">
+                <h4>Membrane Threshold (V<sub>th</sub>)</h4>
+                <p>
+                    The voltage threshold that triggers a spike. Lower thresholds make neurons fire more easily,
+                    increasing spike frequency but potentially causing excessive activity. Higher thresholds
+                    require stronger accumulated input, reducing noise but making learning slower.
+                </p>
+                <p>
+                    The visualization shows membrane potential (blue) accumulating over time until it crosses
+                    the threshold (yellow dashed line), triggering a spike (red) and resetting to zero.
+                </p>
+            </div>
+        </div>
+
+        <!-- Time Constant -->
+        <div class="control-row">
+            <div class="control-widget">
+                <input type="range" id="docTau" min="5" max="50" step="5" value="20">
+                <div class="value-display" id="docTauValue">20 ms</div>
+            </div>
+            <div class="control-description">
+                <h4>Time Constant (τ)</h4>
+                <p>
+                    The membrane time constant controls how quickly neurons forget past inputs. Smaller τ values
+                    cause rapid decay (neurons respond quickly but have short memory). Larger τ values provide
+                    longer temporal integration (neurons accumulate inputs over time).
+                </p>
+                <div class="equation-block">
+                    $$V(t+\Delta t) = V(t) \cdot e^{-\Delta t/\tau} + I(t)$$
+                    <p class="equation-note">Exponential decay preserves temporal information</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Button -->
+        <div class="control-row">
+            <div class="control-widget">
+                <button class="btn btn-test" id="docTestBtn">Test Random Input</button>
+            </div>
+            <div class="control-description">
+                <h4>Testing</h4>
+                <p>
+                    Evaluates the network on a single random addition problem without updating weights.
+                    Use this to test the network's current performance on specific examples and observe
+                    how it encodes inputs as spike trains and decodes outputs.
+                </p>
+            </div>
+        </div>
+
+        <!-- Visualization Mode -->
+        <div class="control-row">
+            <div class="control-widget">
+                <div class="mode-toggle" style="margin: 0;">
+                    <label>
+                        <input type="checkbox" id="docVisualizeMode">
+                        Slow Visualization Mode
+                    </label>
+                </div>
+            </div>
+            <div class="control-description">
+                <h4>Visualization Mode</h4>
+                <p>
+                    Enables detailed visualization of each training step. When active, you can see individual
+                    spike trains, bit patterns, and weight changes in real-time. This significantly slows
+                    training but provides insight into the network's internal dynamics.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>

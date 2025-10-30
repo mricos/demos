@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ActiveFigure Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #0c1219;
+            font-family: sans-serif;
+            color: #dbe7f3;
+        }
+
+        h1 {
+            text-align: center;
+            color: #4aa3ff;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        #figure-container {
+            background: #0c1219;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            margin: 20px 0;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #4aa3ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #3a8cd8;
+        }
+
+        button:disabled {
+            background: #2a4566;
+            cursor: not-allowed;
+        }
+
+        .info {
+            background: rgba(74, 163, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #4aa3ff;
+        }
+
+        .info h3 {
+            margin-top: 0;
+            color: #4aa3ff;
+        }
+
+        .log {
+            background: rgba(26, 38, 54, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin: 5px 0;
+            color: #9fb2c6;
+        }
+
+        .log-entry.spike {
+            color: #ff6b6b;
+        }
+
+        .log-entry.bit {
+            color: #29d398;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 ActiveFigure Test</h1>
+
+        <div class="info">
+            <h3>Test Status</h3>
+            <p>This page tests the new ActiveFigure architecture with modular LIF neuron visualization.</p>
+            <p id="status">Loading...</p>
+        </div>
+
+        <!-- Container for the ActiveFigure (it will create the canvas) -->
+        <div id="figure-container"></div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button id="play-btn">▶ Play</button>
+            <button id="pause-btn">⏸ Pause</button>
+            <button id="reset-btn">↻ Reset</button>
+            <button id="bit0-btn">Encode Bit 0</button>
+            <button id="bit1-btn">Encode Bit 1</button>
+        </div>
+
+        <div class="controls">
+            <button id="show-all-btn">Show All Views</button>
+            <button id="neuron-only-btn">Neuron Only</button>
+            <button id="traces-only-btn">Traces Only</button>
+        </div>
+
+        <!-- Event log -->
+        <div class="log" id="event-log">
+            <strong>Event Log:</strong>
+        </div>
+    </div>
+
+    <script type="module">
+        import { LIFNeuronFigure } from './LIFNeuronFigure.js';
+
+        // Create the figure
+        console.log('[Test] Creating LIFNeuronFigure...');
+        const figure = new LIFNeuronFigure({
+            containerId: 'figure-container',
+            width: 800,
+            height: 900,
+            speed: 0.5,
+            fps: 30,
+            views: {
+                biological: true,
+                diagram: true,
+                trace: true,
+                spikes: true,
+                ttfs: true
+            },
+            modelConfig: {
+                threshold: 1.0,
+                tau: 20,
+                input: 0.08
+            },
+            ttfs: {
+                enabled: true,
+                windowDuration: 100,
+                threshold: 50
+            }
+        });
+
+        // Initialize
+        console.log('[Test] Initializing figure...');
+        figure.init();
+
+        // Update status
+        document.getElementById('status').textContent = '✅ ActiveFigure initialized successfully!';
+
+        // Event logging
+        const logContainer = document.getElementById('event-log');
+        let logCount = 0;
+
+        function addLog(message, type = '') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(entry);
+            logCount++;
+
+            // Keep only last 20 entries
+            if (logCount > 20) {
+                logContainer.removeChild(logContainer.children[1]); // Skip the "Event Log:" header
+            }
+
+            // Auto-scroll to bottom
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Listen to events
+        figure.on('spike', (data) => {
+            addLog(`Spike! time=${data.time.toFixed(2)}ms, V=${data.voltage.toFixed(2)}V`, 'spike');
+        });
+
+        figure.on('bitdetected', (data) => {
+            addLog(`Bit detected: ${data.bit} (latency=${data.latency ? data.latency.toFixed(2) + 'ms' : 'none'})`, 'bit');
+        });
+
+        figure.on('timeupdate', (data) => {
+            // Update every 100ms
+            if (Math.floor(data.time / 100) !== Math.floor((data.time - data.dt) / 100)) {
+                const state = figure.getModelState();
+                addLog(`t=${data.time.toFixed(0)}ms, V=${state.membrane.toFixed(3)}V, spikes=${state.spikes.length}`);
+            }
+        });
+
+        // Control buttons
+        document.getElementById('play-btn').addEventListener('click', () => {
+            figure.play();
+            addLog('▶ Playing');
+        });
+
+        document.getElementById('pause-btn').addEventListener('click', () => {
+            figure.pause();
+            addLog('⏸ Paused');
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            figure.reset();
+            addLog('↻ Reset');
+        });
+
+        document.getElementById('bit0-btn').addEventListener('click', () => {
+            figure.encodeBit(0);
+            addLog('🎯 Encoding Bit 0 (low input)');
+        });
+
+        document.getElementById('bit1-btn').addEventListener('click', () => {
+            figure.encodeBit(1);
+            addLog('🎯 Encoding Bit 1 (high input)');
+        });
+
+        // View control buttons
+        document.getElementById('show-all-btn').addEventListener('click', () => {
+            figure.showView('biological');
+            figure.showView('diagram');
+            figure.showView('trace');
+            figure.showView('spikes');
+            figure.showView('ttfs');
+            addLog('👁️ Showing all views');
+        });
+
+        document.getElementById('neuron-only-btn').addEventListener('click', () => {
+            figure.showView('biological');
+            figure.hideView('diagram');
+            figure.hideView('trace');
+            figure.hideView('spikes');
+            figure.hideView('ttfs');
+            addLog('👁️ Neuron only view');
+        });
+
+        document.getElementById('traces-only-btn').addEventListener('click', () => {
+            figure.hideView('biological');
+            figure.hideView('diagram');
+            figure.showView('trace');
+            figure.showView('spikes');
+            figure.hideView('ttfs');
+            addLog('👁️ Traces only view');
+        });
+
+        // Auto-start after 1 second
+        setTimeout(() => {
+            figure.play();
+            addLog('▶ Auto-started');
+        }, 1000);
+
+        console.log('[Test] Setup complete!');
+    </script>
+</body>
+</html>

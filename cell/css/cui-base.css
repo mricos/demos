@@ -1,0 +1,86 @@
+/**
+ * CUI Base Styles
+ * Design tokens, resets, and foundational styles
+ */
+
+:root {
+  /* Color Palette */
+  --cui-bg: #0b0f14;
+  --cui-panel: #11161d;
+  --cui-muted: #9fb2c6;
+  --cui-text: #dbe7f3;
+  --cui-accent: #4aa3ff;
+  --cui-accent-2: #ff6b6b;
+  --cui-good: #29d398;
+  --cui-warn: #f7b955;
+  --cui-grid: #1a2230;
+
+  /* Z-index layers */
+  --cui-z-base: 1;
+  --cui-z-overlay: 10;
+  --cui-z-drawer: 20;
+  --cui-z-fab: 30;
+  --cui-z-modal: 40;
+
+  /* Spacing (to be expanded) */
+  --cui-space-xs: 4px;
+  --cui-space-sm: 8px;
+  --cui-space-md: 12px;
+  --cui-space-lg: 18px;
+  --cui-space-xl: 24px;
+
+  /* Border radius */
+  --cui-radius-sm: 8px;
+  --cui-radius-md: 10px;
+  --cui-radius-lg: 14px;
+  --cui-radius-xl: 16px;
+  --cui-radius-xxl: 18px;
+
+  /* Transitions */
+  --cui-transition-fast: 0.12s ease;
+  --cui-transition-base: 0.15s ease;
+  --cui-transition-slow: 0.25s ease;
+}
+
+/* Reset */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--cui-bg);
+  color: var(--cui-text);
+  font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial;
+  overflow: hidden;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d141d;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #223044;
+  border-radius: 5px;
+  border: 2px solid #0d141d;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2a4566;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #223044 #0d141d;
+}

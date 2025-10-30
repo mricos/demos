@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Variable Scale Transform - Interactive Demonstration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #141b3d;
+            --bg-tertiary: #1a2350;
+            --accent-primary: #00d4ff;
+            --accent-secondary: #7c3aed;
+            --accent-tertiary: #ff6b9d;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+            padding: 20px 30px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }
+
+        /* Tab Navigation */
+        .tab-navigation {
+            display: flex;
+            gap: 10px;
+            background: var(--bg-secondary);
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 12px 20px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tab-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .tab-button:hover::before {
+            left: 100%;
+        }
+
+        .tab-button:hover {
+            border-color: var(--accent-primary);
+            color: var(--text-primary);
+        }
+
+        .tab-button.active {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-color: var(--accent-primary);
+            color: white;
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+            overflow: hidden;
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .tab-content.active {
+            display: flex;
+            gap: 20px;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            width: 320px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .control-panel::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+            border-radius: 4px;
+        }
+
+        .control-panel::-webkit-scrollbar-thumb {
+            background: var(--accent-primary);
+            border-radius: 4px;
+        }
+
+        .control-section {
+            margin-bottom: 30px;
+        }
+
+        .control-section h3 {
+            font-size: 16px;
+            color: var(--accent-primary);
+            margin-bottom: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '';
+            width: 4px;
+            height: 18px;
+            background: linear-gradient(180deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 2px;
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .slider-container {
+            position: relative;
+            padding: 10px 0;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--bg-tertiary);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 212, 255, 0.5);
+            transition: all 0.2s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.7);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .slider-value {
+            display: inline-block;
+            background: var(--bg-tertiary);
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--accent-primary);
+            font-weight: 600;
+            border: 1px solid var(--border-color);
+            min-width: 60px;
+            text-align: center;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(0, 212, 255, 0.5);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.secondary {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            box-shadow: none;
+        }
+
+        button.secondary:hover {
+            border-color: var(--accent-primary);
+            background: var(--bg-tertiary);
+        }
+
+        /* Visualization Area */
+        .visualization-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .visualization-area::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .visualization-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .visualization-area::-webkit-scrollbar-thumb {
+            background: var(--accent-secondary);
+            border-radius: 4px;
+        }
+
+        .canvas-container {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .canvas-container h3 {
+            font-size: 16px;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        canvas {
+            width: 100%;
+            height: 300px;
+            border-radius: 8px;
+            background: var(--bg-primary);
+            cursor: crosshair;
+        }
+
+        /* Info Panels */
+        .info-panel {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .info-value {
+            color: var(--accent-primary);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        /* Highlight System */
+        .highlight-overlay {
+            position: absolute;
+            pointer-events: none;
+            border: 2px solid var(--accent-tertiary);
+            background: rgba(255, 107, 157, 0.1);
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .highlight-label {
+            position: absolute;
+            background: var(--accent-tertiary);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 11;
+            box-shadow: 0 2px 10px rgba(255, 107, 157, 0.5);
+        }
+
+        /* Status Bar */
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            background: var(--bg-tertiary);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-size: 12px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-indicator.warning {
+            background: var(--warning);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1200px) {
+            .control-panel {
+                width: 280px;
+            }
+        }
+
+        /* Loading animation */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--bg-tertiary);
+            border-top: 3px solid var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Checkbox styling */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: var(--accent-primary);
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        /* Formula display */
+        .formula {
+            background: var(--bg-primary);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--accent-primary);
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+
+        .formula::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .formula::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        .formula::-webkit-scrollbar-thumb {
+            background: var(--accent-primary);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Variable Scale Transform</h1>
+            <p class="subtitle">Interactive demonstration of logarithmic resolution time-frequency analysis for musical signals</p>
+        </header>
+
+        <nav class="tab-navigation">
+            <button class="tab-button active" data-tab="overview">Overview</button>
+            <button class="tab-button" data-tab="scaling">Scaling Functions</button>
+            <button class="tab-button" data-tab="guitar">Guitar Analysis</button>
+            <button class="tab-button" data-tab="comparison">FFT Comparison</button>
+        </nav>
+
+        <div class="main-content">
+            <!-- Overview Tab -->
+            <div class="tab-content active" id="overview">
+                <div class="control-panel">
+                    <div class="control-section">
+                        <h3>Signal Parameters</h3>
+                        <div class="form-group">
+                            <label>Fundamental Frequency (Hz): <span class="slider-value" id="freq-value">82.4</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="freq-slider" min="40" max="400" value="82.4" step="0.1">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Number of Harmonics: <span class="slider-value" id="harmonics-value">5</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="harmonics-slider" min="1" max="10" value="5" step="1">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Decay Rate (1/s): <span class="slider-value" id="decay-value">3.0</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="decay-slider" min="0.5" max="10" value="3.0" step="0.1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <h3>Transform Parameters</h3>
+                        <div class="form-group">
+                            <label>Scaling Exponent α: <span class="slider-value" id="alpha-value">0.80</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="alpha-slider" min="0.5" max="1.0" value="0.8" step="0.01">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Quality Factor Q: <span class="slider-value" id="q-value">10</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="q-slider" min="5" max="50" value="10" step="1">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Bins per Octave: <span class="slider-value" id="bins-value">36</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="bins-slider" min="12" max="72" value="36" step="12">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <h3>Actions</h3>
+                        <button id="generate-signal">Generate Signal</button>
+                        <button class="secondary" id="highlight-fundamental">Highlight Fundamental</button>
+                        <button class="secondary" id="highlight-harmonics">Highlight Harmonics</button>
+                    </div>
+
+                    <div class="info-panel">
+                        <h3>Signal Information</h3>
+                        <div class="info-row">
+                            <span class="info-label">Sample Rate:</span>
+                            <span class="info-value">44.1 kHz</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Duration:</span>
+                            <span class="info-value" id="duration-info">2.0 s</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Samples:</span>
+                            <span class="info-value" id="samples-info">88200</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="visualization-area">
+                    <div class="canvas-container">
+                        <h3>Time Domain Signal</h3>
+                        <canvas id="time-canvas"></canvas>
+                    </div>
+
+                    <div class="canvas-container">
+                        <h3>Variable Scale Transform Magnitude</h3>
+                        <canvas id="vst-canvas"></canvas>
+                        <div class="status-bar">
+                            <div class="status-item">
+                                <div class="status-indicator"></div>
+                                <span>Transform Active</span>
+                            </div>
+                            <div class="status-item">
+                                <span id="peak-count">Peaks: 0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="canvas-container">
+                        <h3>Frequency Resolution vs. Frequency</h3>
+                        <canvas id="resolution-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scaling Functions Tab -->
+            <div class="tab-content" id="scaling">
+                <div class="control-panel">
+                    <div class="control-section">
+                        <h3>Scaling Function Type</h3>
+                        <div class="form-group">
+                            <label>Function Type:</label>
+                            <select id="scaling-type">
+                                <option value="power">Power Law: λ(t) = t^α</option>
+                                <option value="log">Logarithmic: λ(t) = t/(β·log(1+γt))</option>
+                                <option value="linear">Linear (Standard): λ(t) = t</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>α Parameter: <span class="slider-value" id="scaling-alpha-value">0.80</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="scaling-alpha-slider" min="0.3" max="1.0" value="0.8" step="0.01">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>β Parameter: <span class="slider-value" id="beta-value">1.0</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="beta-slider" min="0.1" max="5.0" value="1.0" step="0.1">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>γ Parameter: <span class="slider-value" id="gamma-value">0.1</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="gamma-slider" min="0.01" max="1.0" value="0.1" step="0.01">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <h3>Visualization Options</h3>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="show-derivative" checked>
+                            <label for="show-derivative">Show Derivative λ'(t)</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="show-comparison" checked>
+                            <label for="show-comparison">Compare to Linear</label>
+                        </div>
+                    </div>
+
+                    <div class="formula">
+                        Power Law:<br>
+                        λ(t) = t^α<br>
+                        λ'(t) = α·t^(α-1)<br><br>
+                        Logarithmic:<br>
+                        λ(t) = t / (β·log(1 + γt))
+                    </div>
+                </div>
+
+                <div class="visualization-area">
+                    <div class="canvas-container">
+                        <h3>Scaling Function λ(t)</h3>
+                        <canvas id="scaling-func-canvas"></canvas>
+                    </div>
+
+                    <div class="canvas-container">
+                        <h3>Derivative λ'(t) - Instantaneous Resolution Factor</h3>
+                        <canvas id="scaling-deriv-canvas"></canvas>
+                    </div>
+
+                    <div class="canvas-container">
+                        <h3>Effective Time Warping</h3>
+                        <canvas id="warping-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Guitar Analysis Tab -->
+            <div class="tab-content" id="guitar">
+                <div class="control-panel">
+                    <div class="control-section">
+                        <h3>Guitar Configuration</h3>
+                        <div class="form-group">
+                            <label>String 1 (Note):</label>
+                            <select id="string1-note">
+                                <option value="0">Muted</option>
+                                <option value="82.4">E2 (82.4 Hz)</option>
+                                <option value="110.0">A2 (110.0 Hz)</option>
+                                <option value="146.8">D3 (146.8 Hz)</option>
+                                <option value="196.0">G3 (196.0 Hz)</option>
+                                <option value="246.9">B3 (246.9 Hz)</option>
+                                <option value="329.6">E4 (329.6 Hz)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>String 2 (Note):</label>
+                            <select id="string2-note">
+                                <option value="0">Muted</option>
+                                <option value="82.4">E2 (82.4 Hz)</option>
+                                <option value="110.0">A2 (110.0 Hz)</option>
+                                <option value="146.8">D3 (146.8 Hz)</option>
+                                <option value="196.0">G3 (196.0 Hz)</option>
+                                <option value="246.9" selected>B3 (246.9 Hz)</option>
+                                <option value="329.6">E4 (329.6 Hz)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Pluck Delay (ms): <span class="slider-value" id="delay-value">50</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="delay-slider" min="0" max="500" value="50" step="10">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <h3>Analysis Settings</h3>
+                        <div class="form-group">
+                            <label>Frame Size: <span class="slider-value" id="frame-value">2048</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="frame-slider" min="512" max="4096" value="2048" step="512">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Hop Size: <span class="slider-value" id="hop-value">512</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="hop-slider" min="128" max="2048" value="512" step="128">
+                            </div>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="show-onset" checked>
+                            <label for="show-onset">Show Onset Detection</label>
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <h3>Actions</h3>
+                        <button id="generate-guitar">Generate Guitar Signal</button>
+                        <button class="secondary" id="detect-notes">Detect Notes</button>
+                    </div>
+
+                    <div class="info-panel">
+                        <h3>Detected Notes</h3>
+                        <div id="detected-notes-list">
+                            <div class="info-row">
+                                <span class="info-label">Status:</span>
+                                <span class="info-value">No analysis</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="visualization-area">
+                    <div class="canvas-container">
+                        <h3>Polyphonic Signal</h3>
+                        <canvas id="guitar-time-canvas"></canvas>
+                    </div>
+
+                    <div class="canvas-container">
+                        <h3>VST Spectrogram (Time-Frequency)</h3>
+                        <canvas id="spectrogram-canvas"></canvas>
+                    </div>
+
+                    <div class="canvas-container">
+                        <h3>Note Detection & Harmonic Tracking</h3>
+                        <canvas id="detection-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comparison Tab -->
+            <div class="tab-content" id="comparison">
+                <div class="control-panel">
+                    <div class="control-section">
+                        <h3>Test Signal</h3>
+                        <div class="form-group">
+                            <label>Test Note 1 (Hz): <span class="slider-value" id="comp-freq1-value">82.4</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="comp-freq1-slider" min="60" max="200" value="82.4" step="0.1">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Test Note 2 (Hz): <span class="slider-value" id="comp-freq2-value">87.3</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="comp-freq2-slider" min="60" max="200" value="87.3" step="0.1">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Note Separation: <span class="slider-value" id="separation-info">4.9 Hz</span></label>
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <h3>FFT Parameters</h3>
+                        <div class="form-group">
+                            <label>FFT Size: <span class="slider-value" id="fft-size-value">4096</span></label>
+                            <div class="slider-container">
+                                <input type="range" id="fft-size-slider" min="1024" max="16384" value="4096" step="1024">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>FFT Resolution: <span class="slider-value" id="fft-res-info">10.8 Hz</span></label>
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <h3>Actions</h3>
+                        <button id="run-comparison">Run Comparison</button>
+                        <button class="secondary" id="export-data">Export Results</button>
+                    </div>
+
+                    <div class="info-panel">
+                        <h3>Resolution Comparison</h3>
+                        <div class="info-row">
+                            <span class="info-label">FFT Bins Between:</span>
+                            <span class="info-value" id="fft-bins-info">—</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">VST Bins Between:</span>
+                            <span class="info-value" id="vst-bins-info">—</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Improvement Factor:</span>
+                            <span class="info-value" id="improvement-info">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="visualization-area">
+                    <div class="canvas-container">
+                        <h3>Standard FFT Spectrum</h3>
+                        <canvas id="fft-canvas"></canvas>
+                    </div>
+
+                    <div class="canvas-container">
+                        <h3>Variable Scale Transform Spectrum</h3>
+                        <canvas id="vst-comp-canvas"></canvas>
+                    </div>
+
+                    <div class="canvas-container">
+                        <h3>Resolution Comparison: FFT vs VST</h3>
+                        <canvas id="resolution-comp-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // PUB-SUB SYSTEM
+        // ============================================================================
+        class EventBus {
+            constructor() {
+                this.subscribers = {};
+            }
+
+            subscribe(event, callback) {
+                if (!this.subscribers[event]) {
+                    this.subscribers[event] = [];
+                }
+                this.subscribers[event].push(callback);
+                return () => this.unsubscribe(event, callback);
+            }
+
+            unsubscribe(event, callback) {
+                if (!this.subscribers[event]) return;
+                this.subscribers[event] = this.subscribers[event].filter(cb => cb !== callback);
+            }
+
+            publish(event, data) {
+                if (!this.subscribers[event]) return;
+                this.subscribers[event].forEach(callback => callback(data));
+            }
+        }
+
+        const eventBus = new EventBus();
+
+        // ============================================================================
+        // SIGNAL PROCESSING UTILITIES
+        // ============================================================================
+        class SignalProcessor {
+            constructor(sampleRate = 44100) {
+                this.sampleRate = sampleRate;
+            }
+
+            generateHarmonicSignal(fundamental, numHarmonics, decay, duration) {
+                const numSamples = Math.floor(duration * this.sampleRate);
+                const signal = new Float32Array(numSamples);
+                const analyticSignal = new Float32Array(numSamples * 2); // Complex: [re, im, re, im, ...]
+
+                for (let n = 0; n < numSamples; n++) {
+                    const t = n / this.sampleRate;
+                    let realPart = 0;
+                    let imagPart = 0;
+
+                    for (let k = 1; k <= numHarmonics; k++) {
+                        const freq = k * fundamental;
+                        const amplitude = 1.0 / k; // Harmonic amplitude decay
+                        const decayFactor = Math.exp(-decay * k * 0.3 * t);
+                        const phase = 2 * Math.PI * freq * t;
+
+                        realPart += amplitude * decayFactor * Math.cos(phase);
+                        imagPart += amplitude * decayFactor * Math.sin(phase);
+                    }
+
+                    signal[n] = realPart;
+                    analyticSignal[n * 2] = realPart;
+                    analyticSignal[n * 2 + 1] = imagPart;
+                }
+
+                return { signal, analyticSignal, numSamples };
+            }
+
+            computeScalingFunction(t, type, alpha, beta, gamma) {
+                switch (type) {
+                    case 'power':
+                        return Math.pow(t, alpha);
+                    case 'log':
+                        return t / (beta * Math.log(1 + gamma * t));
+                    case 'linear':
+                    default:
+                        return t;
+                }
+            }
+
+            computeScalingDerivative(t, type, alpha, beta, gamma) {
+                const epsilon = 1e-6;
+                switch (type) {
+                    case 'power':
+                        return alpha * Math.pow(t + epsilon, alpha - 1);
+                    case 'log':
+                        const denom = beta * Math.log(1 + gamma * t);
+                        const num = 1 / (beta * (1 + gamma * t));
+                        return (denom - t * gamma * num) / (denom * denom);
+                    case 'linear':
+                    default:
+                        return 1.0;
+                }
+            }
+
+            computeVST(analyticSignal, frequencies, alpha, qFactor) {
+                const numSamples = analyticSignal.length / 2;
+                const spectrum = new Float32Array(frequencies.length);
+
+                frequencies.forEach((freq, m) => {
+                    const omega = 2 * Math.PI * freq;
+                    const sigma = omega / qFactor;
+
+                    let sumReal = 0;
+                    let sumImag = 0;
+
+                    for (let n = 0; n < numSamples; n++) {
+                        const t = n / this.sampleRate;
+                        const lambda_t = Math.pow(t + 1e-10, alpha);
+                        const expFactor = Math.exp(-sigma * lambda_t);
+                        const phaseFactor = omega * lambda_t;
+
+                        const cosPhase = Math.cos(phaseFactor);
+                        const sinPhase = Math.sin(phaseFactor);
+
+                        const realPart = analyticSignal[n * 2];
+                        const imagPart = analyticSignal[n * 2 + 1];
+
+                        sumReal += expFactor * (realPart * cosPhase + imagPart * sinPhase);
+                        sumImag += expFactor * (imagPart * cosPhase - realPart * sinPhase);
+                    }
+
+                    spectrum[m] = Math.sqrt(sumReal * sumReal + sumImag * sumImag);
+                });
+
+                return spectrum;
+            }
+
+            computeFFT(signal, fftSize) {
+                // Simple magnitude spectrum computation
+                const real = new Float32Array(fftSize);
+                const imag = new Float32Array(fftSize);
+                
+                for (let i = 0; i < Math.min(signal.length, fftSize); i++) {
+                    real[i] = signal[i];
+                }
+
+                // Basic DFT for demonstration (slow but accurate)
+                const spectrum = new Float32Array(fftSize / 2);
+                for (let k = 0; k < fftSize / 2; k++) {
+                    let sumReal = 0;
+                    let sumImag = 0;
+                    for (let n = 0; n < fftSize; n++) {
+                        const phase = -2 * Math.PI * k * n / fftSize;
+                        sumReal += real[n] * Math.cos(phase);
+                        sumImag += real[n] * Math.sin(phase);
+                    }
+                    spectrum[k] = Math.sqrt(sumReal * sumReal + sumImag * sumImag);
+                }
+
+                return spectrum;
+            }
+
+            generateFrequencyGrid(fMin, fMax, binsPerOctave) {
+                const frequencies = [];
+                let f = fMin;
+                while (f <= fMax) {
+                    frequencies.push(f);
+                    f *= Math.pow(2, 1 / binsPerOctave);
+                }
+                return frequencies;
+            }
+        }
+
+        // ============================================================================
+        // VISUALIZATION ENGINE
+        // ============================================================================
+        class Visualizer {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.highlights = [];
+                this.resizeCanvas();
+                
+                window.addEventListener('resize', () => this.resizeCanvas());
+            }
+
+            resizeCanvas() {
+                const rect = this.canvas.getBoundingClientRect();
+                this.canvas.width = rect.width * window.devicePixelRatio;
+                this.canvas.height = rect.height * window.devicePixelRatio;
+                this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                this.width = rect.width;
+                this.height = rect.height;
+            }
+
+            clear() {
+                this.ctx.clearRect(0, 0, this.width, this.height);
+            }
+
+            drawGrid() {
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                this.ctx.lineWidth = 1;
+
+                // Horizontal lines
+                for (let i = 0; i <= 10; i++) {
+                    const y = (this.height / 10) * i;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y);
+                    this.ctx.lineTo(this.width, y);
+                    this.ctx.stroke();
+                }
+
+                // Vertical lines
+                for (let i = 0; i <= 10; i++) {
+                    const x = (this.width / 10) * i;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, 0);
+                    this.ctx.lineTo(x, this.height);
+                    this.ctx.stroke();
+                }
+            }
+
+            drawSignal(signal, color = '#00d4ff', lineWidth = 2) {
+                this.clear();
+                this.drawGrid();
+
+                const numSamples = signal.length;
+                const xStep = this.width / numSamples;
+
+                // Find min and max for scaling
+                let min = Infinity, max = -Infinity;
+                for (let i = 0; i < numSamples; i++) {
+                    if (signal[i] < min) min = signal[i];
+                    if (signal[i] > max) max = signal[i];
+                }
+
+                const range = Math.max(Math.abs(min), Math.abs(max));
+                const scale = (this.height * 0.4) / range;
+                const centerY = this.height / 2;
+
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = lineWidth;
+                this.ctx.beginPath();
+
+                for (let i = 0; i < numSamples; i++) {
+                    const x = i * xStep;
+                    const y = centerY - signal[i] * scale;
+
+                    if (i === 0) {
+                        this.ctx.moveTo(x, y);
+                    } else {
+                        this.ctx.lineTo(x, y);
+                    }
+                }
+
+                this.ctx.stroke();
+
+                // Draw axis
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, centerY);
+                this.ctx.lineTo(this.width, centerY);
+                this.ctx.stroke();
+
+                // Labels
+                this.ctx.fillStyle = '#94a3b8';
+                this.ctx.font = '12px monospace';
+                this.ctx.fillText('0', 5, centerY - 5);
+                this.ctx.fillText(`${range.toFixed(2)}`, 5, centerY - this.height * 0.4 + 15);
+                this.ctx.fillText(`${(-range).toFixed(2)}`, 5, centerY + this.height * 0.4 - 5);
+            }
+
+            drawSpectrum(frequencies, spectrum, logScale = true, color = '#00d4ff') {
+                this.clear();
+                this.drawGrid();
+
+                const numBins = spectrum.length;
+                
+                // Find max for scaling
+                let max = 0;
+                for (let i = 0; i < numBins; i++) {
+                    if (spectrum[i] > max) max = spectrum[i];
+                }
+
+                const padding = 40;
+                const plotWidth = this.width - 2 * padding;
+                const plotHeight = this.height - 2 * padding;
+
+                if (logScale && frequencies[0] > 0) {
+                    const logMin = Math.log10(frequencies[0]);
+                    const logMax = Math.log10(frequencies[frequencies.length - 1]);
+                    const logRange = logMax - logMin;
+
+                    // Draw spectrum
+                    const gradient = this.ctx.createLinearGradient(0, this.height - padding, 0, padding);
+                    gradient.addColorStop(0, color);
+                    gradient.addColorStop(1, '#7c3aed');
+
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.strokeStyle = color;
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+
+                    for (let i = 0; i < numBins; i++) {
+                        const logFreq = Math.log10(frequencies[i]);
+                        const x = padding + ((logFreq - logMin) / logRange) * plotWidth;
+                        const y = this.height - padding - (spectrum[i] / max) * plotHeight;
+
+                        if (i === 0) {
+                            this.ctx.moveTo(x, this.height - padding);
+                            this.ctx.lineTo(x, y);
+                        } else {
+                            this.ctx.lineTo(x, y);
+                        }
+                    }
+
+                    this.ctx.lineTo(this.width - padding, this.height - padding);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                    this.ctx.stroke();
+
+                    // Draw axes
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(padding, padding);
+                    this.ctx.lineTo(padding, this.height - padding);
+                    this.ctx.lineTo(this.width - padding, this.height - padding);
+                    this.ctx.stroke();
+
+                    // Frequency labels
+                    this.ctx.fillStyle = '#94a3b8';
+                    this.ctx.font = '11px monospace';
+                    this.ctx.textAlign = 'center';
+
+                    const labelFreqs = [50, 100, 200, 500, 1000, 2000, 5000, 10000];
+                    labelFreqs.forEach(f => {
+                        if (f >= frequencies[0] && f <= frequencies[frequencies.length - 1]) {
+                            const logF = Math.log10(f);
+                            const x = padding + ((logF - logMin) / logRange) * plotWidth;
+                            this.ctx.fillText(f >= 1000 ? `${f/1000}k` : f, x, this.height - padding + 20);
+                        }
+                    });
+
+                    this.ctx.textAlign = 'left';
+                    this.ctx.fillText('Frequency (Hz)', this.width / 2 - 40, this.height - 5);
+                    
+                    // Magnitude label
+                    this.ctx.save();
+                    this.ctx.translate(15, this.height / 2);
+                    this.ctx.rotate(-Math.PI / 2);
+                    this.ctx.fillText('Magnitude', 0, 0);
+                    this.ctx.restore();
+                }
+
+                this.drawHighlights();
+            }
+
+            addHighlight(x, y, width, height, label) {
+                const id = Date.now() + Math.random();
+                this.highlights.push({ id, x, y, width, height, label });
+                eventBus.publish('highlight-added', { id, x, y, width, height, label });
+                return id;
+            }
+
+            removeHighlight(id) {
+                this.highlights = this.highlights.filter(h => h.id !== id);
+                eventBus.publish('highlight-removed', { id });
+            }
+
+            clearHighlights() {
+                this.highlights = [];
+                eventBus.publish('highlights-cleared', {});
+            }
+
+            drawHighlights() {
+                this.highlights.forEach(h => {
+                    this.ctx.strokeStyle = '#ff6b9d';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeRect(h.x, h.y, h.width, h.height);
+                    
+                    this.ctx.fillStyle = 'rgba(255, 107, 157, 0.1)';
+                    this.ctx.fillRect(h.x, h.y, h.width, h.height);
+
+                    if (h.label) {
+                        this.ctx.fillStyle = '#ff6b9d';
+                        this.ctx.font = '12px monospace';
+                        this.ctx.fillText(h.label, h.x + 5, h.y - 5);
+                    }
+                });
+            }
+
+            drawFunction(xData, yData, color = '#00d4ff', lineWidth = 2, fillUnder = false) {
+                this.clear();
+                this.drawGrid();
+
+                const numPoints = xData.length;
+                const padding = 40;
+                const plotWidth = this.width - 2 * padding;
+                const plotHeight = this.height - 2 * padding;
+
+                // Find ranges
+                let xMin = Infinity, xMax = -Infinity;
+                let yMin = Infinity, yMax = -Infinity;
+
+                for (let i = 0; i < numPoints; i++) {
+                    if (xData[i] < xMin) xMin = xData[i];
+                    if (xData[i] > xMax) xMax = xData[i];
+                    if (yData[i] < yMin) yMin = yData[i];
+                    if (yData[i] > yMax) yMax = yData[i];
+                }
+
+                const xRange = xMax - xMin;
+                const yRange = yMax - yMin;
+
+                // Draw function
+                if (fillUnder) {
+                    const gradient = this.ctx.createLinearGradient(0, this.height - padding, 0, padding);
+                    gradient.addColorStop(0, color);
+                    gradient.addColorStop(1, 'rgba(0, 212, 255, 0)');
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.beginPath();
+
+                    for (let i = 0; i < numPoints; i++) {
+                        const x = padding + ((xData[i] - xMin) / xRange) * plotWidth;
+                        const y = this.height - padding - ((yData[i] - yMin) / yRange) * plotHeight;
+
+                        if (i === 0) {
+                            this.ctx.moveTo(x, this.height - padding);
+                            this.ctx.lineTo(x, y);
+                        } else {
+                            this.ctx.lineTo(x, y);
+                        }
+                    }
+
+                    this.ctx.lineTo(this.width - padding, this.height - padding);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                }
+
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = lineWidth;
+                this.ctx.beginPath();
+
+                for (let i = 0; i < numPoints; i++) {
+                    const x = padding + ((xData[i] - xMin) / xRange) * plotWidth;
+                    const y = this.height - padding - ((yData[i] - yMin) / yRange) * plotHeight;
+
+                    if (i === 0) {
+                        this.ctx.moveTo(x, y);
+                    } else {
+                        this.ctx.lineTo(x, y);
+                    }
+                }
+
+                this.ctx.stroke();
+
+                // Draw axes
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                this.ctx.moveTo(padding, padding);
+                this.ctx.lineTo(padding, this.height - padding);
+                this.ctx.lineTo(this.width - padding, this.height - padding);
+                this.ctx.stroke();
+
+                // Labels
+                this.ctx.fillStyle = '#94a3b8';
+                this.ctx.font = '11px monospace';
+                this.ctx.textAlign = 'center';
+                
+                this.ctx.fillText(xMin.toFixed(2), padding, this.height - padding + 20);
+                this.ctx.fillText(xMax.toFixed(2), this.width - padding, this.height - padding + 20);
+                
+                this.ctx.textAlign = 'right';
+                this.ctx.fillText(yMax.toFixed(2), padding - 10, padding + 5);
+                this.ctx.fillText(yMin.toFixed(2), padding - 10, this.height - padding + 5);
+            }
+        }
+
+        // ============================================================================
+        // APPLICATION STATE
+        // ============================================================================
+        const state = {
+            signalParams: {
+                frequency: 82.4,
+                harmonics: 5,
+                decay: 3.0,
+                duration: 2.0
+            },
+            transformParams: {
+                alpha: 0.8,
+                qFactor: 10,
+                binsPerOctave: 36
+            },
+            scalingParams: {
+                type: 'power',
+                alpha: 0.8,
+                beta: 1.0,
+                gamma: 0.1
+            },
+            guitarParams: {
+                string1: 82.4,
+                string2: 246.9,
+                delay: 50,
+                frameSize: 2048,
+                hopSize: 512
+            },
+            comparisonParams: {
+                freq1: 82.4,
+                freq2: 87.3,
+                fftSize: 4096
+            },
+            currentSignal: null,
+            currentSpectrum: null,
+            currentFrequencies: null
+        };
+
+        // ============================================================================
+        // INITIALIZE APPLICATION
+        // ============================================================================
+        const processor = new SignalProcessor(44100);
+        
+        // Create visualizers
+        const visualizers = {
+            time: new Visualizer('time-canvas'),
+            vst: new Visualizer('vst-canvas'),
+            resolution: new Visualizer('resolution-canvas'),
+            scalingFunc: new Visualizer('scaling-func-canvas'),
+            scalingDeriv: new Visualizer('scaling-deriv-canvas'),
+            warping: new Visualizer('warping-canvas'),
+            guitarTime: new Visualizer('guitar-time-canvas'),
+            spectrogram: new Visualizer('spectrogram-canvas'),
+            detection: new Visualizer('detection-canvas'),
+            fft: new Visualizer('fft-canvas'),
+            vstComp: new Visualizer('vst-comp-canvas'),
+            resolutionComp: new Visualizer('resolution-comp-canvas')
+        };
+
+        // ============================================================================
+        // TAB SYSTEM
+        // ============================================================================
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const tabName = button.dataset.tab;
+                
+                // Update buttons
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Update content
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.getElementById(tabName).classList.add('active');
+                
+                eventBus.publish('tab-changed', { tab: tabName });
+            });
+        });
+
+        // ============================================================================
+        // SLIDER SYNCHRONIZATION
+        // ============================================================================
+        function syncSlider(sliderId, valueId, callback) {
+            const slider = document.getElementById(sliderId);
+            const valueDisplay = document.getElementById(valueId);
+            
+            slider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                valueDisplay.textContent = value.toFixed(slider.step.includes('.') ? 
+                    slider.step.split('.')[1].length : 0);
+                if (callback) callback(value);
+            });
+        }
+
+        // Overview tab sliders
+        syncSlider('freq-slider', 'freq-value', (v) => {
+            state.signalParams.frequency = v;
+            eventBus.publish('signal-param-changed', state.signalParams);
+        });
+
+        syncSlider('harmonics-slider', 'harmonics-value', (v) => {
+            state.signalParams.harmonics = v;
+            eventBus.publish('signal-param-changed', state.signalParams);
+        });
+
+        syncSlider('decay-slider', 'decay-value', (v) => {
+            state.signalParams.decay = v;
+            eventBus.publish('signal-param-changed', state.signalParams);
+        });
+
+        syncSlider('alpha-slider', 'alpha-value', (v) => {
+            state.transformParams.alpha = v;
+            eventBus.publish('transform-param-changed', state.transformParams);
+        });
+
+        syncSlider('q-slider', 'q-value', (v) => {
+            state.transformParams.qFactor = v;
+            eventBus.publish('transform-param-changed', state.transformParams);
+        });
+
+        syncSlider('bins-slider', 'bins-value', (v) => {
+            state.transformParams.binsPerOctave = v;
+            eventBus.publish('transform-param-changed', state.transformParams);
+        });
+
+        // Scaling tab sliders
+        syncSlider('scaling-alpha-slider', 'scaling-alpha-value', (v) => {
+            state.scalingParams.alpha = v;
+            updateScalingVisualization();
+        });
+
+        syncSlider('beta-slider', 'beta-value', (v) => {
+            state.scalingParams.beta = v;
+            updateScalingVisualization();
+        });
+
+        syncSlider('gamma-slider', 'gamma-value', (v) => {
+            state.scalingParams.gamma = v;
+            updateScalingVisualization();
+        });
+
+        // Comparison tab sliders
+        syncSlider('comp-freq1-slider', 'comp-freq1-value', (v) => {
+            state.comparisonParams.freq1 = v;
+            updateComparisonInfo();
+        });
+
+        syncSlider('comp-freq2-slider', 'comp-freq2-value', (v) => {
+            state.comparisonParams.freq2 = v;
+            updateComparisonInfo();
+        });
+
+        syncSlider('fft-size-slider', 'fft-size-value', (v) => {
+            state.comparisonParams.fftSize = v;
+            updateComparisonInfo();
+        });
+
+        function updateComparisonInfo() {
+            const sep = Math.abs(state.comparisonParams.freq2 - state.comparisonParams.freq1);
+            document.getElementById('separation-info').textContent = sep.toFixed(1) + ' Hz';
+            
+            const fftRes = 44100 / state.comparisonParams.fftSize;
+            document.getElementById('fft-res-info').textContent = fftRes.toFixed(1) + ' Hz';
+        }
+
+        // ============================================================================
+        // SIGNAL GENERATION
+        // ============================================================================
+        function generateSignal() {
+            const { frequency, harmonics, decay, duration } = state.signalParams;
+            const result = processor.generateHarmonicSignal(frequency, harmonics, decay, duration);
+            
+            state.currentSignal = result;
+            
+            // Update info
+            document.getElementById('duration-info').textContent = duration.toFixed(1) + ' s';
+            document.getElementById('samples-info').textContent = result.numSamples;
+            
+            // Visualize time domain
+            visualizers.time.drawSignal(result.signal);
+            
+            // Compute and visualize VST
+            computeVST();
+            
+            eventBus.publish('signal-generated', result);
+        }
+
+        function computeVST() {
+            if (!state.currentSignal) return;
+            
+            const { alpha, qFactor, binsPerOctave } = state.transformParams;
+            const frequencies = processor.generateFrequencyGrid(40, 10000, binsPerOctave);
+            
+            const spectrum = processor.computeVST(
+                state.currentSignal.analyticSignal,
+                frequencies,
+                alpha,
+                qFactor
+            );
+            
+            state.currentSpectrum = spectrum;
+            state.currentFrequencies = frequencies;
+            
+            visualizers.vst.drawSpectrum(frequencies, spectrum, true);
+            
+            // Count peaks
+            let peakCount = 0;
+            const threshold = Math.max(...spectrum) * 0.1;
+            for (let i = 1; i < spectrum.length - 1; i++) {
+                if (spectrum[i] > spectrum[i-1] && spectrum[i] > spectrum[i+1] && spectrum[i] > threshold) {
+                    peakCount++;
+                }
+            }
+            document.getElementById('peak-count').textContent = `Peaks: ${peakCount}`;
+            
+            // Draw resolution curve
+            drawResolutionCurve();
+            
+            eventBus.publish('vst-computed', { spectrum, frequencies });
+        }
+
+        function drawResolutionCurve() {
+            const { alpha } = state.transformParams;
+            const numPoints = 200;
+            const freqs = [];
+            const resolutions = [];
+            
+            for (let i = 0; i < numPoints; i++) {
+                const f = 40 * Math.pow(10000 / 40, i / (numPoints - 1));
+                freqs.push(f);
+                
+                // Resolution proportional to f^(1-alpha) approximately
+                const res = f * (1.0 - alpha) * 0.01;
+                resolutions.push(res);
+            }
+            
+            visualizers.resolution.drawFunction(freqs, resolutions, '#7c3aed', 2, true);
+        }
+
+        document.getElementById('generate-signal').addEventListener('click', generateSignal);
+
+        // ============================================================================
+        // HIGHLIGHTING SYSTEM
+        // ============================================================================
+        document.getElementById('highlight-fundamental').addEventListener('click', () => {
+            if (!state.currentFrequencies || !state.currentSpectrum) return;
+            
+            visualizers.vst.clearHighlights();
+            
+            const targetFreq = state.signalParams.frequency;
+            let closestIdx = 0;
+            let minDiff = Infinity;
+            
+            state.currentFrequencies.forEach((f, i) => {
+                const diff = Math.abs(f - targetFreq);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestIdx = i;
+                }
+            });
+            
+            // Calculate highlight position (approximate)
+            const padding = 40;
+            const plotWidth = visualizers.vst.width - 2 * padding;
+            const logMin = Math.log10(state.currentFrequencies[0]);
+            const logMax = Math.log10(state.currentFrequencies[state.currentFrequencies.length - 1]);
+            const logRange = logMax - logMin;
+            
+            const logFreq = Math.log10(state.currentFrequencies[closestIdx]);
+            const x = padding + ((logFreq - logMin) / logRange) * plotWidth;
+            
+            visualizers.vst.addHighlight(x - 20, 50, 40, visualizers.vst.height - 100, 
+                `f₀=${targetFreq.toFixed(1)}Hz`);
+            visualizers.vst.drawSpectrum(state.currentFrequencies, state.currentSpectrum, true);
+        });
+
+        document.getElementById('highlight-harmonics').addEventListener('click', () => {
+            if (!state.currentFrequencies || !state.currentSpectrum) return;
+            
+            visualizers.vst.clearHighlights();
+            
+            const f0 = state.signalParams.frequency;
+            const numHarmonics = state.signalParams.harmonics;
+            
+            const padding = 40;
+            const plotWidth = visualizers.vst.width - 2 * padding;
+            const logMin = Math.log10(state.currentFrequencies[0]);
+            const logMax = Math.log10(state.currentFrequencies[state.currentFrequencies.length - 1]);
+            const logRange = logMax - logMin;
+            
+            for (let k = 1; k <= numHarmonics; k++) {
+                const harmFreq = k * f0;
+                let closestIdx = 0;
+                let minDiff = Infinity;
+                
+                state.currentFrequencies.forEach((f, i) => {
+                    const diff = Math.abs(f - harmFreq);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestIdx = i;
+                    }
+                });
+                
+                const logFreq = Math.log10(state.currentFrequencies[closestIdx]);
+                const x = padding + ((logFreq - logMin) / logRange) * plotWidth;
+                
+                visualizers.vst.addHighlight(x - 15, 50, 30, visualizers.vst.height - 100, 
+                    `H${k}`);
+            }
+            
+            visualizers.vst.drawSpectrum(state.currentFrequencies, state.currentSpectrum, true);
+        });
+
+        // ============================================================================
+        // SCALING FUNCTION VISUALIZATION
+        // ============================================================================
+        function updateScalingVisualization() {
+            const { type, alpha, beta, gamma } = state.scalingParams;
+            const numPoints = 500;
+            const tMax = 2.0;
+            
+            const tData = [];
+            const lambdaData = [];
+            const derivData = [];
+            
+            for (let i = 0; i < numPoints; i++) {
+                const t = (i / (numPoints - 1)) * tMax;
+                tData.push(t);
+                lambdaData.push(processor.computeScalingFunction(t + 0.001, type, alpha, beta, gamma));
+                derivData.push(processor.computeScalingDerivative(t + 0.001, type, alpha, beta, gamma));
+            }
+            
+            visualizers.scalingFunc.drawFunction(tData, lambdaData, '#00d4ff', 2, true);
+            
+            if (document.getElementById('show-derivative').checked) {
+                visualizers.scalingDeriv.drawFunction(tData, derivData, '#7c3aed', 2, true);
+            } else {
+                visualizers.scalingDeriv.clear();
+            }
+            
+            // Warping visualization
+            const warpedT = lambdaData.map((lambda, i) => ({ original: tData[i], warped: lambda }));
+            visualizers.warping.drawFunction(
+                warpedT.map(w => w.original),
+                warpedT.map(w => w.warped),
+                '#ff6b9d',
+                2,
+                false
+            );
+        }
+
+        document.getElementById('scaling-type').addEventListener('change', (e) => {
+            state.scalingParams.type = e.target.value;
+            updateScalingVisualization();
+        });
+
+        document.getElementById('show-derivative').addEventListener('change', updateScalingVisualization);
+
+        // ============================================================================
+        // COMPARISON TAB
+        // ============================================================================
+        document.getElementById('run-comparison').addEventListener('click', () => {
+            const { freq1, freq2, fftSize } = state.comparisonParams;
+            
+            // Generate two-tone signal
+            const duration = 2.0;
+            const numSamples = Math.floor(duration * 44100);
+            const signal = new Float32Array(numSamples);
+            const analyticSignal = new Float32Array(numSamples * 2);
+            
+            for (let n = 0; n < numSamples; n++) {
+                const t = n / 44100;
+                const s1 = Math.cos(2 * Math.PI * freq1 * t) * Math.exp(-2 * t);
+                const s2 = Math.cos(2 * Math.PI * freq2 * t) * Math.exp(-2 * t);
+                signal[n] = (s1 + s2) * 0.5;
+                
+                analyticSignal[n * 2] = signal[n];
+                analyticSignal[n * 2 + 1] = (Math.sin(2 * Math.PI * freq1 * t) * Math.exp(-2 * t) +
+                                             Math.sin(2 * Math.PI * freq2 * t) * Math.exp(-2 * t)) * 0.5;
+            }
+            
+            // FFT
+            const fftSpectrum = processor.computeFFT(signal, fftSize);
+            const fftFreqs = new Float32Array(fftSize / 2);
+            for (let i = 0; i < fftSize / 2; i++) {
+                fftFreqs[i] = (i * 44100) / fftSize;
+            }
+            
+            visualizers.fft.drawSpectrum(fftFreqs, fftSpectrum, false, '#ff6b9d');
+            
+            // VST
+            const vstFreqs = processor.generateFrequencyGrid(40, 500, state.transformParams.binsPerOctave);
+            const vstSpectrum = processor.computeVST(analyticSignal, vstFreqs, state.transformParams.alpha, state.transformParams.qFactor);
+            
+            visualizers.vstComp.drawSpectrum(vstFreqs, vstSpectrum, true, '#00d4ff');
+            
+            // Calculate metrics
+            const fftRes = 44100 / fftSize;
+            const sep = Math.abs(freq2 - freq1);
+            const fftBins = sep / fftRes;
+            
+            // VST bins (approximate)
+            const vstBins = vstFreqs.filter(f => f >= Math.min(freq1, freq2) && f <= Math.max(freq1, freq2)).length;
+            
+            document.getElementById('fft-bins-info').textContent = fftBins.toFixed(1);
+            document.getElementById('vst-bins-info').textContent = vstBins;
+            document.getElementById('improvement-info').textContent = `${(vstBins / fftBins).toFixed(1)}x`;
+            
+            // Resolution comparison
+            const resFreqs = [];
+            const fftResArray = [];
+            const vstResArray = [];
+            
+            for (let i = 0; i < 100; i++) {
+                const f = 40 * Math.pow(500 / 40, i / 99);
+                resFreqs.push(f);
+                fftResArray.push(fftRes);
+                vstResArray.push(f * (1.0 - state.transformParams.alpha) * 0.01);
+            }
+            
+            visualizers.resolutionComp.clear();
+            visualizers.resolutionComp.drawGrid();
+            
+            // Draw both curves
+            visualizers.resolutionComp.ctx.strokeStyle = '#ff6b9d';
+            visualizers.resolutionComp.ctx.lineWidth = 2;
+            visualizers.resolutionComp.ctx.beginPath();
+            
+            const padding = 40;
+            const plotWidth = visualizers.resolutionComp.width - 2 * padding;
+            const plotHeight = visualizers.resolutionComp.height - 2 * padding;
+            
+            const maxRes = Math.max(...vstResArray, ...fftResArray);
+            
+            for (let i = 0; i < resFreqs.length; i++) {
+                const x = padding + (i / (resFreqs.length - 1)) * plotWidth;
+                const y = visualizers.resolutionComp.height - padding - (fftResArray[i] / maxRes) * plotHeight;
+                if (i === 0) visualizers.resolutionComp.ctx.moveTo(x, y);
+                else visualizers.resolutionComp.ctx.lineTo(x, y);
+            }
+            visualizers.resolutionComp.ctx.stroke();
+            
+            visualizers.resolutionComp.ctx.strokeStyle = '#00d4ff';
+            visualizers.resolutionComp.ctx.beginPath();
+            for (let i = 0; i < resFreqs.length; i++) {
+                const x = padding + (i / (resFreqs.length - 1)) * plotWidth;
+                const y = visualizers.resolutionComp.height - padding - (vstResArray[i] / maxRes) * plotHeight;
+                if (i === 0) visualizers.resolutionComp.ctx.moveTo(x, y);
+                else visualizers.resolutionComp.ctx.lineTo(x, y);
+            }
+            visualizers.resolutionComp.ctx.stroke();
+            
+            // Legend
+            visualizers.resolutionComp.ctx.fillStyle = '#ff6b9d';
+            visualizers.resolutionComp.ctx.fillText('FFT (uniform)', padding + 10, padding + 20);
+            visualizers.resolutionComp.ctx.fillStyle = '#00d4ff';
+            visualizers.resolutionComp.ctx.fillText('VST (logarithmic)', padding + 10, padding + 35);
+        });
+
+        // ============================================================================
+        // INITIAL RENDER
+        // ============================================================================
+        generateSignal();
+        updateScalingVisualization();
+        updateComparisonInfo();
+
+        console.log('Variable Scale Transform Demo Initialized');
+        console.log('EventBus ready for pub-sub communication');
+    </script>
+</body>
+</html>

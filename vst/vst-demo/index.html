@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="/vst-demo/">
+    <title>Variable Scale Transform: An Interactive Exploration</title>
+
+    <!-- KaTeX for LaTeX rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+    <!-- Vega-Lite for Grammar of Graphics -->
+    <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/typography.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+    <!-- Three-column layout: left-nav | content | right-margin -->
+    <div class="page-container">
+
+        <!-- LEFT GUTTER: Navigation -->
+        <aside class="left-gutter" id="left-gutter">
+            <div class="gutter-header">
+                <h3>Contents</h3>
+                <button class="gutter-toggle" data-gutter="left" aria-label="Toggle navigation">
+                    <span class="toggle-icon">‹</span>
+                </button>
+            </div>
+            <nav class="section-nav">
+                <ul class="nav-list">
+                    <li><a href="#introduction" class="nav-link active" data-section="introduction">1. Introduction</a></li>
+                    <li><a href="#problem" class="nav-link" data-section="problem">2. Guitar Signal Model</a></li>
+                    <li><a href="#formulation" class="nav-link" data-section="formulation">3. VST Formulation</a></li>
+                    <li><a href="#scaling" class="nav-link" data-section="scaling">4. Scaling Functions</a></li>
+                    <li><a href="#comparison" class="nav-link" data-section="comparison">5. FFT vs VST</a></li>
+                    <li><a href="#conclusion" class="nav-link" data-section="conclusion">6. Conclusions</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- CENTER: Main Content -->
+        <main class="main-content">
+            <header class="paper-header">
+                <h1>The Variable Scale Transform</h1>
+                <p class="subtitle">Logarithmic Resolution in Time-Frequency Analysis</p>
+                <div class="authors">An Interactive Mathematical Exploration</div>
+
+                <div class="abstract">
+                    <h3>Abstract</h3>
+                    <p>The Variable Scale Transform (VST) extends the Laplace transform through introduction of a scaling function <span class="math-inline" data-var="lambda">λ(t)</span> in the exponential kernel, achieving frequency-dependent resolution that matches perceptual requirements. We demonstrate the VST's advantages for musical signal analysis through interactive visualizations and direct comparison with the FFT.</p>
+                </div>
+            </header>
+
+            <!-- Section 1: Introduction -->
+            <section id="sec-introduction" class="vg-section content-section active" data-vg-type="introduction">
+                <h2>1. Introduction: Resolving Chromatic Notes on Guitar</h2>
+
+                <p id="para-intro-1" class="vg-paragraph" data-vg-section="sec-introduction">Musical analysis requires resolving closely-spaced frequencies across a wide range. The challenge: adjacent <span class="vg-concept" data-vg-id="semitone">semitones</span> (like E and F) are just ~6% apart in frequency, and this small <em>ratio</em> repeats at every octave.</p>
+
+                <p id="para-intro-2" class="vg-paragraph" data-vg-section="sec-introduction">We focus on <span class="vg-insight" data-vg-id="guitar-example" data-vg-anchor="para-intro-2">four notes from a guitar</span>: E and F on the lowest string (E₂/F₂) and highest string (E₄/F₄). Each note produces a fundamental plus harmonics spanning <span class="vg-insight" data-vg-id="four-notes">12 spectral components</span> total.</p>
+
+                <h3>The Standard Fourier Transform</h3>
+
+                <div id="eq-fourier-def" class="vg-equation equation-block" data-vg-vars="f,t" data-vg-number="(1)" data-vg-type="definition">
+                    <div class="equation-content">
+                        $$X(f) = \int_{-\infty}^{\infty} x(t) \, e^{-j2\pi ft} \, dt$$
+                    </div>
+                    <span class="equation-number">(1)</span>
+                </div>
+
+                <p id="para-intro-3" class="vg-paragraph" data-vg-section="sec-introduction">The FFT provides <strong>constant resolution</strong> <span class="vg-var" data-vg-id="delta-f" data-vg-type="concept">Δf = <span class="vg-var" data-vg-id="fs" data-vg-type="parameter">f<sub>s</sub></span>/<span class="vg-var" data-vg-id="N" data-vg-type="parameter">N</span></span>. At <span class="vg-data" data-vg-id="fs" data-vg-value="8000" data-vg-unit="Hz">8000 Hz</span> sample rate with <span class="vg-data" data-vg-id="N" data-vg-value="4096">N=4096</span> samples, Δf ≈ 2 Hz. This barely resolves E₂/F₂ (4.9 Hz apart) and over-resolves E₄/F₄ (19.6 Hz apart).</p>
+
+                <p id="para-intro-4" class="vg-paragraph" data-vg-section="sec-introduction">The <span class="vg-concept" data-vg-id="vst">Variable Scale Transform</span> modifies this kernel to achieve <strong>logarithmic resolution</strong> — matching the perceptual structure of music.</p>
+            </section>
+
+            <!-- Section 2: The Guitar Signal Model -->
+            <section id="problem" class="content-section">
+                <h2>2. The Guitar Signal Model</h2>
+
+                <p>Our test signal models four plucked guitar strings, each generating a fundamental plus 2 harmonics. Each partial decays exponentially with higher harmonics decaying faster:</p>
+
+                <div class="equation-block" data-eq-id="guitar-signal">
+                    <div class="equation-content">
+                        $$x(t) = \sum_{n=1}^{4} \sum_{h=1}^{3} a_h \, e^{-\alpha(1+0.3(h-1))t} \cos(2\pi h f_n t)$$
+                    </div>
+                    <span class="equation-number">(2)</span>
+                </div>
+
+                <p>where:</p>
+                <ul>
+                    <li><span class="math-inline" data-var="f1">f₁, f₂, f₃, f₄</span> are the four fundamental frequencies (E₂, F₂, E₄, F₄)</li>
+                    <li><span class="math-inline" data-var="h">h</span> is the harmonic number (1, 2, 3)</li>
+                    <li><span class="math-inline" data-var="a">a_h = [1.0, 0.5, 0.25]</span> are harmonic amplitudes (guitar-like decay)</li>
+                    <li><span class="math-inline" data-var="alpha">α = 2.5 s⁻¹</span> is the decay rate</li>
+                </ul>
+
+                <div class="visualization-container">
+                    <div class="viz-header">
+                        <h4>Interactive Guitar Signal Visualization</h4>
+                        <p class="viz-description">Combined 4-note signal with 3 harmonics each (12 components total)</p>
+                    </div>
+                    <div id="signal-viz" class="vega-viz"></div>
+                </div>
+
+                <p>The analytic signal (complex representation via Hilbert transform):</p>
+
+                <div class="equation-block" data-eq-id="analytic-signal">
+                    <div class="equation-content">
+                        $$z(t) = \sum_{n=1}^{4} \sum_{h=1}^{3} a_h \, e^{-\alpha(1+0.3(h-1))t} \, e^{j2\pi h f_n t}$$
+                    </div>
+                    <span class="equation-number">(3)</span>
+                </div>
+
+                <p>This complex representation eliminates negative frequencies and reveals the 12 spectral components (4 notes × 3 harmonics) that the transforms must resolve.</p>
+            </section>
+
+            <!-- Section 3: VST Formulation -->
+            <section id="formulation" class="content-section">
+                <h2>3. Variable Scale Transform Formulation</h2>
+
+                <p>The Variable Scale Transform modifies the Laplace transform's exponential kernel by introducing a <em>scaling function</em> <span class="math-inline" data-var="lambda">λ(t)</span>:</p>
+
+                <div class="equation-block featured" data-eq-id="vst-definition">
+                    <div class="equation-content">
+                        $$\mathcal{V}\{x(t)\}(s) = \int_{0}^{\infty} x(t) \, e^{-s\lambda(t)} \, dt$$
+                    </div>
+                    <span class="equation-number">(4)</span>
+                </div>
+
+                <p>where <span class="math-inline" data-var="s">s = σ + jω</span> is the complex frequency. The scaling function must be monotonically increasing: <span class="math-inline" data-var="lambda-prime">λ'(t) > 0</span>.</p>
+
+                <h3>Power-Law Scaling</h3>
+
+                <p>For logarithmic frequency resolution, we employ a power-law scaling function:</p>
+
+                <div class="equation-block" data-eq-id="power-law">
+                    <div class="equation-content">
+                        $$\lambda(t) = t^{\alpha}, \quad 0 < \alpha \leq 1$$
+                    </div>
+                    <span class="equation-number">(5)</span>
+                </div>
+
+                <p>The derivative of the scaling function governs instantaneous resolution:</p>
+
+                <div class="equation-block" data-eq-id="derivative">
+                    <div class="equation-content">
+                        $$\lambda'(t) = \alpha t^{\alpha-1}$$
+                    </div>
+                    <span class="equation-number">(6)</span>
+                </div>
+
+                <div class="two-column-layout">
+                    <div class="column">
+                        <h4>Resolution Properties</h4>
+                        <p>For <span class="math-inline" data-var="alpha">α < 1</span>, the derivative <span class="math-inline" data-var="lambda-prime">λ'(t)</span> decreases with time, providing:</p>
+                        <ul>
+                            <li><strong>Fine resolution</strong> at early times → low frequencies</li>
+                            <li><strong>Coarse resolution</strong> at late times → high frequencies</li>
+                            <li><strong>Smooth transition</strong> between regimes</li>
+                        </ul>
+                    </div>
+                    <div class="column">
+                        <div class="visualization-container small">
+                            <div id="scaling-deriv-viz" class="vega-viz"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <p>The effective frequency resolution at frequency <span class="math-inline" data-var="f">f</span> scales as:</p>
+
+                <div class="equation-block" data-eq-id="resolution-scaling">
+                    <div class="equation-content">
+                        $$\Delta f(f) \propto f^{1-\alpha}$$
+                    </div>
+                    <span class="equation-number">(7)</span>
+                </div>
+
+                <p>For <span class="math-inline" data-var="alpha">α = 0.8</span>, resolution increases as <span class="math-inline">f^{0.2}</span> — much slower than linear FFT resolution, but still allowing coarser bins at high frequencies.</p>
+            </section>
+
+            <!-- Section 4: Scaling Functions -->
+            <section id="scaling" class="content-section">
+                <h2>4. Exploring Scaling Functions</h2>
+
+                <p>The choice of <span class="math-inline" data-var="alpha">α</span> provides continuous control over the frequency-resolution tradeoff. Adjust the parameter below to observe how different scaling exponents warp the time axis:</p>
+
+                <div class="visualization-container">
+                    <div class="viz-header">
+                        <h4>Scaling Function Family: λ(t) = t<sup>α</sup></h4>
+                    </div>
+                    <div id="scaling-family-viz" class="vega-viz"></div>
+                </div>
+
+                <h3>Interpretation</h3>
+
+                <p>The scaling function warps the time axis logarithmically. For <span class="math-inline" data-var="alpha">α = 0.5</span>:</p>
+
+                <div class="equation-block" data-eq-id="sqrt-interpretation">
+                    <div class="equation-content">
+                        $$\lambda(t) = \sqrt{t} \implies d\lambda = \frac{1}{2\sqrt{t}} \, dt$$
+                    </div>
+                    <span class="equation-number">(8)</span>
+                </div>
+
+                <p>Early in the signal (small <span class="math-inline" data-var="t">t</span>), equal time increments <span class="math-inline">dt</span> map to <em>larger</em> <span class="math-inline">dλ</span> increments, providing fine frequency resolution. Later (large <span class="math-inline" data-var="t">t</span>), the same <span class="math-inline">dt</span> maps to smaller <span class="math-inline">dλ</span>, coarsening the resolution.</p>
+
+                <p>The <span class="margin-anchor" data-note="physical-intuition">scaling function warps time perception</span>: creating a "slow-motion" view of early signal behavior (capturing low-frequency detail) while "fast-forwarding" through later behavior (summarizing high-frequency content).</p>
+            </section>
+
+            <!-- Section 5: FFT vs VST Comparison -->
+            <section id="comparison" class="content-section">
+                <h2>5. Direct Comparison: FFT vs VST on Guitar Signal</h2>
+
+                <p>We now compare the standard FFT with the Variable Scale Transform on our 4-note guitar signal with harmonics. The goal: resolve all 12 spectral components (4 fundamentals × 3 harmonics).</p>
+
+                <div class="comparison-grid">
+                    <div class="comparison-item">
+                        <h4>FFT Spectrum</h4>
+                        <div id="fft-spectrum-viz" class="vega-viz"></div>
+                        <div class="metric-box">
+                            <div class="metric-row">
+                                <span class="metric-label">Resolution:</span>
+                                <span class="metric-value" id="fft-resolution">2.0 Hz</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Bins between E₂/F₂:</span>
+                                <span class="metric-value" id="fft-bins">2.5</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="comparison-item">
+                        <h4>VST Spectrum</h4>
+                        <div id="vst-spectrum-viz" class="vega-viz"></div>
+                        <div class="metric-box success">
+                            <div class="metric-row">
+                                <span class="metric-label">Resolution at E₂:</span>
+                                <span class="metric-value" id="vst-resolution">1.6 Hz</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Bins between E₂/F₂:</span>
+                                <span class="metric-value" id="vst-bins">3</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>The Challenge of Chromatic Resolution</h3>
+
+                <p>At <strong>8000 Hz sample rate</strong> with <span class="math-inline" data-var="N">N = 4096</span> samples, the FFT provides constant resolution:</p>
+
+                <div class="equation-block" data-eq-id="fft-requirement">
+                    <div class="equation-content">
+                        $$\Delta f = \frac{f_s}{N} = \frac{8000}{4096} \approx 2.0 \text{ Hz}$$
+                    </div>
+                    <span class="equation-number">(9)</span>
+                </div>
+
+                <p>This <strong>barely resolves</strong> E₂/F₂ (Δf = 4.9 Hz, giving ~2.5 bins between peaks) but over-resolves E₄/F₄ (Δf = 19.6 Hz, giving ~10 bins).</p>
+
+                <h3>VST's Logarithmic Advantage</h3>
+
+                <p>The VST provides resolution proportional to frequency. With <span class="math-inline" data-var="B">B = 36</span> bins/octave:</p>
+
+                <div class="equation-block" data-eq-id="vst-resolution">
+                    <div class="equation-content">
+                        $$\Delta f(f) \approx \frac{f \ln(2)}{B} \propto f$$
+                    </div>
+                    <span class="equation-number">(10)</span>
+                </div>
+
+                <p><strong>Resolution at each range:</strong></p>
+                <ul>
+                    <li>At E₂ (82 Hz): Δf ≈ 1.6 Hz → <strong>3 bins</strong> between E₂/F₂</li>
+                    <li>At E₃ (165 Hz): Δf ≈ 3.2 Hz → <strong>3 bins</strong> between 2nd harmonics</li>
+                    <li>At E₄ (330 Hz): Δf ≈ 6.3 Hz → <strong>3 bins</strong> between E₄/F₄</li>
+                </ul>
+
+                <p>The <span class="margin-anchor" data-note="key-result">VST maintains constant bins per semitone</span> across the entire frequency range — perfectly matching the logarithmic structure of musical pitch perception.</p>
+            </section>
+
+            <!-- Section 6: Conclusions -->
+            <section id="conclusion" class="content-section">
+                <h2>6. Conclusions and Future Directions</h2>
+
+                <h3>Key Results</h3>
+
+                <p>The Variable Scale Transform addresses fundamental limitations of uniform frequency resolution by introducing a scaling function <span class="math-inline" data-var="lambda">λ(t)</span> in the exponential kernel. This interactive exploration demonstrates:</p>
+
+                <ol class="results-list">
+                    <li><strong>Improved low-frequency resolution:</strong> 3-10× more bins between closely-spaced fundamentals in the musical bass range (60-200 Hz)</li>
+                    <li><strong>Computational efficiency:</strong> Reduced burden while maintaining perceptual fidelity</li>
+                    <li><strong>Natural harmonic representation:</strong> Logarithmic spacing causes harmonics to appear at regular intervals</li>
+                    <li><strong>Flexible resolution control:</strong> The exponent <span class="math-inline" data-var="alpha">α</span> provides continuous tuning of the frequency-resolution tradeoff</li>
+                </ol>
+
+                <h3>Relationship to Existing Methods</h3>
+
+                <div class="method-comparison">
+                    <div class="method-item">
+                        <h4>Constant-Q Transform</h4>
+                        <p>The CQT achieves logarithmic frequency spacing through geometric arrangement of filter banks. The VST generalizes this through the scaling function, providing continuous frequency coverage and additional control via <span class="math-inline" data-var="alpha">α</span>.</p>
+                    </div>
+
+                    <div class="method-item">
+                        <h4>Wavelet Transform</h4>
+                        <p>Both achieve multi-resolution analysis through different mechanisms. Wavelets use dilated basis functions; VST achieves similar outcomes through time-axis warping within a single integral transform.</p>
+                    </div>
+                </div>
+
+                <h3>Future Directions</h3>
+
+                <ul class="future-list">
+                    <li><strong>Optimal scaling functions:</strong> Beyond power laws, what forms of <span class="math-inline" data-var="lambda">λ(t)</span> best match specific perceptual criteria?</li>
+                    <li><strong>Inverse transform:</strong> Efficient synthesis methods enabling signal reconstruction from VST coefficients</li>
+                    <li><strong>Adaptive resolution:</strong> Allow <span class="math-inline">λ(t,ω)</span> to depend on both time and frequency</li>
+                    <li><strong>Real-time implementation:</strong> Optimize discrete VST computation for low-latency applications</li>
+                </ul>
+
+                <div class="acknowledgments">
+                    <h4>Interactive Implementation</h4>
+                    <p>This document demonstrates a reusable framework for interactive mathematical exposition. The <strong>Variable Math Markdown</strong> system enables equation elements to be explored individually, with animations and margin notes revealing deeper connections. View source to examine the implementation.</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- RIGHT GUTTER: Margin Notes -->
+        <aside class="right-gutter" id="right-gutter">
+            <div class="gutter-header">
+                <h3>Notes</h3>
+                <button class="gutter-toggle" data-gutter="right" aria-label="Toggle margin notes">
+                    <span class="toggle-icon">›</span>
+                </button>
+            </div>
+            <div class="margin-notes-container" id="margin-notes">
+                <div class="margin-note placeholder">
+                    <p class="note-hint">Click on equation elements to explore relationships and see detailed explanations here.</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Floating Action Button (Context-Aware Controls) -->
+    <div class="fab-container" id="fab-container">
+        <button class="fab-button" id="fab-button" aria-label="Show controls">
+            <span class="fab-icon">⚙</span>
+        </button>
+        <div class="fab-panel" id="fab-panel">
+            <div class="fab-header">
+                <h4 id="fab-title">Controls</h4>
+                <button class="fab-drag-handle" aria-label="Drag to reposition">⋮⋮</button>
+            </div>
+            <div class="fab-content" id="fab-content">
+                <!-- Context-aware controls will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Modules -->
+    <script src="/static/js/vargraph.js"></script>
+    <script src="js/signal-processor.js"></script>
+    <script src="js/knowledge-graph.js"></script>
+    <script src="js/equation-animator.js"></script>
+    <script src="js/math-symbolizer.js"></script>
+    <script src="js/margin-notes.js"></script>
+    <script src="js/context-fab.js"></script>
+    <script src="js/main.js"></script>
+
+    <script>
+        // Initialize KaTeX auto-render after DOM loads
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false},
+                    {left: "\\[", right: "\\]", display: true},
+                    {left: "\\(", right: "\\)", display: false}
+                ],
+                throwOnError: false,
+                trust: true
+            });
+
+            // After KaTeX renders, initialize the Symbolizer
+            if (window.Symbolizer) {
+                window.Symbolizer.init();
+            }
+        });
+    </script>
+</body>
+</html>

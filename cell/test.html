@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Cell UI Framework — Test Demo</title>
+
+<!-- CUI Styles -->
+<link rel="stylesheet" href="css/cui-base.css">
+<link rel="stylesheet" href="css/cui-components.css">
+<link rel="stylesheet" href="css/cui-terminal.css">
+
+</head>
+<body>
+
+<div class="wrap" id="app">
+  <header>
+    <div class="title">
+      Cell UI Framework — Test Demo
+      <div style="font-size: 13px; font-weight: 400; margin-top: 4px; color: var(--cui-muted);">
+        Explore: <a href="#" id="turingPatternsLink" style="color: var(--cui-accent); text-decoration: none; border-bottom: 1px solid rgba(74, 163, 255, 0.3);">Turing Patterns</a>
+      </div>
+    </div>
+    <div class="stats">
+      <span class="pill">Status: <b id="statusVal">Loading...</b></span>
+      <span class="pill">Modules: <b id="moduleCount">0</b></span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <h3>Terminal</h3>
+      <div class="canvas-wrap">
+        <div id="testTerminal" style="height: 100%;">
+          <!-- Terminal will be built by CUI.terminal -->
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Tab Test</h3>
+      <div class="canvas-wrap">
+        <div id="testTabs" style="padding: 12px;">
+          <!-- Tabs will be built by CUI.Tabs -->
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- FABs -->
+<div class="fab-row">
+  <button class="fab doc" id="docFab" title="Documentation">?</button>
+  <button class="fab sim" id="controlsFab" title="Controls">⚙</button>
+</div>
+
+<!-- Drawer -->
+<div class="drawer" id="drawer" aria-label="Controls">
+  <div class="drawer-header">
+    <h4 style="margin: 0; color: var(--cui-text);">Test Controls</h4>
+  </div>
+  <div class="drawer-controls">
+    <div class="row">
+      <label>Test Slider</label>
+      <input id="testSlider" type="range" min="0" max="100" step="1" value="50" />
+      <div class="val" id="testSlider_val">50</div>
+    </div>
+    <div class="drawer-actions">
+      <button class="btn" onclick="window.testCUI()">Run Test</button>
+      <button class="btn" onclick="CUIDebug.status()">Module Status</button>
+    </div>
+  </div>
+</div>
+
+<!-- Doc Panel -->
+<div class="docpanel" id="docpanel">
+  <div class="dochead">
+    <h4 style="margin: 0; color: var(--cui-text);">Cell UI Documentation</h4>
+  </div>
+  <div class="docbody">
+    <h4>About Cell UI</h4>
+    <p>Cell UI (CUI) is a modular, vanilla JavaScript framework for building interactive physics simulations and data-driven applications.</p>
+
+    <h4>Key Features</h4>
+    <ul>
+      <li><strong>IIFE Lifecycle System</strong> - Hot-reload modules by pasting in console</li>
+      <li><strong>Design Tokens</strong> - Centralized theming via CSS variables</li>
+      <li><strong>Event Bus</strong> - Decoupled component communication</li>
+      <li><strong>Tab System</strong> - Data-driven tabs and sub-tabs</li>
+      <li><strong>Terminal</strong> - CLI with command routing and CRT effects</li>
+      <li><strong>FABs & Drawers</strong> - Bottom-up drawer pattern</li>
+    </ul>
+
+    <h4>Console Commands</h4>
+    <p>Try these in the browser console:</p>
+    <ul>
+      <li><code>CUIDebug.modules()</code> - List loaded modules</li>
+      <li><code>CUIDebug.status()</code> - Show module status</li>
+      <li><code>CUIDebug.graph()</code> - Dependency graph</li>
+      <li><code>CUI.moduleStatus()</code> - Formatted status</li>
+    </ul>
+
+    <h4>Hot Reload Example</h4>
+    <p>Modify any module file (e.g., js/cui-tabs.js), copy the entire file, paste in console, and see it update live!</p>
+  </div>
+</div>
+
+<!-- CUI Core Modules (Load in dependency order) -->
+<script src="js/cui-core.js"></script>
+<script src="js/cui-tokens.js"></script>
+<script src="js/cui-lifecycle.js"></script>
+
+<!-- CUI Components (Can load in any order due to lifecycle system) -->
+<script src="js/cui-tabs.js"></script>
+<script src="js/cui-fab.js"></script>
+<script src="js/cui-wikipopup.js"></script>
+<script src="js/cui-command-manager.js"></script>
+<script src="js/cui-commands-builtin.js"></script>
+<script src="js/cui-commands-tokens.js"></script>
+<script src="js/cui-commands-meta.js"></script>
+<script src="js/cui-terminal.js"></script>
+<script src="js/cui-behaviors.js"></script>
+<script src="js/cui-meta.js"></script>
+
+<!-- Application Code -->
+<script>
+  // Wait for all CUI modules to load
+  CUI.ready(function(CUI) {
+    console.log('[App] CUI ready! Initializing demo...');
+
+    // Inject design tokens
+    CUI.Tokens.inject();
+
+    // Update status
+    document.getElementById('statusVal').textContent = 'Ready';
+    document.getElementById('moduleCount').textContent = CUI.listModules().length;
+
+    // =======================================================================
+    // Setup WikiPopUp
+    // =======================================================================
+
+    const wikiPopup = CUI.WikiPopUp.create({
+      id: 'mainWikiPopup',
+      onClose: () => {
+        console.log('[App] WikiPopUp closed');
+      }
+    });
+
+    // Setup Turing Patterns link
+    document.getElementById('turingPatternsLink').addEventListener('click', (e) => {
+      e.preventDefault();
+      CUI.WikiPopUp.open('mainWikiPopup', 'Turing pattern');
+    });
+
+    // =======================================================================
+    // Setup Terminal
+    // =======================================================================
+
+    // Register custom test commands
+    CUI.CommandManager.register('test', (args, context) => {
+      return {
+        output: `Test command executed!\nArguments: ${args.join(', ')}`,
+        type: 'success'
+      };
+    }, {
+      description: 'Test command example',
+      syntax: 'test [args...]',
+      examples: ['test', 'test foo bar']
+    });
+
+    CUI.CommandManager.register('hello', (args, context) => {
+      return {
+        output: 'Hello from Cell UI! 👋',
+        type: 'success'
+      };
+    }, {
+      description: 'Say hello',
+      syntax: 'hello',
+      examples: ['hello']
+    });
+
+    CUI.CommandManager.register('wiki', (args, context) => {
+      if (args.length === 0) {
+        return {
+          output: 'Usage: wiki <article_title>\nExample: wiki Turing pattern',
+          type: 'info'
+        };
+      }
+
+      const articleTitle = args.join(' ');
+      CUI.WikiPopUp.open('mainWikiPopup', articleTitle);
+
+      return {
+        output: `Opening Wikipedia article: "${articleTitle}"`,
+        type: 'success'
+      };
+    }, {
+      description: 'Open Wikipedia article in popup',
+      syntax: 'wiki <article_title>',
+      examples: ['wiki Turing pattern', 'wiki Conway\'s Game of Life', 'wiki Reaction-diffusion system']
+    });
+
+    const terminal = CUI.terminal.create({
+      id: 'testTerminal',
+      prompt: '$',
+      crtEffects: true
+    });
+
+    // Welcome message
+    terminal.log('', 'info');
+    terminal.log('  Cell UI Framework v' + CUI.VERSION, 'info');
+    terminal.log('', 'info');
+    terminal.log('Type "help" for all commands', 'info');
+    terminal.log('', 'info');
+    terminal.log('Quick start:', 'info');
+    terminal.log('  wiki Turing pattern   - Open Wikipedia article', 'info');
+    terminal.log('  tokens colors         - View design tokens', 'info');
+    terminal.log('  theme light           - Switch theme', 'info');
+    terminal.log('  layout                - Show CUI architecture diagrams', 'info');
+    terminal.log('  semantics             - View semantic naming system', 'info');
+    terminal.log('', 'info');
+    terminal.log('Try: "help <command>" for detailed info', 'info');
+    terminal.log('', 'info');
+
+    // =======================================================================
+    // Setup Tabs
+    // =======================================================================
+
+    const tabs = CUI.Tabs.create({
+      containerId: 'testTabs',
+      tabs: [
+        {
+          id: 'tab1',
+          label: 'Tab 1',
+          content: '<p>This is tab 1 content. The tab system is data-driven and supports multi-level tabs.</p>'
+        },
+        {
+          id: 'tab2',
+          label: 'Tab 2',
+          content: '<p>This is tab 2 content. Try switching between tabs!</p>'
+        },
+        {
+          id: 'tab3',
+          label: 'Tab 3',
+          content: () => {
+            const div = document.createElement('div');
+            div.innerHTML = '<p>Tab 3 uses a content function. Here are the loaded modules:</p>';
+            const ul = document.createElement('ul');
+            CUI.listModules().forEach(mod => {
+              const li = document.createElement('li');
+              li.textContent = mod;
+              ul.appendChild(li);
+            });
+            div.appendChild(ul);
+            return div;
+          }
+        }
+      ],
+      onChange: (active) => {
+        terminal.log(`Tab changed to: ${active.tab}`, 'info');
+      }
+    });
+
+    // =======================================================================
+    // Setup FABs
+    // =======================================================================
+
+    CUI.FAB.create({
+      id: 'docFab',
+      type: 'doc',
+      drawerId: 'docpanel'
+    });
+
+    CUI.FAB.create({
+      id: 'controlsFab',
+      type: 'sim',
+      drawerId: 'drawer'
+    });
+
+    // =======================================================================
+    // Setup Slider
+    // =======================================================================
+
+    const slider = CUI.Slider.create({
+      id: 'testSlider',
+      onChange: (value) => {
+        terminal.log(`Slider changed to: ${value}`, 'info');
+      }
+    });
+
+    // =======================================================================
+    // Global Test Function
+    // =======================================================================
+
+    window.testCUI = function() {
+      terminal.log('Running CUI test suite...', 'info');
+
+      // Test event system
+      CUI.Events.emit('test:event', { data: 'test' });
+      terminal.log('✓ Event system working', 'success');
+
+      // Test state management
+      CUI.State.set('testKey', 'testValue');
+      const value = CUI.State.get('testKey');
+      terminal.log(`✓ State management working (value: ${value})`, 'success');
+
+      // Test utilities
+      const clamped = CUI.Utils.clamp(150, 0, 100);
+      terminal.log(`✓ Utils working (clamp(150, 0, 100) = ${clamped})`, 'success');
+
+      terminal.log('All tests passed! ✓', 'success');
+    };
+
+    console.log('[App] Demo initialized. Try window.testCUI() or terminal commands!');
+  });
+
+  // Log lifecycle events
+  CUI.Events.on('cui:module:loaded', (data) => {
+    console.log(`[App] Module loaded: ${data.name}`);
+  });
+</script>
+
+</body>
+</html>

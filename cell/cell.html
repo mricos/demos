@@ -1,0 +1,1277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Amphiphile Self-Assembly — Vanilla JS SPA</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#11161d; --muted:#9fb2c6; --text:#dbe7f3; --accent:#4aa3ff;
+    --accent-2:#ff6b6b; --good:#29d398; --warn:#f7b955; --grid:#1a2230;
+    --z-base:1; --z-overlay:10; --z-drawer:20; --z-fab:30; --z-modal:40;
+    --terminal-green:#33ff33; --terminal-bg:#001100; --terminal-opacity:0.82;
+    --glitch-flicker:0; --glitch-scan:0;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial; overflow:hidden;}
+
+  /* Custom scrollbars */
+  ::-webkit-scrollbar{width:10px; height:10px}
+  ::-webkit-scrollbar-track{background:#0d141d; border-radius:5px}
+  ::-webkit-scrollbar-thumb{background:#223044; border-radius:5px; border:2px solid #0d141d}
+  ::-webkit-scrollbar-thumb:hover{background:#2a4566}
+  *{scrollbar-width:thin; scrollbar-color:#223044 #0d141d}
+  .wrap{position:relative; height:100%; width:100%; display:grid; grid-template-rows:auto 1fr; gap:8px; padding:12px 12px 84px 12px;}
+  header{display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center;}
+  .title{font-weight:600; letter-spacing:.2px}
+  .stats{display:grid; grid-auto-flow:column; gap:18px; justify-content:end; align-items:center; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .pill{padding:4px 8px; border-radius:999px; background:var(--panel); color:var(--text); border:1px solid #18202c}
+  .pill b{color:var(--accent); font-weight:600}
+  .legend{display:flex; gap:12px; align-items:center; color:var(--muted)}
+  .swatch{width:10px; height:10px; border-radius:2px; display:inline-block; margin-right:6px}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; height:100%;}
+  .card{position:relative; background:var(--panel); border:1px solid #18202c; border-radius:14px; overflow:hidden; box-shadow:0 10px 24px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.02);}
+  .card h3{margin:0; padding:10px 12px; font-weight:600; background:#0e141c; border-bottom:1px solid #18202c}
+  .canvas-wrap{position:relative; height:calc(100% - 42px)}
+  canvas{display:block; width:100%; height:100%; background:linear-gradient(#0d131b,#0c1219)}
+  .overlay-note{position:absolute; left:12px; bottom:10px; color:var(--muted); font-size:12px; text-shadow:0 1px 0 #000a;}
+
+  /* FABs */
+  .fab-row{position:fixed; right:18px; bottom:18px; display:flex; gap:12px; align-items:center; z-index:var(--z-fab);}
+  .fab{width:58px; height:58px; border-radius:50%; display:grid; place-items:center; font-size:26px; border:none; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease, background .25s ease; box-shadow:0 10px 24px rgba(0,0,0,.35)}
+  .fab:hover{transform:translateY(-2px); box-shadow:0 14px 30px rgba(0,0,0,.42)}
+  .fab.sim{background:var(--accent); color:#05101c}
+  .fab.doc{background:var(--good); color:#06140f}
+  .fab.critical{animation:critical-pulse 1.8s ease-in-out infinite}
+  @keyframes critical-pulse{0%,100%{box-shadow:0 0 0 0 rgba(247,185,85,.0), 0 10px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 0 22px rgba(247,185,85,.12), 0 12px 28px rgba(0,0,0,.4)}}
+
+  /* Right drawer (simulation controls) */
+  .drawer{position:fixed; right:18px; bottom:86px; width:min(460px,calc(100% - 36px)); max-height:min(72vh,580px); overflow:hidden; padding:0; background:rgba(14,20,28,var(--terminal-opacity)); backdrop-filter:blur(16px) saturate(1.3); -webkit-backdrop-filter:blur(16px) saturate(1.3); border:1px solid rgba(25,34,50,.6); border-radius:16px; z-index:var(--z-modal); box-shadow:0 10px 28px rgba(0,0,0,.5); display:none;}
+  .drawer.open{display:flex; flex-direction:column;}
+
+  /* Terminal console */
+  .terminal{position:relative; height:384px; width:100%; background:var(--terminal-bg); border-top:1px solid #1a2636; font-family:'Courier New',Courier,monospace; font-size:11px; overflow:hidden;}
+  .terminal::before{content:''; position:absolute; inset:0; background:repeating-linear-gradient(0deg, rgba(0,0,0,.15) 0px, transparent 1px, transparent 2px, rgba(0,0,0,.15) 3px); pointer-events:none; opacity:calc(0.3 + var(--glitch-scan) * 0.4); z-index:2;}
+  .terminal::after{content:''; position:absolute; inset:0; background:var(--terminal-bg); opacity:calc(var(--glitch-flicker) * 0.3); pointer-events:none; z-index:1;}
+  .terminal-output{height:100%; overflow-y:auto; padding:8px 12px; color:var(--terminal-green); text-shadow:0 0 5px var(--terminal-green); line-height:1.4;}
+  .terminal-output::-webkit-scrollbar{width:8px}
+  .terminal-output::-webkit-scrollbar-track{background:#000}
+  .terminal-output::-webkit-scrollbar-thumb{background:#1a3a1a; border-radius:4px}
+  .terminal-line{margin:2px 0; white-space:pre-wrap; word-break:break-all;}
+  .terminal-line.cmd{color:#88ff88}
+  .terminal-line.err{color:#ff4444; text-shadow:0 0 5px #ff4444}
+
+  /* CLI input */
+  .cli-input-wrap{padding:8px 12px; background:#000a00; border-bottom:1px solid #1a3a1a;}
+  .cli-input{width:100%; background:transparent; border:none; color:var(--terminal-green); font-family:'Courier New',Courier,monospace; font-size:11px; outline:none; text-shadow:0 0 5px var(--terminal-green);}
+  .cli-prompt{color:#88ff88; margin-right:8px;}
+
+  /* Control tabs (top-level physics mode selector) */
+  .drawer-header{padding:10px 12px 8px 12px; background:rgba(11,17,26,.85); border-bottom:1px solid rgba(25,34,50,.8); border-radius:16px 16px 0 0;}
+  .control-tabs{display:flex; gap:6px; align-items:center;}
+  .control-tab{appearance:none; padding:7px 16px; border-radius:9px; border:1px solid #1f2b3c; background:#0f1a27; color:var(--muted); cursor:pointer; font-size:13px; font-weight:600; transition:all .15s ease; letter-spacing:.3px}
+  .control-tab:hover{border-color:#2a4566; background:#132237}
+  .control-tab.active{background:#1a2a3f; border-color:#27405f; color:var(--text); box-shadow:0 0 0 1px rgba(74,163,255,.08)}
+  .control-tab:disabled{opacity:0.4; cursor:not-allowed; color:#556070}
+
+  /* Controls section (boxed with header) */
+  .drawer-controls{flex:1; overflow-y:auto; padding:12px; background:rgba(14,20,28,.4);}
+  .drawer-controls::-webkit-scrollbar{width:8px}
+  .drawer-controls::-webkit-scrollbar-track{background:#0a0f16}
+  .drawer-controls::-webkit-scrollbar-thumb{background:#1a2636; border-radius:4px}
+  .control-section{display:none}
+  .control-section.active{display:block}
+  .row{display:grid; grid-template-columns:140px 1fr auto; gap:8px; align-items:center; margin:8px 0}
+  .row label{color:var(--muted)}
+  input[type=range]{width:100%; accent-color: var(--accent)}
+  .val{min-width:64px; text-align:right; color:var(--text); font-variant-numeric:tabular-nums}
+  .btn{appearance:none; border:1px solid #223044; background:#111a26; color:var(--text); padding:8px 12px; border-radius:10px; cursor:pointer; transition:all .15s ease}
+  .btn:hover{border-color:#2a4a6f; background:#172534}
+  .btn.primary{border-color:#284b7a; background:#0f2136}
+  .btn.danger{border-color:#5a1b1b; background:#221012; color:#ffd0d0}
+
+  /* R₀ control mode dropdown */
+  .combo-btn{position:relative; display:inline-block; width:100%}
+  .combo-btn-trigger{appearance:none; width:100%; border:1px solid #223044; background:#111a26; color:var(--text); padding:8px 12px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; transition:all .15s ease}
+  .combo-btn-trigger:hover{border-color:#2a4a6f; background:#172534}
+  .combo-btn-trigger::after{content:'▾'; margin-left:8px; color:var(--muted); font-size:10px}
+  .combo-btn-trigger.open{border-color:#27405f; background:#132237}
+  .combo-dropdown{position:absolute; top:calc(100% + 4px); left:0; right:0; background:#0e141c; border:1px solid #223044; border-radius:10px; box-shadow:0 8px 20px rgba(0,0,0,.4); z-index:var(--z-modal); display:none; overflow:hidden}
+  .combo-dropdown.open{display:block}
+  .combo-option{appearance:none; width:100%; border:none; background:transparent; color:var(--text); padding:10px 12px; text-align:left; cursor:pointer; transition:background .15s ease; display:flex; align-items:center; justify-content:space-between}
+  .combo-option:hover{background:#152136}
+  .combo-option.selected{background:#0f1a27; color:var(--accent)}
+  .combo-option.selected::after{content:'✓'; color:var(--accent); font-size:14px}
+
+  /* Presets section (unboxed, below controls) */
+  .presets-section{padding:12px; background:transparent}
+  .presets-label{color:var(--muted); font-size:12px; font-weight:600; letter-spacing:.8px; text-transform:uppercase; margin-bottom:8px; opacity:0.8}
+  .preset-tabs{display:flex; gap:6px; align-items:center; justify-content:center; margin-bottom:8px}
+  .preset-tab{appearance:none; padding:6px 14px; border-radius:8px; border:1px solid #1f2b3c; background:#0f1a27; color:var(--muted); cursor:pointer; font-size:13px; font-weight:500; transition:all .15s ease}
+  .preset-tab:hover{border-color:#2a4566; background:#132237}
+  .preset-tab.active{background:#132237; border-color:#27405f; color:var(--text)}
+  .preset-content{display:none; overflow:hidden; transition:all .25s ease}
+  .preset-content.open{display:block}
+  .button-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px}
+  .grid-btn{appearance:none; border:1px solid #223044; background:#111a26; color:var(--text); padding:9px 12px; border-radius:10px; cursor:pointer; font-size:13px; text-align:center; transition:all .15s ease}
+  .grid-btn:hover{background:#152136; border-color:#2a4566; transform:translateY(-1px)}
+  .grid-btn.selected{background:#0f2136; border-color:#284b7a; color:var(--accent)}
+  .drawer-actions{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px}
+
+  /* Right doc panel */
+  .docpanel{position:fixed; right:18px; bottom:154px; width:min(560px,calc(100% - 36px)); max-height:min(78vh,680px); overflow:auto; padding:0; background:rgba(15,21,31,.88); backdrop-filter:blur(14px) saturate(1.3); -webkit-backdrop-filter:blur(14px) saturate(1.3); border:1px solid rgba(26,38,54,.85); border-radius:18px; z-index:var(--z-drawer); box-shadow:0 10px 28px rgba(0,0,0,.55); display:none;}
+  .docpanel.open{display:block}
+  .dochead{position:sticky; top:0; background:rgba(13,20,29,.92); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-bottom:1px solid rgba(26,38,54,.9); padding:10px 12px}
+  .tabs{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .tab{padding:8px 10px; border-radius:10px; border:1px solid #1f2b3c; background:#0f1a27; color:var(--text); cursor:pointer; font-weight:600;}
+  .tab[aria-selected="true"]{background:#132237; border-color:#27405f}
+  .subtabs{display:none; gap:6px; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px solid rgba(26,38,54,.5)}
+  .subtabs.active{display:flex}
+  .subtab{padding:6px 8px; border-radius:8px; border:1px solid #1a2836; background:#0a0f16; color:var(--muted); cursor:pointer; font-size:13px; font-weight:500;}
+  .subtab[aria-selected="true"]{background:#0f1a27; border-color:#1f2b3c; color:var(--text)}
+  .docbody{padding:14px 16px; font-size:18px; line-height:1.6}
+  .docbody section{min-height:500px}
+  .docbody h4{margin:12px 0 6px 0; font-size:18px}
+  .docbody p{margin:0 0 12px 0; color:#e6eef9}
+  .docbody code{background:#0c1219; border:1px solid #1a2636; padding:1px 6px; border-radius:8px}
+  .docbody ul{margin:6px 0 12px 18px}
+  .docbody li{margin:4px 0}
+  .sir-s{color:#4aa3ff; font-weight:600}
+  .sir-i{color:#ff6b6b; font-weight:600}
+  .sir-r{color:#29d398; font-weight:600}
+  .r-number{color:#f7b955; font-weight:600}
+  .param-set{cursor:pointer; padding:2px 5px; border-radius:6px; background:rgba(74,163,255,.12); border:1px solid rgba(74,163,255,.25); transition:all .15s ease; font-family:monospace; font-weight:600}
+  .param-set:hover{background:rgba(74,163,255,.22); border-color:rgba(74,163,255,.45); transform:translateY(-1px)}
+  .example-grid{display:grid; gap:10px; margin:12px 0}
+  .example-btn{appearance:none; border:1px solid #223044; background:#111a26; color:var(--text); padding:10px 14px; border-radius:10px; cursor:pointer; text-align:left; transition:all .15s ease}
+  .example-btn:hover{background:#152136; border-color:#2a4566; transform:translateY(-1px)}
+  .example-btn .example-title{font-weight:600; margin-bottom:4px; color:var(--accent)}
+  .example-btn .example-desc{font-size:13px; color:var(--muted); line-height:1.4}
+
+  /* Critical overlay */
+  .critical-overlay{pointer-events:none; position:fixed; inset:0; opacity:0; transition:opacity .3s ease; background:radial-gradient(60% 50% at 70% 80%, rgba(247,185,85,.06), rgba(247,185,85,0) 60%), radial-gradient(40% 40% at 20% 20%, rgba(255,107,107,.05), rgba(255,107,107,0) 60%); z-index:var(--z-overlay);}
+  .critical .critical-overlay{opacity:1}
+
+  .axis-label{position:absolute; right:10px; top:8px; color:var(--muted); font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header>
+    <div class="title">Amphiphile Self-Assembly — Heads/Tails with Implicit Solvent</div>
+    <div class="stats">
+      <span class="pill">N=<b id="nVal">0</b></span>
+      <span class="pill">S (nematic)=<b id="SVal">0.00</b></span>
+      <span class="pill">Clusters=<b id="cluVal">0</b></span>
+      <span class="pill">ϕ=<b id="phiVal">0.000</b></span>
+      <span class="pill">Θ≈<b id="thetaVal">0.00</b></span>
+      <span class="legend">
+        <span><span class="swatch" style="background:#4aa3ff"></span>Head</span>
+        <span><span class="swatch" style="background:#ff6b6b"></span>Tail</span>
+      </span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="card" id="fieldCard">
+      <h3>2D Field</h3>
+      <div class="canvas-wrap">
+        <canvas id="field"></canvas>
+        <div class="overlay-note">Each amphiphile is a dimer (Head–Tail). Tail–tail attract; head–tail repel; bonds are stiff. Periodic boundaries.</div>
+      </div>
+    </section>
+    <section class="card">
+      <h3>Order/Clusters</h3>
+      <div class="canvas-wrap">
+        <canvas id="chart"></canvas>
+        <div class="axis-label">time (s)</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- FABs -->
+<div class="fab-row">
+  <button class="fab doc" id="docFab" title="Documentation">?</button>
+  <button class="fab sim" id="fab" title="Simulation Controls">⟲</button>
+</div>
+
+<!-- Right controls drawer -->
+<div class="drawer" id="drawer" aria-label="Controls">
+  <!-- Control tab selector (physics mode) -->
+  <div class="drawer-header">
+    <div class="control-tabs">
+      <button class="control-tab active" id="dimerControlTab" data-control="dimer">Dimers</button>
+      <button class="control-tab" id="pHControlTab" data-control="pH" disabled>pH Effects</button>
+      <button class="control-tab" id="cytoplasmControlTab" data-control="cytoplasm" disabled>Cytoplasm</button>
+    </div>
+  </div>
+
+  <!-- Controls for active tab -->
+  <div class="drawer-controls">
+    <div class="control-section active" id="sirControls">
+  <div class="row"><label>Population N</label>
+    <input id="N" type="range" min="50" max="1500" step="10" value="400" />
+    <div class="val" id="N_val">400</div>
+  </div>
+  <div class="row"><label>Initial <span class="sir-i">infected</span> i₀</label>
+    <input id="i0" type="range" min="0" max="60" step="1" value="6" />
+    <div class="val" id="i0_val">6</div>
+  </div>
+  <div class="row"><label>Speed v (px/s)</label>
+    <input id="speed" type="range" min="10" max="180" step="5" value="90" />
+    <div class="val" id="speed_val">90</div>
+  </div>
+  <div class="row"><label>Contact radius r (px)</label>
+    <input id="radius" type="range" min="3" max="16" step="1" value="8" />
+    <div class="val" id="radius_val">8</div>
+  </div>
+  <div class="row"><label><span class="sir-i">Infectivity</span> p (per contact)</label>
+    <input id="p" type="range" min="0.02" max="0.9" step="0.01" value="0.22" />
+    <div class="val" id="p_val">0.22</div>
+  </div>
+  <div class="row"><label><span class="sir-r">Recovery</span> rate γ (1/s)</label>
+    <input id="gamma" type="range" min="0.001" max="0.2" step="0.001" value="0.02" />
+    <div class="val" id="gamma_val">0.020</div>
+  </div>
+  <div class="row"><label>Noise on p (±%)</label>
+    <input id="noise" type="range" min="0" max="60" step="2" value="0" />
+    <div class="val" id="noise_val">0%</div>
+  </div>
+  <div class="row" style="grid-template-columns:140px 1fr; gap:8px; margin:12px 0 8px 0">
+    <label style="align-self:center">R₀ Control Mode</label>
+    <div class="combo-btn">
+      <button class="combo-btn-trigger" id="r0ModeBtn">
+        <span id="r0ModeLabel">Computed</span>
+      </button>
+      <div class="combo-dropdown" id="r0ModeDropdown">
+        <button class="combo-option selected" data-mode="computed">Computed (from parameters)</button>
+        <button class="combo-option" data-mode="manual">Set R₀ (adjust infectivity)</button>
+      </div>
+    </div>
+  </div>
+  <div class="row" id="r0ManualRow" style="display:none">
+    <label>Target <span class="r-number">R₀</span></label>
+    <input id="r0Target" type="range" min="0.5" max="5.0" step="0.1" value="2.0" />
+    <div class="val" id="r0Target_val">2.0</div>
+  </div>
+  <div class="row"><label>Chart horizon (s)</label>
+    <input id="horizon" type="range" min="20" max="240" step="10" value="120" />
+    <div class="val" id="horizon_val">120</div>
+  </div>
+    </div><!-- end sirControls -->
+  </div><!-- end drawer-controls -->
+
+  <!-- Presets section (dynamic based on control tab) -->
+  <div class="presets-section">
+    <div class="presets-label">Presets</div>
+    <div class="preset-tabs">
+      <button class="preset-tab" id="scenarioTab" data-preset-type="scenario">Scenario</button>
+      <button class="preset-tab" id="initTab" data-preset-type="init">Init</button>
+    </div>
+    <div class="preset-content" id="scenarioContent">
+      <div class="button-grid" id="scenarioGrid">
+        <button class="grid-btn" data-preset="mild">Mild Outbreak</button>
+        <button class="grid-btn" data-preset="pandemic">Pandemic</button>
+        <button class="grid-btn" data-preset="critical">Critical R₀≈1</button>
+        <button class="grid-btn" data-preset="waves">Epidemic Waves</button>
+        <button class="grid-btn" data-preset="clusters">Percolation</button>
+        <button class="grid-btn" data-preset="dense">Dense Pop</button>
+      </div>
+    </div>
+    <div class="preset-content" id="initContent">
+      <div class="button-grid" id="initGrid">
+        <button class="grid-btn selected" data-pattern="random">Random</button>
+        <button class="grid-btn" data-pattern="cluster">Cluster</button>
+        <button class="grid-btn" data-pattern="line">H-Line</button>
+        <button class="grid-btn" data-pattern="vertical">V-Line</button>
+        <button class="grid-btn" data-pattern="grid">Grid</button>
+        <button class="grid-btn" data-pattern="corners">Corners</button>
+      </div>
+    </div>
+    <div class="drawer-actions">
+      <button class="btn primary" id="resetBtn">Reset</button>
+      <button class="btn" id="pauseBtn">Pause</button>
+    </div>
+  </div>
+
+  <!-- Terminal Console -->
+  <div class="terminal" id="terminal">
+    <div class="terminal-output" id="terminalOutput"></div>
+  </div>
+
+  <!-- CLI Input -->
+  <div class="cli-input-wrap">
+    <span class="cli-prompt">></span><input type="text" class="cli-input" id="cliInput" placeholder="help" autocomplete="off" />
+  </div>
+</div>
+
+<!-- Left documentation panel -->
+<div class="docpanel" id="docPanel" role="dialog" aria-label="Documentation">
+  <div class="dochead">
+    <div class="tabs" role="tablist" aria-label="Docs tabs">
+      <button class="tab" role="tab" aria-selected="true" aria-controls="tabModel" id="tabBtnModel">Model</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="tabNumerics" id="tabBtnNumerics">Numerics</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="tabPatterns" id="tabBtnPatterns">Patterns</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="tabCatalyst" id="tabBtnCatalyst">Catalyst</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="tabExamples" id="tabBtnExamples">Examples</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="tabConfig" id="tabBtnConfig">Config</button>
+    </div>
+    <div class="subtabs" id="numericsSubtabs" role="tablist" aria-label="Numerics subtabs">
+      <button class="subtab" role="tab" aria-selected="true" aria-controls="tabNumThreshold" id="tabBtnNumThreshold">Threshold Dynamics</button>
+      <button class="subtab" role="tab" aria-selected="false" aria-controls="tabNumR0Control" id="tabBtnNumR0Control">R₀ Control</button>
+    </div>
+    <div class="subtabs" id="catalystSubtabs" role="tablist" aria-label="Catalyst subtabs">
+      <button class="subtab" role="tab" aria-selected="true" aria-controls="tabCatMethods" id="tabBtnCatMethods">Methods</button>
+      <button class="subtab" role="tab" aria-selected="false" aria-controls="tabCatPhenomena" id="tabBtnCatPhenomena">Phenomena</button>
+      <button class="subtab" role="tab" aria-selected="false" aria-controls="tabCatTuring" id="tabBtnCatTuring">Turing Patterns</button>
+    </div>
+  </div>
+  <div class="docbody">
+    <section id="tabModel">
+      <h4>Compartment Model</h4>
+      <p>Agents are <code class="sir-s">S</code>usceptible, <code class="sir-i">I</code>nfected, or <code class="sir-r">R</code>ecovered. Motion is a bounded random walk with specular reflection. A <span class="sir-s">susceptible</span> within radius <code>r</code> of an <span class="sir-i">infected</span> is infected with Bernoulli probability <code>p</code> per contact. <span class="sir-r">Recoveries</span> are a Poisson process with hazard <code>γ</code>.</p>
+
+      <h4 style="margin-top:16px">Controls</h4>
+      <ul>
+        <li><b>N</b>: live-resized population. Additions spawn as <span class="sir-s">susceptible</span>; removals are unbiased across compartments.</li>
+        <li><b>i₀</b>: seeds/removes <span class="sir-i">infected</span> instantly to match the target count.</li>
+        <li><b>v,r,p,γ</b>: update dynamics immediately. <b>Noise</b> perturbs <code>p</code> each step.</li>
+        <li><b>Horizon</b>: trims the plotted window; does not affect dynamics.</li>
+      </ul>
+
+      <h4 style="margin-top:16px">Dynamical Analogies</h4>
+      <p>The SIR equations represent a <b>3-state flow system</b> with conversion rules. This pattern appears across nature:</p>
+      <ul>
+        <li><b>Chemical kinetics</b>: <span class="sir-s">Reactant</span> → <span class="sir-i">Intermediate</span> → <span class="sir-r">Product</span> (e.g., autocatalytic reactions)</li>
+        <li><b>Cell morphogenesis</b>: Ion gradients (Na⁺/K⁺/Ca²⁺) driving bioelectric patterns that guide tissue development</li>
+        <li><b>Predator-prey</b>: Resource → Consumer → Decomposer cycles in ecological food webs</li>
+        <li><b>Social dynamics</b>: Information cascades (Unaware → Engaged → Saturated) in memetic spread</li>
+        <li><b>Material states</b>: Phase transitions with metastable intermediates (solid → liquid → gas)</li>
+      </ul>
+      <p>All share: <b>conservation law</b> (N=<span class="sir-s">S</span>+<span class="sir-i">I</span>+<span class="sir-r">R</span>), <b>threshold behavior</b> (<span class="r-number">R₀</span> critical point), and <b>irreversible flow</b> (no <span class="sir-r">R</span>→<span class="sir-s">S</span> backflow).</p>
+      <p><i>Unique to spatial SIR:</i> The agent-based approach couples diffusion with reaction, revealing pattern formation—akin to Turing morphogens or Belousov-Zhabotinsky waves.</p>
+    </section>
+    <section id="tabNumThreshold" hidden>
+      <h4>Threshold Dynamics</h4>
+
+      <h4 style="font-size:16px; margin-top:14px">Numerical Implementation</h4>
+      <p>Fixed sub-stepping at <code>h=1/60</code> s with capped <code>Δt≤50</code> ms. Pair checks are O(N²) for clarity; N≤1500 is supported. Canvas is pixel-scaled by device pixel ratio.</p>
+
+      <h4 style="font-size:16px; margin-top:14px">Basic Reproduction Number (R₀)</h4>
+      <p>The kinetic approximation yields:</p>
+      <p style="text-align:center; font-size:16px; margin:12px 0"><code><span class="r-number">R₀</span> ≈ (2 r v ρ p) / γ</code></p>
+      <p>Where:</p>
+      <ul>
+        <li><b>r</b> = contact radius (px)</li>
+        <li><b>v</b> = agent speed (px/s)</li>
+        <li><b>ρ</b> = areal density N/A (agents/px²)</li>
+        <li><b>p</b> = infectivity (probability per contact)</li>
+        <li><b>γ</b> = recovery rate (1/s)</li>
+      </ul>
+
+      <h4 style="font-size:16px; margin-top:14px">Effective Reproduction Number (Rₜ)</h4>
+      <p>The time-varying effective reproduction number accounts for depletion of susceptibles:</p>
+      <p style="text-align:center; font-size:16px; margin:12px 0"><code><span class="r-number">Rₜ</span> = <span class="r-number">R₀</span> · (<span class="sir-s">S</span>/N)</code></p>
+      <p>As the epidemic progresses, <span class="sir-s">S</span> decreases, so <span class="r-number">Rₜ</span> falls even if behavior doesn't change.</p>
+
+      <h4 style="font-size:16px; margin-top:14px">Critical Threshold</h4>
+      <p>When <code><span class="r-number">R₀</span>≈1</code> or <code><span class="r-number">Rₜ</span>≈1</code>, the system is at the <b>epidemic threshold</b>:</p>
+      <ul>
+        <li><b>R₀ &gt; 1</b>: Epidemic grows exponentially</li>
+        <li><b>R₀ ≈ 1</b>: Metastable critical regime (percolation clusters)</li>
+        <li><b>R₀ &lt; 1</b>: Epidemic dies out stochastically</li>
+      </ul>
+      <p>The UI enters <b>critical mode</b> near threshold: pulsing FAB, ambient overlay, velocity damping to emphasize marginal dynamics.</p>
+    </section>
+
+    <section id="tabNumR0Control" hidden>
+      <h4>R₀ Control Mode</h4>
+      <p>By default, R₀ is <b>computed</b> from the simulation parameters (r, v, ρ, p, γ). However, you can switch to <b>manual R₀ mode</b> to directly set a target R₀ value.</p>
+
+      <h4 style="font-size:16px; margin-top:14px">How It Works</h4>
+      <p>In the control panel, use the <b>R₀ Control Mode</b> toggle:</p>
+      <ul>
+        <li><b>Computed</b> (default): R₀ = (2 r v ρ p) / γ is displayed based on current parameters</li>
+        <li><b>Set R₀</b> (manual): You specify a target R₀, and the system automatically adjusts <span class="sir-i">infectivity p</span> to achieve it</li>
+      </ul>
+
+      <h4 style="font-size:16px; margin-top:14px">The Mathematics</h4>
+      <p>When you set a target R₀, the system solves for infectivity:</p>
+      <p style="text-align:center; font-size:16px; margin:12px 0"><code>p = (R₀ · γ) / (2 r v ρ)</code></p>
+      <p>This is the inverse of the R₀ formula. The computed <code>p</code> is clamped to [0.02, 0.9] to remain physically realistic.</p>
+
+      <h4 style="font-size:16px; margin-top:14px">Behavior in Manual Mode</h4>
+      <ul>
+        <li>When you change <b>r, v, N, or γ</b>, the system <i>automatically re-adjusts p</i> to maintain your target R₀</li>
+        <li>The <span class="sir-i">infectivity slider p</span> updates visually to show the calculated value</li>
+        <li>You can manually adjust p directly, which will break the R₀ lock (switch back to Computed mode)</li>
+        <li>The displayed R₀ always shows the <i>actual</i> value given current parameters</li>
+      </ul>
+
+      <h4 style="font-size:16px; margin-top:14px">Why This Is Useful</h4>
+      <p><b>Exploring threshold behavior:</b> Set R₀ = 1.0 to study critical dynamics without guessing parameter combinations.</p>
+      <p><b>Comparing scenarios:</b> Fix R₀ = 2.5 while varying speed or contact radius to see how spatial structure affects outcomes at constant reproductive rate.</p>
+      <p><b>Educational:</b> Demonstrates that R₀ is an <i>emergent property</i> determined by multiple coupled parameters, not a single "infectiousness" knob.</p>
+
+      <h4 style="font-size:16px; margin-top:14px">Limitations</h4>
+      <ul>
+        <li>If the required <code>p</code> falls outside [0.02, 0.9], the system clamps it, so actual R₀ may differ from target</li>
+        <li>Only <code>p</code> is adjusted; alternatively, one could solve for γ or r, but p is the most intuitive parameter</li>
+        <li>Population density ρ changes with canvas size and N, which can cause R₀ drift on window resize</li>
+      </ul>
+
+      <h4 style="font-size:16px; margin-top:14px">Example Workflow</h4>
+      <p><b>1.</b> Switch to <b>Set R₀</b> mode<br>
+      <b>2.</b> Set target R₀ = 1.2 (just above epidemic threshold)<br>
+      <b>3.</b> Adjust <b>speed v</b> or <b>radius r</b> and observe how <code>p</code> auto-adjusts to compensate<br>
+      <b>4.</b> Try different <b>initialization patterns</b> to see spatial heterogeneity at constant R₀<br>
+      <b>5.</b> Switch back to <b>Computed</b> mode to explore freely</p>
+    </section>
+    <section id="tabExamples" hidden>
+      <h4>Example Scenarios</h4>
+      <p>Click an example to load preset parameters. Each demonstrates different epidemic dynamics.</p>
+      <div class="example-grid">
+        <button class="example-btn" data-example="mild">
+          <div class="example-title">Mild Outbreak</div>
+          <div class="example-desc">Low infectivity (p=0.1), slow spread, <span class="r-number">R₀</span> ≈ 1.8</div>
+        </button>
+        <button class="example-btn" data-example="fastspread">
+          <div class="example-title">Fast Spread</div>
+          <div class="example-desc">High speed & infectivity (p=0.4, v=150), rapid transmission</div>
+        </button>
+        <button class="example-btn" data-example="critical">
+          <div class="example-title">Critical Threshold</div>
+          <div class="example-desc"><span class="r-number">R₀</span> ≈ 1, balanced at epidemic threshold</div>
+        </button>
+        <button class="example-btn" data-example="superspreader">
+          <div class="example-title">Superspreader Event</div>
+          <div class="example-desc">High initial <span class="sir-i">infected</span> (i₀=30), dense population</div>
+        </button>
+        <button class="example-btn" data-example="slowburn">
+          <div class="example-title">Slow Burn</div>
+          <div class="example-desc">Low speed (v=30), slow <span class="sir-r">recovery</span> (γ=0.005), prolonged epidemic</div>
+        </button>
+        <button class="example-btn" data-example="fastrecovery">
+          <div class="example-title">Fast <span class="sir-r">Recovery</span></div>
+          <div class="example-desc">High <span class="sir-r">recovery</span> rate (γ=0.08), short infectious period</div>
+        </button>
+      </div>
+    </section>
+    <section id="tabPatterns" hidden>
+      <h4>Spatial Pattern Formation</h4>
+      <p>Coupling agent mobility with <span class="sir-s">S</span>→<span class="sir-i">I</span>→<span class="sir-r">R</span> transitions creates emergent 2D structures. What patterns appear depends on the balance between <b>diffusion</b> (speed v) and <b>reaction</b> (infectivity p, recovery γ).</p>
+      <p style="font-size:13px; color:var(--muted); margin:8px 0"><i>Click parameter values to apply them instantly</i></p>
+
+      <h4 style="font-size:16px; margin-top:16px">1. Traveling Epidemic Waves</h4>
+      <p style="margin-left:20px"><b>When:</b>
+           <span class="r-number">R₀</span> &gt; 1.5, moderate γ</p>
+      <p style="margin-left:20px"><b>What:</b>
+           Circular or spiral <span class="sir-i">infection fronts</span> expand radially from seed points. Behind each wave, a trailing <span class="sir-r">recovery zone</span> forms, leaving immune "burned" regions.</p>
+      <p style="margin-left:20px"><b>Speed:</b>
+           Wave velocity ∝ √(v·p/γ). Faster motion or higher infectivity → faster spread.</p>
+      <p style="margin-left:20px"><b>Try:</b>
+           Set <span class="param-set" data-param="p" data-value="0.35">p=0.35</span>, <span class="param-set" data-param="speed" data-value="120">v=120</span>, <span class="param-set" data-param="gamma" data-value="0.02">γ=0.02</span>—watch concentric rings propagate.</p>
+
+      <h4 style="font-size:16px; margin-top:16px">2. Percolation Clusters (Critical Regime)</h4>
+      <p style="margin-left:20px"><b>When:</b>
+           <span class="r-number">R₀</span> ≈ 1</p>
+      <p style="margin-left:20px"><b>What:</b>
+           Infection spreads along narrow, branching paths—fractal-like tendrils. Some clusters <span class="sir-r">recover</span> before spreading; others barely percolate through gaps in the <span class="sir-s">susceptible</span> population.</p>
+      <p style="margin-left:20px"><b>Physics:</b>
+           Near criticality, correlation length diverges. Small fluctuations have macroscopic consequences.</p>
+      <p style="margin-left:20px"><b>Try:</b>
+           Set <span class="param-set" data-param="p" data-value="0.15">p=0.15</span>, <span class="param-set" data-param="gamma" data-value="0.025">γ=0.025</span>, <span class="param-set" data-param="speed" data-value="60">v=60</span>—observe dendritic growth and local extinctions.</p>
+
+      <h4 style="font-size:16px; margin-top:16px">3. Stochastic Patchiness (With Noise)</h4>
+      <p style="margin-left:20px"><b>When:</b>
+           Noise &gt; 20%</p>
+      <p style="margin-left:20px"><b>What:</b>
+           Spatially heterogeneous infectivity creates irregular "hotspots" and "coldspots." Some regions saturate while adjacent areas remain <span class="sir-s">susceptible</span>.</p>
+      <p style="margin-left:20px"><b>Mechanism:</b>
+           Random variation in p breaks spatial symmetry, preventing uniform wave fronts.</p>
+      <p style="margin-left:20px"><b>Try:</b>
+           Set <span class="param-set" data-param="noise" data-value="40">noise=40%</span>, <span class="param-set" data-param="p" data-value="0.22">p=0.22</span>—watch patchy, ragged invasion.</p>
+
+      <h4 style="font-size:16px; margin-top:16px">Why NOT Turing Patterns?</h4>
+      <p>Classic Turing structures (stripes, spots) require <b>differential diffusion</b> + <b>local activation/long-range inhibition</b>. Here, all agents diffuse identically, and SIR is globally transient (→ all <span class="sir-r">R</span>). You get <i>propagating</i> waves, not <i>stationary</i> periodic patterns.</p>
+
+      <h4 style="font-size:16px; margin-top:16px">Optimal Parameters for Pattern Visibility</h4>
+      <ul>
+        <li><b>Low γ</b> (<span class="param-set" data-param="gamma" data-value="0.005">0.005</span>–<span class="param-set" data-param="gamma" data-value="0.01">0.01</span>): Persistent <span class="sir-i">infection</span> zones → sharp wave boundaries</li>
+        <li><b>Moderate p</b> (<span class="param-set" data-param="p" data-value="0.15">0.15</span>–<span class="param-set" data-param="p" data-value="0.25">0.25</span>): Balances infection spread vs. stochastic die-off</li>
+        <li><b>High N</b> (&gt;<span class="param-set" data-param="N" data-value="300">300</span>): Reduces noise, reveals deterministic structure</li>
+        <li><b><span class="r-number">R₀</span> near critical</b>: Try <span class="param-set" data-param="p" data-value="0.18">p=0.18</span>, <span class="param-set" data-param="gamma" data-value="0.025">γ=0.025</span>, <span class="param-set" data-param="speed" data-value="60">v=60</span> for intricate spatial dynamics</li>
+      </ul>
+    </section>
+    <section id="tabCatMethods" hidden>
+      <h4>Catalysis Methods in Reaction-Diffusion Systems</h4>
+      <p>A catalyst accelerates reactions by bringing stochastic processes closer together—a form of "fluid-flow sync." In spatial SIR, catalysts <b>accelerate local equilibrium</b> without being consumed, transforming diffusion-limited kinetics into reaction-limited kinetics.</p>
+
+      <h4 style="font-size:16px; margin-top:14px">Method 1: Mobile Catalyst Agents (C)</h4>
+      <p>Add a 4th agent type that moves rapidly (v_cat = 2v) and boosts infectivity within radius r_cat. Near catalyst: p_eff = p × k_cat (e.g., k=2.5). Catalysts are conserved—they cycle through <span class="sir-s">S</span>/<span class="sir-i">I</span>/<span class="sir-r">R</span> interactions without depleting.</p>
+      <p><i>Visual effect:</i> Glowing "trails" of enhanced infection following purple/yellow catalyst particles. Creates <b>streaking patterns</b> and <b>preferential pathways</b>.</p>
+
+      <h4 style="font-size:16px; margin-top:14px">Method 2: Fixed Catalytic Sites</h4>
+      <p>Spatial patches (e.g., 10% of field) where p is permanently elevated. Like enzyme-coated membrane regions.</p>
+      <p><i>Visual effect:</i> Infection <b>channels through corridors</b>, avoiding non-catalytic zones. Creates <b>dendritic preferential growth</b> along catalytic "veins."</p>
+
+      <h4 style="font-size:16px; margin-top:14px">Method 3: Aggregation Catalysts (Synchronization)</h4>
+      <p>Catalyst exerts weak attractive force on <span class="sir-s">S</span> and <span class="sir-i">I</span> agents within radius r_agg, transiently clustering them. Higher local density → more encounters → faster infection.</p>
+      <p><i>Visual effect:</i> <b>Pulsating hotspots</b>—agents swarm toward catalysts, infection spikes, then disperses. Resembles <b>chemotactic aggregation</b> (like slime mold!) or <b>convective mixing</b> in fluid reactions.</p>
+
+      <h4 style="font-size:16px; margin-top:14px">Method 4: Noise Reduction (Temporal Sync)</h4>
+      <p>Catalyst reduces variance in contact timing: instead of Bernoulli(p) at each encounter, use deterministic threshold after N encounters. This "synchronizes" infection events.</p>
+      <p><i>Visual effect:</i> <b>Ultra-sharp wave fronts</b> with minimal stochastic fuzz. Resembles <b>excitable media</b> (heart muscle, neural avalanches).</p>
+
+      <p><i>Summary:</i> Catalysis transforms <b>diffusion-limited</b> kinetics (slow, waiting for random collisions) into <b>reaction-limited</b> kinetics (fast, every encounter succeeds). Visually: smoother, faster, more organized patterns.</p>
+    </section>
+
+    <section id="tabCatPhenomena" hidden>
+      <h4>Expected Visual Phenomena</h4>
+      <p>Catalysts create distinctive spatial and temporal patterns in reaction-diffusion systems. Here are the key phenomena observed when catalysts are introduced:</p>
+
+      <h4 style="font-size:16px; margin-top:14px">Catalyst Wakes</h4>
+      <p>Trailing zones of rapid <span class="sir-i">I</span>→<span class="sir-r">R</span> turnover behind moving catalysts. The catalyst leaves a "wake" of accelerated dynamics.</p>
+
+      <h4 style="font-size:16px; margin-top:14px">Autocatalytic Fronts</h4>
+      <p>If <span class="sir-i">I</span> agents act as their own catalysts (increase p nearby), you get <b>self-sustaining sharp boundaries</b>—like flame fronts or BZ waves. The infection amplifies itself.</p>
+
+      <h4 style="font-size:16px; margin-top:14px">Fingering Instabilities</h4>
+      <p>Faster reaction in catalytic zones creates viscous fingering (Saffman-Taylor pattern) as waves "push" through slower regions. Uneven propagation creates finger-like protrusions.</p>
+
+      <h4 style="font-size:16px; margin-top:14px">Vortex Formation</h4>
+      <p>If catalyst induces rotational flow (chiral catalyst or magnetic field analog), spiral waves emerge—classic in BZ reaction. Rotational symmetry breaking.</p>
+
+      <h4 style="font-size:16px; margin-top:14px">Burst Dynamics</h4>
+      <p>Fixed catalytic sites create <b>pacemaker zones</b> that periodically emit infection pulses. Rhythmic spatiotemporal patterns.</p>
+
+      <h4 style="font-size:16px; margin-top:14px">Physical Realizations</h4>
+      <ul>
+        <li><b>Enzyme kinetics:</b> Membrane-bound enzymes (fixed sites) vs. diffusing enzyme molecules (mobile C agents)</li>
+        <li><b>Morphogen gradients:</b> BMP/Wnt proteins organizing cell fate—catalyst = signaling molecule concentrating cells</li>
+        <li><b>Autocatalytic chemistry:</b> Belousov-Zhabotinsky reaction where intermediate products catalyze their own formation</li>
+        <li><b>Nanoparticle catalysis:</b> Gold nanoparticles in solution lowering activation barriers locally</li>
+        <li><b>Excitable media:</b> Cardiac tissue where calcium waves synchronize cell firing via aggregation catalysts</li>
+      </ul>
+    </section>
+
+    <section id="tabCatTuring" hidden>
+      <h4>Can Catalysts Enable Turing Patterns?</h4>
+      <p><b>Short answer:</b> Not with basic catalysts alone, but <b>YES with the right modifications!</b></p>
+
+      <p><b>Why current SIR + catalysts won't produce Turing patterns:</b></p>
+      <ul>
+        <li><b>Missing inhibitor:</b> Turing needs activator + inhibitor. Catalysts only accelerate (activate), with no suppression mechanism</li>
+        <li><b>Uniform diffusion:</b> All agents move at same speed v. Turing requires D_inhibitor &gt; D_activator</li>
+        <li><b>Global transience:</b> System → all <span class="sir-r">R</span> eventually. Turing needs <b>stable steady states</b></li>
+      </ul>
+
+      <p><b>How to modify for Turing patterns:</b></p>
+
+      <p><b>Recipe 1: SIRS + Catalyst-Inhibitor Pair</b><br>
+      • Add immunity waning: <span class="sir-r">R</span>→<span class="sir-s">S</span> at rate δ (creates cyclic dynamics, preventing R saturation)<br>
+      • Introduce <b>Catalyst C</b>: mobile agent that boosts p locally (activator)<br>
+      • Introduce <b>Inhibitor H</b>: diffuses 3× faster, suppresses p where present<br>
+      • Interaction: High <span class="sir-i">I</span> → produces C locally, but C triggers H production<br>
+      • Result: C accumulates faster than it can diffuse away (slow), H spreads and suppresses distant regions (fast)<br>
+      <i>Visual:</i> <b>Stationary spots or stripes</b> of high <span class="sir-i">I</span> concentration, separated by H-dominated low-<span class="sir-i">I</span> zones</p>
+
+      <p><b>Recipe 2: Autocatalytic I + Diffusing Suppressor</b><br>
+      • Make <span class="sir-i">I</span> autocatalytic: infected boost p for nearby <span class="sir-s">S</span>→<span class="sir-i">I</span> (local activation)<br>
+      • Add diffusing "interferon" molecule that spreads from <span class="sir-i">I</span> but inhibits new infections<br>
+      • Interferon diffuses faster than agents move<br>
+      • Add <span class="sir-r">R</span>→<span class="sir-s">S</span> to sustain dynamics<br>
+      <i>Visual:</i> <b>Hexagonal or labyrinthine domains</b> of infection, classic Turing morphology</p>
+
+      <p><b>Recipe 3: Dual Catalyst Species (Gierer-Meinhardt)</b><br>
+      • Fast diffusing catalyst C_fast (inhibitor role): suppresses infection globally<br>
+      • Slow diffusing catalyst C_slow (activator role): enhances infection locally<br>
+      • <span class="sir-i">I</span> produces both, but C_slow dominates nearby, C_fast spreads far<br>
+      • SIRS dynamics for sustainability<br>
+      <i>Visual:</i> <b>Stable periodic arrays</b>—like leopard spots or zebrafish stripes</p>
+
+      <p><b>Key requirements summary:</b></p>
+      <ul>
+        <li>✓ <b>Two species</b> with antagonistic effects (activator + inhibitor)</li>
+        <li>✓ <b>Differential diffusion</b> (fast inhibitor, slow activator)</li>
+        <li>✓ <b>Sustained dynamics</b> (SIRS or external driving to prevent R saturation)</li>
+        <li>✓ <b>Nonlinear feedback</b> (autocatalysis or saturation)</li>
+      </ul>
+
+      <p><i>Biological example:</i> Skin pigmentation patterns use this! Melanocyte-stimulating factor (slow activator) + melanocyte-inhibiting factor (fast inhibitor) create leopard spots, zebra stripes, and tropical fish patterns via Turing mechanism.</p>
+    </section>
+    <section id="tabConfig" hidden>
+      <h4>Configuration</h4>
+
+      <h4 style="margin-top:16px; font-size:16px">UI Transparency</h4>
+      <p>Adjust the transparency of the control panel to see the simulation beneath.</p>
+      <div class="row" style="margin:12px 0">
+        <label>Control Panel Opacity</label>
+        <input id="drawerOpacity" type="range" min="0.5" max="1.0" step="0.05" value="0.92" />
+        <div class="val" id="drawerOpacity_val">92%</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="critical-overlay" id="critFx"></div>
+
+<script>
+(() => {
+  // Canvas setup
+  const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const field = document.getElementById('field');
+  const chart = document.getElementById('chart');
+  const fieldCtx = field.getContext('2d');
+  const chartCtx = chart.getContext('2d');
+  function sizeCanvas(cv){ const p=cv.parentElement; const w=p.clientWidth, h=p.clientHeight; cv.width=Math.floor(w*DPR); cv.height=Math.floor(h*DPR); cv.style.width=w+'px'; cv.style.height=h+'px'; }
+  sizeCanvas(field); sizeCanvas(chart); addEventListener('resize', () => { sizeCanvas(field); sizeCanvas(chart); recomputeR0(); });
+
+  // UI wiring
+  const $ = (id) => document.getElementById(id);
+  const fab = $('fab'); const drawer = $('drawer'); fab.onclick = () => drawer.classList.toggle('open');
+  const docFab = $('docFab'); const docPanel = $('docPanel'); docFab.onclick = () => docPanel.classList.toggle('open');
+  // Main tabs
+  const mainTabs = [
+    {btn: $('tabBtnModel'), sec: $('tabModel'), hasSubtabs: false},
+    {btn: $('tabBtnNumerics'), sec: null, hasSubtabs: true, subtabsId: 'numericsSubtabs'}, // Virtual tab - uses subtabs
+    {btn: $('tabBtnPatterns'), sec: $('tabPatterns'), hasSubtabs: false},
+    {btn: $('tabBtnCatalyst'), sec: null, hasSubtabs: true, subtabsId: 'catalystSubtabs'}, // Virtual tab - uses subtabs
+    {btn: $('tabBtnExamples'), sec: $('tabExamples'), hasSubtabs: false},
+    {btn: $('tabBtnConfig'), sec: $('tabConfig'), hasSubtabs: false},
+  ];
+
+  // Numerics subtabs
+  const numericsSubtabs = [
+    {btn: $('tabBtnNumThreshold'), sec: $('tabNumThreshold')},
+    {btn: $('tabBtnNumR0Control'), sec: $('tabNumR0Control')},
+  ];
+
+  // Catalyst subtabs
+  const catalystSubtabs = [
+    {btn: $('tabBtnCatMethods'), sec: $('tabCatMethods')},
+    {btn: $('tabBtnCatPhenomena'), sec: $('tabCatPhenomena')},
+    {btn: $('tabBtnCatTuring'), sec: $('tabCatTuring')},
+  ];
+
+  const numericsSubtabsContainer = $('numericsSubtabs');
+  const catalystSubtabsContainer = $('catalystSubtabs');
+
+  // All sections for easy hiding
+  const allSections = [...mainTabs.filter(t => t.sec).map(t => t.sec), ...numericsSubtabs.map(t => t.sec), ...catalystSubtabs.map(t => t.sec)];
+
+  // Main tab click handlers
+  for (const t of mainTabs){
+    t.btn.addEventListener('click', () => {
+      // Update main tab selection
+      for (const x of mainTabs){
+        x.btn.setAttribute('aria-selected', x===t ? 'true' : 'false');
+      }
+
+      // Hide all subtab containers
+      numericsSubtabsContainer.classList.remove('active');
+      catalystSubtabsContainer.classList.remove('active');
+
+      if (t.hasSubtabs){
+        // Show appropriate subtabs container and activate first subtab
+        const subtabsContainer = $(t.subtabsId);
+        const subtabsList = t.subtabsId === 'numericsSubtabs' ? numericsSubtabs : catalystSubtabs;
+
+        subtabsContainer.classList.add('active');
+        allSections.forEach(s => s.hidden = true);
+        subtabsList[0].sec.hidden = false;
+        subtabsList.forEach((st, i) => st.btn.setAttribute('aria-selected', i===0 ? 'true' : 'false'));
+      } else {
+        // Hide all subtabs and show selected section
+        allSections.forEach(s => s.hidden = true);
+        if (t.sec) t.sec.hidden = false;
+      }
+    });
+  }
+
+  // Numerics subtab click handlers
+  for (const st of numericsSubtabs){
+    st.btn.addEventListener('click', () => {
+      // Update subtab selection
+      for (const x of numericsSubtabs){
+        x.btn.setAttribute('aria-selected', x===st ? 'true' : 'false');
+      }
+      // Show selected subsection
+      allSections.forEach(s => s.hidden = true);
+      st.sec.hidden = false;
+    });
+  }
+
+  // Catalyst subtab click handlers
+  for (const st of catalystSubtabs){
+    st.btn.addEventListener('click', () => {
+      // Update subtab selection
+      for (const x of catalystSubtabs){
+        x.btn.setAttribute('aria-selected', x===st ? 'true' : 'false');
+      }
+      // Show selected subsection
+      allSections.forEach(s => s.hidden = true);
+      st.sec.hidden = false;
+    });
+  }
+
+  // Control panel opacity
+  const drawerOpacitySlider = $('drawerOpacity');
+  const drawerOpacityVal = $('drawerOpacity_val');
+  drawerOpacitySlider.addEventListener('input', () => {
+    const opacity = Number(drawerOpacitySlider.value);
+    drawer.style.opacity = opacity;
+    drawerOpacityVal.textContent = Math.round(opacity * 100) + '%';
+  });
+
+  // Initial infection pattern
+  let infectionPattern = 'random';
+
+  // Control tabs data structure (physics models with their presets)
+  let activeControlTab = 'sir';
+  const controlTabsData = {
+    sir: {
+      scenarios: {
+        mild: {N:400, i0:8, speed:90, radius:8, p:0.10, gamma:0.02, noise:0, horizon:120, pattern:'random'},
+        pandemic: {N:800, i0:20, speed:120, radius:10, p:0.35, gamma:0.015, noise:0, horizon:180, pattern:'cluster'},
+        critical: {N:600, i0:10, speed:60, radius:6, p:0.15, gamma:0.025, noise:0, horizon:120, pattern:'random'},
+        waves: {N:1000, i0:5, speed:100, radius:9, p:0.28, gamma:0.018, noise:0, horizon:200, pattern:'line'},
+        clusters: {N:500, i0:8, speed:70, radius:7, p:0.18, gamma:0.022, noise:0, horizon:150, pattern:'corners'},
+        dense: {N:1200, i0:15, speed:80, radius:8, p:0.25, gamma:0.02, noise:0, horizon:180, pattern:'grid'},
+      },
+      scenarioLabels: {
+        mild: 'Mild Outbreak',
+        pandemic: 'Pandemic',
+        critical: 'Critical R₀≈1',
+        waves: 'Epidemic Waves',
+        clusters: 'Percolation',
+        dense: 'Dense Pop'
+      },
+      initPatterns: {
+        random: 'Random',
+        cluster: 'Cluster',
+        line: 'H-Line',
+        vertical: 'V-Line',
+        grid: 'Grid',
+        corners: 'Corners'
+      }
+    },
+    // Future: catalyst, inhibitor, sirs tabs
+  };
+
+  // Control tab switching
+  function switchControlTab(tabName) {
+    if (activeControlTab === tabName) return;
+
+    activeControlTab = tabName;
+
+    // Update control tab button states
+    document.querySelectorAll('.control-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.control === tabName);
+    });
+
+    // Switch visible control section
+    document.querySelectorAll('.control-section').forEach(section => {
+      section.classList.remove('active');
+    });
+    const activeSection = document.getElementById(tabName + 'Controls');
+    if (activeSection) activeSection.classList.add('active');
+
+    // Update presets (scenarios and init patterns)
+    updatePresets(tabName);
+
+    // Reset simulation with new physics
+    resetPopulation();
+    recomputeR0();
+  }
+
+  // Update preset buttons based on active control tab
+  function updatePresets(tabName) {
+    const tabData = controlTabsData[tabName];
+    if (!tabData) return;
+
+    // Update scenario buttons
+    const scenarioGrid = $('scenarioGrid');
+    scenarioGrid.innerHTML = '';
+    for (const [key, label] of Object.entries(tabData.scenarioLabels)) {
+      const btn = document.createElement('button');
+      btn.className = 'grid-btn';
+      btn.dataset.preset = key;
+      btn.textContent = label;
+      scenarioGrid.appendChild(btn);
+    }
+
+    // Update init pattern buttons
+    const initGrid = $('initGrid');
+    initGrid.innerHTML = '';
+    let first = true;
+    for (const [key, label] of Object.entries(tabData.initPatterns)) {
+      const btn = document.createElement('button');
+      btn.className = 'grid-btn';
+      if (first) {
+        btn.classList.add('selected');
+        infectionPattern = key;
+        first = false;
+      }
+      btn.dataset.pattern = key;
+      btn.textContent = label;
+      initGrid.appendChild(btn);
+    }
+
+    // Re-attach event handlers
+    attachPresetHandlers();
+  }
+
+  // Attach event handlers to preset buttons
+  function attachPresetHandlers() {
+    // Scenario button handlers
+    document.querySelectorAll('#scenarioGrid .grid-btn').forEach(btn => {
+      btn.onclick = () => {
+        const presetName = btn.dataset.preset;
+        const preset = controlTabsData[activeControlTab].scenarios[presetName];
+        if (!preset) return;
+
+        // Update all parameter values
+        for (const k of sliders){
+          if (k in preset){
+            const el = $(k); const val = $(k+'_val');
+            el.value = preset[k];
+            const fmt = (x) => k==='noise'? x+'%' : (k==='gamma'? Number(x).toFixed(3) : (k==='p'? Number(x).toFixed(2) : String(x)));
+            params[k] = (k==='p'||k==='gamma') ? Number(el.value) : Number(el.value);
+            val.textContent = fmt(el.value);
+          }
+        }
+
+        // Set infection pattern and reset
+        infectionPattern = preset.pattern || 'random';
+        resetPopulation();
+        recomputeR0();
+
+        // Update selection state
+        document.querySelectorAll('#scenarioGrid .grid-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      };
+    });
+
+    // Init pattern button handlers
+    document.querySelectorAll('#initGrid .grid-btn').forEach(btn => {
+      btn.onclick = () => {
+        const pattern = btn.dataset.pattern;
+
+        // Update selection state
+        document.querySelectorAll('#initGrid .grid-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+
+        // Update pattern and reset
+        infectionPattern = pattern;
+        resetPopulation();
+        recomputeR0();
+      };
+    });
+  }
+
+  // Wire up control tab buttons
+  document.querySelectorAll('.control-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!btn.disabled) {
+        switchControlTab(btn.dataset.control);
+      }
+    });
+  });
+
+  // R₀ control mode - combo button/dropdown
+  let r0Mode = 'computed'; // 'computed' or 'manual'
+  const r0ModeBtn = $('r0ModeBtn');
+  const r0ModeDropdown = $('r0ModeDropdown');
+  const r0ModeLabel = $('r0ModeLabel');
+  const r0ManualRow = $('r0ManualRow');
+  const r0TargetSlider = $('r0Target');
+  const r0TargetVal = $('r0Target_val');
+
+  // Toggle dropdown
+  r0ModeBtn.onclick = (e) => {
+    e.stopPropagation();
+    const isOpen = r0ModeDropdown.classList.contains('open');
+    r0ModeDropdown.classList.toggle('open');
+    r0ModeBtn.classList.toggle('open');
+  };
+
+  // Handle option selection
+  document.querySelectorAll('#r0ModeDropdown .combo-option').forEach(option => {
+    option.onclick = (e) => {
+      e.stopPropagation();
+      const mode = option.dataset.mode;
+
+      // Update selection state
+      document.querySelectorAll('#r0ModeDropdown .combo-option').forEach(opt => opt.classList.remove('selected'));
+      option.classList.add('selected');
+
+      // Update label
+      if (mode === 'computed') {
+        r0ModeLabel.textContent = 'Computed';
+        r0Mode = 'computed';
+        r0ManualRow.style.display = 'none';
+        recomputeR0();
+      } else if (mode === 'manual') {
+        r0ModeLabel.textContent = 'Set R₀';
+        r0Mode = 'manual';
+        r0ManualRow.style.display = 'grid';
+        // Calculate current R₀ and set it as target
+        const currentR0 = recomputeR0();
+        r0TargetSlider.value = Math.max(0.5, Math.min(5.0, currentR0));
+        r0TargetVal.textContent = Number(r0TargetSlider.value).toFixed(1);
+        // Adjust p to match target
+        adjustPforR0(Number(r0TargetSlider.value));
+      }
+
+      // Close dropdown
+      r0ModeDropdown.classList.remove('open');
+      r0ModeBtn.classList.remove('open');
+    };
+  });
+
+  // Preset tabs (Scenario/Init toggle)
+  const scenarioTab = $('scenarioTab');
+  const initTab = $('initTab');
+  const scenarioContent = $('scenarioContent');
+  const initContent = $('initContent');
+  let activePresetTab = null;
+
+  function togglePresetTab(tab, content) {
+    if (activePresetTab === tab) {
+      // Close if already open
+      tab.classList.remove('active');
+      content.classList.remove('open');
+      activePresetTab = null;
+    } else {
+      // Close other tabs
+      scenarioTab.classList.remove('active');
+      initTab.classList.remove('active');
+      scenarioContent.classList.remove('open');
+      initContent.classList.remove('open');
+
+      // Open this tab
+      tab.classList.add('active');
+      content.classList.add('open');
+      activePresetTab = tab;
+    }
+  }
+
+  scenarioTab.onclick = () => togglePresetTab(scenarioTab, scenarioContent);
+  initTab.onclick = () => togglePresetTab(initTab, initContent);
+
+  // Initial preset handlers will be attached after boot
+  attachPresetHandlers();
+
+  r0TargetSlider.addEventListener('input', () => {
+    const targetR0 = Number(r0TargetSlider.value);
+    r0TargetVal.textContent = targetR0.toFixed(1);
+    if (r0Mode === 'manual') {
+      adjustPforR0(targetR0);
+    }
+  });
+
+  function adjustPforR0(targetR0) {
+    // R₀ = (2 * r * v * ρ * p) / γ
+    // Solve for p: p = (R₀ * γ) / (2 * r * v * ρ)
+    const W = field.width/DPR, H = field.height/DPR;
+    const A = W * H;
+    const rho = agents.length / Math.max(1, A);
+    const k = 2 * params.radius * params.speed * rho;
+    const newP = (targetR0 * params.gamma) / Math.max(1e-6, k);
+    const clampedP = Math.max(0.02, Math.min(0.9, newP));
+
+    // Update p slider
+    const pSlider = $('p');
+    const pVal = $('p_val');
+    pSlider.value = clampedP;
+    params.p = clampedP;
+    pVal.textContent = clampedP.toFixed(2);
+
+    // Update displayed R₀
+    recomputeR0();
+  }
+
+  // Sliders and parameters
+  const sliders = ['N','i0','speed','radius','p','gamma','noise','horizon'];
+  const params = {};
+  for (const k of sliders){
+    const el = $(k); const val = $(k+'_val');
+    const fmt = (x) => k==='noise'? x+'%' : (k==='gamma'? Number(x).toFixed(3) : (k==='p'? Number(x).toFixed(2) : String(x)));
+    const set = () => { params[k] = (k==='p'||k==='gamma') ? Number(el.value) : (k==='noise' ? Number(el.value) : Number(el.value)); val.textContent = fmt(el.value); };
+    el.addEventListener('input', () => { set(); onParamChanged(k); }); set();
+  }
+
+  // Example presets (for Examples tab - documentation)
+  const examples = {
+    mild: {N:400, i0:8, speed:90, radius:8, p:0.10, gamma:0.02, noise:0, horizon:120},
+    fastspread: {N:600, i0:12, speed:150, radius:10, p:0.40, gamma:0.02, noise:0, horizon:120},
+    critical: {N:600, i0:10, speed:60, radius:6, p:0.15, gamma:0.025, noise:0, horizon:120},
+    superspreader: {N:800, i0:40, speed:100, radius:9, p:0.25, gamma:0.02, noise:0, horizon:120},
+    slowburn: {N:500, i0:10, speed:30, radius:8, p:0.22, gamma:0.005, noise:0, horizon:180},
+    fastrecovery: {N:500, i0:10, speed:90, radius:8, p:0.30, gamma:0.08, noise:0, horizon:120},
+  };
+  function loadExample(name){
+    const preset = examples[name];
+    if (!preset) return;
+    for (const k of sliders){
+      if (k in preset){
+        const el = $(k); const val = $(k+'_val');
+        el.value = preset[k];
+        const fmt = (x) => k==='noise'? x+'%' : (k==='gamma'? Number(x).toFixed(3) : (k==='p'? Number(x).toFixed(2) : String(x)));
+        params[k] = (k==='p'||k==='gamma') ? Number(el.value) : Number(el.value);
+        val.textContent = fmt(el.value);
+        onParamChanged(k);
+      }
+    }
+  }
+  document.querySelectorAll('.example-btn').forEach(btn => {
+    btn.addEventListener('click', () => { loadExample(btn.dataset.example); });
+  });
+
+  // Parameter value click handlers
+  document.querySelectorAll('.param-set').forEach(elem => {
+    elem.addEventListener('click', () => {
+      const paramName = elem.dataset.param;
+      const paramValue = elem.dataset.value;
+      const el = $(paramName);
+      if (!el) return;
+      el.value = paramValue;
+      const val = $(paramName+'_val');
+      const fmt = (x) => paramName==='noise'? x+'%' : (paramName==='gamma'? Number(x).toFixed(3) : (paramName==='p'? Number(x).toFixed(2) : String(x)));
+      params[paramName] = (paramName==='p'||paramName==='gamma') ? Number(el.value) : Number(el.value);
+      val.textContent = fmt(el.value);
+      onParamChanged(paramName);
+      // Visual feedback
+      elem.style.background = 'rgba(74,163,255,.35)';
+      setTimeout(() => { elem.style.background = ''; }, 200);
+    });
+  });
+
+  // State
+  let agents = [], time = 0, paused = false; let chartSeries = {t:[], S:[], I:[], R:[]};
+  const world = { width: () => field.width, height: () => field.height, rng: mulberry32((Date.now()>>>0) ^ 0x9E3779B9) };
+
+  // RNG
+  function mulberry32(a){ return function(){ let t=a+=0x6D2B79F5; t=Math.imul(t ^ t>>>15, t | 1); t ^= t + Math.imul(t ^ t>>>7, t | 61); return ((t ^ t>>>14) >>> 0) / 4294967296; }; }
+  function randIn(min,max){ return min + (max-min)*world.rng(); }
+  function pick(arr){ return arr[(arr.length*world.rng())|0]; }
+  function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
+
+  // Population init
+  function resetPopulation({randomize=false} = {}){
+    if(randomize){ world.rng = mulberry32(((Math.random()*2**31)|0) ^ (Date.now()>>>0)); }
+    agents = []; time = 0; chartSeries = {t:[], S:[], I:[], R:[]};
+    const W = world.width()/DPR, H = world.height()/DPR;
+    for (let i=0;i<params.N;i++) agents.push(spawnAgent(W,H,'S'));
+    // seed infected based on pattern
+    seedInfections(W, H);
+  }
+
+  function seedInfections(W, H){
+    const count = Math.min(params.i0, agents.length);
+    if (infectionPattern === 'random'){
+      for (let k=0;k<count;k++){ const a = pick(agents); a.state='I'; a.tInfected=time; }
+    } else if (infectionPattern === 'cluster'){
+      // Cluster at center
+      const cx = W/2, cy = H/2;
+      const sorted = agents.slice().sort((a,b) => {
+        const da = (a.x-cx)**2 + (a.y-cy)**2;
+        const db = (b.x-cx)**2 + (b.y-cy)**2;
+        return da - db;
+      });
+      for (let k=0;k<count;k++){ sorted[k].state='I'; sorted[k].tInfected=time; }
+    } else if (infectionPattern === 'line'){
+      // Horizontal line at center
+      const sorted = agents.slice().sort((a,b) => Math.abs(a.y - H/2) - Math.abs(b.y - H/2));
+      for (let k=0;k<count;k++){ sorted[k].state='I'; sorted[k].tInfected=time; }
+    } else if (infectionPattern === 'vertical'){
+      // Vertical line at center
+      const sorted = agents.slice().sort((a,b) => Math.abs(a.x - W/2) - Math.abs(b.x - W/2));
+      for (let k=0;k<count;k++){ sorted[k].state='I'; sorted[k].tInfected=time; }
+    } else if (infectionPattern === 'grid'){
+      // Grid pattern
+      const gridSize = Math.ceil(Math.sqrt(count));
+      let infected = 0;
+      for (let gy=0; gy<gridSize && infected<count; gy++){
+        for (let gx=0; gx<gridSize && infected<count; gx++){
+          const tx = (gx+1)/(gridSize+1) * W;
+          const ty = (gy+1)/(gridSize+1) * H;
+          const sorted = agents.filter(a => a.state==='S').sort((a,b) => {
+            const da = (a.x-tx)**2 + (a.y-ty)**2;
+            const db = (b.x-tx)**2 + (b.y-ty)**2;
+            return da - db;
+          });
+          if (sorted[0]){ sorted[0].state='I'; sorted[0].tInfected=time; infected++; }
+        }
+      }
+    } else if (infectionPattern === 'corners'){
+      // Four corners
+      const corners = [[W*0.25, H*0.25], [W*0.75, H*0.25], [W*0.25, H*0.75], [W*0.75, H*0.75]];
+      let infected = 0;
+      for (let corner of corners){
+        const perCorner = Math.floor(count / 4) + (infected < count % 4 ? 1 : 0);
+        const sorted = agents.filter(a => a.state==='S').sort((a,b) => {
+          const da = (a.x-corner[0])**2 + (a.y-corner[1])**2;
+          const db = (b.x-corner[0])**2 + (b.y-corner[1])**2;
+          return da - db;
+        });
+        for (let k=0; k<perCorner && infected<count; k++){
+          if (sorted[k]){ sorted[k].state='I'; sorted[k].tInfected=time; infected++; }
+        }
+      }
+    }
+  }
+  function spawnAgent(W,H,state='S'){
+    return { x: randIn(8,W-8), y: randIn(8,H-8), vx: randIn(-1,1), vy: randIn(-1,1), state, tInfected: state==='I'? time : -1 };
+  }
+
+  // Dynamic parameter changes (no reset)
+  function onParamChanged(k){
+    // Keep i0 slider bounded by N
+    $('i0').max = String(params.N);
+
+    if (k==='N') adjustPopulation(params.N);
+    else if (k==='i0') adjustI0(params.i0);
+
+    // In manual R₀ mode, maintain target R₀ when other params change
+    if (r0Mode === 'manual' && k !== 'p' && k !== 'i0' && k !== 'horizon') {
+      const targetR0 = Number(r0TargetSlider.value);
+      adjustPforR0(targetR0);
+    } else if (k!=='N' && k!=='i0') {
+      recomputeR0();
+    }
+
+    if (k==='horizon') { /* chart trimming handled in render */ }
+  }
+
+  function adjustPopulation(targetN){
+    const W = world.width()/DPR, H = world.height()/DPR;
+    const curr = agents.length; const delta = targetN - curr;
+    if (delta > 0){ // add susceptible agents
+      for (let i=0;i<delta;i++) agents.push(spawnAgent(W,H,'S'));
+    } else if (delta < 0){ // remove random agents (unbiased across S/I/R)
+      const removeCount = -delta;
+      for (let i=0;i<removeCount;i++){
+        if (!agents.length) break;
+        const idx = (agents.length * world.rng()) | 0;
+        agents.splice(idx,1);
+      }
+    }
+    // Ensure i0 slider value does not exceed current infected count cap
+    $('i0').value = String(Math.min(params.i0, agents.length));
+    params.i0 = Number($('i0').value);
+    adjustI0(params.i0); // reconcile infected count
+    recomputeR0();
+  }
+
+  function adjustI0(targetI){
+    // Count current
+    const infectedIdx = [];
+    const susceptibleIdx = [];
+    const recoveredIdx = [];
+    for (let i=0;i<agents.length;i++){
+      const st = agents[i].state;
+      if (st==='I') infectedIdx.push(i); else if (st==='S') susceptibleIdx.push(i); else recoveredIdx.push(i);
+    }
+    const I = infectedIdx.length;
+    if (targetI > I){
+      let need = targetI - I;
+      // promote susceptibles first, then recovered
+      shuffleInPlace(susceptibleIdx);
+      shuffleInPlace(recoveredIdx);
+      for (let j=0; j<susceptibleIdx.length && need>0; j++,need--){ const a = agents[susceptibleIdx[j]]; a.state='I'; a.tInfected=time; }
+      for (let j=0; j<recoveredIdx.length && need>0; j++,need--){ const a = agents[recoveredIdx[j]]; a.state='I'; a.tInfected=time; }
+    } else if (targetI < I){
+      let need = I - targetI;
+      shuffleInPlace(infectedIdx);
+      for (let j=0; j<infectedIdx.length && need>0; j++,need--){ const a = agents[infectedIdx[j]]; a.state='S'; a.tInfected=-1; }
+    }
+  }
+  function shuffleInPlace(arr){ for (let i=arr.length-1;i>0;i--){ const j=(world.rng()*(i+1))|0; const t=arr[i]; arr[i]=arr[j]; arr[j]=t; } }
+
+  // Dynamics step
+  function step(dt){
+    const W = world.width()/DPR, H = world.height()/DPR;
+    const speed = params.speed; const r = params.radius; const r2 = r*r; const gamma = params.gamma;
+    const pBase = params.p; const noiseFrac = params.noise/100; const pStep = clamp(pBase * (1 + (world.rng()*2-1)*noiseFrac), 0, 1);
+
+    // Move (random walk)
+    for (const a of agents){
+      const theta = Math.atan2(a.vy, a.vx) + (world.rng()*2-1) * 0.25; // jitter
+      a.vx = Math.cos(theta) * speed; a.vy = Math.sin(theta) * speed;
+      a.x += a.vx * dt; a.y += a.vy * dt;
+      if (a.x < 4){ a.x = 4; a.vx = Math.abs(a.vx); }
+      if (a.x > W-4){ a.x = W-4; a.vx = -Math.abs(a.vx); }
+      if (a.y < 4){ a.y = 4; a.vy = Math.abs(a.vy); }
+      if (a.y > H-4){ a.y = H-4; a.vy = -Math.abs(a.vy); }
+    }
+
+    // Infection contacts (naive O(N^2))
+    const idxI = [];
+    for (let i=0;i<agents.length;i++) if (agents[i].state==='I') idxI.push(i);
+    for (let i=0;i<agents.length;i++){
+      const a = agents[i]; if (a.state!=='S') continue;
+      for (let j=0;j<idxI.length;j++){
+        const b = agents[idxI[j]]; const dx=a.x-b.x, dy=a.y-b.y; if (dx*dx + dy*dy <= r2){ if (world.rng() < pStep){ a.state='I'; a.tInfected=time; break; } }
+      }
+    }
+
+    // Recoveries
+    for (const a of agents){ if (a.state==='I' && world.rng() < gamma * dt){ a.state='R'; } }
+
+    // Tally
+    let S=0,I=0,R=0; for (const a of agents){ if (a.state==='S') S++; else if (a.state==='I') I++; else R++; }
+    time += dt;
+
+    // Series & horizon
+    chartSeries.t.push(time); chartSeries.S.push(S); chartSeries.I.push(I); chartSeries.R.push(R);
+    const horizon = Number(params.horizon);
+    while (chartSeries.t.length && (time - chartSeries.t[0]) > horizon){ chartSeries.t.shift(); chartSeries.S.shift(); chartSeries.I.shift(); chartSeries.R.shift(); }
+
+    updateStats(S,I,R); applyCriticalMode(S,I,R);
+  }
+
+  // Derived R0, Rt
+  function recomputeR0(){ const A=(world.width()/DPR)*(world.height()/DPR); const rho=agents.length/Math.max(1,A); const k=2*params.radius*params.speed*rho; const R0=(k*params.p)/Math.max(1e-6,params.gamma); $('r0Val').textContent=R0.toFixed(2); return R0; }
+  function computeRt(S){ const A=(world.width()/DPR)*(world.height()/DPR); const rho=agents.length/Math.max(1,A); const k=2*params.radius*params.speed*rho; const Rt=(k*params.p*(S/Math.max(1,agents.length)))/Math.max(1e-6,params.gamma); $('rtVal').textContent=Rt.toFixed(2); return Rt; }
+
+  // Rendering
+  function renderField(){ const ctx=fieldCtx, W=field.width, H=field.height; ctx.save(); ctx.scale(DPR,DPR);
+    ctx.fillStyle='#0d141d'; ctx.fillRect(0,0,W/DPR,H/DPR);
+    ctx.strokeStyle='#122033'; ctx.lineWidth=1; ctx.globalAlpha=.6; const g=32; for (let x=0;x<W/DPR;x+=g){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H/DPR); ctx.stroke(); } for (let y=0;y<H/DPR;y+=g){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W/DPR,y); ctx.stroke(); } ctx.globalAlpha=1;
+    for (const a of agents){ const color = a.state==='S'? '#4aa3ff' : (a.state==='I'? '#ff6b6b' : '#29d398'); ctx.fillStyle=color; ctx.beginPath(); ctx.arc(a.x,a.y,2.2,0,Math.PI*2); ctx.fill(); }
+    const inf = agents.find(x=>x.state==='I'); if (inf){ ctx.strokeStyle='rgba(255,107,107,.15)'; ctx.beginPath(); ctx.arc(inf.x, inf.y, params.radius, 0, Math.PI*2); ctx.stroke(); }
+    ctx.restore(); }
+
+  function renderChart(){ const ctx=chartCtx, W=chart.width, H=chart.height; const pad=28*DPR; ctx.save(); ctx.fillStyle='#0d131b'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='#152233'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(pad,H-pad); ctx.lineTo(W-10,H-pad); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pad,10); ctx.lineTo(pad,H-pad); ctx.stroke();
+    const nMax = Math.max(10, ...chartSeries.S, ...chartSeries.I, ...chartSeries.R); const t0=chartSeries.t[0]||0; const t1=chartSeries.t[chartSeries.t.length-1]||1; const xOf=(t)=>pad+(W-pad-12)*(t-t0)/Math.max(1e-6,(t1-t0)); const yOf=(n)=>(H-pad)-(H-pad-12)*n/nMax;
+    ctx.strokeStyle='#132033'; ctx.lineWidth=1; ctx.globalAlpha=.6; const yTicks=4; for (let k=1;k<=yTicks;k++){ const y=12+(H-pad-12)*k/yTicks; ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(W-10,y); ctx.stroke(); } ctx.globalAlpha=1;
+    drawLine(ctx, chartSeries.t, chartSeries.S, xOf, yOf, '#4aa3ff'); drawLine(ctx, chartSeries.t, chartSeries.I, xOf, yOf, '#ff6b6b'); drawLine(ctx, chartSeries.t, chartSeries.R, xOf, yOf, '#29d398');
+    ctx.restore(); }
+  function drawLine(ctx,xs,ys,xOf,yOf,color){ if (xs.length<2) return; ctx.strokeStyle=color; ctx.lineWidth=2*DPR; ctx.beginPath(); ctx.moveTo(xOf(xs[0]), yOf(ys[0])); for (let i=1;i<xs.length;i++) ctx.lineTo(xOf(xs[i]), yOf(ys[i])); ctx.stroke(); }
+
+  // Stats & critical mode
+  const sVal=$('sVal'), iVal=$('iVal'), rVal=$('rVal');
+  function updateStats(S,I,R){ sVal.textContent=S; iVal.textContent=I; rVal.textContent=R; computeRt(S); }
+  function applyCriticalMode(S,I,R){ const R0=parseFloat($('r0Val').textContent); const Rt=parseFloat($('rtVal').textContent); const near=(x)=>Math.abs(x-1)<0.05; const critical=near(R0)||near(Rt); document.body.classList.toggle('critical', critical); $('fab').classList.toggle('critical', critical); if (critical){ for (const a of agents){ a.vx*=0.97; a.vy*=0.97; } } }
+
+  // Buttons
+  $('pauseBtn').onclick = () => { paused = !paused; $('pauseBtn').textContent = paused ? 'Resume' : 'Pause'; };
+  $('resetBtn').onclick = () => { resetPopulation({randomize:true}); recomputeR0(); };
+
+  // Loop
+  let last = performance.now();
+  function loop(now){ const dt = Math.min(0.050, (now-last)/1000); last=now; if(!paused){ let acc=dt; const h=1/60; while(acc>1e-6){ const stepDt=Math.min(h,acc); step(stepDt); acc-=stepDt; } renderField(); renderChart(); } requestAnimationFrame(loop); }
+
+  // Boot
+  resetPopulation(); recomputeR0(); requestAnimationFrame(loop);
+  drawer.classList.add('open'); setTimeout(()=>drawer.classList.remove('open'), 180);
+
+})();
+</script>
+</body>
+</html>

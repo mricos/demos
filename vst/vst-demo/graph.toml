@@ -1,0 +1,310 @@
+# VST Demo Knowledge Graph
+# This is the source of truth for all symbols, concepts, and their relationships
+
+[meta]
+paper_id = "vst-demo"
+title = "Variable Scale Transform"
+subtitle = "Logarithmic Resolution in Time-Frequency Analysis"
+sample_rate = 8000
+
+# ============================================================================
+# SYMBOLS - Mathematical variables, functions, and parameters
+# ============================================================================
+
+[[symbols]]
+id = "lambda"
+name = "λ(t)"
+type = "function"
+latex = "\\lambda(t)"
+description = "Scaling function that warps the time axis"
+color = "#6f42c1"
+
+[[symbols]]
+id = "lambda-prime"
+name = "λ'(t)"
+type = "function"
+latex = "\\lambda'(t)"
+description = "Derivative of scaling function, governs instantaneous resolution"
+color = "#6f42c1"
+
+[[symbols]]
+id = "alpha"
+name = "α"
+type = "parameter"
+latex = "\\alpha"
+description = "Scaling exponent controlling time warping rate (0 < α ≤ 1)"
+color = "#28a745"
+
+[[symbols]]
+id = "t"
+name = "t"
+type = "variable"
+latex = "t"
+description = "Time variable"
+color = "#0066cc"
+
+[[symbols]]
+id = "f"
+name = "f"
+type = "variable"
+latex = "f"
+description = "Frequency"
+color = "#dc3545"
+
+[[symbols]]
+id = "f1"
+name = "f₁"
+type = "variable"
+latex = "f_1"
+description = "E₂ fundamental frequency (82.41 Hz) - Low E string, open"
+color = "#2A9D8F"
+
+[[symbols]]
+id = "f2"
+name = "f₂"
+type = "variable"
+latex = "f_2"
+description = "F₂ fundamental frequency (87.31 Hz) - Low E string, 1st fret"
+color = "#264653"
+
+[[symbols]]
+id = "f3"
+name = "f₃"
+type = "variable"
+latex = "f_3"
+description = "E₄ fundamental frequency (329.63 Hz) - High E string, open"
+color = "#E76F51"
+
+[[symbols]]
+id = "f4"
+name = "f₄"
+type = "variable"
+latex = "f_4"
+description = "F₄ fundamental frequency (349.23 Hz) - High E string, 1st fret"
+color = "#E9C46A"
+
+[[symbols]]
+id = "h"
+name = "h"
+type = "variable"
+latex = "h"
+description = "Harmonic number (1=fundamental, 2=octave, 3=octave+fifth)"
+color = "#8E44AD"
+
+[[symbols]]
+id = "a"
+name = "aₕ"
+type = "variable"
+latex = "a_h"
+description = "Harmonic amplitude: [1.0, 0.5, 0.25] for guitar-like decay"
+color = "#16A085"
+
+[[symbols]]
+id = "omega"
+name = "ω"
+type = "variable"
+latex = "\\omega"
+description = "Angular frequency (ω = 2πf)"
+color = "#dc3545"
+
+[[symbols]]
+id = "s"
+name = "s"
+type = "variable"
+latex = "s"
+description = "Complex frequency s = σ + jω"
+color = "#6c757d"
+
+[[symbols]]
+id = "q"
+name = "Q"
+type = "parameter"
+latex = "Q"
+description = "Quality factor controlling frequency selectivity"
+color = "#28a745"
+
+[[symbols]]
+id = "delta-f"
+name = "Δf"
+type = "concept"
+latex = "\\Delta f"
+description = "Frequency resolution"
+color = "#6c757d"
+
+[[symbols]]
+id = "N"
+name = "N"
+type = "parameter"
+latex = "N"
+description = "Number of samples (FFT size)"
+color = "#6c757d"
+
+[[symbols]]
+id = "B"
+name = "B"
+type = "parameter"
+latex = "B"
+description = "Bins per octave (for VST)"
+color = "#6c757d"
+
+[[symbols]]
+id = "T"
+name = "T"
+type = "variable"
+latex = "T"
+description = "Signal duration"
+color = "#0066cc"
+
+# ============================================================================
+# CONCEPTS - High-level ideas and insights
+# ============================================================================
+
+[[symbols]]
+id = "guitar-example"
+name = "Guitar Example"
+type = "concept"
+description = "Four chromatic notes spanning 2 octaves"
+color = "#2A9D8F"
+
+[[symbols]]
+id = "four-notes"
+name = "Four Notes"
+type = "concept"
+description = "12 spectral components from 4 notes × 3 harmonics"
+color = "#E76F51"
+
+[[symbols]]
+id = "physical-intuition"
+name = "Physical Intuition"
+type = "concept"
+description = "Time warping creates slow-motion and fast-forward effects"
+color = "#8E44AD"
+
+[[symbols]]
+id = "key-result"
+name = "Key Result"
+type = "concept"
+description = "Constant bins per semitone across all frequencies"
+color = "#E63946"
+
+# ============================================================================
+# CONNECTIONS - Relationships between symbols
+# ============================================================================
+
+[[connections]]
+from = "lambda"
+to = "t"
+relationship = "uses"
+
+[[connections]]
+from = "lambda"
+to = "alpha"
+relationship = "parameterized-by"
+
+[[connections]]
+from = "omega"
+to = "f"
+relationship = "derives"
+
+[[connections]]
+from = "delta-f"
+to = "alpha"
+relationship = "depends-on"
+
+[[connections]]
+from = "delta-f"
+to = "f"
+relationship = "varies-with"
+
+# ============================================================================
+# MARGIN NOTES - Explanatory notes that appear in right gutter
+# ============================================================================
+
+[[margin_notes]]
+symbol_id = "lambda"
+title = "Scaling Function"
+content = "The scaling function λ(t) = t^α warps the time axis logarithmically. For α < 1, early times are stretched (fine frequency resolution) and late times are compressed (coarse resolution)."
+math = "\\lambda(t) = t^{\\alpha}, \\quad 0 < \\alpha \\leq 1"
+related = ["alpha", "t"]
+
+[[margin_notes]]
+symbol_id = "alpha"
+title = "Scaling Exponent"
+content = "Controls the degree of time warping. α = 1 gives standard Laplace transform. Smaller α provides more aggressive logarithmic resolution."
+related = ["lambda"]
+
+[[margin_notes]]
+symbol_id = "delta-f"
+title = "Frequency Resolution"
+content = "For the VST, frequency resolution scales as Δf(f) ∝ f^(1-α). This gives logarithmic spacing similar to musical scales."
+math = "\\Delta f(f) \\propto f^{1-\\alpha}"
+related = ["alpha", "f"]
+
+[[margin_notes]]
+symbol_id = "q"
+title = "Quality Factor"
+content = "Higher Q gives narrower frequency selectivity but requires longer signals. Typical values: Q = 10-20 for musical analysis."
+related = ["omega"]
+
+[[margin_notes]]
+symbol_id = "f1"
+title = "E₂ Frequency"
+content = "The fundamental frequency of the low E string played open (82.41 Hz). This is the lowest note on a standard-tuned guitar."
+related = ["f2", "f3", "f4"]
+
+[[margin_notes]]
+symbol_id = "f2"
+title = "F₂ Frequency"
+content = "The fundamental frequency of F on the low E string, 1st fret (87.31 Hz). One semitone (ratio of 2^(1/12) ≈ 1.0595) above E₂."
+related = ["f1"]
+
+[[margin_notes]]
+symbol_id = "f3"
+title = "E₄ Frequency"
+content = "The fundamental frequency of the high E string played open (329.63 Hz). Exactly 2 octaves (ratio of 4) above E₂."
+related = ["f1", "f4"]
+
+[[margin_notes]]
+symbol_id = "f4"
+title = "F₄ Frequency"
+content = "The fundamental frequency of F on the high E string, 1st fret (349.23 Hz). One semitone above E₄, and 2 octaves above F₂."
+related = ["f2", "f3"]
+
+[[margin_notes]]
+symbol_id = "h"
+title = "Harmonic Number"
+content = "Guitar strings vibrate at integer multiples of the fundamental. h=1 is the fundamental, h=2 is the octave, h=3 is the octave + perfect fifth."
+related = ["a"]
+
+[[margin_notes]]
+symbol_id = "a"
+title = "Harmonic Amplitudes"
+content = "Plucked strings have decreasing harmonic amplitudes. We model this as [1.0, 0.5, 0.25] for a realistic guitar timbre."
+related = ["h"]
+
+[[margin_notes]]
+symbol_id = "guitar-example"
+title = "The Guitar Example"
+content = "We analyze four plucked guitar strings: E and F on both the lowest and highest strings. These chromatic pairs (semitones) are separated by the same frequency ratio (2^(1/12) ≈ 1.0595) at every octave, making them perfect test cases for logarithmic frequency resolution."
+related = ["f1", "f2", "f3", "f4"]
+
+[[margin_notes]]
+symbol_id = "four-notes"
+title = "Four Notes with Harmonics"
+content = "Each of the four guitar notes produces a fundamental plus 2 harmonics (3 partials total). 4 notes × 3 harmonics = 12 spectral components that the transform must resolve. The frequency range spans from E₂ fundamental (82 Hz) to E₄ third harmonic (~990 Hz)."
+math = "4 \\text{ notes} \\times 3 \\text{ harmonics} = 12 \\text{ components}"
+related = ["h", "a"]
+
+[[margin_notes]]
+symbol_id = "physical-intuition"
+title = "Physical Intuition: Time Warping"
+content = "The scaling function λ(t) = t^α creates a non-uniform time axis. Early signal behavior (low frequencies) is examined in 'slow motion' with fine temporal resolution. Later behavior (high frequencies) is 'fast-forwarded' with coarser resolution. This matches how we perceive musical pitch: we need finer discrimination at low frequencies."
+math = "\\text{early times} \\rightarrow \\text{large } d\\lambda \\rightarrow \\text{fine } \\Delta f\\\\ \\text{late times} \\rightarrow \\text{small } d\\lambda \\rightarrow \\text{coarse } \\Delta f"
+related = ["lambda", "alpha"]
+
+[[margin_notes]]
+symbol_id = "key-result"
+title = "Key Result: Constant Bins Per Semitone"
+content = "The VST achieves what the FFT cannot: constant resolution in musical terms. While the FFT provides constant Hz resolution (wasteful at high frequencies, insufficient at low), the VST provides constant bins per semitone. This means every semitone interval gets the same number of frequency bins, perfectly matching how humans perceive musical pitch on a logarithmic scale."
+math = "\\text{VST: } 3 \\text{ bins/semitone (constant)}\\\\ \\text{FFT: } \\text{bins/semitone} \\propto f \\text{ (linear)}"
+related = ["delta-f", "alpha"]

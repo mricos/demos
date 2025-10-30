@@ -1,0 +1,2145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SIR Toy Model — Vanilla JS SPA</title>
+<link rel="stylesheet" href="sir.css">
+</head>
+<body>
+<div class="wrap" id="app">
+  <header>
+    <div class="title">SIR Toy Model — Agent Field + Time Series</div>
+    <div class="stats">
+      <span class="pill"><span class="sir-s">S</span>=<b id="sVal">0</b></span>
+      <span class="pill"><span class="sir-i">I</span>=<b id="iVal">0</b></span>
+      <span class="pill"><span class="sir-r">R</span>=<b id="rVal">0</b></span>
+      <span class="pill"><span class="r-number">R₀</span>≈<b id="r0Val">0.00</b></span>
+      <span class="pill"><span class="r-number">Rₜ</span>≈<b id="rtVal">0.00</b></span>
+      <span class="legend">
+        <span><span class="swatch" style="background:#4aa3ff"></span><span class="sir-s">S</span></span>
+        <span><span class="swatch" style="background:#ff6b6b"></span><span class="sir-i">I</span></span>
+        <span><span class="swatch" style="background:#29d398"></span><span class="sir-r">R</span></span>
+      </span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="card" id="fieldCard">
+      <h3>Agent Field</h3>
+      <div class="canvas-wrap">
+        <canvas id="field"></canvas>
+        <div class="overlay-note">2D random walk. Infection on contact within r. Recovery is Poisson with rate γ.</div>
+      </div>
+    </section>
+    <section class="card">
+      <h3 style="display:flex; gap:8px; align-items:center;">
+        <button class="chart-tab active" id="timeSeriesTab">Time Series</button>
+        <button class="chart-tab" id="experimentsTab">Experiments</button>
+      </h3>
+      <div id="timeSeriesView" class="canvas-wrap">
+        <canvas id="chart"></canvas>
+        <div class="axis-label">time (s)</div>
+      </div>
+      <div id="experimentsView" style="display:none; height:calc(100% - 42px); overflow-y:auto; padding:12px;">
+        <div id="experimentsList" style="display:grid; gap:8px;"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- FABs -->
+<div class="fab-row">
+  <button class="fab doc" id="docFab" title="Documentation">?</button>
+  <button class="fab sim" id="fab" title="Simulation Controls">⚙</button>
+</div>
+
+<!-- Right controls drawer -->
+<div class="drawer" id="drawer" aria-label="Controls">
+  <!-- Controls for active tab -->
+  <div class="drawer-controls" style="border-radius:16px 16px 0 0">
+    <div class="control-section active" id="sirControls">
+  <div class="row"><label>Population N</label>
+    <input id="N" type="range" min="50" max="1500" step="10" value="400" />
+    <div class="val" id="N_val">400</div>
+  </div>
+  <div class="row"><label>Initial <span class="sir-i">infected</span> i₀</label>
+    <input id="i0" type="range" min="0" max="60" step="1" value="6" />
+    <div class="val" id="i0_val">6</div>
+  </div>
+  <div class="row"><label>Speed v (px/s)</label>
+    <input id="speed" type="range" min="10" max="180" step="5" value="90" />
+    <div class="val" id="speed_val">90</div>
+  </div>
+  <div class="row"><label>Contact radius r (px)</label>
+    <input id="radius" type="range" min="3" max="16" step="1" value="8" />
+    <div class="val" id="radius_val">8</div>
+  </div>
+  <div class="row"><label><span class="sir-i">Infectivity</span> p (per contact)</label>
+    <input id="p" type="range" min="0.02" max="0.9" step="0.01" value="0.22" />
+    <div class="val" id="p_val">0.22</div>
+  </div>
+  <div class="row"><label><span class="sir-r">Recovery</span> rate γ (1/s)</label>
+    <input id="gamma" type="range" min="0.001" max="0.2" step="0.001" value="0.02" />
+    <div class="val" id="gamma_val">0.020</div>
+  </div>
+  <div class="row"><label>Noise on p (±%)</label>
+    <input id="noise" type="range" min="0" max="60" step="2" value="0" />
+    <div class="val" id="noise_val">0%</div>
+  </div>
+  <div class="row">
+    <label>Target <span class="r-number">R₀</span></label>
+    <input id="r0Target" type="range" min="0" max="5.0" step="0.1" value="0" />
+    <div class="val" id="r0Target_val">computed</div>
+  </div>
+  <div class="row"><label>Chart horizon (s)</label>
+    <input id="horizon" type="range" min="20" max="240" step="10" value="120" />
+    <div class="val" id="horizon_val">120</div>
+  </div>
+    </div><!-- end sirControls -->
+  </div><!-- end drawer-controls -->
+
+  <!-- Presets section (dynamic based on control tab) -->
+  <div class="presets-section">
+    <div class="preset-tabs">
+      <button class="preset-tab" id="scenarioTab" data-preset-type="scenario">Scenario</button>
+      <button class="preset-tab" id="initTab" data-preset-type="init">Init</button>
+      <button class="preset-tab" id="cliTab" data-preset-type="cli">CLI</button>
+    </div>
+    <div class="preset-content" id="scenarioContent">
+      <div class="button-grid" id="scenarioGrid">
+        <button class="grid-btn" data-preset="mild">Mild Outbreak</button>
+        <button class="grid-btn" data-preset="pandemic">Pandemic</button>
+        <button class="grid-btn" data-preset="critical">Critical R₀≈1</button>
+        <button class="grid-btn" data-preset="waves">Epidemic Waves</button>
+        <button class="grid-btn" data-preset="clusters">Percolation</button>
+        <button class="grid-btn" data-preset="dense">Dense Pop</button>
+      </div>
+    </div>
+    <div class="preset-content" id="initContent">
+      <div class="button-grid" id="initGrid">
+        <button class="grid-btn selected" data-pattern="random">Random</button>
+        <button class="grid-btn" data-pattern="cluster">Cluster</button>
+        <button class="grid-btn" data-pattern="line">H-Line</button>
+        <button class="grid-btn" data-pattern="vertical">V-Line</button>
+        <button class="grid-btn" data-pattern="grid">Grid</button>
+        <button class="grid-btn" data-pattern="corners">Corners</button>
+      </div>
+    </div>
+    <div class="preset-content" id="cliContent">
+      <input type="text" id="cliInput" placeholder="Type 'help' for commands" style="width:100%; padding:8px; margin-bottom:8px; background:#0a0f16; border:1px solid #223044; border-radius:6px; color:var(--text); font-family:monospace; font-size:13px;">
+      <div id="cliOutput" style="max-height:140px; overflow-y:auto; background:#0a0f16; border:1px solid #1a2636; border-radius:6px; padding:8px; font-family:monospace; font-size:12px; line-height:1.4; color:var(--muted);"></div>
+    </div>
+    <div class="drawer-actions">
+      <button class="btn primary" id="resetBtn">Reset</button>
+      <button class="btn" id="pauseBtn">Pause</button>
+    </div>
+  </div>
+</div>
+
+<!-- Documentation panel (loaded dynamically) -->
+<div id="docPanelContainer"></div>
+
+<div class="critical-overlay" id="critFx"></div>
+
+<script>
+(() => {
+  // Canvas setup
+  const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const field = document.getElementById('field');
+  const chart = document.getElementById('chart');
+  const fieldCtx = field.getContext('2d');
+  const chartCtx = chart.getContext('2d');
+  function sizeCanvas(cv){ const p=cv.parentElement; const w=p.clientWidth, h=p.clientHeight; cv.width=Math.floor(w*DPR); cv.height=Math.floor(h*DPR); cv.style.width=w+'px'; cv.style.height=h+'px'; }
+  sizeCanvas(field); sizeCanvas(chart); addEventListener('resize', () => { sizeCanvas(field); sizeCanvas(chart); recomputeR0(); });
+
+  // UI wiring
+  const $ = (id) => document.getElementById(id);
+  const fab = $('fab'); const drawer = $('drawer'); fab.onclick = () => drawer.classList.toggle('open');
+
+  // Load documentation dynamically
+  let docPanel = null;
+  async function loadDocs() {
+    try {
+      const response = await fetch('sir-docs.html');
+      const html = await response.text();
+      const container = $('docPanelContainer');
+      container.innerHTML = html;
+
+      // Now that docs are loaded, set up references
+      docPanel = $('docPanel');
+      if (docPanel) {
+        docPanel.classList.add('open'); // Show by default
+        setupDocsTabs();
+      }
+    } catch (err) {
+      console.error('Failed to load docs:', err);
+    }
+  }
+
+  // Doc panel toggle
+  const docFab = $('docFab');
+  docFab.onclick = () => {
+    if (docPanel) docPanel.classList.toggle('open');
+  };
+
+  // Documentation tabs setup
+  function setupDocsTabs() {
+    const mainTabs = [
+      {btn: $('tabBtnModel'), sec: $('tabModel'), hasSubtabs: false},
+      {btn: $('tabBtnNumerics'), sec: null, hasSubtabs: true, subtabsId: 'numericsSubtabs'},
+      {btn: $('tabBtnPatterns'), sec: $('tabPatterns'), hasSubtabs: false},
+      {btn: $('tabBtnExamples'), sec: $('tabExamples'), hasSubtabs: false},
+      {btn: $('tabBtnParams'), sec: $('tabParams'), hasSubtabs: false},
+      {btn: $('tabBtnConfig'), sec: $('tabConfig'), hasSubtabs: false},
+    ];
+    const numericsSubtabs = [
+      {btn: $('tabBtnNumThreshold'), sec: $('tabNumThreshold')},
+      {btn: $('tabBtnNumR0Control'), sec: $('tabNumR0Control')},
+    ];
+    const numericsSubtabsContainer = $('numericsSubtabs');
+    const allSections = [...mainTabs.filter(t => t.sec).map(t => t.sec), ...numericsSubtabs.map(t => t.sec)];
+
+    // Main tab click handlers
+    for (const t of mainTabs){
+      t.btn.addEventListener('click', () => {
+        for (const x of mainTabs) x.btn.setAttribute('aria-selected', x===t ? 'true' : 'false');
+        numericsSubtabsContainer.classList.remove('active');
+        if (t.hasSubtabs){
+          numericsSubtabsContainer.classList.add('active');
+          allSections.forEach(s => s.hidden = true);
+          numericsSubtabs[0].sec.hidden = false;
+          numericsSubtabs.forEach((st, i) => st.btn.setAttribute('aria-selected', i===0 ? 'true' : 'false'));
+        } else {
+          allSections.forEach(s => s.hidden = true);
+          if (t.sec) t.sec.hidden = false;
+        }
+      });
+    }
+
+    // Numerics subtab click handlers
+    for (const st of numericsSubtabs){
+      st.btn.addEventListener('click', () => {
+        for (const x of numericsSubtabs) x.btn.setAttribute('aria-selected', x===st ? 'true' : 'false');
+        allSections.forEach(s => s.hidden = true);
+        st.sec.hidden = false;
+      });
+    }
+
+    // Handle opacity controls from docs Design tab
+    const drawerOpacitySlider = $('drawerOpacity');
+    const drawerOpacityVal = $('drawerOpacity_val');
+    if (drawerOpacitySlider) {
+      drawerOpacitySlider.addEventListener('input', () => {
+        const opacity = Number(drawerOpacitySlider.value);
+        drawerOpacityVal.textContent = Math.round(opacity * 100) + '%';
+        drawer.style.opacity = opacity;
+      });
+    }
+
+    // Docs panel opacity
+    const docsOpacitySlider = $('docsOpacity');
+    const docsOpacityVal = $('docsOpacity_val');
+    if (docsOpacitySlider) {
+      docsOpacitySlider.addEventListener('input', () => {
+        const opacity = Number(docsOpacitySlider.value);
+        docsOpacityVal.textContent = Math.round(opacity * 100) + '%';
+        docPanel.style.opacity = opacity;
+      });
+    }
+
+    // Text element opacity controls
+    const headingsOpacitySlider = $('headingsOpacity');
+    const headingsOpacityVal = $('headingsOpacity_val');
+    if (headingsOpacitySlider) {
+      headingsOpacitySlider.addEventListener('input', () => {
+        const opacity = Number(headingsOpacitySlider.value);
+        headingsOpacityVal.textContent = Math.round(opacity * 100) + '%';
+        document.documentElement.style.setProperty('--opacity-headings', opacity);
+      });
+    }
+
+    const subheadingsOpacitySlider = $('subheadingsOpacity');
+    const subheadingsOpacityVal = $('subheadingsOpacity_val');
+    if (subheadingsOpacitySlider) {
+      subheadingsOpacitySlider.addEventListener('input', () => {
+        const opacity = Number(subheadingsOpacitySlider.value);
+        subheadingsOpacityVal.textContent = Math.round(opacity * 100) + '%';
+        document.documentElement.style.setProperty('--opacity-subheadings', opacity);
+      });
+    }
+
+    const labelsOpacitySlider = $('labelsOpacity');
+    const labelsOpacityVal = $('labelsOpacity_val');
+    if (labelsOpacitySlider) {
+      labelsOpacitySlider.addEventListener('input', () => {
+        const opacity = Number(labelsOpacitySlider.value);
+        labelsOpacityVal.textContent = Math.round(opacity * 100) + '%';
+        document.documentElement.style.setProperty('--opacity-labels', opacity);
+      });
+    }
+
+    const mutedOpacitySlider = $('mutedOpacity');
+    const mutedOpacityVal = $('mutedOpacity_val');
+    if (mutedOpacitySlider) {
+      mutedOpacitySlider.addEventListener('input', () => {
+        const opacity = Number(mutedOpacitySlider.value);
+        mutedOpacityVal.textContent = Math.round(opacity * 100) + '%';
+        document.documentElement.style.setProperty('--opacity-muted', opacity);
+      });
+    }
+
+    // Typography / Google Fonts System
+    const googleFonts = {
+      sans: [
+        {name: 'Inter', weights: [400, 600, 700]},
+        {name: 'Roboto', weights: [400, 500, 700]},
+        {name: 'Open Sans', weights: [400, 600, 700]},
+        {name: 'Lato', weights: [400, 700]},
+        {name: 'Montserrat', weights: [400, 600, 700]},
+        {name: 'Poppins', weights: [400, 600, 700]},
+        {name: 'Work Sans', weights: [400, 600, 700]},
+        {name: 'Nunito', weights: [400, 700]},
+        {name: 'Raleway', weights: [400, 600, 700]},
+        {name: 'Ubuntu', weights: [400, 500, 700]}
+      ],
+      mono: [
+        {name: 'JetBrains Mono', weights: [400, 600]},
+        {name: 'Fira Code', weights: [400, 600]},
+        {name: 'Source Code Pro', weights: [400, 600]},
+        {name: 'Roboto Mono', weights: [400, 600]},
+        {name: 'IBM Plex Mono', weights: [400, 600]},
+        {name: 'Space Mono', weights: [400, 700]},
+        {name: 'Inconsolata', weights: [400, 700]},
+        {name: 'Courier Prime', weights: [400, 700]}
+      ]
+    };
+
+    const loadedFonts = new Set();
+    const currentFonts = {
+      text: 'system',
+      code: 'monospace',
+      panel: 'system'
+    };
+
+    function loadGoogleFont(fontName) {
+      if (fontName === 'system' || fontName === 'monospace' || loadedFonts.has(fontName)) return;
+
+      const allFonts = [...googleFonts.sans, ...googleFonts.mono];
+      const fontData = allFonts.find(f => f.name === fontName);
+      if (!fontData) return;
+
+      const weights = fontData.weights.join(';');
+      const familyParam = fontName.replace(/ /g, '+');
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = `https://fonts.googleapis.com/css2?family=${familyParam}:wght@${weights}&display=swap`;
+      document.head.appendChild(link);
+      loadedFonts.add(fontName);
+    }
+
+    function applyFont(category, fontName) {
+      currentFonts[category] = fontName;
+
+      // Load font if needed
+      if (fontName !== 'system' && fontName !== 'monospace') {
+        loadGoogleFont(fontName);
+      }
+
+      // Apply to CSS variable
+      const fontFamily = fontName === 'system' ? 'system-ui,-apple-system,sans-serif' :
+                          fontName === 'monospace' ? 'monospace' :
+                          `'${fontName}',${category === 'code' ? 'monospace' : 'sans-serif'}`;
+
+      document.documentElement.style.setProperty(`--font-${category}`, fontFamily);
+    }
+
+    function populateFontSelectors() {
+      const categories = ['text', 'panel', 'code'];
+
+      categories.forEach(cat => {
+        const selectId = `font${cat.charAt(0).toUpperCase() + cat.slice(1)}`;
+        const select = $(selectId);
+        if (!select) return;
+
+        // Add font options
+        const fontList = cat === 'code' ? googleFonts.mono : googleFonts.sans;
+        fontList.forEach(font => {
+          const option = document.createElement('option');
+          option.value = font.name;
+          option.textContent = font.name;
+          select.appendChild(option);
+        });
+
+        // Add event listener
+        select.addEventListener('change', () => {
+          const fontName = select.value;
+          applyFont(cat, fontName);
+        });
+      });
+    }
+
+    function resetFonts() {
+      // Reset to defaults
+      currentFonts.text = 'system';
+      currentFonts.code = 'monospace';
+      currentFonts.panel = 'system';
+
+      // Reset CSS variables
+      document.documentElement.style.setProperty('--font-text', 'system-ui,-apple-system,sans-serif');
+      document.documentElement.style.setProperty('--font-code', 'monospace');
+      document.documentElement.style.setProperty('--font-panel', 'system-ui,-apple-system,sans-serif');
+
+      // Reset select elements
+      ['text', 'panel', 'code'].forEach(cat => {
+        const selectId = `font${cat.charAt(0).toUpperCase() + cat.slice(1)}`;
+        const select = $(selectId);
+        if (select) {
+          select.value = cat === 'code' ? 'monospace' : 'system';
+        }
+      });
+    }
+
+    // Initialize typography system
+    if ($('fontText')) {
+      populateFontSelectors();
+
+      const resetFontsBtn = $('resetFontsBtn');
+      if (resetFontsBtn) {
+        resetFontsBtn.addEventListener('click', resetFonts);
+      }
+    }
+
+    // Design Token System
+    const defaultPrimaryColors = {
+      'bg-base': '#0b0f14',
+      'bg-panel': '#11161d',
+      'text-primary': '#dbe7f3',
+      'text-muted': '#9fb2c6',
+      'accent-blue': '#4aa3ff',
+      'accent-red': '#ff6b6b',
+      'accent-green': '#29d398',
+      'accent-yellow': '#f7b955'
+    };
+
+    let primaryColors = {...defaultPrimaryColors};
+    let secondaryParams = {hue: 0, light: 10, sat: -10, alpha: 0.85};
+    let tertiaryParams = {hue: 0, light: -15, sat: 5, alpha: 0.7};
+
+    // Audition mode and selected triad for editing
+    let auditionMode = 'primary'; // 'primary', 'secondary', or 'tertiary'
+    let selectedTriad = 'secondary'; // Which triad's params are being edited
+
+    // Undo/Redo system
+    let tokenHistory = [];
+    let tokenHistoryIndex = -1;
+    const MAX_HISTORY = 50;
+
+    function captureTokenState() {
+      return {
+        primaryColors: {...primaryColors},
+        secondaryParams: {...secondaryParams},
+        tertiaryParams: {...tertiaryParams}
+      };
+    }
+
+    function pushToHistory() {
+      // Remove any redo states if we're not at the end
+      if (tokenHistoryIndex < tokenHistory.length - 1) {
+        tokenHistory = tokenHistory.slice(0, tokenHistoryIndex + 1);
+      }
+
+      // Add new state
+      tokenHistory.push(captureTokenState());
+
+      // Limit history size
+      if (tokenHistory.length > MAX_HISTORY) {
+        tokenHistory.shift();
+      } else {
+        tokenHistoryIndex++;
+      }
+
+      updateUndoRedoButtons();
+    }
+
+    function restoreTokenState(state) {
+      primaryColors = {...state.primaryColors};
+      secondaryParams = {...state.secondaryParams};
+      tertiaryParams = {...state.tertiaryParams};
+
+      // Update UI controls
+      if ($('secHue')) $('secHue').value = secondaryParams.hue;
+      if ($('secLight')) $('secLight').value = secondaryParams.light;
+      if ($('secSat')) $('secSat').value = secondaryParams.sat;
+      if ($('secAlpha')) $('secAlpha').value = secondaryParams.alpha;
+      if ($('secHue_val')) $('secHue_val').textContent = secondaryParams.hue + '°';
+      if ($('secLight_val')) $('secLight_val').textContent = (secondaryParams.light >= 0 ? '+' : '') + secondaryParams.light + '%';
+      if ($('secSat_val')) $('secSat_val').textContent = (secondaryParams.sat >= 0 ? '+' : '') + secondaryParams.sat + '%';
+      if ($('secAlpha_val')) $('secAlpha_val').textContent = Math.round(secondaryParams.alpha * 100) + '%';
+
+      if ($('terHue')) $('terHue').value = tertiaryParams.hue;
+      if ($('terLight')) $('terLight').value = tertiaryParams.light;
+      if ($('terSat')) $('terSat').value = tertiaryParams.sat;
+      if ($('terAlpha')) $('terAlpha').value = tertiaryParams.alpha;
+      if ($('terHue_val')) $('terHue_val').textContent = tertiaryParams.hue + '°';
+      if ($('terLight_val')) $('terLight_val').textContent = (tertiaryParams.light >= 0 ? '+' : '') + tertiaryParams.light + '%';
+      if ($('terSat_val')) $('terSat_val').textContent = (tertiaryParams.sat >= 0 ? '+' : '') + tertiaryParams.sat + '%';
+      if ($('terAlpha_val')) $('terAlpha_val').textContent = Math.round(tertiaryParams.alpha * 100) + '%';
+
+      buildColorPickers();
+      updatePreviews();
+      applyTokensToUI(true); // Apply without adding to history
+    }
+
+    function undoTokens() {
+      if (tokenHistoryIndex > 0) {
+        tokenHistoryIndex--;
+        restoreTokenState(tokenHistory[tokenHistoryIndex]);
+        updateUndoRedoButtons();
+      }
+    }
+
+    function redoTokens() {
+      if (tokenHistoryIndex < tokenHistory.length - 1) {
+        tokenHistoryIndex++;
+        restoreTokenState(tokenHistory[tokenHistoryIndex]);
+        updateUndoRedoButtons();
+      }
+    }
+
+    function updateUndoRedoButtons() {
+      const undoBtn = $('undoTokensBtn');
+      const redoBtn = $('redoTokensBtn');
+
+      if (undoBtn) {
+        undoBtn.disabled = tokenHistoryIndex <= 0;
+        undoBtn.style.opacity = undoBtn.disabled ? '0.4' : '1';
+      }
+      if (redoBtn) {
+        redoBtn.disabled = tokenHistoryIndex >= tokenHistory.length - 1;
+        redoBtn.style.opacity = redoBtn.disabled ? '0.4' : '1';
+      }
+    }
+
+    // Color manipulation utilities
+    function hexToHSL(hex) {
+      const r = parseInt(hex.slice(1,3), 16) / 255;
+      const g = parseInt(hex.slice(3,5), 16) / 255;
+      const b = parseInt(hex.slice(5,7), 16) / 255;
+
+      const max = Math.max(r,g,b), min = Math.min(r,g,b);
+      let h, s, l = (max + min) / 2;
+
+      if (max === min) {
+        h = s = 0;
+      } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch(max) {
+          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+          case g: h = ((b - r) / d + 2) / 6; break;
+          case b: h = ((r - g) / d + 4) / 6; break;
+        }
+      }
+
+      return {h: h * 360, s: s * 100, l: l * 100};
+    }
+
+    function HSLToHex(h, s, l) {
+      h = h / 360;
+      s = s / 100;
+      l = l / 100;
+
+      let r, g, b;
+      if (s === 0) {
+        r = g = b = l;
+      } else {
+        const hue2rgb = (p, q, t) => {
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1/6) return p + (q - p) * 6 * t;
+          if (t < 1/2) return q;
+          if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+          return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+      }
+
+      const toHex = x => {
+        const hex = Math.round(x * 255).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+      };
+
+      return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    }
+
+    function generateVariant(hex, hueShift, lightShift, satShift, alpha) {
+      const hsl = hexToHSL(hex);
+      let newH = (hsl.h + hueShift) % 360;
+      if (newH < 0) newH += 360;
+      let newS = Math.max(0, Math.min(100, hsl.s + satShift));
+      let newL = Math.max(0, Math.min(100, hsl.l + lightShift));
+      const newHex = HSLToHex(newH, newS, newL);
+
+      if (alpha < 1) {
+        // Convert to rgba
+        const r = parseInt(newHex.slice(1,3), 16);
+        const g = parseInt(newHex.slice(3,5), 16);
+        const b = parseInt(newHex.slice(5,7), 16);
+        return `rgba(${r},${g},${b},${alpha})`;
+      }
+      return newHex;
+    }
+
+    // Build color picker UI
+    function buildColorPickers() {
+      const container = $('primaryPalette');
+      if (!container) return;
+
+      container.innerHTML = '';
+      Object.entries(primaryColors).forEach(([name, color]) => {
+        const item = document.createElement('div');
+        item.style.cssText = 'display:flex; align-items:center; gap:8px; padding:6px 8px; background:#0a0f16; border:1px solid var(--selected-border); border-radius:6px';
+
+        const label = document.createElement('label');
+        label.textContent = name.replace(/-/g, ' ');
+        label.style.cssText = 'flex:1; font-size:12px; color:var(--text); text-transform:capitalize; cursor:pointer';
+        label.htmlFor = `color_${name}`;
+
+        const input = document.createElement('input');
+        input.type = 'color';
+        input.id = `color_${name}`;
+        input.value = color;
+        input.style.cssText = 'width:40px; height:28px; cursor:pointer; border:none; border-radius:4px';
+
+        let changeTimer = null;
+        input.addEventListener('input', () => {
+          primaryColors[name] = input.value;
+          updatePreviews();
+          applyTokensToUI(true); // Real-time update
+
+          // Debounce history pushes
+          clearTimeout(changeTimer);
+          changeTimer = setTimeout(() => {
+            pushToHistory();
+          }, 500);
+        });
+
+        item.appendChild(label);
+        item.appendChild(input);
+        container.appendChild(item);
+      });
+    }
+
+    // Update all three palette rows
+    function updatePreviews() {
+      const primaryRow = $('primaryRow');
+      const secondaryRow = $('secondaryRow');
+      const tertiaryRow = $('tertiaryRow');
+      if (!primaryRow || !secondaryRow || !tertiaryRow) return;
+
+      primaryRow.innerHTML = '';
+      secondaryRow.innerHTML = '';
+      tertiaryRow.innerHTML = '';
+
+      Object.entries(primaryColors).forEach(([name, color]) => {
+        // Primary row
+        const priSwatch = document.createElement('div');
+        priSwatch.style.cssText = `background:${color}; border-radius:4px; border:1px solid rgba(255,255,255,.1)`;
+        priSwatch.title = name;
+        primaryRow.appendChild(priSwatch);
+
+        // Secondary row
+        const secColor = generateVariant(color, secondaryParams.hue, secondaryParams.light, secondaryParams.sat, secondaryParams.alpha);
+        const secSwatch = document.createElement('div');
+        secSwatch.style.cssText = `background:${secColor}; border-radius:4px; border:1px solid rgba(255,255,255,.1)`;
+        secSwatch.title = name;
+        secondaryRow.appendChild(secSwatch);
+
+        // Tertiary row
+        const terColor = generateVariant(color, tertiaryParams.hue, tertiaryParams.light, tertiaryParams.sat, tertiaryParams.alpha);
+        const terSwatch = document.createElement('div');
+        terSwatch.style.cssText = `background:${terColor}; border-radius:4px; border:1px solid rgba(255,255,255,.1)`;
+        terSwatch.title = name;
+        tertiaryRow.appendChild(terSwatch);
+      });
+    }
+
+    // Get params for currently selected triad
+    function getSelectedParams() {
+      if (selectedTriad === 'secondary') return secondaryParams;
+      if (selectedTriad === 'tertiary') return tertiaryParams;
+      return {hue: 0, light: 0, sat: 0, alpha: 1}; // Primary has no params
+    }
+
+    // Update controls to show current triad's values
+    function loadControlValues() {
+      const params = getSelectedParams();
+
+      const genHue = $('genHue'), genHueVal = $('genHue_val');
+      const genLight = $('genLight'), genLightVal = $('genLight_val');
+      const genSat = $('genSat'), genSatVal = $('genSat_val');
+      const genAlpha = $('genAlpha'), genAlphaVal = $('genAlpha_val');
+
+      if (genHue) {
+        genHue.value = params.hue;
+        genHueVal.textContent = params.hue + '°';
+      }
+      if (genLight) {
+        genLight.value = params.light;
+        genLightVal.textContent = (params.light >= 0 ? '+' : '') + params.light + '%';
+      }
+      if (genSat) {
+        genSat.value = params.sat;
+        genSatVal.textContent = (params.sat >= 0 ? '+' : '') + params.sat + '%';
+      }
+      if (genAlpha) {
+        genAlpha.value = params.alpha;
+        genAlphaVal.textContent = Math.round(params.alpha * 100) + '%';
+      }
+
+      // Update label
+      const triadNameEl = $('selectedTriadName');
+      if (triadNameEl) {
+        triadNameEl.textContent = selectedTriad.charAt(0).toUpperCase() + selectedTriad.slice(1);
+      }
+
+      // Disable controls for primary
+      const disabled = selectedTriad === 'primary';
+      if (genHue) genHue.disabled = disabled;
+      if (genLight) genLight.disabled = disabled;
+      if (genSat) genSat.disabled = disabled;
+      if (genAlpha) genAlpha.disabled = disabled;
+    }
+
+    // Select a triad for editing
+    function selectTriad(triad) {
+      selectedTriad = triad;
+
+      // Update row borders
+      document.querySelectorAll('.triad-row').forEach(row => {
+        if (row.dataset.triad === triad) {
+          row.style.borderColor = 'var(--selected-border)';
+          row.style.background = 'rgba(34,48,68,.2)';
+        } else {
+          row.style.borderColor = 'transparent';
+          row.style.background = 'transparent';
+        }
+      });
+
+      loadControlValues();
+    }
+
+    // Wire up unified generation controls
+    function setupJoyKnobs() {
+      let changeTimer = null;
+
+      const makeRealTimeHandler = (updateFn) => {
+        return () => {
+          if (selectedTriad === 'primary') return; // Can't edit primary generation
+
+          updateFn();
+          updatePreviews();
+          applyTokensToUI(true);
+
+          clearTimeout(changeTimer);
+          changeTimer = setTimeout(() => {
+            pushToHistory();
+          }, 500);
+        };
+      };
+
+      const genHue = $('genHue'), genHueVal = $('genHue_val');
+      const genLight = $('genLight'), genLightVal = $('genLight_val');
+      const genSat = $('genSat'), genSatVal = $('genSat_val');
+      const genAlpha = $('genAlpha'), genAlphaVal = $('genAlpha_val');
+
+      if (genHue) {
+        genHue.addEventListener('input', makeRealTimeHandler(() => {
+          const params = getSelectedParams();
+          params.hue = Number(genHue.value);
+          genHueVal.textContent = params.hue + '°';
+        }));
+      }
+      if (genLight) {
+        genLight.addEventListener('input', makeRealTimeHandler(() => {
+          const params = getSelectedParams();
+          params.light = Number(genLight.value);
+          genLightVal.textContent = (params.light >= 0 ? '+' : '') + params.light + '%';
+        }));
+      }
+      if (genSat) {
+        genSat.addEventListener('input', makeRealTimeHandler(() => {
+          const params = getSelectedParams();
+          params.sat = Number(genSat.value);
+          genSatVal.textContent = (params.sat >= 0 ? '+' : '') + params.sat + '%';
+        }));
+      }
+      if (genAlpha) {
+        genAlpha.addEventListener('input', makeRealTimeHandler(() => {
+          const params = getSelectedParams();
+          params.alpha = Number(genAlpha.value);
+          genAlphaVal.textContent = Math.round(params.alpha * 100) + '%';
+        }));
+      }
+
+      // Wire up triad row clicks
+      document.querySelectorAll('.triad-row').forEach(row => {
+        row.addEventListener('click', (e) => {
+          // Don't trigger if clicking audition button
+          if (e.target.classList.contains('audition-btn')) return;
+          selectTriad(row.dataset.triad);
+        });
+      });
+    }
+
+    // Apply tokens to CSS
+    function applyTokensToUI(silent = false) {
+      const root = document.documentElement;
+
+      // Determine which palette to use based on audition mode
+      let displayColors = {};
+
+      if (auditionMode === 'primary') {
+        displayColors = primaryColors;
+      } else if (auditionMode === 'secondary') {
+        // Generate secondary colors from primary
+        Object.entries(primaryColors).forEach(([name, color]) => {
+          displayColors[name] = generateVariant(color, secondaryParams.hue, secondaryParams.light, secondaryParams.sat, secondaryParams.alpha);
+        });
+      } else if (auditionMode === 'tertiary') {
+        // Generate tertiary colors from primary
+        Object.entries(primaryColors).forEach(([name, color]) => {
+          displayColors[name] = generateVariant(color, tertiaryParams.hue, tertiaryParams.light, tertiaryParams.sat, tertiaryParams.alpha);
+        });
+      }
+
+      // Apply display colors (based on audition mode)
+      root.style.setProperty('--bg', displayColors['bg-base']);
+      root.style.setProperty('--panel', displayColors['bg-panel']);
+      root.style.setProperty('--text', displayColors['text-primary']);
+      root.style.setProperty('--muted', displayColors['text-muted']);
+      root.style.setProperty('--accent', displayColors['accent-blue']);
+      root.style.setProperty('--accent-2', displayColors['accent-red']);
+      root.style.setProperty('--good', displayColors['accent-green']);
+      root.style.setProperty('--warn', displayColors['accent-yellow']);
+
+      // Always generate and apply secondary colors (from current primary)
+      Object.entries(primaryColors).forEach(([name, color]) => {
+        const secColor = generateVariant(color, secondaryParams.hue, secondaryParams.light, secondaryParams.sat, secondaryParams.alpha);
+        root.style.setProperty(`--${name}-sec`, secColor);
+      });
+
+      // Always generate and apply tertiary colors (from current primary)
+      Object.entries(primaryColors).forEach(([name, color]) => {
+        const terColor = generateVariant(color, tertiaryParams.hue, tertiaryParams.light, tertiaryParams.sat, tertiaryParams.alpha);
+        root.style.setProperty(`--${name}-ter`, terColor);
+      });
+
+      if (!silent) {
+        const modeLabel = auditionMode.charAt(0).toUpperCase() + auditionMode.slice(1);
+        showTokenMessage(`Auditioning ${modeLabel} palette`, 'success');
+      }
+    }
+
+    function showTokenMessage(msg, type = 'info') {
+      // Create a temporary message
+      const message = document.createElement('div');
+      message.textContent = msg;
+      message.style.cssText = `
+        position:fixed; top:100px; right:50%; transform:translateX(50%);
+        padding:10px 20px; border-radius:8px; font-size:13px; z-index:1000;
+        background:${type === 'success' ? 'rgba(41,211,152,.15)' : 'rgba(74,163,255,.15)'};
+        border:1px solid ${type === 'success' ? 'rgba(41,211,152,.3)' : 'rgba(74,163,255,.3)'};
+        color:${type === 'success' ? '#29d398' : '#4aa3ff'};
+        animation:fadeIn .2s ease;
+      `;
+      document.body.appendChild(message);
+      setTimeout(() => message.remove(), 2000);
+    }
+
+    // Reset to defaults
+    function resetTokens() {
+      primaryColors = {...defaultPrimaryColors};
+      secondaryParams = {hue: 0, light: 10, sat: -10, alpha: 0.85};
+      tertiaryParams = {hue: 0, light: -15, sat: 5, alpha: 0.7};
+
+      // Reset slider values
+      if ($('secHue')) $('secHue').value = 0;
+      if ($('secLight')) $('secLight').value = 10;
+      if ($('secSat')) $('secSat').value = -10;
+      if ($('secAlpha')) $('secAlpha').value = 0.85;
+      if ($('terHue')) $('terHue').value = 0;
+      if ($('terLight')) $('terLight').value = -15;
+      if ($('terSat')) $('terSat').value = 5;
+      if ($('terAlpha')) $('terAlpha').value = 0.7;
+
+      // Update value displays
+      if ($('secHue_val')) $('secHue_val').textContent = '0°';
+      if ($('secLight_val')) $('secLight_val').textContent = '+10%';
+      if ($('secSat_val')) $('secSat_val').textContent = '-10%';
+      if ($('secAlpha_val')) $('secAlpha_val').textContent = '85%';
+      if ($('terHue_val')) $('terHue_val').textContent = '0°';
+      if ($('terLight_val')) $('terLight_val').textContent = '-15%';
+      if ($('terSat_val')) $('terSat_val').textContent = '+5%';
+      if ($('terAlpha_val')) $('terAlpha_val').textContent = '70%';
+
+      buildColorPickers();
+      updatePreviews();
+      applyTokensToUI(true);
+      pushToHistory();
+      showTokenMessage('Reset to defaults', 'info');
+    }
+
+    // Audition mode handlers
+    function setAuditionMode(mode) {
+      auditionMode = mode;
+
+      // Update button states
+      document.querySelectorAll('.audition-btn').forEach(btn => {
+        const isActive = btn.dataset.mode === mode;
+        if (isActive) {
+          btn.classList.add('active');
+          btn.style.background = 'var(--selected-bg)';
+          btn.style.color = 'var(--text)';
+          btn.style.borderColor = '#284b7a';
+        } else {
+          btn.classList.remove('active');
+          btn.style.background = 'transparent';
+          btn.style.color = 'var(--muted)';
+          btn.style.borderColor = 'var(--selected-border)';
+        }
+      });
+
+      // Show/hide promote section
+      const promoteSection = $('promoteSection');
+      const promoteModeName = $('promoteModeName');
+      if (promoteSection && promoteModeName) {
+        if (mode === 'primary') {
+          promoteSection.style.display = 'none';
+        } else {
+          promoteSection.style.display = 'block';
+          promoteModeName.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+        }
+      }
+
+      // Apply the new audition mode
+      applyTokensToUI();
+    }
+
+    // Promote auditioned palette to primary
+    function promoteAuditionedPalette() {
+      if (auditionMode === 'primary') return;
+
+      // Generate the currently auditioned colors
+      const newPrimary = {};
+      Object.entries(primaryColors).forEach(([name, color]) => {
+        if (auditionMode === 'secondary') {
+          newPrimary[name] = generateVariant(color, secondaryParams.hue, secondaryParams.light, secondaryParams.sat, secondaryParams.alpha);
+        } else if (auditionMode === 'tertiary') {
+          newPrimary[name] = generateVariant(color, tertiaryParams.hue, tertiaryParams.light, tertiaryParams.sat, tertiaryParams.alpha);
+        }
+      });
+
+      // Replace primary colors
+      primaryColors = newPrimary;
+
+      // Switch back to primary mode
+      auditionMode = 'primary';
+      setAuditionMode('primary');
+
+      // Rebuild UI
+      buildColorPickers();
+      updatePreviews();
+      applyTokensToUI(true);
+      pushToHistory();
+
+      showTokenMessage('Palette promoted to primary!', 'success');
+    }
+
+    // Wire up audition buttons (now in triad rows)
+    document.querySelectorAll('.audition-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Don't trigger row selection
+        setAuditionMode(btn.dataset.mode);
+      });
+    });
+
+    if ($('promoteBtn')) {
+      $('promoteBtn').addEventListener('click', promoteAuditionedPalette);
+    }
+
+    // Wire up undo/redo/reset buttons
+    if ($('undoTokensBtn')) {
+      $('undoTokensBtn').addEventListener('click', undoTokens);
+    }
+    if ($('redoTokensBtn')) {
+      $('redoTokensBtn').addEventListener('click', redoTokens);
+    }
+    if ($('resetTokensBtn')) {
+      $('resetTokensBtn').addEventListener('click', resetTokens);
+    }
+
+    // Keyboard shortcuts for undo/redo
+    document.addEventListener('keydown', (e) => {
+      // Check if Params tab is active (only allow shortcuts when in design tokens)
+      const paramsTab = $('tabParams');
+      if (!paramsTab || paramsTab.hidden) return;
+
+      // Cmd/Ctrl + Z for undo
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undoTokens();
+      }
+      // Cmd/Ctrl + Shift + Z for redo
+      else if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        redoTokens();
+      }
+      // Cmd/Ctrl + Y for redo (alternative)
+      else if ((e.metaKey || e.ctrlKey) && e.key === 'y') {
+        e.preventDefault();
+        redoTokens();
+      }
+    });
+
+    // Initialize design tokens
+    setTimeout(() => {
+      buildColorPickers();
+      setupJoyKnobs();
+      updatePreviews();
+      selectTriad('secondary'); // Select secondary by default
+      // Initialize history with default state
+      pushToHistory();
+    }, 300);
+
+    // Named Configuration System
+    const saveConfigBtn = $('saveConfigBtn');
+    const configNameInput = $('configNameInput');
+    const configStatus = $('configStatus');
+    const configList = $('configList');
+
+    // Show inline status message
+    function showStatus(message, type = 'info') {
+      if (!configStatus) return;
+      configStatus.textContent = message;
+      configStatus.className = `config-status ${type}`;
+      configStatus.style.display = 'block';
+      setTimeout(() => {
+        configStatus.style.display = 'none';
+      }, 2000);
+    }
+
+    // Get all saved configs
+    function getAllConfigs() {
+      try {
+        const saved = localStorage.getItem('sir_ui_configs');
+        return saved ? JSON.parse(saved) : {};
+      } catch (err) {
+        console.error('Failed to load configs:', err);
+        return {};
+      }
+    }
+
+    // Save all configs
+    function saveAllConfigs(configs) {
+      try {
+        localStorage.setItem('sir_ui_configs', JSON.stringify(configs));
+      } catch (err) {
+        console.error('Failed to save configs:', err);
+        showStatus('Failed to save: ' + err.message, 'error');
+      }
+    }
+
+    // Save named configuration
+    function saveNamedConfig(name) {
+      if (!name || name.trim() === '') {
+        showStatus('Please enter a config name', 'error');
+        return;
+      }
+
+      const rootStyles = getComputedStyle(document.documentElement);
+      const config = {
+        drawerOpacity: Number(drawerOpacitySlider.value),
+        primaryColors: {...primaryColors},
+        secondaryParams: {...secondaryParams},
+        tertiaryParams: {...tertiaryParams},
+        tokens: {
+          bg: rootStyles.getPropertyValue('--bg').trim(),
+          panel: rootStyles.getPropertyValue('--panel').trim(),
+          muted: rootStyles.getPropertyValue('--muted').trim(),
+          text: rootStyles.getPropertyValue('--text').trim(),
+          accent: rootStyles.getPropertyValue('--accent').trim(),
+          selectedBorder: rootStyles.getPropertyValue('--selected-border').trim(),
+          selectedBg: rootStyles.getPropertyValue('--selected-bg').trim(),
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      const configs = getAllConfigs();
+      configs[name] = config;
+      saveAllConfigs(configs);
+
+      showStatus(`Saved as '${name}'`, 'success');
+      configNameInput.value = '';
+      renderConfigList();
+    }
+
+    // Load named configuration
+    function loadNamedConfig(name) {
+      const configs = getAllConfigs();
+      const config = configs[name];
+
+      if (!config) {
+        showStatus(`Config '${name}' not found`, 'error');
+        return;
+      }
+
+      // Restore primary colors and generation params
+      if (config.primaryColors) {
+        primaryColors = {...config.primaryColors};
+      }
+      if (config.secondaryParams) {
+        secondaryParams = {...config.secondaryParams};
+        if ($('secHue')) $('secHue').value = secondaryParams.hue;
+        if ($('secLight')) $('secLight').value = secondaryParams.light;
+        if ($('secSat')) $('secSat').value = secondaryParams.sat;
+        if ($('secAlpha')) $('secAlpha').value = secondaryParams.alpha;
+        if ($('secHue_val')) $('secHue_val').textContent = secondaryParams.hue + '°';
+        if ($('secLight_val')) $('secLight_val').textContent = (secondaryParams.light >= 0 ? '+' : '') + secondaryParams.light + '%';
+        if ($('secSat_val')) $('secSat_val').textContent = (secondaryParams.sat >= 0 ? '+' : '') + secondaryParams.sat + '%';
+        if ($('secAlpha_val')) $('secAlpha_val').textContent = Math.round(secondaryParams.alpha * 100) + '%';
+      }
+      if (config.tertiaryParams) {
+        tertiaryParams = {...config.tertiaryParams};
+        if ($('terHue')) $('terHue').value = tertiaryParams.hue;
+        if ($('terLight')) $('terLight').value = tertiaryParams.light;
+        if ($('terSat')) $('terSat').value = tertiaryParams.sat;
+        if ($('terAlpha')) $('terAlpha').value = tertiaryParams.alpha;
+        if ($('terHue_val')) $('terHue_val').textContent = tertiaryParams.hue + '°';
+        if ($('terLight_val')) $('terLight_val').textContent = (tertiaryParams.light >= 0 ? '+' : '') + tertiaryParams.light + '%';
+        if ($('terSat_val')) $('terSat_val').textContent = (tertiaryParams.sat >= 0 ? '+' : '') + tertiaryParams.sat + '%';
+        if ($('terAlpha_val')) $('terAlpha_val').textContent = Math.round(tertiaryParams.alpha * 100) + '%';
+      }
+
+      // Rebuild color pickers with restored colors
+      buildColorPickers();
+      updatePreviews();
+
+      // Apply design tokens
+      const root = document.documentElement;
+      if (config.tokens) {
+        root.style.setProperty('--bg', config.tokens.bg);
+        root.style.setProperty('--panel', config.tokens.panel);
+        root.style.setProperty('--muted', config.tokens.muted);
+        root.style.setProperty('--text', config.tokens.text);
+        root.style.setProperty('--accent', config.tokens.accent);
+        root.style.setProperty('--selected-border', config.tokens.selectedBorder);
+        root.style.setProperty('--selected-bg', config.tokens.selectedBg);
+      }
+
+      // Apply drawer opacity
+      if (config.drawerOpacity) {
+        drawerOpacitySlider.value = config.drawerOpacity;
+        drawerOpacityVal.textContent = Math.round(config.drawerOpacity * 100) + '%';
+        drawer.style.opacity = config.drawerOpacity;
+      }
+
+      // Auto-apply tokens to UI
+      applyTokensToUI();
+
+      showStatus(`Loaded '${name}'`, 'success');
+    }
+
+    // Delete named configuration
+    function deleteConfig(name) {
+      const configs = getAllConfigs();
+      delete configs[name];
+      saveAllConfigs(configs);
+      showStatus(`Deleted '${name}'`, 'info');
+      renderConfigList();
+    }
+
+    // Render config list
+    function renderConfigList() {
+      if (!configList) return;
+
+      const configs = getAllConfigs();
+      const names = Object.keys(configs).sort((a, b) => {
+        return new Date(configs[b].timestamp) - new Date(configs[a].timestamp);
+      });
+
+      if (names.length === 0) {
+        configList.innerHTML = '<div style="text-align:center; color:var(--muted); padding:12px; font-size:13px">No saved configurations</div>';
+        return;
+      }
+
+      configList.innerHTML = names.map(name => {
+        const config = configs[name];
+        const date = new Date(config.timestamp);
+        const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+
+        return `
+          <div class="config-item">
+            <div class="config-item-header">
+              <div class="config-item-name">${name}</div>
+              <div class="config-item-actions">
+                <button class="config-item-btn load" onclick="window.loadNamedConfig('${name}')">Load</button>
+                <button class="config-item-btn delete" onclick="window.deleteConfig('${name}')">Delete</button>
+              </div>
+            </div>
+            <div class="config-item-meta">${dateStr}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Wire up events
+    if (saveConfigBtn) {
+      saveConfigBtn.addEventListener('click', () => {
+        saveNamedConfig(configNameInput.value.trim());
+      });
+    }
+
+    if (configNameInput) {
+      configNameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          saveNamedConfig(configNameInput.value.trim());
+        }
+      });
+    }
+
+    // Expose functions to window for onclick handlers
+    window.loadNamedConfig = loadNamedConfig;
+    window.deleteConfig = deleteConfig;
+
+    // Initial render
+    if (configList) {
+      setTimeout(() => renderConfigList(), 200);
+    }
+
+    // Wire up clickable parameters in docs
+    document.querySelectorAll('.param-set').forEach(span => {
+      span.addEventListener('click', () => {
+        const param = span.dataset.param;
+        const value = span.dataset.value;
+        setParamFromDocs(param, value);
+        span.style.background = 'rgba(74,163,255,.35)';
+        setTimeout(() => { span.style.background = ''; }, 200);
+      });
+    });
+
+    // Wire up example buttons in docs
+    document.querySelectorAll('.example-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        loadExample(btn.dataset.example);
+      });
+    });
+  }
+
+  // Set parameter from docs click
+  function setParamFromDocs(param, value) {
+    const el = $(param);
+    if (!el) return;
+    el.value = value;
+    const val = $(param+'_val');
+    const fmt = (x) => param==='noise'? x+'%' : (param==='gamma'? Number(x).toFixed(3) : (param==='p'? Number(x).toFixed(2) : String(x)));
+    params[param] = (param==='p'||param==='gamma') ? Number(el.value) : Number(el.value);
+    val.textContent = fmt(el.value);
+    onParamChanged(param);
+  }
+
+  // Load docs on startup
+  loadDocs();
+
+  // Initial infection pattern
+  let infectionPattern = 'random';
+
+  // Control tabs data structure (physics models with their presets)
+  let activeControlTab = 'sir';
+  const controlTabsData = {
+    sir: {
+      scenarios: {
+        mild: {N:400, i0:8, speed:90, radius:8, p:0.10, gamma:0.02, noise:0, horizon:120, pattern:'random'},
+        pandemic: {N:800, i0:20, speed:120, radius:10, p:0.35, gamma:0.015, noise:0, horizon:180, pattern:'cluster'},
+        critical: {N:600, i0:10, speed:60, radius:6, p:0.15, gamma:0.025, noise:0, horizon:120, pattern:'random'},
+        waves: {N:1000, i0:5, speed:100, radius:9, p:0.28, gamma:0.018, noise:0, horizon:200, pattern:'line'},
+        clusters: {N:500, i0:8, speed:70, radius:7, p:0.18, gamma:0.022, noise:0, horizon:150, pattern:'corners'},
+        dense: {N:1200, i0:15, speed:80, radius:8, p:0.25, gamma:0.02, noise:0, horizon:180, pattern:'grid'},
+      },
+      scenarioLabels: {
+        mild: 'Mild Outbreak',
+        pandemic: 'Pandemic',
+        critical: 'Critical R₀≈1',
+        waves: 'Epidemic Waves',
+        clusters: 'Percolation',
+        dense: 'Dense Pop'
+      },
+      initPatterns: {
+        random: 'Random',
+        cluster: 'Cluster',
+        line: 'H-Line',
+        vertical: 'V-Line',
+        grid: 'Grid',
+        corners: 'Corners'
+      }
+    },
+    // Future: catalyst, inhibitor, sirs tabs
+  };
+
+  // Control tab switching
+  function switchControlTab(tabName) {
+    if (activeControlTab === tabName) return;
+
+    activeControlTab = tabName;
+
+    // Update control tab button states
+    document.querySelectorAll('.control-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.control === tabName);
+    });
+
+    // Switch visible control section
+    document.querySelectorAll('.control-section').forEach(section => {
+      section.classList.remove('active');
+    });
+    const activeSection = document.getElementById(tabName + 'Controls');
+    if (activeSection) activeSection.classList.add('active');
+
+    // Update presets (scenarios and init patterns)
+    updatePresets(tabName);
+
+    // Reset simulation with new physics
+    resetPopulation();
+    recomputeR0();
+  }
+
+  // Update preset buttons based on active control tab
+  function updatePresets(tabName) {
+    const tabData = controlTabsData[tabName];
+    if (!tabData) return;
+
+    // Update scenario buttons
+    const scenarioGrid = $('scenarioGrid');
+    scenarioGrid.innerHTML = '';
+    for (const [key, label] of Object.entries(tabData.scenarioLabels)) {
+      const btn = document.createElement('button');
+      btn.className = 'grid-btn';
+      btn.dataset.preset = key;
+      btn.textContent = label;
+      scenarioGrid.appendChild(btn);
+    }
+
+    // Update init pattern buttons
+    const initGrid = $('initGrid');
+    initGrid.innerHTML = '';
+    let first = true;
+    for (const [key, label] of Object.entries(tabData.initPatterns)) {
+      const btn = document.createElement('button');
+      btn.className = 'grid-btn';
+      if (first) {
+        btn.classList.add('selected');
+        infectionPattern = key;
+        first = false;
+      }
+      btn.dataset.pattern = key;
+      btn.textContent = label;
+      initGrid.appendChild(btn);
+    }
+
+    // Re-attach event handlers
+    attachPresetHandlers();
+  }
+
+  // Attach event handlers to preset buttons
+  function attachPresetHandlers() {
+    // Scenario button handlers
+    document.querySelectorAll('#scenarioGrid .grid-btn').forEach(btn => {
+      btn.onclick = () => {
+        const presetName = btn.dataset.preset;
+        const preset = controlTabsData[activeControlTab].scenarios[presetName];
+        if (!preset) return;
+
+        // Update all parameter values
+        for (const k of sliders){
+          if (k in preset){
+            const el = $(k); const val = $(k+'_val');
+            el.value = preset[k];
+            const fmt = (x) => k==='noise'? x+'%' : (k==='gamma'? Number(x).toFixed(3) : (k==='p'? Number(x).toFixed(2) : String(x)));
+            params[k] = (k==='p'||k==='gamma') ? Number(el.value) : Number(el.value);
+            val.textContent = fmt(el.value);
+          }
+        }
+
+        // Set infection pattern and reset
+        infectionPattern = preset.pattern || 'random';
+        resetPopulation();
+        recomputeR0();
+
+        // Update selection state
+        document.querySelectorAll('#scenarioGrid .grid-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      };
+    });
+
+    // Init pattern button handlers
+    document.querySelectorAll('#initGrid .grid-btn').forEach(btn => {
+      btn.onclick = () => {
+        const pattern = btn.dataset.pattern;
+
+        // Update selection state
+        document.querySelectorAll('#initGrid .grid-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+
+        // Update pattern and reset
+        infectionPattern = pattern;
+        resetPopulation();
+        recomputeR0();
+      };
+    });
+  }
+
+  // Wire up control tab buttons
+  document.querySelectorAll('.control-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!btn.disabled) {
+        switchControlTab(btn.dataset.control);
+      }
+    });
+  });
+
+  // R₀ control - clever slider that reads "computed" at position 0
+  let r0Mode = 'computed'; // Start in computed mode
+  const r0TargetSlider = $('r0Target');
+  const r0TargetVal = $('r0Target_val');
+
+  r0TargetSlider.addEventListener('input', () => {
+    const value = Number(r0TargetSlider.value);
+
+    if (value === 0) {
+      // At leftmost position: computed mode
+      r0Mode = 'computed';
+      r0TargetVal.textContent = 'computed';
+      recomputeR0();
+    } else {
+      // Any other position: manual target mode
+      r0Mode = 'manual';
+      r0TargetVal.textContent = value.toFixed(1);
+      adjustPforR0(value);
+    }
+  });
+
+  // Preset tabs (Scenario/Init/CLI toggle)
+  const scenarioTab = $('scenarioTab');
+  const initTab = $('initTab');
+  const cliTab = $('cliTab');
+  const scenarioContent = $('scenarioContent');
+  const initContent = $('initContent');
+  const cliContent = $('cliContent');
+  let activePresetTab = null;
+
+  function togglePresetTab(tab, content) {
+    if (activePresetTab === tab) {
+      // Close if already open
+      tab.classList.remove('active');
+      content.classList.remove('open');
+      activePresetTab = null;
+    } else {
+      // Close other tabs
+      scenarioTab.classList.remove('active');
+      initTab.classList.remove('active');
+      cliTab.classList.remove('active');
+      scenarioContent.classList.remove('open');
+      initContent.classList.remove('open');
+      cliContent.classList.remove('open');
+
+      // Open this tab
+      tab.classList.add('active');
+      content.classList.add('open');
+      activePresetTab = tab;
+
+      // Focus CLI input when CLI tab opens
+      if (tab === cliTab) {
+        setTimeout(() => $('cliInput').focus(), 100);
+      }
+    }
+  }
+
+  scenarioTab.onclick = () => togglePresetTab(scenarioTab, scenarioContent);
+  initTab.onclick = () => togglePresetTab(initTab, initContent);
+  cliTab.onclick = () => togglePresetTab(cliTab, cliContent);
+
+  // CLI System
+  const cliInput = $('cliInput');
+  const cliOutput = $('cliOutput');
+
+  function cliPrint(text, color = '#9fb2c6') {
+    const line = document.createElement('div');
+    line.style.color = color;
+    line.textContent = text;
+    cliOutput.appendChild(line);
+    cliOutput.scrollTop = cliOutput.scrollHeight;
+  }
+
+  function cliClear() {
+    cliOutput.innerHTML = '';
+  }
+
+  function characterizeCurve() {
+    const R0 = parseFloat($('r0Val').textContent);
+    const data = chartSeries;
+
+    // Find peak infection
+    let I_max = 0, t_peak = 0;
+    for (let i = 0; i < data.I.length; i++) {
+      if (data.I[i] > I_max) {
+        I_max = data.I[i];
+        t_peak = data.t[i];
+      }
+    }
+
+    // Final recovered
+    const R_final = data.R[data.R.length - 1] || 0;
+    const attack_rate = R_final / params.N;
+
+    // Time to 95% recovered
+    const target95 = params.N * 0.95;
+    let duration = data.t[data.t.length - 1];
+    for (let i = 0; i < data.R.length; i++) {
+      if (data.R[i] >= target95) {
+        duration = data.t[i];
+        break;
+      }
+    }
+
+    // Area under I curve (infection-days)
+    let auc_I = 0;
+    for (let i = 1; i < data.I.length; i++) {
+      auc_I += (data.I[i] + data.I[i-1]) * (data.t[i] - data.t[i-1]) / 2;
+    }
+
+    return { R0, t_peak, I_max, R_final, attack_rate, duration, auc_I };
+  }
+
+  function cliSave(name) {
+    if (!name) {
+      cliPrint('Usage: save [name]', '#ff6b6b');
+      return;
+    }
+    const curves = characterizeCurve();
+    const preset = {
+      params: {...params},
+      curves,
+      pattern: infectionPattern,
+      timestamp: new Date().toISOString()
+    };
+    const saved = JSON.parse(localStorage.getItem('sir_presets') || '{}');
+    saved[name] = preset;
+    localStorage.setItem('sir_presets', JSON.stringify(saved));
+    cliPrint(`Saved '${name}': R₀=${curves.R0.toFixed(2)}, τ=${curves.t_peak.toFixed(1)}s, α=${(curves.attack_rate*100).toFixed(1)}%`, '#29d398');
+    // Refresh experiments list if visible
+    if (experimentsView.style.display !== 'none') {
+      loadExperimentsList();
+    }
+  }
+
+  function cliLoad(name) {
+    if (!name) {
+      cliPrint('Usage: load [name]', '#ff6b6b');
+      return;
+    }
+    const saved = JSON.parse(localStorage.getItem('sir_presets') || '{}');
+    if (!saved[name]) {
+      cliPrint(`Preset '${name}' not found`, '#ff6b6b');
+      return;
+    }
+    const preset = saved[name];
+    // Apply params
+    for (const k of sliders) {
+      if (k in preset.params) {
+        const el = $(k);
+        const val = $(k+'_val');
+        el.value = preset.params[k];
+        params[k] = preset.params[k];
+        const fmt = (x) => k==='noise'? x+'%' : (k==='gamma'? Number(x).toFixed(3) : (k==='p'? Number(x).toFixed(2) : String(x)));
+        val.textContent = fmt(el.value);
+      }
+    }
+    if (preset.pattern) infectionPattern = preset.pattern;
+    resetPopulation();
+    recomputeR0();
+    cliPrint(`Loaded '${name}'`, '#29d398');
+  }
+
+  function cliRm(name) {
+    if (!name) {
+      cliPrint('Usage: rm [name]', '#ff6b6b');
+      return;
+    }
+    const saved = JSON.parse(localStorage.getItem('sir_presets') || '{}');
+    if (!saved[name]) {
+      cliPrint(`Preset '${name}' not found`, '#ff6b6b');
+      return;
+    }
+    delete saved[name];
+    localStorage.setItem('sir_presets', JSON.stringify(saved));
+    cliPrint(`Removed '${name}'`, '#f7b955');
+    // Refresh experiments list if visible
+    if (experimentsView.style.display !== 'none') {
+      loadExperimentsList();
+    }
+  }
+
+  function cliLs() {
+    const saved = JSON.parse(localStorage.getItem('sir_presets') || '{}');
+    const names = Object.keys(saved);
+    if (names.length === 0) {
+      cliPrint('No saved presets', '#9fb2c6');
+      return;
+    }
+    cliPrint(`Saved presets (${names.length}):`, '#4aa3ff');
+    names.forEach(name => {
+      const c = saved[name].curves;
+      cliPrint(`  ${name}: R₀=${c.R0.toFixed(2)}, τ=${c.t_peak.toFixed(1)}s, α=${(c.attack_rate*100).toFixed(1)}%`, '#9fb2c6');
+    });
+  }
+
+  function cliExportGraph(type) {
+    const canvas = type === 'chart' ? chart : field;
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sir_${type}_${Date.now()}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      cliPrint(`Exported ${type} as PNG`, '#29d398');
+    });
+  }
+
+  function cliExportData() {
+    const data = {
+      params,
+      curves: characterizeCurve(),
+      series: chartSeries,
+      timestamp: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sir_data_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    cliPrint('Exported data as JSON', '#29d398');
+  }
+
+  function cliHelp() {
+    cliPrint('Available commands:', '#4aa3ff');
+    cliPrint('  help              Show this help', '#9fb2c6');
+    cliPrint('  save [name]       Save current params + curve summary', '#9fb2c6');
+    cliPrint('  load [name]       Load saved preset', '#9fb2c6');
+    cliPrint('  rm [name]         Remove saved preset', '#9fb2c6');
+    cliPrint('  ls                List saved presets', '#9fb2c6');
+    cliPrint('  export field      Export field canvas as PNG', '#9fb2c6');
+    cliPrint('  export chart      Export chart canvas as PNG', '#9fb2c6');
+    cliPrint('  export data       Export simulation data as JSON', '#9fb2c6');
+    cliPrint('  curves            Show current curve parameters', '#9fb2c6');
+    cliPrint('  clear             Clear output', '#9fb2c6');
+  }
+
+  function cliCurves() {
+    const c = characterizeCurve();
+    cliPrint('Current curve parameters:', '#4aa3ff');
+    cliPrint(`  R₀ = ${c.R0.toFixed(2)} (basic reproduction number)`, '#9fb2c6');
+    cliPrint(`  τ  = ${c.t_peak.toFixed(1)}s (time to peak infection)`, '#9fb2c6');
+    cliPrint(`  α  = ${(c.attack_rate*100).toFixed(1)}% (attack rate)`, '#9fb2c6');
+    cliPrint(`  I_max = ${c.I_max} (peak infections)`, '#9fb2c6');
+    cliPrint(`  Duration = ${c.duration.toFixed(1)}s (to 95% recovered)`, '#9fb2c6');
+    cliPrint(`  AUC(I) = ${c.auc_I.toFixed(0)} (total infection-days)`, '#9fb2c6');
+  }
+
+  function cliExecute(cmd) {
+    const parts = cmd.trim().split(/\s+/);
+    const command = parts[0];
+    const args = parts.slice(1);
+
+    cliPrint(`> ${cmd}`, '#4aa3ff');
+
+    if (!command) return;
+
+    switch(command) {
+      case 'help': cliHelp(); break;
+      case 'save': cliSave(args[0]); break;
+      case 'load': cliLoad(args[0]); break;
+      case 'rm': cliRm(args[0]); break;
+      case 'ls': cliLs(); break;
+      case 'export':
+        if (args[0] === 'field') cliExportGraph('field');
+        else if (args[0] === 'chart') cliExportGraph('chart');
+        else if (args[0] === 'data') cliExportData();
+        else cliPrint('Usage: export [field|chart|data]', '#ff6b6b');
+        break;
+      case 'curves': cliCurves(); break;
+      case 'clear': cliClear(); break;
+      default:
+        cliPrint(`Unknown command: ${command}. Type 'help' for commands.`, '#ff6b6b');
+    }
+  }
+
+  cliInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const cmd = cliInput.value;
+      cliInput.value = '';
+      cliExecute(cmd);
+    }
+  });
+
+  // Chart View Tabs (Time Series / Experiments)
+  const timeSeriesTab = $('timeSeriesTab');
+  const experimentsTab = $('experimentsTab');
+  const timeSeriesView = $('timeSeriesView');
+  const experimentsView = $('experimentsView');
+  const experimentsList = $('experimentsList');
+
+  function switchChartView(view) {
+    if (view === 'timeseries') {
+      timeSeriesTab.classList.add('active');
+      experimentsTab.classList.remove('active');
+      timeSeriesView.style.display = 'block';
+      experimentsView.style.display = 'none';
+    } else {
+      timeSeriesTab.classList.remove('active');
+      experimentsTab.classList.add('active');
+      timeSeriesView.style.display = 'none';
+      experimentsView.style.display = 'block';
+      loadExperimentsList();
+    }
+  }
+
+  function drawThumbnailCurve(canvas, curves, params) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+
+    // Clear
+    ctx.fillStyle = '#0a0f16';
+    ctx.fillRect(0, 0, W, H);
+
+    // Generate synthetic curve data
+    const N = params.N;
+    const steps = 60;
+    const duration = curves.duration * 1.2; // Extend slightly past 95% recovered
+    const t_peak = curves.t_peak;
+    const I_max = curves.I_max;
+    const R_final = curves.R_final;
+
+    const S = [], I = [], R = [];
+
+    for (let i = 0; i < steps; i++) {
+      const t = (i / (steps - 1)) * duration;
+
+      // Infected curve: Gaussian-like peak at t_peak
+      const sigma = t_peak / 2.5; // Width of infection peak
+      const I_t = I_max * Math.exp(-Math.pow(t - t_peak, 2) / (2 * sigma * sigma));
+      I.push(I_t);
+
+      // Recovered curve: Logistic growth to R_final
+      const k = 4 / curves.duration; // Steepness
+      const R_t = R_final / (1 + Math.exp(-k * (t - curves.duration / 2)));
+      R.push(R_t);
+
+      // Susceptible curve: N - I - R
+      const S_t = N - I_t - R_t;
+      S.push(Math.max(0, S_t));
+    }
+
+    // Draw curves
+    const maxVal = Math.max(...S, ...I, ...R, N);
+    const xScale = (x) => (x / (steps - 1)) * W;
+    const yScale = (y) => H - (y / maxVal) * H;
+
+    // Helper to draw line
+    const drawLine = (data, color, lineWidth = 1.5) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.beginPath();
+      ctx.moveTo(xScale(0), yScale(data[0]));
+      for (let i = 1; i < data.length; i++) {
+        ctx.lineTo(xScale(i), yScale(data[i]));
+      }
+      ctx.stroke();
+    };
+
+    drawLine(S, '#4aa3ff');
+    drawLine(I, '#ff6b6b');
+    drawLine(R, '#29d398');
+  }
+
+  function loadExperimentsList() {
+    const saved = JSON.parse(localStorage.getItem('sir_presets') || '{}');
+    const names = Object.keys(saved).sort();
+
+    if (names.length === 0) {
+      experimentsList.innerHTML = '<div style="text-align:center; color:var(--muted); padding:20px;">No experiments saved yet.<br><br>Use the CLI to save experiments:<br><code style="background:#0a0f16; padding:4px 8px; border-radius:4px;">save [name]</code></div>';
+      return;
+    }
+
+    experimentsList.innerHTML = '';
+    names.forEach(name => {
+      const exp = saved[name];
+      const c = exp.curves;
+      const date = new Date(exp.timestamp);
+      const dateStr = date.toLocaleString();
+
+      const item = document.createElement('div');
+      item.className = 'experiment-item';
+
+      // Create canvas for thumbnail
+      const canvas = document.createElement('canvas');
+      canvas.width = 50;
+      canvas.height = 50;
+
+      const infoDiv = document.createElement('div');
+      infoDiv.style.flex = '1';
+      infoDiv.innerHTML = `
+        <div class="exp-name">${name}</div>
+        <div class="exp-params">R₀=${c.R0.toFixed(2)}, τ=${c.t_peak.toFixed(1)}s, α=${(c.attack_rate*100).toFixed(1)}%</div>
+        <div class="exp-params">I_max=${c.I_max}, Duration=${c.duration.toFixed(1)}s, AUC=${c.auc_I.toFixed(0)}</div>
+        <div class="exp-timestamp">${dateStr}</div>
+      `;
+
+      item.appendChild(canvas);
+      item.appendChild(infoDiv);
+
+      item.onclick = () => {
+        cliLoad(name);
+        switchChartView('timeseries');
+      };
+
+      experimentsList.appendChild(item);
+
+      // Draw thumbnail after DOM insertion
+      drawThumbnailCurve(canvas, c, exp.params);
+    });
+  }
+
+  timeSeriesTab.onclick = () => switchChartView('timeseries');
+  experimentsTab.onclick = () => switchChartView('experiments');
+
+  // Initial preset handlers will be attached after boot
+  attachPresetHandlers();
+
+  r0TargetSlider.addEventListener('input', () => {
+    const targetR0 = Number(r0TargetSlider.value);
+    r0TargetVal.textContent = targetR0.toFixed(1);
+    if (r0Mode === 'manual') {
+      adjustPforR0(targetR0);
+    }
+  });
+
+  function adjustPforR0(targetR0) {
+    // R₀ = (2 * r * v * ρ * p) / γ
+    // Solve for p: p = (R₀ * γ) / (2 * r * v * ρ)
+    const W = field.width/DPR, H = field.height/DPR;
+    const A = W * H;
+    const rho = agents.length / Math.max(1, A);
+    const k = 2 * params.radius * params.speed * rho;
+    const newP = (targetR0 * params.gamma) / Math.max(1e-6, k);
+    const clampedP = Math.max(0.02, Math.min(0.9, newP));
+
+    // Update p slider
+    const pSlider = $('p');
+    const pVal = $('p_val');
+    pSlider.value = clampedP;
+    params.p = clampedP;
+    pVal.textContent = clampedP.toFixed(2);
+
+    // Update displayed R₀
+    recomputeR0();
+  }
+
+  // Sliders and parameters
+  const sliders = ['N','i0','speed','radius','p','gamma','noise','horizon'];
+  const params = {};
+  for (const k of sliders){
+    const el = $(k); const val = $(k+'_val');
+    const fmt = (x) => k==='noise'? x+'%' : (k==='gamma'? Number(x).toFixed(3) : (k==='p'? Number(x).toFixed(2) : String(x)));
+    const set = () => { params[k] = (k==='p'||k==='gamma') ? Number(el.value) : (k==='noise' ? Number(el.value) : Number(el.value)); val.textContent = fmt(el.value); };
+    el.addEventListener('input', () => { set(); onParamChanged(k); }); set();
+  }
+
+  // Example presets (for Examples tab - documentation)
+  const examples = {
+    mild: {N:400, i0:8, speed:90, radius:8, p:0.10, gamma:0.02, noise:0, horizon:120},
+    fastspread: {N:600, i0:12, speed:150, radius:10, p:0.40, gamma:0.02, noise:0, horizon:120},
+    critical: {N:600, i0:10, speed:60, radius:6, p:0.15, gamma:0.025, noise:0, horizon:120},
+    superspreader: {N:800, i0:40, speed:100, radius:9, p:0.25, gamma:0.02, noise:0, horizon:120},
+    slowburn: {N:500, i0:10, speed:30, radius:8, p:0.22, gamma:0.005, noise:0, horizon:180},
+    fastrecovery: {N:500, i0:10, speed:90, radius:8, p:0.30, gamma:0.08, noise:0, horizon:120},
+  };
+  function loadExample(name){
+    const preset = examples[name];
+    if (!preset) return;
+    for (const k of sliders){
+      if (k in preset){
+        const el = $(k); const val = $(k+'_val');
+        el.value = preset[k];
+        const fmt = (x) => k==='noise'? x+'%' : (k==='gamma'? Number(x).toFixed(3) : (k==='p'? Number(x).toFixed(2) : String(x)));
+        params[k] = (k==='p'||k==='gamma') ? Number(el.value) : Number(el.value);
+        val.textContent = fmt(el.value);
+        onParamChanged(k);
+      }
+    }
+  }
+  document.querySelectorAll('.example-btn').forEach(btn => {
+    btn.addEventListener('click', () => { loadExample(btn.dataset.example); });
+  });
+
+  // Parameter value click handlers
+  document.querySelectorAll('.param-set').forEach(elem => {
+    elem.addEventListener('click', () => {
+      const paramName = elem.dataset.param;
+      const paramValue = elem.dataset.value;
+      const el = $(paramName);
+      if (!el) return;
+      el.value = paramValue;
+      const val = $(paramName+'_val');
+      const fmt = (x) => paramName==='noise'? x+'%' : (paramName==='gamma'? Number(x).toFixed(3) : (paramName==='p'? Number(x).toFixed(2) : String(x)));
+      params[paramName] = (paramName==='p'||paramName==='gamma') ? Number(el.value) : Number(el.value);
+      val.textContent = fmt(el.value);
+      onParamChanged(paramName);
+      // Visual feedback
+      elem.style.background = 'rgba(74,163,255,.35)';
+      setTimeout(() => { elem.style.background = ''; }, 200);
+    });
+  });
+
+  // State
+  let agents = [], time = 0, paused = false; let chartSeries = {t:[], S:[], I:[], R:[]};
+  const world = { width: () => field.width, height: () => field.height, rng: mulberry32((Date.now()>>>0) ^ 0x9E3779B9) };
+
+  // RNG
+  function mulberry32(a){ return function(){ let t=a+=0x6D2B79F5; t=Math.imul(t ^ t>>>15, t | 1); t ^= t + Math.imul(t ^ t>>>7, t | 61); return ((t ^ t>>>14) >>> 0) / 4294967296; }; }
+  function randIn(min,max){ return min + (max-min)*world.rng(); }
+  function pick(arr){ return arr[(arr.length*world.rng())|0]; }
+  function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
+
+  // Population init
+  function resetPopulation({randomize=false} = {}){
+    if(randomize){ world.rng = mulberry32(((Math.random()*2**31)|0) ^ (Date.now()>>>0)); }
+    agents = []; time = 0; chartSeries = {t:[], S:[], I:[], R:[]};
+    const W = world.width()/DPR, H = world.height()/DPR;
+    for (let i=0;i<params.N;i++) agents.push(spawnAgent(W,H,'S'));
+    // seed infected based on pattern
+    seedInfections(W, H);
+  }
+
+  function seedInfections(W, H){
+    const count = Math.min(params.i0, agents.length);
+    if (infectionPattern === 'random'){
+      for (let k=0;k<count;k++){ const a = pick(agents); a.state='I'; a.tInfected=time; }
+    } else if (infectionPattern === 'cluster'){
+      // Cluster at center
+      const cx = W/2, cy = H/2;
+      const sorted = agents.slice().sort((a,b) => {
+        const da = (a.x-cx)**2 + (a.y-cy)**2;
+        const db = (b.x-cx)**2 + (b.y-cy)**2;
+        return da - db;
+      });
+      for (let k=0;k<count;k++){ sorted[k].state='I'; sorted[k].tInfected=time; }
+    } else if (infectionPattern === 'line'){
+      // Horizontal line at center
+      const sorted = agents.slice().sort((a,b) => Math.abs(a.y - H/2) - Math.abs(b.y - H/2));
+      for (let k=0;k<count;k++){ sorted[k].state='I'; sorted[k].tInfected=time; }
+    } else if (infectionPattern === 'vertical'){
+      // Vertical line at center
+      const sorted = agents.slice().sort((a,b) => Math.abs(a.x - W/2) - Math.abs(b.x - W/2));
+      for (let k=0;k<count;k++){ sorted[k].state='I'; sorted[k].tInfected=time; }
+    } else if (infectionPattern === 'grid'){
+      // Grid pattern
+      const gridSize = Math.ceil(Math.sqrt(count));
+      let infected = 0;
+      for (let gy=0; gy<gridSize && infected<count; gy++){
+        for (let gx=0; gx<gridSize && infected<count; gx++){
+          const tx = (gx+1)/(gridSize+1) * W;
+          const ty = (gy+1)/(gridSize+1) * H;
+          const sorted = agents.filter(a => a.state==='S').sort((a,b) => {
+            const da = (a.x-tx)**2 + (a.y-ty)**2;
+            const db = (b.x-tx)**2 + (b.y-ty)**2;
+            return da - db;
+          });
+          if (sorted[0]){ sorted[0].state='I'; sorted[0].tInfected=time; infected++; }
+        }
+      }
+    } else if (infectionPattern === 'corners'){
+      // Four corners
+      const corners = [[W*0.25, H*0.25], [W*0.75, H*0.25], [W*0.25, H*0.75], [W*0.75, H*0.75]];
+      let infected = 0;
+      for (let corner of corners){
+        const perCorner = Math.floor(count / 4) + (infected < count % 4 ? 1 : 0);
+        const sorted = agents.filter(a => a.state==='S').sort((a,b) => {
+          const da = (a.x-corner[0])**2 + (a.y-corner[1])**2;
+          const db = (b.x-corner[0])**2 + (b.y-corner[1])**2;
+          return da - db;
+        });
+        for (let k=0; k<perCorner && infected<count; k++){
+          if (sorted[k]){ sorted[k].state='I'; sorted[k].tInfected=time; infected++; }
+        }
+      }
+    }
+  }
+  function spawnAgent(W,H,state='S'){
+    return { x: randIn(8,W-8), y: randIn(8,H-8), vx: randIn(-1,1), vy: randIn(-1,1), state, tInfected: state==='I'? time : -1 };
+  }
+
+  // Dynamic parameter changes (no reset)
+  function onParamChanged(k){
+    // Keep i0 slider bounded by N
+    $('i0').max = String(params.N);
+
+    if (k==='N') adjustPopulation(params.N);
+    else if (k==='i0') adjustI0(params.i0);
+
+    // In manual R₀ mode, maintain target R₀ when other params change
+    if (r0Mode === 'manual' && k !== 'p' && k !== 'i0' && k !== 'horizon') {
+      const targetR0 = Number(r0TargetSlider.value);
+      adjustPforR0(targetR0);
+    } else if (k!=='N' && k!=='i0') {
+      recomputeR0();
+    }
+
+    if (k==='horizon') { /* chart trimming handled in render */ }
+  }
+
+  function adjustPopulation(targetN){
+    const W = world.width()/DPR, H = world.height()/DPR;
+    const curr = agents.length; const delta = targetN - curr;
+    if (delta > 0){ // add susceptible agents
+      for (let i=0;i<delta;i++) agents.push(spawnAgent(W,H,'S'));
+    } else if (delta < 0){ // remove random agents (unbiased across S/I/R)
+      const removeCount = -delta;
+      for (let i=0;i<removeCount;i++){
+        if (!agents.length) break;
+        const idx = (agents.length * world.rng()) | 0;
+        agents.splice(idx,1);
+      }
+    }
+    // Ensure i0 slider value does not exceed current infected count cap
+    $('i0').value = String(Math.min(params.i0, agents.length));
+    params.i0 = Number($('i0').value);
+    adjustI0(params.i0); // reconcile infected count
+    recomputeR0();
+  }
+
+  function adjustI0(targetI){
+    // Count current
+    const infectedIdx = [];
+    const susceptibleIdx = [];
+    const recoveredIdx = [];
+    for (let i=0;i<agents.length;i++){
+      const st = agents[i].state;
+      if (st==='I') infectedIdx.push(i); else if (st==='S') susceptibleIdx.push(i); else recoveredIdx.push(i);
+    }
+    const I = infectedIdx.length;
+    if (targetI > I){
+      let need = targetI - I;
+      // promote susceptibles first, then recovered
+      shuffleInPlace(susceptibleIdx);
+      shuffleInPlace(recoveredIdx);
+      for (let j=0; j<susceptibleIdx.length && need>0; j++,need--){ const a = agents[susceptibleIdx[j]]; a.state='I'; a.tInfected=time; }
+      for (let j=0; j<recoveredIdx.length && need>0; j++,need--){ const a = agents[recoveredIdx[j]]; a.state='I'; a.tInfected=time; }
+    } else if (targetI < I){
+      let need = I - targetI;
+      shuffleInPlace(infectedIdx);
+      for (let j=0; j<infectedIdx.length && need>0; j++,need--){ const a = agents[infectedIdx[j]]; a.state='S'; a.tInfected=-1; }
+    }
+  }
+  function shuffleInPlace(arr){ for (let i=arr.length-1;i>0;i--){ const j=(world.rng()*(i+1))|0; const t=arr[i]; arr[i]=arr[j]; arr[j]=t; } }
+
+  // Dynamics step
+  function step(dt){
+    const W = world.width()/DPR, H = world.height()/DPR;
+    const speed = params.speed; const r = params.radius; const r2 = r*r; const gamma = params.gamma;
+    const pBase = params.p; const noiseFrac = params.noise/100; const pStep = clamp(pBase * (1 + (world.rng()*2-1)*noiseFrac), 0, 1);
+
+    // Move (random walk)
+    for (const a of agents){
+      const theta = Math.atan2(a.vy, a.vx) + (world.rng()*2-1) * 0.25; // jitter
+      a.vx = Math.cos(theta) * speed; a.vy = Math.sin(theta) * speed;
+      a.x += a.vx * dt; a.y += a.vy * dt;
+      if (a.x < 4){ a.x = 4; a.vx = Math.abs(a.vx); }
+      if (a.x > W-4){ a.x = W-4; a.vx = -Math.abs(a.vx); }
+      if (a.y < 4){ a.y = 4; a.vy = Math.abs(a.vy); }
+      if (a.y > H-4){ a.y = H-4; a.vy = -Math.abs(a.vy); }
+    }
+
+    // Infection contacts (naive O(N^2))
+    const idxI = [];
+    for (let i=0;i<agents.length;i++) if (agents[i].state==='I') idxI.push(i);
+    for (let i=0;i<agents.length;i++){
+      const a = agents[i]; if (a.state!=='S') continue;
+      for (let j=0;j<idxI.length;j++){
+        const b = agents[idxI[j]]; const dx=a.x-b.x, dy=a.y-b.y; if (dx*dx + dy*dy <= r2){ if (world.rng() < pStep){ a.state='I'; a.tInfected=time; break; } }
+      }
+    }
+
+    // Recoveries
+    for (const a of agents){ if (a.state==='I' && world.rng() < gamma * dt){ a.state='R'; } }
+
+    // Tally
+    let S=0,I=0,R=0; for (const a of agents){ if (a.state==='S') S++; else if (a.state==='I') I++; else R++; }
+    time += dt;
+
+    // Series & horizon
+    chartSeries.t.push(time); chartSeries.S.push(S); chartSeries.I.push(I); chartSeries.R.push(R);
+    const horizon = Number(params.horizon);
+    while (chartSeries.t.length && (time - chartSeries.t[0]) > horizon){ chartSeries.t.shift(); chartSeries.S.shift(); chartSeries.I.shift(); chartSeries.R.shift(); }
+
+    updateStats(S,I,R); applyCriticalMode(S,I,R);
+  }
+
+  // Derived R0, Rt
+  function recomputeR0(){ const A=(world.width()/DPR)*(world.height()/DPR); const rho=agents.length/Math.max(1,A); const k=2*params.radius*params.speed*rho; const R0=(k*params.p)/Math.max(1e-6,params.gamma); $('r0Val').textContent=R0.toFixed(2); return R0; }
+  function computeRt(S){ const A=(world.width()/DPR)*(world.height()/DPR); const rho=agents.length/Math.max(1,A); const k=2*params.radius*params.speed*rho; const Rt=(k*params.p*(S/Math.max(1,agents.length)))/Math.max(1e-6,params.gamma); $('rtVal').textContent=Rt.toFixed(2); return Rt; }
+
+  // Rendering
+  function renderField(){ const ctx=fieldCtx, W=field.width, H=field.height; ctx.save(); ctx.scale(DPR,DPR);
+    ctx.fillStyle='#0d141d'; ctx.fillRect(0,0,W/DPR,H/DPR);
+    ctx.strokeStyle='#122033'; ctx.lineWidth=1; ctx.globalAlpha=.6; const g=32; for (let x=0;x<W/DPR;x+=g){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H/DPR); ctx.stroke(); } for (let y=0;y<H/DPR;y+=g){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W/DPR,y); ctx.stroke(); } ctx.globalAlpha=1;
+    for (const a of agents){ const color = a.state==='S'? '#4aa3ff' : (a.state==='I'? '#ff6b6b' : '#29d398'); ctx.fillStyle=color; ctx.beginPath(); ctx.arc(a.x,a.y,2.2,0,Math.PI*2); ctx.fill(); }
+    const inf = agents.find(x=>x.state==='I'); if (inf){ ctx.strokeStyle='rgba(255,107,107,.15)'; ctx.beginPath(); ctx.arc(inf.x, inf.y, params.radius, 0, Math.PI*2); ctx.stroke(); }
+    ctx.restore(); }
+
+  function renderChart(){ const ctx=chartCtx, W=chart.width, H=chart.height; const pad=28*DPR; ctx.save(); ctx.fillStyle='#0d131b'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='#152233'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(pad,H-pad); ctx.lineTo(W-10,H-pad); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pad,10); ctx.lineTo(pad,H-pad); ctx.stroke();
+    const nMax = Math.max(10, ...chartSeries.S, ...chartSeries.I, ...chartSeries.R); const t0=chartSeries.t[0]||0; const t1=chartSeries.t[chartSeries.t.length-1]||1; const xOf=(t)=>pad+(W-pad-12)*(t-t0)/Math.max(1e-6,(t1-t0)); const yOf=(n)=>(H-pad)-(H-pad-12)*n/nMax;
+    ctx.strokeStyle='#132033'; ctx.lineWidth=1; ctx.globalAlpha=.6; const yTicks=4; for (let k=1;k<=yTicks;k++){ const y=12+(H-pad-12)*k/yTicks; ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(W-10,y); ctx.stroke(); } ctx.globalAlpha=1;
+    drawLine(ctx, chartSeries.t, chartSeries.S, xOf, yOf, '#4aa3ff'); drawLine(ctx, chartSeries.t, chartSeries.I, xOf, yOf, '#ff6b6b'); drawLine(ctx, chartSeries.t, chartSeries.R, xOf, yOf, '#29d398');
+    ctx.restore(); }
+  function drawLine(ctx,xs,ys,xOf,yOf,color){ if (xs.length<2) return; ctx.strokeStyle=color; ctx.lineWidth=2*DPR; ctx.beginPath(); ctx.moveTo(xOf(xs[0]), yOf(ys[0])); for (let i=1;i<xs.length;i++) ctx.lineTo(xOf(xs[i]), yOf(ys[i])); ctx.stroke(); }
+
+  // Stats & critical mode
+  const sVal=$('sVal'), iVal=$('iVal'), rVal=$('rVal');
+  function updateStats(S,I,R){ sVal.textContent=S; iVal.textContent=I; rVal.textContent=R; computeRt(S); }
+  function applyCriticalMode(S,I,R){ const R0=parseFloat($('r0Val').textContent); const Rt=parseFloat($('rtVal').textContent); const near=(x)=>Math.abs(x-1)<0.05; const critical=near(R0)||near(Rt); document.body.classList.toggle('critical', critical); $('fab').classList.toggle('critical', critical); if (critical){ for (const a of agents){ a.vx*=0.97; a.vy*=0.97; } } }
+
+  // Buttons
+  $('pauseBtn').onclick = () => { paused = !paused; $('pauseBtn').textContent = paused ? 'Resume' : 'Pause'; };
+  $('resetBtn').onclick = () => { resetPopulation({randomize:true}); recomputeR0(); };
+
+  // Loop
+  let last = performance.now();
+  function loop(now){ const dt = Math.min(0.050, (now-last)/1000); last=now; if(!paused){ let acc=dt; const h=1/60; while(acc>1e-6){ const stepDt=Math.min(h,acc); step(stepDt); acc-=stepDt; } renderField(); renderChart(); } requestAnimationFrame(loop); }
+
+  // Boot
+  resetPopulation(); recomputeR0(); requestAnimationFrame(loop);
+  drawer.classList.add('open'); setTimeout(()=>drawer.classList.remove('open'), 180);
+
+})();
+</script>
+</body>
+</html>

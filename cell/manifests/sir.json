@@ -1,0 +1,294 @@
+{
+  "id": "sir",
+  "name": "SIR Epidemic Model",
+  "description": "Agent-based SIR (Susceptible-Infected-Recovered) epidemic simulation with spatial dynamics",
+  "version": "1.0.0",
+
+  "canvases": [
+    {
+      "id": "field",
+      "label": "Agent Field",
+      "note": "2D random walk. Infection on contact within r. Recovery is Poisson with rate γ."
+    },
+    {
+      "id": "chart",
+      "label": "Time Series",
+      "axisLabel": "time (s)"
+    }
+  ],
+
+  "parameters": [
+    {
+      "id": "N",
+      "label": "Population N",
+      "type": "slider",
+      "min": 50,
+      "max": 1500,
+      "step": 10,
+      "default": 400,
+      "description": "Total population size (number of agents)"
+    },
+    {
+      "id": "i0",
+      "label": "Initial infected i₀",
+      "type": "slider",
+      "min": 0,
+      "max": 60,
+      "step": 1,
+      "default": 6,
+      "description": "Number of initially infected agents"
+    },
+    {
+      "id": "speed",
+      "label": "Agent speed v",
+      "type": "slider",
+      "min": 10,
+      "max": 200,
+      "step": 5,
+      "default": 90,
+      "description": "Movement speed of agents (pixels/s)"
+    },
+    {
+      "id": "radius",
+      "label": "Infection radius r",
+      "type": "slider",
+      "min": 4,
+      "max": 16,
+      "step": 1,
+      "default": 8,
+      "description": "Contact radius for infection transmission"
+    },
+    {
+      "id": "p",
+      "label": "Transmission prob p",
+      "type": "slider",
+      "min": 0.02,
+      "max": 0.9,
+      "step": 0.01,
+      "default": 0.22,
+      "format": "0.00",
+      "description": "Probability of infection per contact"
+    },
+    {
+      "id": "gamma",
+      "label": "Recovery rate γ",
+      "type": "slider",
+      "min": 0.001,
+      "max": 0.15,
+      "step": 0.001,
+      "default": 0.02,
+      "format": "0.000",
+      "description": "Rate of recovery (1/γ = mean infectious period)"
+    },
+    {
+      "id": "noise",
+      "label": "Transmission noise",
+      "type": "slider",
+      "min": 0,
+      "max": 50,
+      "step": 1,
+      "default": 0,
+      "format": "%",
+      "description": "Stochastic variation in transmission probability"
+    },
+    {
+      "id": "horizon",
+      "label": "Chart horizon",
+      "type": "slider",
+      "min": 30,
+      "max": 300,
+      "step": 10,
+      "default": 120,
+      "description": "Time window for chart display (seconds)"
+    }
+  ],
+
+  "stats": [
+    {
+      "id": "S",
+      "label": "S",
+      "color": "sir-s",
+      "description": "Susceptible count"
+    },
+    {
+      "id": "I",
+      "label": "I",
+      "color": "sir-i",
+      "description": "Infected count"
+    },
+    {
+      "id": "R",
+      "label": "R",
+      "color": "sir-r",
+      "description": "Recovered count"
+    },
+    {
+      "id": "R0",
+      "label": "R₀",
+      "color": "r-number",
+      "format": "0.00",
+      "description": "Basic reproduction number"
+    },
+    {
+      "id": "Rt",
+      "label": "Rₜ",
+      "color": "r-number",
+      "format": "0.00",
+      "description": "Effective reproduction number"
+    }
+  ],
+
+  "presets": {
+    "regimes": [
+      {
+        "id": "mild",
+        "name": "Mild Outbreak",
+        "description": "R₀ ≈ 1.2, slow spread",
+        "params": {
+          "N": 400,
+          "i0": 8,
+          "speed": 90,
+          "radius": 8,
+          "p": 0.10,
+          "gamma": 0.02,
+          "noise": 0,
+          "horizon": 120
+        }
+      },
+      {
+        "id": "fastspread",
+        "name": "Fast Spread",
+        "description": "R₀ ≈ 3.5, rapid exponential growth",
+        "params": {
+          "N": 600,
+          "i0": 12,
+          "speed": 150,
+          "radius": 10,
+          "p": 0.40,
+          "gamma": 0.02,
+          "noise": 0,
+          "horizon": 120
+        }
+      },
+      {
+        "id": "critical",
+        "name": "Critical (R₀≈1)",
+        "description": "Near-critical threshold, sensitive to noise",
+        "params": {
+          "N": 600,
+          "i0": 10,
+          "speed": 60,
+          "radius": 6,
+          "p": 0.15,
+          "gamma": 0.025,
+          "noise": 0,
+          "horizon": 120
+        }
+      },
+      {
+        "id": "superspreader",
+        "name": "Superspreader Event",
+        "description": "Many initial infections, high R₀",
+        "params": {
+          "N": 800,
+          "i0": 40,
+          "speed": 100,
+          "radius": 9,
+          "p": 0.25,
+          "gamma": 0.02,
+          "noise": 0,
+          "horizon": 120
+        }
+      },
+      {
+        "id": "slowburn",
+        "name": "Slow Burn",
+        "description": "Low mobility, long infectious period",
+        "params": {
+          "N": 500,
+          "i0": 10,
+          "speed": 30,
+          "radius": 8,
+          "p": 0.22,
+          "gamma": 0.005,
+          "noise": 0,
+          "horizon": 180
+        }
+      },
+      {
+        "id": "fastrecovery",
+        "name": "Fast Recovery",
+        "description": "High γ, short infectious period",
+        "params": {
+          "N": 500,
+          "i0": 10,
+          "speed": 90,
+          "radius": 8,
+          "p": 0.30,
+          "gamma": 0.08,
+          "noise": 0,
+          "horizon": 120
+        }
+      }
+    ],
+
+    "patterns": [
+      {
+        "id": "random",
+        "name": "Random",
+        "description": "Randomly distributed initial infections"
+      },
+      {
+        "id": "cluster",
+        "name": "Cluster",
+        "description": "Clustered at center of field"
+      },
+      {
+        "id": "line",
+        "name": "Horizontal Line",
+        "description": "Linear distribution across center"
+      },
+      {
+        "id": "vertical",
+        "name": "Vertical Line",
+        "description": "Vertical distribution down center"
+      },
+      {
+        "id": "grid",
+        "name": "Grid",
+        "description": "Evenly spaced grid pattern"
+      },
+      {
+        "id": "corners",
+        "name": "Four Corners",
+        "description": "Infections at four corners"
+      }
+    ]
+  },
+
+  "controls": {
+    "r0Mode": {
+      "type": "dropdown",
+      "label": "R₀ control mode",
+      "options": [
+        {
+          "id": "free",
+          "label": "Free",
+          "description": "Direct control of all parameters"
+        },
+        {
+          "id": "manual",
+          "label": "Manual R₀",
+          "description": "Set target R₀, auto-adjust p"
+        }
+      ],
+      "default": "free"
+    }
+  },
+
+  "colors": {
+    "S": "#4aa3ff",
+    "I": "#ff6b6b",
+    "R": "#29d398"
+  }
+}
