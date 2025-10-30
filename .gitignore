@@ -3,9 +3,22 @@ a.out
 log.txt
 #
 *.pyc
+__pycache__/
 
 .DS*
 env.sh
+
+# Compiled binaries (specific)
+biview/c/biview
+biview/go/biview
+terrain/go/trackpad-controller/trackpad_controller
+
+# Build/cache directories
+build/
+cache/
+
+# Temp/log artifacts
+${log_wrapper}
 
 # media files
 *.raw
