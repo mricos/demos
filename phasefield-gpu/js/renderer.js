@@ -24,6 +24,13 @@ window.FP.Renderer = (function() {
         const container = document.getElementById('canvas-container');
         canvas.width = Math.min(800, container.clientWidth - 40);
         canvas.height = Math.min(800, container.clientHeight - 40);
+
+        // CRITICAL: Also resize overlay canvas to match (prevents visible border rectangle)
+        const overlayCanvas = document.getElementById('overlay-canvas');
+        if (overlayCanvas) {
+            overlayCanvas.width = canvas.width;
+            overlayCanvas.height = canvas.height;
+        }
     }
 
     function renderAtResolution(imageData, resolutionValue, mode, opacity = 1, palette = null) {
@@ -339,12 +346,12 @@ window.FP.Renderer = (function() {
         // Render primary resolution with main palette
         renderAtResolution(imageData, Config.params.resolution, Config.params.pixelatorMode, 1, Config.state.currentPalette);
 
-        // Render dual resolution with adjoint palette if enabled
+        // Render dual resolution with dual palette if enabled
         if (Config.params.resolution2 > 0) {
             const blendAmount = Config.params.blend / 100;
-            // Use adjoint palette if it exists and has colors, otherwise use main palette
-            const dualPalette = (Config.state.adjointPalette && Config.state.adjointPalette.length > 0)
-                ? Config.state.adjointPalette
+            // Use dual palette if it exists and has colors, otherwise use main palette
+            const dualPalette = (Config.state.dualPalette && Config.state.dualPalette.length > 0)
+                ? Config.state.dualPalette
                 : Config.state.currentPalette;
             renderAtResolution(imageData, Config.params.resolution2, Config.params.pixelatorMode, blendAmount, dualPalette);
         }

@@ -56,6 +56,7 @@ window.FP.Matter = (function() {
 
     /**
      * Wall - Opaque barrier that completely blocks waves
+     * Can be flat (curvature=0) or curved (parabolic)
      */
     class Wall extends OpticalElement {
         constructor(x, y, angle, length, thickness, reflectionCoefficient = 0.5) {
@@ -63,10 +64,17 @@ window.FP.Matter = (function() {
             this.type = ElementType.WALL;
             this.length = length;
             this.thickness = thickness;
-            this.curvature = 0;  // Radius of curvature (0 = flat)
+            this.curvature = 0;  // Focal length for parabolic curve (0 = flat)
         }
 
         checkRayIntersection(x1, y1, x2, y2) {
+            // For curved barriers, use approximate check (treat as flat for now)
+            // TODO: Implement proper parabolic intersection
+            if (this.curvature && Math.abs(this.curvature) > 0.1) {
+                return this.checkCurvedRayIntersection(x1, y1, x2, y2);
+            }
+
+            // Flat barrier intersection
             // Transform ray endpoints to wall's local coordinate system
             const cos = Math.cos(-this.angle);
             const sin = Math.sin(-this.angle);
@@ -92,8 +100,11 @@ window.FP.Matter = (function() {
                 return { blocked: false };
             }
 
-            // Calculate intersection with wall plane (localX = 0)
-            const t = -localX1 / (localX2 - localX1);
+            // CRITICAL: Calculate intersection with SURFACE (not center plane)
+            // If crossing from left to right, hit the LEFT surface at -thickness/2
+            // If crossing from right to left, hit the RIGHT surface at +thickness/2
+            const surfaceX = localX1 < 0 ? -this.thickness/2 : this.thickness/2;
+            const t = (surfaceX - localX1) / (localX2 - localX1);
             if (t < 0 || t > 1) {
                 return { blocked: false };  // Intersection not between endpoints
             }
@@ -114,6 +125,84 @@ window.FP.Matter = (function() {
             }
 
             return { blocked: false };
+        }
+
+        /**
+         * Check ray intersection with curved (parabolic) barrier
+         * Uses sampling approach for simplicity
+         */
+        checkCurvedRayIntersection(x1, y1, x2, y2) {
+            const cos = Math.cos(-this.angle);
+            const sin = Math.sin(-this.angle);
+
+            // Transform ray endpoints to local coordinates
+            const dx1 = x1 - this.x;
+            const dy1 = y1 - this.y;
+            const localX1 = dx1 * cos - dy1 * sin;
+            const localY1 = dx1 * sin + dy1 * cos;
+
+            const dx2 = x2 - this.x;
+            const dy2 = y2 - this.y;
+            const localX2 = dx2 * cos - dy2 * sin;
+            const localY2 = dx2 * sin + dy2 * cos;
+
+            // Sample points along the parabola and check ray distance
+            const samples = 20;
+            const halfLen = this.length / 2;
+            const halfThick = this.thickness / 2;
+
+            for (let i = 0; i <= samples; i++) {
+                const t = (i / samples) * 2 - 1;  // -1 to 1
+                const y = t * halfLen;
+                const xCurve = (y * y) / (4 * this.curvature);
+
+                // Check if ray passes near this curve point
+                // Simple distance check from ray segment to curve point
+                const d = this.distanceToSegment(localX1, localY1, localX2, localY2, xCurve, y);
+
+                if (d < halfThick) {
+                    // Ray hits the curved barrier
+                    // Transform intersection back to world coordinates
+                    const worldX = this.x + xCurve * cos - y * sin;
+                    const worldY = this.y + xCurve * sin + y * cos;
+
+                    return {
+                        blocked: true,
+                        intersection: { x: worldX, y: worldY },
+                        type: 'block'
+                    };
+                }
+            }
+
+            return { blocked: false };
+        }
+
+        /**
+         * Distance from point (px, py) to line segment (x1,y1)-(x2,y2)
+         */
+        distanceToSegment(x1, y1, x2, y2, px, py) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const lenSq = dx * dx + dy * dy;
+
+            if (lenSq === 0) {
+                // Degenerate segment
+                const dpx = px - x1;
+                const dpy = py - y1;
+                return Math.sqrt(dpx * dpx + dpy * dpy);
+            }
+
+            // Project point onto line
+            let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+            t = Math.max(0, Math.min(1, t));
+
+            const projX = x1 + t * dx;
+            const projY = y1 + t * dy;
+
+            const dpx = px - projX;
+            const dpy = py - projY;
+
+            return Math.sqrt(dpx * dpx + dpy * dpy);
         }
 
         getBounds() {
@@ -143,7 +232,8 @@ window.FP.Matter = (function() {
     }
 
     /**
-     * Aperture - Opening with multiple slits (1-9, placed middle-out)
+     * Aperture - Barrier with multiple slits (1-9, placed middle-out)
+     * Same as Wall but with openings
      */
     class Aperture extends OpticalElement {
         constructor(x, y, angle, length, thickness, config, reflectionCoefficient = 0.5) {
@@ -155,10 +245,22 @@ window.FP.Matter = (function() {
             this.slitWidth = config.slitWidth || 20;
             this.slitSeparation = config.slitSeparation || 80;
             this.particleSize = config.particleSize || 8;
-            this.curvature = 0;            // Radius of curvature (0 = flat)
+            this.curvature = 0;            // Focal length for parabolic curve (0 = flat)
         }
 
         checkRayIntersection(x1, y1, x2, y2) {
+            // Special case: slitCount = 0 means solid barrier (no slits)
+            if (this.slitCount === 0) {
+                // Treat as a solid wall - reuse Wall logic
+                return this.checkSolidBarrierIntersection(x1, y1, x2, y2);
+            }
+
+            // For curved barriers with apertures, check curve then slits
+            if (this.curvature && Math.abs(this.curvature) > 0.1) {
+                return this.checkCurvedApertureIntersection(x1, y1, x2, y2);
+            }
+
+            // Flat aperture intersection
             // Transform to local coordinates
             const cos = Math.cos(-this.angle);
             const sin = Math.sin(-this.angle);
@@ -227,6 +329,232 @@ window.FP.Matter = (function() {
             }
 
             return { blocked: false };
+        }
+
+        /**
+         * Check ray intersection for solid barrier (slitCount = 0)
+         * Uses same logic as Wall class
+         */
+        checkSolidBarrierIntersection(x1, y1, x2, y2) {
+            // For curved solid barriers
+            if (this.curvature && Math.abs(this.curvature) > 0.1) {
+                return this.checkCurvedSolidIntersection(x1, y1, x2, y2);
+            }
+
+            // Flat solid barrier
+            const cos = Math.cos(-this.angle);
+            const sin = Math.sin(-this.angle);
+
+            const dx1 = x1 - this.x;
+            const dy1 = y1 - this.y;
+            const localX1 = dx1 * cos - dy1 * sin;
+            const localY1 = dx1 * sin + dy1 * cos;
+
+            const dx2 = x2 - this.x;
+            const dy2 = y2 - this.y;
+            const localX2 = dx2 * cos - dy2 * sin;
+            const localY2 = dx2 * sin + dy2 * cos;
+
+            // Check if both points on same side
+            if ((localX1 < -this.thickness/2 && localX2 < -this.thickness/2) ||
+                (localX1 > this.thickness/2 && localX2 > this.thickness/2)) {
+                return { blocked: false };
+            }
+
+            // CRITICAL: Calculate intersection with SURFACE (not center plane)
+            const surfaceX = localX1 < 0 ? -this.thickness/2 : this.thickness/2;
+            const t = (surfaceX - localX1) / (localX2 - localX1);
+            if (t < 0 || t > 1) {
+                return { blocked: false };
+            }
+
+            const intersectY = localY1 + t * (localY2 - localY1);
+
+            // Check if within bounds
+            if (Math.abs(intersectY) <= this.length / 2) {
+                const worldX = this.x + intersectY * Math.sin(this.angle);
+                const worldY = this.y - intersectY * Math.cos(this.angle);
+
+                return {
+                    blocked: true,
+                    intersection: { x: worldX, y: worldY },
+                    type: 'block'
+                };
+            }
+
+            return { blocked: false };
+        }
+
+        /**
+         * Check ray intersection for curved solid barrier
+         */
+        checkCurvedSolidIntersection(x1, y1, x2, y2) {
+            const cos = Math.cos(-this.angle);
+            const sin = Math.sin(-this.angle);
+
+            const dx1 = x1 - this.x;
+            const dy1 = y1 - this.y;
+            const localX1 = dx1 * cos - dy1 * sin;
+            const localY1 = dx1 * sin + dy1 * cos;
+
+            const dx2 = x2 - this.x;
+            const dy2 = y2 - this.y;
+            const localX2 = dx2 * cos - dy2 * sin;
+            const localY2 = dx2 * sin + dy2 * cos;
+
+            const samples = 20;
+            const halfLen = this.length / 2;
+            const halfThick = this.thickness / 2;
+
+            for (let i = 0; i <= samples; i++) {
+                const t = (i / samples) * 2 - 1;
+                const y = t * halfLen;
+                const xCurve = (y * y) / (4 * this.curvature);
+
+                const d = this.distanceToSegment(localX1, localY1, localX2, localY2, xCurve, y);
+
+                if (d < halfThick) {
+                    const worldX = this.x + xCurve * cos - y * sin;
+                    const worldY = this.y + xCurve * sin + y * cos;
+
+                    return {
+                        blocked: true,
+                        intersection: { x: worldX, y: worldY },
+                        type: 'block'
+                    };
+                }
+            }
+
+            return { blocked: false };
+        }
+
+        /**
+         * Distance from point to line segment (helper for curved intersection)
+         */
+        distanceToSegment(x1, y1, x2, y2, px, py) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const lenSq = dx * dx + dy * dy;
+
+            if (lenSq === 0) {
+                const dpx = px - x1;
+                const dpy = py - y1;
+                return Math.sqrt(dpx * dpx + dpy * dpy);
+            }
+
+            let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+            t = Math.max(0, Math.min(1, t));
+
+            const projX = x1 + t * dx;
+            const projY = y1 + t * dy;
+
+            const dpx = px - projX;
+            const dpy = py - projY;
+
+            return Math.sqrt(dpx * dpx + dpy * dpy);
+        }
+
+        /**
+         * Check ray intersection with curved aperture barrier
+         * Similar to curved wall but checks slit positions
+         */
+        checkCurvedApertureIntersection(x1, y1, x2, y2) {
+            const cos = Math.cos(-this.angle);
+            const sin = Math.sin(-this.angle);
+
+            // Transform ray endpoints to local coordinates
+            const dx1 = x1 - this.x;
+            const dy1 = y1 - this.y;
+            const localX1 = dx1 * cos - dy1 * sin;
+            const localY1 = dx1 * sin + dy1 * cos;
+
+            const dx2 = x2 - this.x;
+            const dy2 = y2 - this.y;
+            const localX2 = dx2 * cos - dy2 * sin;
+            const localY2 = dx2 * sin + dy2 * cos;
+
+            // Calculate slit positions (middle-out)
+            const slitPositions = [];
+            if (this.slitCount === 1) {
+                slitPositions.push(0);
+            } else if (this.slitCount % 2 === 1) {
+                slitPositions.push(0);
+                for (let i = 1; i <= Math.floor(this.slitCount / 2); i++) {
+                    slitPositions.push(i * (this.slitWidth * 2));
+                    slitPositions.push(-i * (this.slitWidth * 2));
+                }
+            } else {
+                for (let i = 0; i < this.slitCount / 2; i++) {
+                    const offset = (i + 0.5) * (this.slitWidth * 2);
+                    slitPositions.push(offset);
+                    slitPositions.push(-offset);
+                }
+            }
+
+            // Sample points along the curve
+            const samples = 30;
+            const halfLen = this.length / 2;
+            const halfThick = this.thickness / 2;
+
+            for (let i = 0; i <= samples; i++) {
+                const t = (i / samples) * 2 - 1;  // -1 to 1
+                const y = t * halfLen;
+                const xCurve = (y * y) / (4 * this.curvature);
+
+                // Check if ray passes near this curve point
+                const d = this.distanceToSegment(localX1, localY1, localX2, localY2, xCurve, y);
+
+                if (d < halfThick) {
+                    // Ray hits the curve - check if in slit or barrier
+                    let inSlit = false;
+                    for (const center of slitPositions) {
+                        if (y >= center - this.slitWidth/2 && y <= center + this.slitWidth/2) {
+                            inSlit = true;
+                            break;
+                        }
+                    }
+
+                    if (!inSlit) {
+                        // Hits barrier material
+                        const worldX = this.x + xCurve * cos - y * sin;
+                        const worldY = this.y + xCurve * sin + y * cos;
+
+                        return {
+                            blocked: true,
+                            intersection: { x: worldX, y: worldY },
+                            type: 'block'
+                        };
+                    }
+                }
+            }
+
+            return { blocked: false };
+        }
+
+        /**
+         * Distance from point to line segment (helper for curved intersection)
+         */
+        distanceToSegment(x1, y1, x2, y2, px, py) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const lenSq = dx * dx + dy * dy;
+
+            if (lenSq === 0) {
+                const dpx = px - x1;
+                const dpy = py - y1;
+                return Math.sqrt(dpx * dpx + dpy * dpy);
+            }
+
+            let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+            t = Math.max(0, Math.min(1, t));
+
+            const projX = x1 + t * dx;
+            const projY = y1 + t * dy;
+
+            const dpx = px - projX;
+            const dpy = py - projY;
+
+            return Math.sqrt(dpx * dpx + dpy * dpy);
         }
 
         /**
@@ -459,11 +787,15 @@ window.FP.Matter = (function() {
             const localX2 = dx2 * cos - dy2 * sin;
             const localY2 = dx2 * sin + dy2 * cos;
 
-            if ((localX1 < 0 && localX2 < 0) || (localX1 > 0 && localX2 > 0)) {
+            // Check if both points on same side of mirror
+            if ((localX1 < -this.thickness/2 && localX2 < -this.thickness/2) ||
+                (localX1 > this.thickness/2 && localX2 > this.thickness/2)) {
                 return { blocked: false };
             }
 
-            const t = -localX1 / (localX2 - localX1);
+            // CRITICAL: Calculate intersection with SURFACE (not center plane)
+            const surfaceX = localX1 < 0 ? -this.thickness/2 : this.thickness/2;
+            const t = (surfaceX - localX1) / (localX2 - localX1);
             if (t < 0 || t > 1) {
                 return { blocked: false };
             }

@@ -117,8 +117,8 @@ window.FP.Field = (function() {
             const dy = y - source.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            // Calculate base phase
-            const basePhase = distance * frequency * 0.05 - time + source.phase;
+            // Calculate base phase using shared physics constant
+            const basePhase = distance * frequency * Config.physics.frequencyScale - time + source.phase;
 
             // Check optical path - includes blocking and phase modifications from lenses
             const optical = Optics.calculateOpticalPath(
@@ -135,8 +135,8 @@ window.FP.Field = (function() {
             // Calculate wave with optical modifications
             const wave = Math.sin(optical.phase) * amplitude * optical.amplitude;
 
-            // Apply distance falloff
-            const falloff = Math.pow(distance * 0.01 + 1, distortion);
+            // Apply distance falloff using shared physics constant
+            const falloff = Math.pow(distance * Config.physics.distanceFalloffBase + 1, distortion);
             sum += wave / falloff;
         }
 

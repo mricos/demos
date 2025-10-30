@@ -125,7 +125,9 @@ window.FP.WebGLEngine = (function() {
                     float thickness;
                     int type;  // 0=wall, 1=aperture, 2=lens, 3=grating, 4=mirror
                     float param1;  // slitWidth for aperture, focalLength for lens
-                    float param2;  // slitSeparation for aperture, slitCount
+                    float param2;  // slitSeparation for aperture
+                    int slitCount;  // number of slits for aperture
+                    float curvature;  // focal length for parabolic curve (0=flat)
                     float reflCoeff;
                 };
                 uniform Element u_elements[MAX_ELEMENTS];
@@ -138,18 +140,87 @@ window.FP.WebGLEngine = (function() {
                 // Wave value range for normalization
                 uniform vec2 u_waveRange;  // (min, max)
 
+                // Diffraction control
+                uniform float u_diffractionStrength;  // 0-100
+
+                // Shared physics constants (synchronized with Config.physics in config.js)
+                const float FREQUENCY_SCALE = 0.05;        // Spatial frequency scaling (must match Config.physics.frequencyScale)
+                const float DISTANCE_FALLOFF = 0.01;       // Distance falloff base (must match Config.physics.distanceFalloffBase)
+                const float EDGE_DIFFRACTION_RANGE = 5.0;  // Wavelengths for edge diffraction (must match Config.physics.edgeDiffractionRange)
+
+                /**
+                 * Distance from point (px, py) to line segment (x1,y1)-(x2,y2)
+                 */
+                float distanceToSegment(vec2 p1, vec2 p2, vec2 p) {
+                    vec2 d = p2 - p1;
+                    float lenSq = dot(d, d);
+
+                    if (lenSq < 0.0001) {
+                        return length(p - p1);
+                    }
+
+                    float t = clamp(dot(p - p1, d) / lenSq, 0.0, 1.0);
+                    vec2 proj = p1 + t * d;
+                    return length(p - proj);
+                }
+
+                /**
+                 * Check curved barrier intersection using sampling
+                 */
+                float checkCurvedIntersection(vec2 local1, vec2 local2, Element elem, out float intersectY) {
+                    float halfLen = elem.length * 0.5;
+                    float halfThick = elem.thickness * 0.5;
+                    float curvature = elem.curvature;
+
+                    // Sample points along the parabolic curve
+                    const int samples = 20;
+                    float minDist = 1e6;
+                    intersectY = 0.0;
+
+                    for (int i = 0; i <= samples; i++) {
+                        float t = (float(i) / float(samples)) * 2.0 - 1.0;  // -1 to 1
+                        float y = t * halfLen;
+                        float xCurve = (y * y) / (4.0 * curvature);
+
+                        vec2 curvePoint = vec2(xCurve, y);
+                        float dist = distanceToSegment(local1, local2, curvePoint);
+
+                        if (dist < minDist) {
+                            minDist = dist;
+                            intersectY = y;
+                        }
+                    }
+
+                    // Check if ray is close enough to curve
+                    if (minDist < halfThick) {
+                        return 1.0;  // Hit the curve
+                    }
+
+                    return 0.0;  // Miss
+                }
+
                 /**
                  * Check if ray from p1 to p2 intersects element
-                 * Returns: 0.0 = blocked, 1.0 = unblocked, 0.0-1.0 = partial (lens)
+                 * Returns: amplitude factor (0.0-1.0) for transmission
+                 * - For walls/mirrors: blocks transmission (returns 0.0), reflection handled separately
+                 * - For apertures: returns 0.0 for blocked, 1.0 for slit pass-through
+                 * - For lenses: returns transmission coefficient
+                 * out_edgeDistance: distance to nearest edge (for edge diffraction)
                  */
-                float checkRayIntersection(vec2 p1, vec2 p2, Element elem) {
+                float checkRayIntersection(vec2 p1, vec2 p2, Element elem, float basePhase, out float edgeDistance) {
+                    // Initialize edge distance to large value
+                    edgeDistance = 1e6;
+
                     // Transform ray to element's local space
+                    // Canvas uses Y-down coordinates
+                    // Standard rotation matrix for coordinate transformation
                     float cos_a = cos(-elem.angle);
                     float sin_a = sin(-elem.angle);
 
                     vec2 d1 = p1 - elem.position;
                     vec2 d2 = p2 - elem.position;
 
+                    // Rotation matrix: same as CPU/Canvas version (matter.js:79-86)
                     vec2 local1 = vec2(
                         d1.x * cos_a - d1.y * sin_a,
                         d1.x * sin_a + d1.y * cos_a
@@ -160,51 +231,73 @@ window.FP.WebGLEngine = (function() {
                         d2.x * sin_a + d2.y * cos_a
                     );
 
-                    // Check if ray crosses element plane (X = 0 in local space)
-                    if ((local1.x < 0.0 && local2.x < 0.0) || (local1.x > 0.0 && local2.x > 0.0)) {
-                        return 1.0;  // Doesn't cross plane
-                    }
+                    float intersectY = 0.0;
+                    bool hitsCurve = false;
 
-                    // Avoid division by zero
-                    float dx = local2.x - local1.x;
-                    if (abs(dx) < 0.0001) {
-                        return 1.0;
-                    }
+                    // Handle curved barriers
+                    if (abs(elem.curvature) > 0.1) {
+                        float hit = checkCurvedIntersection(local1, local2, elem, intersectY);
+                        if (hit > 0.5) {
+                            hitsCurve = true;
+                        } else {
+                            return 1.0;  // No intersection with curve
+                        }
+                    } else {
+                        // Flat barrier - check if ray crosses element plane (X = 0 in local space)
+                        if ((local1.x < 0.0 && local2.x < 0.0) || (local1.x > 0.0 && local2.x > 0.0)) {
+                            return 1.0;  // Doesn't cross plane
+                        }
 
-                    // Calculate intersection parameter
-                    float t = -local1.x / dx;
-                    if (t < 0.0 || t > 1.0) {
-                        return 1.0;  // Intersection not between endpoints
-                    }
+                        // Avoid division by zero
+                        float dx = local2.x - local1.x;
+                        if (abs(dx) < 0.0001) {
+                            return 1.0;
+                        }
 
-                    // Calculate Y coordinate of intersection
-                    float intersectY = local1.y + t * (local2.y - local1.y);
+                        // Calculate intersection parameter
+                        float t = -local1.x / dx;
+                        if (t < 0.0 || t > 1.0) {
+                            return 1.0;  // Intersection not between endpoints
+                        }
+
+                        // Calculate Y coordinate of intersection
+                        intersectY = local1.y + t * (local2.y - local1.y);
+                    }
 
                     // Check if within element length bounds
                     if (abs(intersectY) > elem.length * 0.5) {
+                        edgeDistance = 1e6;  // Far from edges
                         return 1.0;  // Outside element bounds
                     }
 
+                    // Calculate distance to nearest edge (for edge diffraction)
+                    edgeDistance = elem.length * 0.5 - abs(intersectY);
+
                     // Element type specific logic
-                    if (elem.type == 0) {
-                        // Wall - completely blocks
-                        if (abs(intersectY) <= elem.length * 0.5) {
-                            return 0.0;  // Blocked
-                        }
+                    if (elem.type == 0 || elem.type == 4) {
+                        // Wall or Mirror - COMPLETELY BLOCKS direct transmission
+                        // Reflection is handled separately in calculateWaveField
+                        return 0.0;
                     }
                     else if (elem.type == 1) {
                         // Aperture - check if passes through slit(s)
                         float slitWidth = elem.param1;
                         float slitSeparation = elem.param2;
-                        int slitCount = int(slitSeparation / (slitWidth * 2.0) + 0.5);
-                        if (slitCount < 1) slitCount = 1;
+                        int slitCount = elem.slitCount;
+
+                        // Special case: slitCount = 0 means SOLID BARRIER (no slits at all)
+                        if (slitCount == 0) {
+                            // Treat as solid wall - blocks completely
+                            return 0.0;
+                        }
 
                         // Check single slit centered at Y=0
                         if (slitCount == 1) {
                             if (abs(intersectY) <= slitWidth * 0.5) {
                                 return 1.0;  // Passes through slit
                             }
-                            return 0.0;  // Blocked by material
+                            // Blocked by aperture material
+                            return 0.0;
                         }
 
                         // Multiple slits: check if in any slit
@@ -240,11 +333,16 @@ window.FP.WebGLEngine = (function() {
                             }
                         }
 
-                        return inSlit ? 1.0 : 0.0;
+                        if (inSlit) {
+                            return 1.0;
+                        } else {
+                            // Blocked by aperture material
+                            return 0.0;
+                        }
                     }
                     else if (elem.type == 2) {
                         // Lens - refracts but doesn't block
-                        // For now, just attenuate slightly
+                        // Return transmission coefficient (1.0 - reflCoeff for lenses)
                         return 1.0 - elem.reflCoeff;  // Transmission coefficient
                     }
 
@@ -252,10 +350,159 @@ window.FP.WebGLEngine = (function() {
                 }
 
                 /**
-                 * Calculate wave field at current pixel
+                 * Calculate reflection contribution from a barrier
+                 * Returns reflected wave amplitude based on reflection coefficient and edge effects
+                 *
+                 * REFLECTION COEFFICIENT BEHAVIOR:
+                 * - 0.0: Black body (total absorption, no reflection)
+                 * - 0.0-1.0: Partial reflection (energy absorbed, reflection strength increases)
+                 * - 1.0: Perfect mirror (specular reflection, no absorption)
+                 * - 1.0-2.0: Iridescent dispersion (wavelength-dependent scattering, creates rainbow effects)
+                 */
+                float calculateReflection(vec2 pos, vec2 source, Element elem, float sourcePhase, float edgeDistance) {
+                    // Only reflective surfaces contribute
+                    if (elem.reflCoeff < 0.01) {
+                        return 0.0;
+                    }
+
+                    // Calculate wavelength for dispersion effects
+                    float wavelength = 20.0 / max(u_frequency, 0.1);
+
+                    // Find reflection point on barrier
+                    // Normal points perpendicular to barrier surface
+                    vec2 barrierNormal = vec2(cos(elem.angle), sin(elem.angle));
+
+                    // Calculate mirror image of source across barrier plane
+                    // This is the virtual source that creates the reflected wave
+                    vec2 toSource = source - elem.position;
+                    float distToBarrier = dot(toSource, barrierNormal);
+                    vec2 mirrorSource = source - 2.0 * distToBarrier * barrierNormal;
+
+                    // === IRIDESCENT DISPERSION MODE (reflCoeff > 1.0) ===
+                    // Creates wavelength-dependent scattering for rainbow/prismatic effects
+                    if (elem.reflCoeff > 1.0) {
+                        // Iridescence strength: 0.0 at reflCoeff=1.0, 1.0 at reflCoeff=2.0
+                        float iridescenceStrength = elem.reflCoeff - 1.0;
+
+                        // Chromatic dispersion: wavelength-dependent angular shift
+                        // Shorter wavelengths (higher frequency) scatter more
+                        // This mimics prism, diffraction grating, or opal effects
+                        float freqNorm = (u_frequency - 0.5) / 3.0;  // Normalize frequency range
+                        float chromaticShift = freqNorm * iridescenceStrength * 80.0;  // Increased from 50 to 80
+
+                        // Apply angular shift to mirror source (perpendicular to normal)
+                        vec2 perpendicular = vec2(-barrierNormal.y, barrierNormal.x);
+                        mirrorSource += perpendicular * chromaticShift;
+
+                        // Add slight spatial spread for "spreading" rainbow effect
+                        float spreadAmount = iridescenceStrength * 30.0;
+                        mirrorSource += barrierNormal * sin(freqNorm * 6.28) * spreadAmount;
+                    }
+
+                    // Distance from mirror source to observation point
+                    float reflectedDistance = length(pos - mirrorSource);
+
+                    // Phase of reflected wave
+                    // Phase inversion (+π) occurs for hard surface reflections
+                    float reflectedPhase = reflectedDistance * u_frequency * FREQUENCY_SCALE - u_time + sourcePhase + 3.14159;
+
+                    // === AMPLITUDE CALCULATION ===
+
+                    // Base reflection amplitude (clamp standard reflection to 1.0)
+                    float baseReflCoeff = min(elem.reflCoeff, 1.0);
+                    float reflAmp = baseReflCoeff;
+
+                    // Boost base amplitude to make reflections more visible
+                    reflAmp *= 1.5;
+
+                    // === EDGE ENHANCEMENT ===
+                    // Near edges, reflection becomes more diffuse and pronounced
+                    if (edgeDistance < wavelength * EDGE_DIFFRACTION_RANGE) {
+                        // Edge diffraction strength increases near edges
+                        float edgeFactor = 1.0 - (edgeDistance / (wavelength * EDGE_DIFFRACTION_RANGE));
+
+                        // For high reflection coefficients (> 1.0), boost edge effects dramatically
+                        // This creates the "spreading" rainbow effect at edges
+                        if (elem.reflCoeff > 1.0) {
+                            float iridescenceBoost = (elem.reflCoeff - 1.0) * 5.0;  // Increased from 3.0 to 5.0
+                            reflAmp *= (1.0 + edgeFactor * iridescenceBoost);
+                        } else {
+                            // Normal edge diffraction enhancement
+                            reflAmp *= (1.0 + edgeFactor * 0.5);  // Increased from 0.3 to 0.5
+                        }
+                    }
+
+                    // Calculate reflected wave
+                    float reflectedWave = sin(reflectedPhase) * reflAmp;
+
+                    // Distance falloff (reflection weakens with distance)
+                    float falloff = 1.0 / (reflectedDistance * DISTANCE_FALLOFF + 1.0);
+
+                    return reflectedWave * falloff;
+                }
+
+                /**
+                 * Calculate edge diffraction contribution from a barrier edge
+                 * Uses Huygens-Fresnel principle: edge acts as secondary wave source
+                 * This creates the characteristic wave spreading around obstacles
+                 */
+                float calculateEdgeDiffraction(vec2 pos, vec2 edgePoint, vec2 source, float sourcePhase) {
+                    // Calculate wavelength (spatial period of wave)
+                    float wavelength = 20.0 / max(u_frequency, 0.1);
+
+                    // Distance from source to edge (illumination path)
+                    float d1 = length(edgePoint - source);
+                    // Distance from edge to observation point (scattered path)
+                    float d2 = length(pos - edgePoint);
+
+                    // Total optical path length through edge point
+                    float totalDistance = d1 + d2;
+
+                    // === AMPLITUDE CALCULATION ===
+
+                    // Base amplitude: Huygens-Fresnel principle says secondary sources
+                    // have amplitude proportional to 1/sqrt(distance)
+                    // Boost factor: 8.0 to make diffraction visible
+                    float amplitude = 8.0 / sqrt(totalDistance + 1.0);
+
+                    // Wavelength-dependent diffraction strength
+                    // Longer wavelengths (lower frequency) bend more around obstacles
+                    // This is a fundamental wave property
+                    float beta = d2 / wavelength;
+
+                    // Fresnel diffraction envelope
+                    // exp(-beta/scale) means:
+                    //   - Small beta (close to edge, long wavelength): strong diffraction
+                    //   - Large beta (far from edge, short wavelength): weak diffraction
+                    // Scale of 15.0 creates gradual falloff
+                    amplitude *= exp(-beta / 15.0);
+
+                    // Additional geometric spreading factor
+                    // Near edges get more contribution (Fresnel zones)
+                    float edgeProximity = 1.0 / (1.0 + d2 * 0.02);
+                    amplitude *= (1.0 + edgeProximity);
+
+                    // === PHASE CALCULATION ===
+
+                    // Phase accumulated along total optical path
+                    // Includes time evolution and source phase offset
+                    float phase = totalDistance * u_frequency * FREQUENCY_SCALE - u_time + sourcePhase;
+
+                    // Return wave contribution from this edge point
+                    // sin(phase) gives oscillating wave, scaled by amplitude
+                    return sin(phase) * amplitude;
+                }
+
+                /**
+                 * Calculate wave field at current pixel with proper diffraction
                  */
                 float calculateWaveField(vec2 pos) {
                     float sum = 0.0;
+                    float wavelength = 20.0 / max(u_frequency, 0.1);
+
+                    // Scale diffraction strength from 0-100 slider to 0-1 range
+                    // Higher values = more wave-like, artistic diffraction
+                    float diffractionScale = u_diffractionStrength / 100.0;
 
                     for (int i = 0; i < MAX_SOURCES; i++) {
                         if (i >= u_num_sources) break;
@@ -265,30 +512,87 @@ window.FP.WebGLEngine = (function() {
                         float distance = length(delta);
 
                         // Calculate phase
-                        float basePhase = distance * u_frequency * 0.05 - u_time + u_source_phases[i];
+                        float basePhase = distance * u_frequency * FREQUENCY_SCALE - u_time + u_source_phases[i];
 
                         // Check optical path - does ray reach target?
                         float amplitude = 1.0;
+                        int blockingElement = -1;
+                        float blockingEdgeDist = 1e6;
+
                         for (int j = 0; j < MAX_ELEMENTS; j++) {
                             if (j >= u_num_elements) break;
 
-                            float pathFactor = checkRayIntersection(source, pos, u_elements[j]);
+                            float edgeDist = 0.0;
+                            float pathFactor = checkRayIntersection(source, pos, u_elements[j], basePhase, edgeDist);
                             amplitude *= pathFactor;
 
-                            // Early exit if completely blocked
-                            if (amplitude < 0.01) {
-                                amplitude = 0.0;
-                                break;
+                            // Track which element blocked us (first one to significantly block)
+                            if (pathFactor < 0.01 && blockingElement < 0) {
+                                blockingElement = j;
+                                blockingEdgeDist = edgeDist;
                             }
                         }
 
+                        // Add direct path contribution (if not completely blocked)
                         if (amplitude > 0.0) {
                             // Calculate wave
                             float wave = sin(basePhase) * u_amplitude * amplitude;
 
                             // Apply distance falloff
-                            float falloff = pow(distance * 0.01 + 1.0, u_distortion);
+                            float falloff = pow(distance * DISTANCE_FALLOFF + 1.0, u_distortion);
                             sum += wave / falloff;
+                        }
+
+                        // If blocked, add REFLECTION and EDGE DIFFRACTION
+                        if (blockingElement >= 0) {
+                            Element elem = u_elements[blockingElement];
+
+                            // === REFLECTION from walls and mirrors ===
+                            if (elem.type == 0 || elem.type == 4) {
+                                float reflContrib = calculateReflection(pos, source, elem, u_source_phases[i], blockingEdgeDist);
+                                // Scale reflection by diffraction strength for artistic control
+                                sum += reflContrib * u_amplitude * (0.5 + 0.5 * diffractionScale);
+                            }
+
+                            // === EDGE DIFFRACTION - Huygens-Fresnel principle ===
+                            // When blocked, edges of the obstacle become secondary wave sources
+                            // This creates the characteristic wave spreading around obstacles
+
+                            // Only apply edge diffraction when diffractionStrength > 0
+                            if (diffractionScale > 0.01) {
+                                // Calculate edge points of the blocking element
+                                float halfLen = elem.length * 0.5;
+
+                                // Top edge point (in world coordinates)
+                                vec2 edgeTop = elem.position + vec2(
+                                    -halfLen * sin(elem.angle),
+                                    halfLen * cos(elem.angle)
+                                );
+
+                                // Bottom edge point
+                                vec2 edgeBottom = elem.position + vec2(
+                                    halfLen * sin(elem.angle),
+                                    -halfLen * cos(elem.angle)
+                                );
+
+                                // Calculate diffraction contribution from both edges
+                                float topEdgeDiffraction = calculateEdgeDiffraction(pos, edgeTop, source, u_source_phases[i]);
+                                float bottomEdgeDiffraction = calculateEdgeDiffraction(pos, edgeBottom, source, u_source_phases[i]);
+
+                                // Scale by diffraction strength and add to sum
+                                // Higher diffractionStrength = more pronounced wave bending
+                                float edgeContribution = (topEdgeDiffraction + bottomEdgeDiffraction) * diffractionScale;
+                                sum += edgeContribution * u_amplitude;
+                            }
+
+                            // Add minimal diffraction leakage for non-reflective surfaces
+                            // This prevents completely black shadows even at low diffraction strength
+                            if (elem.reflCoeff < 0.01) {
+                                float leakage = 0.001 * diffractionScale;  // Scale leakage by diffraction
+                                float leakedWave = sin(basePhase) * u_amplitude * leakage;
+                                float falloff = pow(distance * DISTANCE_FALLOFF + 1.0, u_distortion);
+                                sum += leakedWave / falloff;
+                            }
                         }
                     }
 
@@ -375,6 +679,7 @@ window.FP.WebGLEngine = (function() {
                 palette: gl.getUniformLocation(prog, 'u_palette'),
                 colorCycle: gl.getUniformLocation(prog, 'u_colorCycle'),
                 waveRange: gl.getUniformLocation(prog, 'u_waveRange'),
+                diffractionStrength: gl.getUniformLocation(prog, 'u_diffractionStrength'),
                 elements: []
             };
 
@@ -388,6 +693,8 @@ window.FP.WebGLEngine = (function() {
                     type: gl.getUniformLocation(prog, `u_elements[${i}].type`),
                     param1: gl.getUniformLocation(prog, `u_elements[${i}].param1`),
                     param2: gl.getUniformLocation(prog, `u_elements[${i}].param2`),
+                    slitCount: gl.getUniformLocation(prog, `u_elements[${i}].slitCount`),
+                    curvature: gl.getUniformLocation(prog, `u_elements[${i}].curvature`),
                     reflCoeff: gl.getUniformLocation(prog, `u_elements[${i}].reflCoeff`)
                 });
             }
@@ -482,6 +789,9 @@ window.FP.WebGLEngine = (function() {
             const rangeMax = Config.range.waveMax || params.amplitude * params.sources.length;
             gl.uniform2f(this.locations.waveRange, rangeMin, rangeMax);
 
+            // Upload diffraction strength
+            gl.uniform1f(this.locations.diffractionStrength, Config.params.diffractionStrength || 50);
+
             // Upload wave sources
             const sources = params.sources || [];
             const numSources = Math.min(sources.length, 16);
@@ -527,15 +837,31 @@ window.FP.WebGLEngine = (function() {
                 if (elem.type === Matter.ElementType.APERTURE) {
                     gl.uniform1f(locs.param1, elem.slitWidth || 20);
                     gl.uniform1f(locs.param2, elem.slitSeparation || 80);
+                    gl.uniform1i(locs.slitCount, elem.slitCount || 1);
                 } else if (elem.type === Matter.ElementType.LENS) {
                     gl.uniform1f(locs.param1, elem.focalLength || 0);
                     gl.uniform1f(locs.param2, 0);
+                    gl.uniform1i(locs.slitCount, 0);
                 } else {
                     gl.uniform1f(locs.param1, 0);
                     gl.uniform1f(locs.param2, 0);
+                    gl.uniform1i(locs.slitCount, 0);
                 }
 
-                gl.uniform1f(locs.reflCoeff, elem.reflectionCoefficient || 0.5);
+                // Upload curvature (0 = flat barrier)
+                const curvature = (elem.curvature !== undefined && elem.curvature !== null) ? elem.curvature : 0;
+                gl.uniform1f(locs.curvature, curvature);
+
+                // Upload reflection coefficient - CRITICAL: Use explicit undefined check to allow 0 values
+                const reflCoeff = (elem.reflectionCoefficient !== undefined && elem.reflectionCoefficient !== null)
+                    ? elem.reflectionCoefficient
+                    : 0.5;
+                gl.uniform1f(locs.reflCoeff, reflCoeff);
+
+                // DEBUG: Log what we're uploading for this element
+                if (i < 5) {  // Only log first 5 elements to avoid spam
+                    console.log(`[WebGLEngine] Element ${i}: type=${typeInt} (${elem.type}), pos=(${elem.x.toFixed(0)},${elem.y.toFixed(0)}), reflCoeff=${reflCoeff.toFixed(3)}, curvature=${curvature.toFixed(3)}`);
+                }
             }
 
             // Upload palette texture
@@ -572,10 +898,10 @@ window.FP.WebGLEngine = (function() {
                 this.drawOpticalElement(ctx, element, false, isSelected);
             }
 
-            // Draw ghost elements
-            if (Config.state.ghostElement && !Config.state.particleMode) {
-                this.drawOpticalElement(ctx, Config.state.ghostElement, true, false);
-            }
+            // Draw ghost elements (disabled - not needed)
+            // if (Config.state.ghostElement && !Config.state.particleMode) {
+            //     this.drawOpticalElement(ctx, Config.state.ghostElement, true, false);
+            // }
 
             if (Config.state.ghostSource && Config.state.particleMode) {
                 ctx.save();
@@ -591,10 +917,15 @@ window.FP.WebGLEngine = (function() {
 
             // Draw mode indicator
             this.drawModeIndicator(ctx);
+
+            // Draw light pucks (from LightPuck module)
+            if (window.FP.LightPuck) {
+                window.FP.LightPuck.draw(ctx);
+            }
         }
 
         /**
-         * Draw an optical element (simplified for overlay)
+         * Draw an optical element with proper curved rendering
          */
         drawOpticalElement(ctx, element, isGhost, isSelected) {
             ctx.save();
@@ -611,10 +942,164 @@ window.FP.WebGLEngine = (function() {
                 ctx.lineWidth = isSelected ? 3 : 2;
             }
 
-            // Simple rectangle representation
-            ctx.strokeRect(-element.thickness / 2, -element.length / 2, element.thickness, element.length);
+            // Draw based on element type and curvature
+            if (element.type === Matter.ElementType.WALL ||
+                (element.type === Matter.ElementType.APERTURE && element.slitCount === 0)) {
+                // Wall or solid barrier
+                if (element.curvature && Math.abs(element.curvature) > 0.1) {
+                    this.drawCurvedWall(ctx, element);
+                } else {
+                    ctx.fillRect(-element.thickness / 2, -element.length / 2, element.thickness, element.length);
+                    ctx.strokeRect(-element.thickness / 2, -element.length / 2, element.thickness, element.length);
+                }
+            } else if (element.type === Matter.ElementType.APERTURE) {
+                // Aperture with slits
+                if (element.curvature && Math.abs(element.curvature) > 0.1) {
+                    this.drawCurvedAperture(ctx, element);
+                } else {
+                    // Flat aperture - draw clean barrier with gaps
+                    this.drawFlatAperture(ctx, element);
+                }
+            } else {
+                // Lens or other - simple rectangle
+                ctx.strokeRect(-element.thickness / 2, -element.length / 2, element.thickness, element.length);
+            }
 
             ctx.restore();
+        }
+
+        /**
+         * Draw curved wall (parabolic shape)
+         */
+        drawCurvedWall(ctx, element) {
+            const halfLength = element.length / 2;
+            const halfThickness = element.thickness / 2;
+            const curvature = element.curvature;
+            const segments = 40;
+
+            ctx.beginPath();
+
+            // Draw front edge (curved)
+            for (let i = 0; i <= segments; i++) {
+                const t = (i / segments) * 2 - 1;  // -1 to 1
+                const y = t * halfLength;
+                const x = (y * y) / (4 * curvature);
+
+                if (i === 0) {
+                    ctx.moveTo(x - halfThickness, y);
+                } else {
+                    ctx.lineTo(x - halfThickness, y);
+                }
+            }
+
+            // Draw back edge (curved)
+            for (let i = segments; i >= 0; i--) {
+                const t = (i / segments) * 2 - 1;
+                const y = t * halfLength;
+                const x = (y * y) / (4 * curvature);
+                ctx.lineTo(x + halfThickness, y);
+            }
+
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        /**
+         * Draw flat aperture as clean solid barrier with transparent slit gaps
+         */
+        drawFlatAperture(ctx, element) {
+            const halfLength = element.length / 2;
+            const halfThickness = element.thickness / 2;
+            const slitWidth = element.slitWidth || 20;
+            const slitCount = element.slitCount;
+
+            // Calculate slit positions (middle-out)
+            const slitPositions = [];
+            if (slitCount === 1) {
+                slitPositions.push(0);
+            } else if (slitCount % 2 === 1) {
+                // Odd: center slit + pairs
+                slitPositions.push(0);
+                for (let i = 1; i <= Math.floor(slitCount / 2); i++) {
+                    slitPositions.push(i * slitWidth * 2);
+                    slitPositions.push(-i * slitWidth * 2);
+                }
+            } else {
+                // Even: symmetric pairs
+                for (let i = 0; i < slitCount / 2; i++) {
+                    const offset = (i + 0.5) * slitWidth * 2;
+                    slitPositions.push(offset);
+                    slitPositions.push(-offset);
+                }
+            }
+
+            // Draw the full barrier first
+            ctx.fillRect(-halfThickness, -halfLength, element.thickness, element.length);
+
+            // Cut out the slits by drawing them in destination-out mode
+            ctx.save();
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+
+            for (const center of slitPositions) {
+                ctx.fillRect(-halfThickness - 1, center - slitWidth / 2, element.thickness + 2, slitWidth);
+            }
+
+            ctx.restore();
+
+            // Draw outline
+            ctx.strokeRect(-halfThickness, -halfLength, element.thickness, element.length);
+
+            // Draw thin lines to show slit edges
+            ctx.save();
+            ctx.strokeStyle = ctx.fillStyle;
+            ctx.lineWidth = 1;
+            for (const center of slitPositions) {
+                // Top edge of slit
+                ctx.beginPath();
+                ctx.moveTo(-halfThickness, center - slitWidth / 2);
+                ctx.lineTo(halfThickness, center - slitWidth / 2);
+                ctx.stroke();
+                // Bottom edge of slit
+                ctx.beginPath();
+                ctx.moveTo(-halfThickness, center + slitWidth / 2);
+                ctx.lineTo(halfThickness, center + slitWidth / 2);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        /**
+         * Draw curved aperture with tangent-oriented particles
+         */
+        drawCurvedAperture(ctx, element) {
+            const halfThickness = element.thickness / 2;
+            const curvature = element.curvature;
+            const particleSize = element.particleSize || 8;
+            const particles = element.getParticlePositions();
+
+            for (const particle of particles) {
+                ctx.save();
+
+                // Calculate curve position for this Y coordinate
+                const y = particle.localY;
+                const xCurve = (y * y) / (4 * curvature);
+
+                // Calculate tangent angle
+                const dxdy = y / (2 * curvature);
+                const tangentAngle = Math.atan(dxdy);
+
+                // Position on curve
+                ctx.translate(particle.localX + xCurve, particle.localY);
+                ctx.rotate(tangentAngle);
+
+                // Draw brick
+                ctx.fillRect(-halfThickness, -particleSize/2, element.thickness, particleSize);
+                ctx.strokeRect(-halfThickness, -particleSize/2, element.thickness, particleSize);
+
+                ctx.restore();
+            }
         }
 
         /**

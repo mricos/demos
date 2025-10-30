@@ -27,14 +27,36 @@ window.FP.Config = (function() {
         colorBalance: 50,         // Balance between colors (0-100)
         dynamicRange: 256,        // Number of discrete color steps (starts at full resolution)
 
-        // Adjoint palette parameters
-        adjointMode: 'complementary',  // complementary, desat, inverse, triad
-        adjointTriadHue: 120,     // Hue for triad mode (0-360)
-        adjointEnabled: false,    // Whether to use adjoint palette
+        // Dual palette parameters
+        dualMode: 'complementary',  // complementary, desat, inverse, triad
+        dualTriadHue: 120,     // Hue for triad mode (0-360)
+        dualEnabled: false,    // Whether to use dual palette
 
         // Final gain stage (post-processing)
         finalDesaturation: 0,     // 0-100, amount to desaturate final output
-        finalBrightness: 50       // 0-100, overall brightness adjustment
+        finalBrightness: 50,      // 0-100, overall brightness adjustment
+
+        // Diffraction control
+        // Controls how artfully waves bend around obstacles:
+        //   0 = Sharp shadows (geometric optics, minimal diffraction)
+        //  50 = Balanced (moderate wave-like behavior)
+        // 100 = Maximum artistic diffraction (waves spread dramatically around obstacles)
+        diffractionStrength: 70   // 0-100, increased default from 50 to 70 for more visible effects
+    };
+
+    // Shared physics constants (used by both CPU and WebGL engines)
+    const physics = {
+        // Wave propagation
+        frequencyScale: 0.05,  // Spatial frequency scaling factor (distance * freq * scale)
+
+        // Diffraction parameters
+        // IMPORTANT: diffractionLeakage is now scaled by diffractionStrength in the shader
+        // This base value ensures minimal leakage even at low diffraction settings
+        diffractionLeakage: 0.001,   // Base diffraction around barriers (0.1%, increased from 0.01%)
+        edgeDiffractionRange: 5.0,   // Range in wavelengths for edge diffraction effects
+
+        // Falloff and attenuation
+        distanceFalloffBase: 0.01    // Base for distance falloff calculation
     };
 
     // Performance tracking
@@ -67,22 +89,22 @@ window.FP.Config = (function() {
         {name: 'Grayscale', colors: ['#000000', '#444444', '#888888', '#ffffff']}
     ];
 
-    // Particle/Wall configuration
+    // Barrier configuration (defaults for new barriers)
     const particleConfig = {
-        wallLength: 200,        // Total length of wall
-        particleSize: 8,        // Size of each particle square
-        apertureGap: 80,        // Gap size: 0=closed, max=open (just endpoints)
-        apertureCount: 2,       // Number of slits (1-9, placed middle-out)
-        wallThickness: 8,       // Thickness of wall perpendicular to length
-        lensCurvature: 0,       // Curvature radius for lens elements: 0=flat, +ve=converging, -ve=diverging
-        wallCurvature: 0,       // Curvature radius for walls/apertures: 0=flat
-        reflectionCoefficient: 0.5  // 0=blackbody absorber, 1=perfect reflection, 1-2=color-dependent
+        wallLength: 200,        // Total length of barrier (fixed)
+        particleSize: 8,        // Size of material brick segments (visual)
+        apertureGap: 80,        // Width of each slit
+        apertureCount: 0,       // Number of slits: 0=solid barrier, 1+=apertures middle-out
+        wallThickness: 8,       // Thickness of barrier material
+        lensCurvature: 0,       // DEPRECATED - keeping for compatibility
+        wallCurvature: 0,       // Curvature focal length: 0=flat, +ve=concave, -ve=convex
+        reflectionCoefficient: 0.5  // 0=blackbody (black), 1=mirror (white)
     };
 
     // State
     const state = {
         currentPalette: [],
-        adjointPalette: [],
+        dualPalette: [],
         currentPresetIndex: 0,
 
         // Gamepad mode state
@@ -94,8 +116,118 @@ window.FP.Config = (function() {
         editingElementIndex: -1  // Index of element being edited, -1 if creating new
     };
 
+    /**
+     * Save all parameters to localStorage
+     */
+    function saveToLocalStorage() {
+        try {
+            const saveData = {
+                params: {
+                    frequency: params.frequency,
+                    amplitude: params.amplitude,
+                    speed: params.speed,
+                    sources: params.sources,
+                    resolution: params.resolution,
+                    resolution2: params.resolution2,
+                    blend: params.blend,
+                    blendMode: params.blendMode,
+                    pixelatorMode: params.pixelatorMode,
+                    distortion: params.distortion,
+                    paletteSteps: params.paletteSteps,
+                    colorCycle: params.colorCycle,
+                    colorBalance: params.colorBalance,
+                    dynamicRange: params.dynamicRange,
+                    dualMode: params.dualMode,
+                    dualTriadHue: params.dualTriadHue,
+                    dualEnabled: params.dualEnabled,
+                    finalDesaturation: params.finalDesaturation,
+                    finalBrightness: params.finalBrightness,
+                    diffractionStrength: params.diffractionStrength
+                },
+                performance: {
+                    adaptiveQuality: performance.adaptiveQuality,
+                    MAX_FRAME_TIME: performance.MAX_FRAME_TIME
+                },
+                particleConfig: {
+                    wallLength: particleConfig.wallLength,
+                    particleSize: particleConfig.particleSize,
+                    apertureGap: particleConfig.apertureGap,
+                    apertureCount: particleConfig.apertureCount,
+                    wallThickness: particleConfig.wallThickness,
+                    wallCurvature: particleConfig.wallCurvature,
+                    reflectionCoefficient: particleConfig.reflectionCoefficient
+                },
+                state: {
+                    currentPresetIndex: state.currentPresetIndex
+                }
+            };
+            localStorage.setItem('phasefield-config', JSON.stringify(saveData));
+            console.log('[Config] Saved to localStorage');
+            return true;
+        } catch (e) {
+            console.error('[Config] Failed to save to localStorage:', e);
+            return false;
+        }
+    }
+
+    /**
+     * Load parameters from localStorage
+     */
+    function loadFromLocalStorage() {
+        try {
+            const saved = localStorage.getItem('phasefield-config');
+            if (!saved) {
+                console.log('[Config] No saved data in localStorage');
+                return false;
+            }
+
+            const data = JSON.parse(saved);
+
+            // Restore params
+            if (data.params) {
+                Object.assign(params, data.params);
+            }
+
+            // Restore performance settings
+            if (data.performance) {
+                Object.assign(performance, data.performance);
+            }
+
+            // Restore particle/barrier config
+            if (data.particleConfig) {
+                Object.assign(particleConfig, data.particleConfig);
+            }
+
+            // Restore state
+            if (data.state) {
+                state.currentPresetIndex = data.state.currentPresetIndex || 0;
+            }
+
+            console.log('[Config] Loaded from localStorage');
+            return true;
+        } catch (e) {
+            console.error('[Config] Failed to load from localStorage:', e);
+            return false;
+        }
+    }
+
+    /**
+     * Clear localStorage
+     */
+    function clearLocalStorage() {
+        try {
+            localStorage.removeItem('phasefield-config');
+            console.log('[Config] Cleared localStorage');
+            return true;
+        } catch (e) {
+            console.error('[Config] Failed to clear localStorage:', e);
+            return false;
+        }
+    }
+
     return {
         params,
+        physics,
         performance,
         range,
         presetPalettes,
@@ -112,6 +244,11 @@ window.FP.Config = (function() {
             const divisions = this.getGridDivisions(sliderValue);
             if (divisions === 1) return '1px';
             return `${divisions}×${divisions}`;
-        }
+        },
+
+        // localStorage functions
+        saveToLocalStorage,
+        loadFromLocalStorage,
+        clearLocalStorage
     };
 })();

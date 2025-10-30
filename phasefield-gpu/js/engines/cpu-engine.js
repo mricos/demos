@@ -49,11 +49,11 @@ window.FP.CPUEngine = (function() {
                 params.palette
             );
 
-            // Render dual resolution with adjoint palette if enabled
+            // Render dual resolution with dual palette if enabled
             if (params.resolution2 > 0) {
                 const blendAmount = params.blend / 100;
-                const dualPalette = (params.adjointPalette && params.adjointPalette.length > 0)
-                    ? params.adjointPalette
+                const dualPalette = (params.dualPalette && params.dualPalette.length > 0)
+                    ? params.dualPalette
                     : params.palette;
                 this.renderAtResolution(
                     imageData,
@@ -77,6 +77,11 @@ window.FP.CPUEngine = (function() {
 
             // Draw mode indicator
             this.drawModeIndicator();
+
+            // Draw light pucks (from LightPuck module)
+            if (window.FP.LightPuck) {
+                window.FP.LightPuck.draw(this.ctx);
+            }
         }
 
         /**
@@ -239,12 +244,16 @@ window.FP.CPUEngine = (function() {
                 ctx.lineWidth = 2;
             } else {
                 // Use reflection coefficient to determine color
-                const reflColor = this.getReflectionColor(element.reflectionCoefficient || 0.5);
+                // CRITICAL: Use explicit undefined check to allow 0 values
+                const reflCoeff = (element.reflectionCoefficient !== undefined && element.reflectionCoefficient !== null)
+                    ? element.reflectionCoefficient
+                    : 0.5;
+                const reflColor = this.getReflectionColor(reflCoeff);
                 ctx.fillStyle = `rgba(${reflColor.r}, ${reflColor.g}, ${reflColor.b}, ${reflColor.a})`;
 
                 // Selection highlight
                 if (isSelected) {
-                    const triadColor = this.getTriadColor(element.reflectionCoefficient || 0.5);
+                    const triadColor = this.getTriadColor(reflCoeff);
                     ctx.strokeStyle = `rgb(${triadColor.r}, ${triadColor.g}, ${triadColor.b})`;
                     ctx.lineWidth = 4;
                 } else {
@@ -255,19 +264,31 @@ window.FP.CPUEngine = (function() {
 
             // Draw based on element type
             if (element.type === Matter.ElementType.WALL) {
-                ctx.fillRect(-element.thickness / 2, -element.length / 2, element.thickness, element.length);
-                ctx.strokeRect(-element.thickness / 2, -element.length / 2, element.thickness, element.length);
+                // Draw curved or flat wall
+                if (element.curvature && Math.abs(element.curvature) > 0.1) {
+                    this.drawCurvedWall(ctx, element);
+                } else {
+                    // Flat wall
+                    ctx.fillRect(-element.thickness / 2, -element.length / 2, element.thickness, element.length);
+                    ctx.strokeRect(-element.thickness / 2, -element.length / 2, element.thickness, element.length);
+                }
 
             } else if (element.type === Matter.ElementType.APERTURE) {
-                const particles = element.getParticlePositions();
-                const particleSize = element.particleSize || 8;
-
-                for (const particle of particles) {
-                    ctx.save();
-                    ctx.translate(particle.localX, particle.localY);
-                    ctx.fillRect(-element.thickness / 2, 0, element.thickness, particleSize);
-                    ctx.strokeRect(-element.thickness / 2, 0, element.thickness, particleSize);
-                    ctx.restore();
+                // Special case: slitCount=0 means solid barrier, render as solid shape
+                if (element.slitCount === 0) {
+                    if (element.curvature && Math.abs(element.curvature) > 0.1) {
+                        this.drawCurvedWall(ctx, element);
+                    } else {
+                        ctx.fillRect(-element.thickness / 2, -element.length / 2, element.thickness, element.length);
+                        ctx.strokeRect(-element.thickness / 2, -element.length / 2, element.thickness, element.length);
+                    }
+                }
+                // Draw curved or flat aperture (with slits)
+                else if (element.curvature && Math.abs(element.curvature) > 0.1) {
+                    this.drawCurvedAperture(ctx, element);
+                } else {
+                    // Flat aperture - draw clean barrier with gaps
+                    this.drawFlatAperture(ctx, element);
                 }
 
             } else if (element.type === Matter.ElementType.LENS) {
@@ -284,10 +305,10 @@ window.FP.CPUEngine = (function() {
          * Draw ghost elements
          */
         drawGhostElements() {
-            // Draw ghost element if in wave mode B
-            if (Config.state.ghostElement && !Config.state.particleMode) {
-                this.drawOpticalElement(Config.state.ghostElement, true, false);
-            }
+            // Draw ghost element if in wave mode B (disabled - not needed)
+            // if (Config.state.ghostElement && !Config.state.particleMode) {
+            //     this.drawOpticalElement(Config.state.ghostElement, true, false);
+            // }
 
             // Draw ghost source if in particle mode B
             if (Config.state.ghostSource && Config.state.particleMode) {
@@ -391,6 +412,150 @@ window.FP.CPUEngine = (function() {
                 b = hue2rgb(p, q, h - 1/3);
             }
             return {r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255)};
+        }
+
+        /**
+         * Draw a curved wall using parabolic shape
+         * curvature > 0: concave (inward curve, parabolic mirror)
+         * curvature < 0: convex (outward curve)
+         */
+        drawCurvedWall(ctx, element) {
+            const halfLength = element.length / 2;
+            const halfThickness = element.thickness / 2;
+            const curvature = element.curvature;
+            const segments = 40;  // Number of segments for smooth curve
+
+            // Calculate parabolic curve
+            // For a parabolic mirror: x = y^2 / (4f) where f is focal length (curvature)
+            ctx.beginPath();
+
+            // Draw front edge (curved)
+            for (let i = 0; i <= segments; i++) {
+                const t = (i / segments) * 2 - 1;  // -1 to 1
+                const y = t * halfLength;
+                const x = (y * y) / (4 * curvature);  // Parabolic curve
+
+                if (i === 0) {
+                    ctx.moveTo(x - halfThickness, y);
+                } else {
+                    ctx.lineTo(x - halfThickness, y);
+                }
+            }
+
+            // Draw back edge (curved)
+            for (let i = segments; i >= 0; i--) {
+                const t = (i / segments) * 2 - 1;
+                const y = t * halfLength;
+                const x = (y * y) / (4 * curvature);
+                ctx.lineTo(x + halfThickness, y);
+            }
+
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        /**
+         * Draw flat aperture as clean solid barrier with transparent slit gaps
+         */
+        drawFlatAperture(ctx, element) {
+            const halfLength = element.length / 2;
+            const halfThickness = element.thickness / 2;
+            const slitWidth = element.slitWidth || 20;
+            const slitCount = element.slitCount;
+
+            // Calculate slit positions (middle-out)
+            const slitPositions = [];
+            if (slitCount === 1) {
+                slitPositions.push(0);
+            } else if (slitCount % 2 === 1) {
+                // Odd: center slit + pairs
+                slitPositions.push(0);
+                for (let i = 1; i <= Math.floor(slitCount / 2); i++) {
+                    slitPositions.push(i * slitWidth * 2);
+                    slitPositions.push(-i * slitWidth * 2);
+                }
+            } else {
+                // Even: symmetric pairs
+                for (let i = 0; i < slitCount / 2; i++) {
+                    const offset = (i + 0.5) * slitWidth * 2;
+                    slitPositions.push(offset);
+                    slitPositions.push(-offset);
+                }
+            }
+
+            // Draw the full barrier first
+            ctx.fillRect(-halfThickness, -halfLength, element.thickness, element.length);
+
+            // Cut out the slits by drawing them in destination-out mode
+            ctx.save();
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+
+            for (const center of slitPositions) {
+                ctx.fillRect(-halfThickness - 1, center - slitWidth / 2, element.thickness + 2, slitWidth);
+            }
+
+            ctx.restore();
+
+            // Draw outline
+            ctx.strokeRect(-halfThickness, -halfLength, element.thickness, element.length);
+
+            // Draw thin lines to show slit edges
+            ctx.save();
+            ctx.strokeStyle = ctx.fillStyle;
+            ctx.lineWidth = 1;
+            for (const center of slitPositions) {
+                // Top edge of slit
+                ctx.beginPath();
+                ctx.moveTo(-halfThickness, center - slitWidth / 2);
+                ctx.lineTo(halfThickness, center - slitWidth / 2);
+                ctx.stroke();
+                // Bottom edge of slit
+                ctx.beginPath();
+                ctx.moveTo(-halfThickness, center + slitWidth / 2);
+                ctx.lineTo(halfThickness, center + slitWidth / 2);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        /**
+         * Draw a curved aperture with piecewise tangent segments
+         * Each brick is oriented tangent to the parabolic curve
+         */
+        drawCurvedAperture(ctx, element) {
+            const halfThickness = element.thickness / 2;
+            const curvature = element.curvature;
+            const particleSize = element.particleSize || 8;
+            const particles = element.getParticlePositions();
+
+            // Draw particles along curved path with proper tangent orientation
+            for (const particle of particles) {
+                ctx.save();
+
+                // Calculate curve position for this Y coordinate
+                const y = particle.localY;
+                const xCurve = (y * y) / (4 * curvature);
+
+                // Calculate tangent angle at this point
+                // For parabola x = y²/(4f), dx/dy = y/(2f)
+                // Tangent angle = arctan(dx/dy)
+                const dxdy = y / (2 * curvature);
+                const tangentAngle = Math.atan(dxdy);
+
+                // Position on curve
+                ctx.translate(particle.localX + xCurve, particle.localY);
+
+                // Rotate to be tangent to curve
+                ctx.rotate(tangentAngle);
+
+                // Draw brick oriented along the curve
+                ctx.fillRect(-halfThickness, -particleSize/2, element.thickness, particleSize);
+                ctx.strokeRect(-halfThickness, -particleSize/2, element.thickness, particleSize);
+
+                ctx.restore();
+            }
         }
 
         cleanup() {

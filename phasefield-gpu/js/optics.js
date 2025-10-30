@@ -9,6 +9,7 @@ window.FP.Optics = (function() {
     'use strict';
 
     const Matter = window.FP.Matter;
+    const Config = window.FP.Config;
 
     // Collection of all optical elements in the scene
     let elements = [];
@@ -19,6 +20,13 @@ window.FP.Optics = (function() {
     function addElement(element) {
         if (element instanceof Matter.OpticalElement) {
             elements.push(element);
+            console.log(`[Optics] Added element #${elements.length - 1}:`, {
+                type: element.type,
+                slitCount: element.slitCount,
+                curvature: element.curvature,
+                reflCoeff: element.reflectionCoefficient,
+                pos: {x: Math.round(element.x), y: Math.round(element.y)}
+            });
             return elements.length - 1;  // Return index
         }
         throw new Error('Element must be an instance of OpticalElement');
@@ -71,7 +79,12 @@ window.FP.Optics = (function() {
      *   phaseShift: number | null
      * }
      */
+    let rayCheckCount = 0;
+    let rayBlockCount = 0;
+
     function traceRay(x1, y1, x2, y2) {
+        rayCheckCount++;
+
         let closestHit = {
             blocked: false,
             element: null,
@@ -101,6 +114,13 @@ window.FP.Optics = (function() {
                         distance: dist
                     };
                 }
+            }
+        }
+
+        if (closestHit.blocked) {
+            rayBlockCount++;
+            if (rayCheckCount % 10000 === 0) {
+                console.log(`[Optics] ${rayBlockCount}/${rayCheckCount} rays blocked (${(100*rayBlockCount/rayCheckCount).toFixed(1)}%)`);
             }
         }
 
@@ -155,37 +175,21 @@ window.FP.Optics = (function() {
         const hit = traceRay(sourceX, sourceY, targetX, targetY);
 
         if (hit.blocked && hit.type === 'block') {
-            // Ray blocked by opaque element - use reflection coefficient
-            // reflectionCoefficient: 0 = blackbody absorber, 1 = perfect reflection, 1-2 = color-dependent
+            // Ray blocked by opaque wall/barrier
+            // NO transmission through walls - they either absorb or reflect
+            // Reflection coefficient determines reflected wave strength (not modeled yet)
+            // For now, very small diffraction leakage only
             const reflCoeff = hit.element ? hit.element.reflectionCoefficient : 0;
 
-            if (reflCoeff < 1.0) {
-                // Partial or total absorption (0 = blackbody, <1 = partial absorption)
-                return { amplitude: reflCoeff, phase: basePhase };
-            } else if (reflCoeff === 1.0) {
-                // Perfect reflection - all wavelengths reflected equally
-                return { amplitude: 1.0, phase: basePhase };
-            } else {
-                // Wavelength-dependent reflection (1.0 < reflCoeff <= 2.0)
-                // This creates color spreading by modulating amplitude based on phase
-                // The phase represents different points in the wave cycle (different "colors")
-                const colorSensitivity = (reflCoeff - 1.0);  // 0 to 1 range
+            // Walls block the direct path - only tiny diffraction around edges
+            // reflCoeff affects reflected waves (not implemented), not transmitted
+            // Allow minimal amount for edge diffraction effects (using shared physics constant)
+            const diffractionLeakage = Config.physics.diffractionLeakage * (1.0 - reflCoeff);  // Minimal edge diffraction
 
-                // Modulate amplitude based on phase to create wavelength-dependent reflection
-                // Different phases (representing different wavelengths) reflect differently
-                // Use normalized phase (0 to 2π) to determine color-dependent reflection
-                const normalizedPhase = (basePhase % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
-
-                // Create wavelength-dependent amplitude modulation
-                // This causes different phases to reflect with different strengths
-                const phaseModulation = Math.cos(normalizedPhase * 3) * 0.5 + 0.5;  // Oscillates 0-1
-                const amplitudeModulation = 1.0 - (colorSensitivity * (1.0 - phaseModulation));
-
-                return {
-                    amplitude: amplitudeModulation,
-                    phase: basePhase
-                };
-            }
+            return {
+                amplitude: diffractionLeakage,
+                phase: basePhase
+            };
         }
 
         if (hit.type === 'refract' && hit.phaseShift !== null) {

@@ -22,15 +22,41 @@ window.FP.UI = (function() {
             {header: 'header-game', content: 'section-game'},
             {header: 'header-pixelator', content: 'section-pixelator'},
             {header: 'header-performance', content: 'section-performance'},
-            {header: 'header-adjoint-field', content: 'section-adjoint-field'},
+            {header: 'header-dual-field', content: 'section-dual-field'},
             {header: 'header-coupling', content: 'section-coupling'},
-            {header: 'header-presets', content: 'section-presets'},
-            {header: 'header-custom', content: 'section-custom'},
+            {header: 'header-design', content: 'section-design'},
             {header: 'header-gain', content: 'section-gain'},
             {header: 'header-gamepad', content: 'section-gamepad'}
         ];
 
+        const subsections = [
+            {header: 'header-color', content: 'section-color'},
+            {header: 'header-opacity', content: 'section-opacity'},
+            {header: 'header-presets-design', content: 'section-presets-design'}
+        ];
+
         sections.forEach(({header, content}) => {
+            const headerEl = document.getElementById(header);
+            const contentEl = document.getElementById(content);
+
+            if (!contentEl.classList.contains('collapsed')) {
+                contentEl.style.maxHeight = contentEl.scrollHeight + 'px';
+            }
+
+            headerEl.addEventListener('click', () => {
+                const isCollapsed = headerEl.classList.toggle('collapsed');
+                contentEl.classList.toggle('collapsed');
+
+                if (isCollapsed) {
+                    contentEl.style.maxHeight = '0';
+                } else {
+                    contentEl.style.maxHeight = contentEl.scrollHeight + 'px';
+                }
+            });
+        });
+
+        // Setup subsections
+        subsections.forEach(({header, content}) => {
             const headerEl = document.getElementById(header);
             const contentEl = document.getElementById(content);
 
@@ -172,6 +198,10 @@ window.FP.UI = (function() {
                 document.getElementById('distortion').value = Config.params.distortion;
                 document.getElementById('dist-val').textContent = Config.params.distortion.toFixed(1);
             },
+            'diffractionStrength': () => {
+                document.getElementById('diffraction-strength').value = Config.params.diffractionStrength;
+                document.getElementById('diffraction-val').textContent = Config.params.diffractionStrength + '%';
+            },
             'colorCycle': () => {
                 document.getElementById('color-cycle').value = Config.params.colorCycle;
                 document.getElementById('cycle-val').textContent = Config.params.colorCycle.toFixed(1);
@@ -192,6 +222,15 @@ window.FP.UI = (function() {
     }
 
     function setupEventListeners() {
+        // Debounced auto-save to localStorage
+        let saveTimeout = null;
+        const autoSave = () => {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                Config.saveToLocalStorage();
+            }, 1000);  // Save 1 second after last change
+        };
+
         // Compute mode controls
         setupComputeModeControls();
 
@@ -247,20 +286,7 @@ window.FP.UI = (function() {
             });
         });
 
-        document.getElementById('lens-curvature').addEventListener('input', (e) => {
-            Config.particleConfig.lensCurvature = parseInt(e.target.value);
-            const val = Config.particleConfig.lensCurvature;
-            let label = val === 0 ? '0 (Flat)' : (val > 0 ? `+${val} (Converging)` : `${val} (Diverging)`);
-            document.getElementById('lens-curvature-val').textContent = label;
-
-            // Update all existing lens elements
-            const elements = Optics.getAllElements();
-            elements.forEach(elem => {
-                if (elem.type === Matter.ElementType.LENS) {
-                    elem.focalLength = Config.particleConfig.lensCurvature;
-                }
-            });
-        });
+        // Lens curvature removed - barriers use wall curvature
 
         document.getElementById('aperture-count').addEventListener('input', (e) => {
             Config.particleConfig.apertureCount = parseInt(e.target.value);
@@ -268,11 +294,14 @@ window.FP.UI = (function() {
 
             // Update all existing aperture elements
             const elements = Optics.getAllElements();
-            elements.forEach(elem => {
+            console.log(`[UI] GLOBAL SLIT COUNT changed to ${Config.particleConfig.apertureCount}, updating ${elements.length} elements`);
+            elements.forEach((elem, i) => {
                 if (elem.type === Matter.ElementType.APERTURE) {
+                    console.log(`[UI] Updating aperture #${i}: slitCount ${elem.slitCount} -> ${Config.particleConfig.apertureCount}`);
                     elem.slitCount = Config.particleConfig.apertureCount;
                 }
             });
+            autoSave();
         });
 
         document.getElementById('reflection-coeff').addEventListener('input', (e) => {
@@ -281,9 +310,12 @@ window.FP.UI = (function() {
 
             // Update all existing elements
             const elements = Optics.getAllElements();
-            elements.forEach(elem => {
+            console.log(`[UI] GLOBAL REFLECTION COEFF changed to ${Config.particleConfig.reflectionCoefficient}, updating ${elements.length} elements`);
+            elements.forEach((elem, i) => {
+                console.log(`[UI] Updating element #${i} (${elem.type}): reflCoeff ${elem.reflectionCoefficient.toFixed(2)} -> ${Config.particleConfig.reflectionCoefficient.toFixed(2)}`);
                 elem.reflectionCoefficient = Config.particleConfig.reflectionCoefficient;
             });
+            autoSave();
         });
 
         document.getElementById('wall-curvature').addEventListener('input', (e) => {
@@ -299,50 +331,65 @@ window.FP.UI = (function() {
                     elem.curvature = Config.particleConfig.wallCurvature;
                 }
             });
+            autoSave();
         });
 
         // Game parameters
         document.getElementById('frequency').addEventListener('input', (e) => {
             Config.params.frequency = parseFloat(e.target.value);
             document.getElementById('freq-val').textContent = Config.params.frequency.toFixed(1);
+            autoSave();
         });
 
         document.getElementById('amplitude').addEventListener('input', (e) => {
             Config.params.amplitude = parseFloat(e.target.value);
             document.getElementById('amp-val').textContent = Config.params.amplitude;
+            autoSave();
         });
 
         document.getElementById('speed').addEventListener('input', (e) => {
             Config.params.speed = parseFloat(e.target.value);
             document.getElementById('speed-val').textContent = Config.params.speed.toFixed(3);
+            autoSave();
         });
 
         document.getElementById('sources').addEventListener('input', (e) => {
             Config.params.sources = parseInt(e.target.value);
             document.getElementById('sources-val').textContent = Config.params.sources;
             Field.generateWaveSources(Config.params.sources);
+            autoSave();
         });
 
         document.getElementById('distortion').addEventListener('input', (e) => {
             Config.params.distortion = parseFloat(e.target.value);
             document.getElementById('dist-val').textContent = Config.params.distortion.toFixed(1);
+            autoSave();
+        });
+
+        document.getElementById('diffraction-strength').addEventListener('input', (e) => {
+            Config.params.diffractionStrength = parseInt(e.target.value);
+            document.getElementById('diffraction-val').textContent = Config.params.diffractionStrength + '%';
+            autoSave();
         });
 
         // Pixelator controls
         document.getElementById('resolution').addEventListener('input', (e) => {
             Config.params.resolution = parseInt(e.target.value);
             document.getElementById('res-val').textContent = Config.formatResolution(Config.params.resolution);
+            autoSave();
         });
 
         document.getElementById('resolution2').addEventListener('input', (e) => {
             Config.params.resolution2 = parseInt(e.target.value);
             const val = Config.params.resolution2 === 0 ? 'OFF' : Config.formatResolution(Config.params.resolution2);
             document.getElementById('res2-val').textContent = val;
+            autoSave();
         });
 
         document.getElementById('blend').addEventListener('input', (e) => {
             Config.params.blend = parseInt(e.target.value);
             document.getElementById('blend-val').textContent = Config.params.blend + '%';
+            autoSave();
         });
 
         // Pixelator mode radio buttons
@@ -389,41 +436,41 @@ window.FP.UI = (function() {
             Palette.loadCustomPalette();
         });
 
-        // Adjoint palette controls (only affect dual resolution field)
-        document.getElementById('adjoint-enabled').addEventListener('change', (e) => {
-            Config.params.adjointEnabled = e.target.checked;
-            // Regenerate adjoint palette when enabled/disabled
+        // Dual palette controls (only affect dual resolution field)
+        document.getElementById('dual-enabled').addEventListener('change', (e) => {
+            Config.params.dualEnabled = e.target.checked;
+            // Regenerate dual palette when enabled/disabled
             if (e.target.checked) {
                 Palette.loadCustomPalette();
             } else {
-                Config.state.adjointPalette = [];
+                Config.state.dualPalette = [];
             }
         });
 
-        document.querySelectorAll('input[name="adjoint-mode"]').forEach(radio => {
+        document.querySelectorAll('input[name="dual-mode"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
-                Config.params.adjointMode = e.target.value;
+                Config.params.dualMode = e.target.value;
                 document.querySelectorAll('.radio-option').forEach(opt => {
-                    if (opt.querySelector('input[name="adjoint-mode"]')) {
+                    if (opt.querySelector('input[name="dual-mode"]')) {
                         opt.classList.remove('selected');
                     }
                 });
                 e.target.closest('.radio-option').classList.add('selected');
-                // Only regenerate if adjoint is enabled
-                if (Config.params.adjointEnabled) {
+                // Only regenerate if dual is enabled
+                if (Config.params.dualEnabled) {
                     Palette.loadCustomPalette();
                 }
             });
         });
 
-        document.querySelector('input[name="adjoint-mode"]:checked').closest('.radio-option').classList.add('selected');
+        document.querySelector('input[name="dual-mode"]:checked').closest('.radio-option').classList.add('selected');
 
-        document.getElementById('adjoint-triad-hue').addEventListener('input', (e) => {
+        document.getElementById('dual-triad-hue').addEventListener('input', (e) => {
             const hueVal = parseInt(e.target.value);
-            Config.params.adjointTriadHue = hueVal;
+            Config.params.dualTriadHue = hueVal;
             document.getElementById('triad-val').textContent = hueVal + '°';
-            // Only regenerate if adjoint is enabled and using triad mode
-            if (Config.params.adjointEnabled && Config.params.adjointMode === 'triad') {
+            // Only regenerate if dual is enabled and using triad mode
+            if (Config.params.dualEnabled && Config.params.dualMode === 'triad') {
                 Palette.loadCustomPalette();
             }
         });
@@ -439,6 +486,43 @@ window.FP.UI = (function() {
             document.getElementById('brightness-val').textContent = Config.params.finalBrightness + '%';
         });
 
+        // Opacity controls
+        document.getElementById('docs-opacity').addEventListener('input', (e) => {
+            const opacity = parseInt(e.target.value) / 100;
+            document.documentElement.style.setProperty('--opacity-docs', opacity);
+            document.getElementById('docs-opacity-val').textContent = e.target.value + '%';
+        });
+
+        document.getElementById('controls-opacity').addEventListener('input', (e) => {
+            const opacity = parseInt(e.target.value) / 100;
+            document.documentElement.style.setProperty('--opacity-controls', opacity);
+            document.getElementById('controls-opacity-val').textContent = e.target.value + '%';
+        });
+
+        document.getElementById('h1-opacity').addEventListener('input', (e) => {
+            const opacity = parseInt(e.target.value) / 100;
+            document.documentElement.style.setProperty('--opacity-h1', opacity);
+            document.getElementById('h1-opacity-val').textContent = e.target.value + '%';
+        });
+
+        document.getElementById('h2-opacity').addEventListener('input', (e) => {
+            const opacity = parseInt(e.target.value) / 100;
+            document.documentElement.style.setProperty('--opacity-h2', opacity);
+            document.getElementById('h2-opacity-val').textContent = e.target.value + '%';
+        });
+
+        document.getElementById('label-opacity').addEventListener('input', (e) => {
+            const opacity = parseInt(e.target.value) / 100;
+            document.documentElement.style.setProperty('--opacity-label', opacity);
+            document.getElementById('label-opacity-val').textContent = e.target.value + '%';
+        });
+
+        document.getElementById('help-opacity').addEventListener('input', (e) => {
+            const opacity = parseInt(e.target.value) / 100;
+            document.documentElement.style.setProperty('--opacity-help', opacity);
+            document.getElementById('help-opacity-val').textContent = e.target.value + '%';
+        });
+
         // Auto-palette listeners for color inputs only (others have specific handlers already)
         ['color-start', 'color-mid', 'color-end'].forEach(id => {
             const el = document.getElementById(id);
@@ -452,9 +536,9 @@ window.FP.UI = (function() {
             }
         });
 
-        document.getElementById('compute-adjoint').addEventListener('click', () => {
+        document.getElementById('compute-dual').addEventListener('click', () => {
             const startColor = document.getElementById('color-start').value;
-            const triad = Palette.computeAdjointTriad(startColor);
+            const triad = Palette.computeDualTriad(startColor);
 
             const startEl = document.getElementById('color-start');
             const midEl = document.getElementById('color-mid');
@@ -682,9 +766,27 @@ window.FP.UI = (function() {
             </div>
         `;
 
+        // Curvature control for walls and apertures
+        if (element.type === Matter.ElementType.WALL || element.type === Matter.ElementType.APERTURE) {
+            const curvVal = element.curvature || 0;
+            const curvLabel = curvVal === 0 ? '0 (Flat)' : (curvVal > 0 ? `+${curvVal}` : `${curvVal}`);
+            html += `
+                <div class="control-group">
+                    <label>Curvature <span class="value-display" id="obj-curv-val">${curvLabel}</span></label>
+                    <input type="range" id="obj-curv" min="-200" max="200" step="10" value="${curvVal}">
+                    <div class="help-text">0: Flat | Positive: Concave (parabolic mirror) | Negative: Convex</div>
+                </div>
+            `;
+        }
+
         // Type-specific parameters
         if (element.type === Matter.ElementType.APERTURE) {
             html += `
+                <div class="control-group">
+                    <label>Slit Count <span class="value-display" id="obj-slitcount-val">${element.slitCount || 1}</span></label>
+                    <input type="range" id="obj-slitcount" min="0" max="9" step="1" value="${element.slitCount || 1}">
+                    <div class="help-text">0: Solid barrier | 1-9: Number of slits</div>
+                </div>
                 <div class="control-group">
                     <label>Slit Width <span class="value-display" id="obj-slitwidth-val">${element.slitWidth}px</span></label>
                     <input type="range" id="obj-slitwidth" min="5" max="200" step="5" value="${element.slitWidth}">
@@ -729,11 +831,26 @@ window.FP.UI = (function() {
         addParamListener('obj-x', 'x', 'obj-x-val');
         addParamListener('obj-y', 'y', 'obj-y-val');
         addParamListener('obj-angle', 'angle', 'obj-angle-val', v => v * Math.PI / 180);
+        addParamListener('obj-slitcount', 'slitCount', 'obj-slitcount-val', v => Math.round(v));
         addParamListener('obj-slitwidth', 'slitWidth', 'obj-slitwidth-val');
         addParamListener('obj-slitsep', 'slitSeparation', 'obj-slitsep-val');
         addParamListener('obj-length', 'length', 'obj-length-val');
         addParamListener('obj-focal', 'focalLength', 'obj-focal-val');
         addParamListener('obj-diameter', 'length', 'obj-diameter-val');
+
+        // Curvature listener (special handling for label formatting)
+        const curvElem = document.getElementById('obj-curv');
+        if (curvElem) {
+            curvElem.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                element.curvature = val;
+                const display = document.getElementById('obj-curv-val');
+                if (display) {
+                    const label = val === 0 ? '0 (Flat)' : (val > 0 ? `+${val}` : `${val}`);
+                    display.textContent = label;
+                }
+            });
+        }
 
         // Reflection coefficient listener (special handling for display)
         const reflElem = document.getElementById('obj-refl');

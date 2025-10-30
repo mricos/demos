@@ -155,7 +155,7 @@ window.FP.Palette = (function() {
         return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
     }
 
-    function computeAdjointTriad(startColor) {
+    function computeDualTriad(startColor) {
         const rgb = hexToRgb(startColor);
         const {h, s, l} = rgbToHsl(rgb);
         const boostS = Math.min(1, s * 1.3);
@@ -167,14 +167,14 @@ window.FP.Palette = (function() {
         };
     }
 
-    function generateAdjointPalette(baseColors, mode, triadHue = 120) {
-        // Generate adjoint colors based on mode
+    function generateDualPalette(baseColors, mode, triadHue = 120) {
+        // Generate dual colors based on mode
         const [start, mid, end] = baseColors;
-        let adjointColors;
+        let dualColors;
 
         switch (mode) {
             case 'complementary':
-                adjointColors = [
+                dualColors = [
                     computeComplementaryColor(start),
                     computeComplementaryColor(mid),
                     computeComplementaryColor(end)
@@ -182,7 +182,7 @@ window.FP.Palette = (function() {
                 break;
 
             case 'desat':
-                adjointColors = baseColors.map(color => {
+                dualColors = baseColors.map(color => {
                     const rgb = hexToRgb(color);
                     const {h, s, l} = rgbToHsl(rgb);
                     return hslToHex(h, s * 0.3, l);
@@ -190,7 +190,7 @@ window.FP.Palette = (function() {
                 break;
 
             case 'inverse':
-                adjointColors = [
+                dualColors = [
                     computeComplementaryColor(end),
                     computeComplementaryColor(mid),
                     computeComplementaryColor(start)
@@ -198,7 +198,7 @@ window.FP.Palette = (function() {
                 break;
 
             case 'triad':
-                adjointColors = baseColors.map(color => {
+                dualColors = baseColors.map(color => {
                     const rgb = hexToRgb(color);
                     const {h, s, l} = rgbToHsl(rgb);
                     const newH = (h + triadHue / 360) % 1;
@@ -207,10 +207,10 @@ window.FP.Palette = (function() {
                 break;
 
             default:
-                adjointColors = baseColors;
+                dualColors = baseColors;
         }
 
-        return adjointColors;
+        return dualColors;
     }
 
     function applyDesaturation(color, amount) {
@@ -275,20 +275,20 @@ window.FP.Palette = (function() {
 
         Config.state.currentPalette = basePalette;
 
-        // Generate adjoint palette if enabled
-        if (Config.params.adjointEnabled) {
-            const adjointColors = generateAdjointPalette(
+        // Generate dual palette if enabled
+        if (Config.params.dualEnabled) {
+            const dualColors = generateDualPalette(
                 colors,
-                Config.params.adjointMode,
-                Config.params.adjointTriadHue
+                Config.params.dualMode,
+                Config.params.dualTriadHue
             );
-            let adjointPalette = generatePalette(adjointColors, Config.params.paletteSteps, pivot, balance);
+            let dualPalette = generatePalette(dualColors, Config.params.paletteSteps, pivot, balance);
 
             if (Config.params.dynamicRange < Config.params.paletteSteps) {
-                adjointPalette = quantizePalette(adjointPalette, Config.params.dynamicRange);
+                dualPalette = quantizePalette(dualPalette, Config.params.dynamicRange);
             }
 
-            Config.state.adjointPalette = adjointPalette;
+            Config.state.dualPalette = dualPalette;
         }
 
         Config.state.currentPresetIndex = -1;
@@ -336,8 +336,8 @@ window.FP.Palette = (function() {
         generatePalette,
         quantizePalette,
         computeComplementaryColor,
-        computeAdjointTriad,
-        generateAdjointPalette,
+        computeDualTriad,
+        generateDualPalette,
         applyDesaturation,
         applyBrightness,
         rgbToHsl,

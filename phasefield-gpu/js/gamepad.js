@@ -13,15 +13,54 @@ window.FP.Gamepad = (function() {
     const Optics = window.FP.Optics;
     const Matter = window.FP.Matter;
     const UI = window.FP.UI;
+    const LightPuck = window.FP.LightPuck;
+    const VirtualBridge = window.Gamepad ? window.Gamepad.VirtualBridge : null;
 
     let gamepadConnected = false;
     let gamepadIndex = -1;
+    let gamepadType = 'generic'; // 'xbox', 'playstation', 'nintendo', 'generic', 'virtual'
 
     // Button press state for pressure curves
     const buttonState = {};
 
+    /**
+     * Detect gamepad type from ID string
+     */
+    function detectGamepadType(id) {
+        if (!id) return 'generic';
+
+        const idLower = id.toLowerCase();
+
+        // Xbox controllers
+        if (idLower.includes('xbox') || idLower.includes('xinput') || idLower.includes('360') || idLower.includes('one')) {
+            return 'xbox';
+        }
+
+        // PlayStation controllers
+        if (idLower.includes('playstation') || idLower.includes('dualshock') || idLower.includes('dualsense') ||
+            idLower.includes('ps3') || idLower.includes('ps4') || idLower.includes('ps5')) {
+            return 'playstation';
+        }
+
+        // Nintendo controllers
+        if (idLower.includes('nintendo') || idLower.includes('switch') || idLower.includes('pro controller') ||
+            idLower.includes('joycon') || idLower.includes('joy-con')) {
+            return 'nintendo';
+        }
+
+        // 8BitDo and other generic
+        return 'generic';
+    }
+
     // Axis calibration - store initial values as center
     let axisCenter = null;
+
+    // Light puck launcher state (pinball style)
+    let launcherCharging = false;
+    let launcherStartTime = 0;
+    const LAUNCHER_MIN_POWER = 2;
+    const LAUNCHER_MAX_POWER = 10;
+    const LAUNCHER_CHARGE_TIME = 1000; // ms to reach max power
 
     // Stuck axis detection (including axis 5 for Logitech controllers)
     const axisHistory = {
@@ -224,20 +263,48 @@ window.FP.Gamepad = (function() {
         let connected = false;
         let gamepad = null;
 
-        for (let i = 0; i < gamepads.length; i++) {
-            if (gamepads[i]) {
+        // Check for virtual gamepad first (priority)
+        if (VirtualBridge && VirtualBridge.isConnected()) {
+            const virtualGamepad = VirtualBridge.getVirtualGamepad();
+            if (virtualGamepad) {
                 connected = true;
-                gamepadIndex = i;
-                gamepad = gamepads[i];
-                break;
+                gamepadIndex = 99;  // Virtual gamepad index
+                gamepad = virtualGamepad;
+                gamepadType = 'virtual';
+                console.log('[Gamepad] Using VIRTUAL gamepad');
+            }
+        }
+
+        // Fall back to physical gamepads if no virtual gamepad
+        if (!connected) {
+            for (let i = 0; i < gamepads.length; i++) {
+                if (gamepads[i]) {
+                    connected = true;
+                    gamepadIndex = i;
+                    gamepad = gamepads[i];
+                    gamepadType = detectGamepadType(gamepad.id);
+                    break;
+                }
             }
         }
 
         if (connected !== gamepadConnected) {
             gamepadConnected = connected;
             const statusEl = document.getElementById('gamepad-status');
+            const typeEl = document.getElementById('gamepad-type');
+
             if (statusEl) {
-                statusEl.textContent = connected ? 'Connected' : 'Not Connected';
+                const statusText = connected ? 'Connected' : 'Not Connected';
+                const typeLabel = gamepadType.charAt(0).toUpperCase() + gamepadType.slice(1);
+                statusEl.textContent = `${statusText} (${typeLabel})`;
+
+                // Apply color based on gamepad type
+                statusEl.style.color = connected ? `var(--color-gamepad-${gamepadType}, #00FF64)` : '';
+            }
+
+            if (typeEl) {
+                typeEl.textContent = gamepadType.toUpperCase();
+                typeEl.className = `gamepad-type-badge gamepad-type-${gamepadType}`;
             }
 
             if (connected && gamepad) {
@@ -246,7 +313,8 @@ window.FP.Gamepad = (function() {
                 for (let i = 0; i < Math.max(6, gamepad.axes.length); i++) {
                     axisCenter[i] = gamepad.axes[i] || 0;
                 }
-                console.log('Gamepad calibrated, axes:', axisCenter);
+                console.log(`[Gamepad] ${gamepadType.toUpperCase()} controller connected:`, gamepad.id);
+                console.log(`[Gamepad] Calibrated axes:`, axisCenter);
             }
 
             // Clear all button states on connection change
@@ -279,31 +347,29 @@ window.FP.Gamepad = (function() {
         }
 
         // Handle A button - Toggle between wave mode and matter mode
-        // A button is used to SELECT mode, not create elements
         const aPressed = gamepad.buttons[gamepadConfig.buttonA]?.pressed;
         if (aPressed && !buttonState[gamepadConfig.buttonA].pressed) {
-            console.log('A button pressed (button index:', gamepadConfig.buttonA, ')');
+            console.log('[Gamepad] A button - Toggle mode');
             const elements = Optics.getAllElements();
 
             if (Config.state.controlMode === 'wave') {
-                // Entering matter mode: only allow if there are elements to edit
+                // Enter matter mode if elements exist
                 if (elements.length > 0) {
                     Config.state.controlMode = 'matter';
-                    // Select first element if none selected
                     if (Config.state.editingElementIndex < 0) {
                         Config.state.editingElementIndex = 0;
                     }
-                    console.log('Control mode: matter, editing element #' + Config.state.editingElementIndex);
+                    console.log('[Gamepad] Mode: MATTER (element #' + Config.state.editingElementIndex + ')');
                     if (UI && UI.updateObjectEditor) {
                         UI.updateObjectEditor();
                     }
                 } else {
-                    console.log('Cannot enter matter mode: no elements exist. Press B to create one.');
+                    console.log('[Gamepad] Cannot enter matter mode: no elements. Press B to create one.');
                 }
             } else {
-                // Exiting matter mode: always go back to wave
+                // Exit matter mode
                 Config.state.controlMode = 'wave';
-                console.log('Control mode: wave');
+                console.log('[Gamepad] Mode: WAVE');
             }
             updateModeUI();
         }
@@ -312,12 +378,12 @@ window.FP.Gamepad = (function() {
         // Handle B button - Create NEW element
         const bPressed = gamepad.buttons[gamepadConfig.buttonB]?.pressed;
         if (bPressed && !buttonState[gamepadConfig.buttonB].pressed) {
-            console.log('B button pressed (button index:', gamepadConfig.buttonB, ')');
-            // Create new aperture at canvas center with current aperture count
+            console.log('[Gamepad] B button - Create element');
+            // Create new aperture at left side (not blocking center)
             const newAperture = new Matter.Aperture(
-                canvas.width / 2,
-                canvas.height / 2,
-                0,  // angle
+                canvas.width * 0.25,
+                canvas.height * 0.5,
+                0,
                 Config.particleConfig.wallLength,
                 Config.particleConfig.wallThickness,
                 {
@@ -328,15 +394,12 @@ window.FP.Gamepad = (function() {
                 },
                 Config.particleConfig.reflectionCoefficient
             );
-            const newElement = newAperture;
-            const newIndex = Optics.addElement(newElement);
+            newAperture.curvature = Config.particleConfig.wallCurvature;
+            const newIndex = Optics.addElement(newAperture);
             Config.state.editingElementIndex = newIndex;
-            console.log('Created new element #' + newIndex);
-
-            // Switch to matter mode to allow immediate manipulation
             Config.state.controlMode = 'matter';
+            console.log('[Gamepad] Created element #' + newIndex);
 
-            // Update UI
             if (UI && UI.updateObjectEditor) {
                 UI.updateObjectEditor();
             }
@@ -344,25 +407,52 @@ window.FP.Gamepad = (function() {
         }
         buttonState[gamepadConfig.buttonB].pressed = bPressed;
 
-        // Handle X button (button 2) - cycle through existing elements for selection
-        const xPressed = gamepad.buttons[2]?.pressed;
-        if (xPressed && !buttonState[2].pressed) {
+        // Handle Y button (button 2) - Pinball Launcher
+        const yPressed = gamepad.buttons[2]?.pressed;
+
+        if (yPressed && !buttonState[2].pressed) {
+            // Y button pressed - start charging
+            launcherCharging = true;
+            launcherStartTime = performance.now();
+            console.log('[Gamepad] Y button HOLD - Charging launcher...');
+        } else if (!yPressed && buttonState[2].pressed) {
+            // Y button released - launch!
+            if (launcherCharging) {
+                const holdTime = performance.now() - launcherStartTime;
+                const chargeProgress = Math.min(1, holdTime / LAUNCHER_CHARGE_TIME);
+                const power = LAUNCHER_MIN_POWER + (LAUNCHER_MAX_POWER - LAUNCHER_MIN_POWER) * chargeProgress;
+
+                // Launch from bottom center, upward
+                const launchX = canvas.width / 2;
+                const launchY = canvas.height - 50;
+                const vx = 0;
+                const vy = -power;  // Negative = upward
+
+                LightPuck.launchPuck(launchX, launchY, vx, vy);
+                console.log(`[Gamepad] Y button RELEASED - Launched puck! Power: ${power.toFixed(1)} (held ${holdTime.toFixed(0)}ms)`);
+
+                launcherCharging = false;
+            }
+        }
+        buttonState[2].pressed = yPressed;
+
+        // Handle X button (button 3) - Cycle through elements
+        const xPressed = gamepad.buttons[3]?.pressed;
+        if (xPressed && !buttonState[3].pressed) {
             const elements = Optics.getAllElements();
             if (elements.length > 0) {
                 Config.state.editingElementIndex = (Config.state.editingElementIndex + 1) % elements.length;
-                console.log(`Selected element #${Config.state.editingElementIndex}: ${elements[Config.state.editingElementIndex].type}`);
-
-                // Switch to matter mode when selecting
                 Config.state.controlMode = 'matter';
-
-                // Update UI to show selected object
+                console.log('[Gamepad] X button - Selected element #' + Config.state.editingElementIndex);
                 if (UI && UI.updateObjectEditor) {
                     UI.updateObjectEditor();
                 }
                 updateModeUI();
+            } else {
+                console.log('[Gamepad] X button - No elements to select');
             }
         }
-        buttonState[2].pressed = xPressed;
+        buttonState[3].pressed = xPressed;
 
         // Handle shoulder buttons with debouncing
         // Based on 8Bitdo mapping: 6=left top, 8=left bottom, 7=right top, 9=right bottom
@@ -447,6 +537,7 @@ window.FP.Gamepad = (function() {
         } else if (Config.state.controlMode === 'matter') {
             handleMatterMode(gamepad, canvas);
         }
+        debugFrameCount++;
 
         // DISABLED: All button state tracking and actions disabled
         // // Update button states for pressure curves
@@ -516,6 +607,7 @@ window.FP.Gamepad = (function() {
                 modeDisplayA.textContent = 'WAVE';
                 modeDisplayB.textContent = 'MATTER';
             } else {
+                // Matter mode
                 modeDisplayA.classList.remove('active');
                 modeDisplayB.classList.add('active');
                 modeDisplayA.textContent = 'WAVE';
@@ -754,6 +846,7 @@ window.FP.Gamepad = (function() {
         setupEventListeners,
         updateUI,
         pressureCurves,
-        gamepadConfig
+        gamepadConfig,
+        getGamepadType: () => gamepadType
     };
 })();
