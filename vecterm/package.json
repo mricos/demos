@@ -1,0 +1,23 @@
+{
+  "name": "vecterm-multiplayer",
+  "version": "1.0.0",
+  "description": "Vecterm 3D terminal game engine with multiplayer support",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "game",
+    "terminal",
+    "3d",
+    "multiplayer",
+    "websocket"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.14.2"
+  }
+}

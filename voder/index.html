@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Voder - 1939 World's Fair</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Voder - 1939 World's Fair</h1>
+  <p class="subtitle">Press keys to activate frequency bands. Spacebar toggles voiced/unvoiced.</p>
+
+  <div class="controls">
+    <button id="start">Start Voder</button>
+    <label>Pitch
+      <input type="range" id="pitch" min="60" max="300" value="120">
+    </label>
+    <div id="status">Voiced</div>
+  </div>
+
+  <!-- Scroll Inspector -->
+  <div class="scroll-inspector" id="scrollInspector" style="display: none;">
+    <div>Scroll: <span id="scrollY">0</span>px</div>
+    <div>Keyboard: <span id="keyboardSticky">visible</span></div>
+    <div>IPA: <span id="ipaSticky">below</span></div>
+  </div>
+
+  <div class="keyboard">
+    <!-- Top row: Plosives -->
+    <div class="key-row">
+      <div class="key ghost">
+        <span class="keycap">Q</span>
+        <span class="label">Wrist Bar</span>
+      </div>
+      <div class="key ghost">
+        <span class="keycap">W</span>
+        <span class="label">Wrist Bar</span>
+      </div>
+      <div class="key ghost">
+        <span class="keycap">E</span>
+        <span class="label">Wrist Bar</span>
+      </div>
+      <div class="key ghost">
+        <span class="keycap">R</span>
+        <span class="label">Wrist Bar</span>
+      </div>
+      <div class="key ghost">
+        <span class="keycap">T</span>
+        <span class="label">Wrist Bar</span>
+      </div>
+      <div class="key plosive" data-key="c">
+        <span class="keycap">C</span>
+        <span class="label">Plosive 1</span>
+      </div>
+      <div class="key plosive" data-key="v">
+        <span class="keycap">V</span>
+        <span class="label">Plosive 2</span>
+      </div>
+      <div class="key plosive" data-key="b">
+        <span class="keycap">B</span>
+        <span class="label">Plosive 3</span>
+      </div>
+      <div class="key ghost">
+        <span class="keycap">U</span>
+        <span class="label">Pedal</span>
+      </div>
+      <div class="key ghost">
+        <span class="keycap">I</span>
+        <span class="label">Pedal</span>
+      </div>
+      <div class="key ghost">
+        <span class="keycap">O</span>
+        <span class="label">Pedal</span>
+      </div>
+      <div class="key ghost">
+        <span class="keycap">P</span>
+        <span class="label">Pedal</span>
+      </div>
+    </div>
+
+    <!-- Middle row: Left hand filters -->
+    <div class="key-row">
+      <div class="key filter" data-key="a" data-filter="0">
+        <span class="keycap">A</span>
+        <span class="label">200 Hz</span>
+      </div>
+      <div class="key filter" data-key="s" data-filter="1">
+        <span class="keycap">S</span>
+        <span class="label">350 Hz</span>
+      </div>
+      <div class="key filter" data-key="d" data-filter="2">
+        <span class="keycap">D</span>
+        <span class="label">500 Hz</span>
+      </div>
+      <div class="key filter" data-key="f" data-filter="3">
+        <span class="keycap">F</span>
+        <span class="label">700 Hz</span>
+      </div>
+      <div class="key filter" data-key="g" data-filter="8">
+        <span class="keycap">G</span>
+        <span class="label">2000 Hz</span>
+      </div>
+      <div class="key filter" data-key="h" data-filter="9">
+        <span class="keycap">H</span>
+        <span class="label">2600 Hz</span>
+      </div>
+      <div class="key filter" data-key="j" data-filter="4">
+        <span class="keycap">J</span>
+        <span class="label">900 Hz</span>
+      </div>
+      <div class="key filter" data-key="k" data-filter="5">
+        <span class="keycap">K</span>
+        <span class="label">1100 Hz</span>
+      </div>
+      <div class="key filter" data-key="l" data-filter="6">
+        <span class="keycap">L</span>
+        <span class="label">1300 Hz</span>
+      </div>
+      <div class="key filter" data-key=";" data-filter="7">
+        <span class="keycap">;</span>
+        <span class="label">1600 Hz</span>
+      </div>
+    </div>
+
+    <!-- Bottom row: Spacebar and thumb rests -->
+    <div class="key-row">
+      <div class="key ghost">
+        <span class="keycap">Z</span>
+        <span class="label">Thumb Rest</span>
+      </div>
+      <div class="key ghost">
+        <span class="keycap">X</span>
+        <span class="label">Thumb Rest</span>
+      </div>
+      <div class="key ghost">
+        <span class="keycap">N</span>
+        <span class="label">Thumb Rest</span>
+      </div>
+      <div class="key spacebar" data-key=" ">
+        <span class="keycap">SPACE</span>
+        <span class="label">Voiced / Unvoiced</span>
+      </div>
+      <div class="key ghost">
+        <span class="keycap">M</span>
+        <span class="label">Thumb Rest</span>
+      </div>
+      <div class="key ghost">
+        <span class="keycap">,</span>
+        <span class="label">Thumb Rest</span>
+      </div>
+      <div class="key ghost">
+        <span class="keycap">.</span>
+        <span class="label">Thumb Rest</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- IPA Keyboard Section -->
+  <div id="ipa-section">
+    <h2>IPA Keyboard</h2>
+
+    <!-- Lips Visualization -->
+    <div id="lips-display">
+      <div id="lips"></div>
+    </div>
+
+    <div id="ipa-keyboard"></div>
+  </div>
+
+  <!-- FAB (bottom left) -->
+  <div class="fab-row">
+    <button class="fab doc" id="docFab" title="Documentation">?</button>
+    <button class="fab speech" id="speechFab" title="Text to Speech">🎤</button>
+  </div>
+
+  <!-- Documentation panel (loaded dynamically) -->
+  <div id="docPanelContainer"></div>
+
+  <!-- Speech Panel -->
+  <div id="speechPanel" class="popup-panel">
+    <div class="popup-header">
+      <h3>Text to Speech</h3>
+      <button class="close-btn" id="speechClose">×</button>
+    </div>
+
+    <div class="popup-body">
+      <!-- Input area with format help -->
+      <div class="input-section">
+        <textarea id="speech-input" placeholder="Type text or phonemes...
+
+Examples:
+  hello world
+  h:100 ɛ:150 l:80 o:180
+  @pitch 140 hello @pause 0.5 world"></textarea>
+
+        <div class="controls-row">
+          <label>Pitch: <input type="range" id="speech-pitch" min="60" max="200" value="120"> <span id="pitch-val">120</span>Hz</label>
+          <label>Speed: <input type="range" id="speech-speed" min="50" max="200" value="100"> <span id="speed-val">1.0</span>x</label>
+          <button id="speak-btn" class="primary-btn">Speak</button>
+        </div>
+      </div>
+
+      <!-- Preset shortcuts -->
+      <div class="shortcuts-section">
+        <h4>Quick Phrases</h4>
+        <div class="shortcut-grid">
+          <button class="shortcut" data-text="h:100 ɛ:150 l:80 o:180">Hello</button>
+          <button class="shortcut" data-text="j:80 ɛ:120 s:100">Yes</button>
+          <button class="shortcut" data-text="n:90 o:150">No</button>
+          <button class="shortcut" data-text="θ:100 æ:120 ŋ:80 k:80 ~ j:90 u:150">Thank You</button>
+        </div>
+
+        <h4>Pitch Patterns</h4>
+        <div class="shortcut-grid">
+          <button class="shortcut-mod" data-mod="pitch-low">Low (80Hz)</button>
+          <button class="shortcut-mod" data-mod="pitch-high">High (160Hz)</button>
+          <button class="shortcut-mod" data-mod="rising">Rising ↗</button>
+          <button class="shortcut-mod" data-mod="falling">Falling ↘</button>
+        </div>
+
+        <h4>Timing</h4>
+        <div class="shortcut-grid">
+          <button class="shortcut-mod" data-mod="speed-fast">Fast (0.7x)</button>
+          <button class="shortcut-mod" data-mod="speed-slow">Slow (1.5x)</button>
+          <button class="shortcut-insert" data-text=" @pause 0.5 ">Add Pause</button>
+        </div>
+      </div>
+
+      <!-- Phoneme display -->
+      <div id="speech-phoneme-display"></div>
+    </div>
+  </div>
+
+  <!-- Load modules in dependency order -->
+  <script src="voder.js"></script>
+  <script src="VoderControl.js"></script>
+  <script src="phonemeData.js"></script>
+  <script src="IpaToVoder.js"></script>
+  <script src="Lips.js"></script>
+  <script src="Ipa.js"></script>
+  <script src="glossary.js"></script>
+  <script src="TextToPhoneme.js?v=2"></script>
+
+  <!-- Initialize IPA System -->
+  <script>
+    // Create instances
+    const voderControl = new VoderControl();
+    const ipaToVoder = new IpaToVoder();
+    const lips = new Lips('#lips', { simple: false, width: 200, height: 120 });
+    const ipaKeyboard = new IpaKeyboard('#ipa-keyboard', ipaToVoder, voderControl);
+
+    // Initialize lips visualization
+    lips.init();
+    lips.reset();
+    lips.enableEditor();
+
+    // Initialize IPA keyboard
+    ipaKeyboard.init().then(() => {
+      console.log('IPA Keyboard initialized');
+    }).catch(error => {
+      console.error('Failed to initialize IPA keyboard:', error);
+    });
+
+    // Wire up lips to IPA keyboard events
+    ipaKeyboard.on('phoneme', (phonemeSettings) => {
+      const phonemeData = ipaToVoder.getPhoneme(phonemeSettings.ipa);
+      lips.setPhoneme(phonemeSettings.ipa, phonemeData);
+
+      // Reflect on manual keyboard: highlight which keys would be pressed
+      highlightManualKeys(phonemeSettings.filters);
+    });
+
+    // Reflect IPA phoneme activation on manual keyboard
+    function highlightManualKeys(filterIndices) {
+      // Clear previous highlights
+      document.querySelectorAll('.filter.ipa-active').forEach(el => {
+        el.classList.remove('ipa-active');
+      });
+
+      // Highlight keys corresponding to active filters
+      filterIndices.forEach(index => {
+        const keyEl = document.querySelector(`.filter[data-filter="${index}"]`);
+        if (keyEl) {
+          keyEl.classList.add('ipa-active');
+        }
+      });
+
+      // Auto-clear after a short delay
+      setTimeout(() => {
+        document.querySelectorAll('.filter.ipa-active').forEach(el => {
+          el.classList.remove('ipa-active');
+        });
+      }, 300);
+    }
+
+    // Config controls - will be initialized after docs load
+    function setupConfigControls() {
+      const lipsToggle = document.getElementById('lips-toggle');
+      const scrollInspectorToggle = document.getElementById('scroll-inspector-toggle');
+      const scrollInspector = document.getElementById('scrollInspector');
+
+      if (lipsToggle) {
+        lipsToggle.addEventListener('change', (e) => {
+          lips.setSimpleMode(e.target.checked);
+        });
+      }
+
+      if (scrollInspectorToggle && scrollInspector) {
+        scrollInspectorToggle.addEventListener('change', (e) => {
+          if (e.target.checked) {
+            scrollInspector.style.display = 'block';
+          } else {
+            scrollInspector.style.display = 'none';
+          }
+        });
+      }
+    }
+
+    // Wire up original Voder controls to use VoderControl
+    const startButton = document.getElementById('start');
+    const pitchSlider = document.getElementById('pitch');
+    const statusEl = document.getElementById('status');
+
+    startButton.addEventListener('click', async () => {
+      await voderControl.init();
+      startButton.textContent = 'Voder Active';
+      startButton.style.background = '#16537e';
+    });
+
+    pitchSlider.addEventListener('input', (e) => {
+      voderControl.setPitch(parseInt(e.target.value));
+    });
+
+    // Keep original voder.js keyboard functionality
+    // (The existing manual keyboard still works independently)
+
+    // Documentation panel loading and management
+    let docPanel = null;
+
+    async function loadDocs() {
+      try {
+        const response = await fetch('voder-docs.html');
+        const html = await response.text();
+        const container = document.getElementById('docPanelContainer');
+        container.innerHTML = html;
+
+        // Set up references
+        docPanel = document.getElementById('docPanel');
+        if (docPanel) {
+          // Don't show by default - user must click FAB
+          setupDocsTabs();
+          setupConfigControls();
+        }
+      } catch (err) {
+        console.error('Failed to load docs:', err);
+      }
+    }
+
+    // Doc panel toggle
+    const docFab = document.getElementById('docFab');
+    docFab.onclick = () => {
+      if (docPanel) docPanel.classList.toggle('open');
+    };
+
+    // Documentation tabs setup
+    function setupDocsTabs() {
+      const tabs = [
+        {btn: document.getElementById('tabBtnHistory'), sec: document.getElementById('tabHistory')},
+        {btn: document.getElementById('tabBtnPhysics'), sec: document.getElementById('tabPhysics')},
+        {btn: document.getElementById('tabBtnPhonemes'), sec: document.getElementById('tabPhonemes')},
+        {btn: document.getElementById('tabBtnUsage'), sec: document.getElementById('tabUsage')},
+        {btn: document.getElementById('tabBtnInfo'), sec: document.getElementById('tabInfo')},
+        {btn: document.getElementById('tabBtnConfig'), sec: document.getElementById('tabConfig')}
+      ];
+
+      tabs.forEach(tab => {
+        if (tab.btn && tab.sec) {
+          tab.btn.onclick = () => {
+            // Hide all sections and deselect all tabs
+            tabs.forEach(t => {
+              if (t.sec) t.sec.hidden = true;
+              if (t.btn) t.btn.setAttribute('aria-selected', 'false');
+            });
+            // Show selected section and highlight tab
+            tab.sec.hidden = false;
+            tab.btn.setAttribute('aria-selected', 'true');
+          };
+        }
+      });
+    }
+
+    // Load documentation on page load
+    loadDocs();
+
+    // Term popup functionality
+    function setupTermPopups() {
+      const termPopup = document.getElementById('termPopup');
+      const termPopupTitle = document.getElementById('termPopupTitle');
+      const termPopupBody = document.getElementById('termPopupBody');
+      const termPopupClose = document.getElementById('termPopupClose');
+
+      // Find all terms with data-term attribute
+      const termElements = document.querySelectorAll('b[data-term]');
+
+      termElements.forEach(term => {
+        term.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const termKey = term.getAttribute('data-term');
+          const glossaryEntry = GLOSSARY[termKey];
+
+          if (glossaryEntry) {
+            termPopupTitle.textContent = glossaryEntry.title;
+            termPopupBody.textContent = glossaryEntry.definition;
+            termPopup.classList.add('open');
+          }
+        });
+      });
+
+      // Close popup
+      termPopupClose.addEventListener('click', () => {
+        termPopup.classList.remove('open');
+      });
+
+      // Close on outside click
+      termPopup.addEventListener('click', (e) => {
+        if (e.target === termPopup) {
+          termPopup.classList.remove('open');
+        }
+      });
+
+      // Close on Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && termPopup.classList.contains('open')) {
+          termPopup.classList.remove('open');
+        }
+      });
+    }
+
+    // Setup term popups after docs load
+    setTimeout(setupTermPopups, 500);
+
+    // Scroll Inspector
+    function setupScrollInspector() {
+      const scrollInspector = document.getElementById('scrollInspector');
+      const scrollYEl = document.getElementById('scrollY');
+      const keyboardStickyEl = document.getElementById('keyboardSticky');
+      const ipaStickyEl = document.getElementById('ipaSticky');
+      const keyboard = document.querySelector('.keyboard');
+      const ipaKeyboard = document.getElementById('ipa-keyboard');
+
+      if (!scrollInspector) return;
+
+      window.addEventListener('scroll', () => {
+        const scrollY = window.scrollY;
+        scrollYEl.textContent = Math.round(scrollY);
+
+        // Check keyboard sticky state
+        const keyboardRect = keyboard.getBoundingClientRect();
+        if (keyboardRect.top <= 0) {
+          keyboardStickyEl.textContent = 'stuck';
+          keyboardStickyEl.style.color = '#2ecc71';
+        } else {
+          keyboardStickyEl.textContent = 'visible';
+          keyboardStickyEl.style.color = '#4a9eff';
+        }
+
+        // Check IPA keyboard sticky state
+        if (ipaKeyboard) {
+          const ipaRect = ipaKeyboard.getBoundingClientRect();
+          if (ipaRect.top <= 220) {
+            ipaStickyEl.textContent = 'stuck';
+            ipaStickyEl.style.color = '#2ecc71';
+          } else if (scrollY > keyboard.offsetHeight) {
+            ipaStickyEl.textContent = 'visible';
+            ipaStickyEl.style.color = '#4a9eff';
+          } else {
+            ipaStickyEl.textContent = 'below';
+            ipaStickyEl.style.color = '#aaa';
+          }
+        }
+      });
+    }
+
+    // Setup scroll inspector
+    setupScrollInspector();
+
+    // Speech Panel Management
+    const textToPhoneme = new TextToPhoneme();
+    const speechFab = document.getElementById('speechFab');
+    const speechPanel = document.getElementById('speechPanel');
+    const speechClose = document.getElementById('speechClose');
+    const speechInput = document.getElementById('speech-input');
+    const speakBtn = document.getElementById('speak-btn');
+    const speechPitch = document.getElementById('speech-pitch');
+    const speechSpeed = document.getElementById('speech-speed');
+
+    // Toggle speech panel
+    speechFab.onclick = () => speechPanel.classList.toggle('open');
+    speechClose.onclick = () => speechPanel.classList.remove('open');
+
+    // Update pitch/speed displays
+    speechPitch.oninput = (e) => {
+      document.getElementById('pitch-val').textContent = e.target.value;
+    };
+    speechSpeed.oninput = (e) => {
+      document.getElementById('speed-val').textContent = (parseInt(e.target.value) / 100).toFixed(1);
+    };
+
+    // Shortcut buttons
+    document.querySelectorAll('.shortcut').forEach(btn => {
+      btn.onclick = () => {
+        speechInput.value = btn.dataset.text;
+        speakBtn.click();
+      };
+    });
+
+    document.querySelectorAll('.shortcut-insert').forEach(btn => {
+      btn.onclick = () => {
+        const pos = speechInput.selectionStart;
+        const text = speechInput.value;
+        speechInput.value = text.slice(0, pos) + btn.dataset.text + text.slice(pos);
+      };
+    });
+
+    // Modifier buttons
+    document.querySelectorAll('.shortcut-mod').forEach(btn => {
+      btn.onclick = () => {
+        const mod = btn.dataset.mod;
+        if (mod === 'pitch-low') speechPitch.value = 80;
+        if (mod === 'pitch-high') speechPitch.value = 160;
+        if (mod === 'speed-fast') speechSpeed.value = 70;
+        if (mod === 'speed-slow') speechSpeed.value = 150;
+        if (mod === 'rising') speechInput.value = applyPitchPattern(speechInput.value, 'rising');
+        if (mod === 'falling') speechInput.value = applyPitchPattern(speechInput.value, 'falling');
+        speechPitch.oninput({ target: speechPitch });
+        speechSpeed.oninput({ target: speechSpeed });
+      };
+    });
+
+    // Parse estovox notation (e.g., "h:100 e:150" or plain "hello")
+    function parseEstovoxInput(text) {
+      const basePitch = parseInt(speechPitch.value);
+      const speedMult = parseInt(speechSpeed.value) / 100;
+
+      // Check if text contains timing notation
+      if (text.includes(':')) {
+        // Parse "phoneme:duration" format
+        return text.split(/\s+/).map(token => {
+          if (token === '~') return { type: 'pause', duration: 100 };
+          if (token.startsWith('@pause')) {
+            const dur = parseFloat(token.split(' ')[1]) || 0.5;
+            return { type: 'pause', duration: dur * 1000 };
+          }
+
+          const [ipa, durStr] = token.split(':');
+          const duration = durStr ? parseInt(durStr) / speedMult : null;
+          return { type: 'phoneme', ipa, duration };
+        });
+      } else {
+        // Convert plain text to phonemes
+        return textToPhoneme.textToPhonemes(text);
+      }
+    }
+
+    function applyPitchPattern(text, pattern) {
+      // Apply rising/falling pitch to sequence notation
+      if (!text.includes(':')) return text;
+
+      const tokens = text.split(/\s+/);
+      return tokens.map((token, i) => {
+        if (!token.includes(':')) return token;
+        const [ipa, dur] = token.split(':');
+        const factor = pattern === 'rising' ? (1 + i * 0.1) : (1 - i * 0.08);
+        // Just return token as-is; pitch will be handled in playback
+        return token;
+      }).join(' ');
+    }
+
+    // Speak button handler
+    speakBtn.onclick = async () => {
+      const text = speechInput.value.trim();
+      if (!text) return;
+
+      if (!voderControl.isInitialized()) {
+        await voderControl.init();
+        startButton.textContent = 'Voder Active';
+        startButton.style.background = '#16537e';
+      }
+
+      const basePitch = parseInt(speechPitch.value);
+      const phonemeSequence = parseEstovoxInput(text);
+
+      // Display phoneme sequence
+      displaySpeechPhonemes(phonemeSequence);
+
+      // Speak with pitch control
+      await speakWithPitch(phonemeSequence, basePitch);
+    };
+
+    function displaySpeechPhonemes(sequence) {
+      const display = document.getElementById('speech-phoneme-display');
+      display.innerHTML = '';
+      const phonemeList = document.createElement('div');
+      phonemeList.style.cssText = 'display: flex; gap: 0.5em; flex-wrap: wrap; margin-top: 1em;';
+
+      sequence.forEach(item => {
+        if (item.type === 'phoneme') {
+          const span = document.createElement('span');
+          span.textContent = item.ipa;
+          span.style.cssText = 'background: rgba(74, 158, 255, 0.2); border: 1px solid #4a9eff; padding: 0.3em 0.6em; border-radius: 5px; font-size: 1.2em; color: #e6eef9;';
+          phonemeList.appendChild(span);
+        } else if (item.type === 'pause') {
+          const span = document.createElement('span');
+          span.textContent = '·';
+          span.style.cssText = 'color: #aaa; font-size: 1.5em;';
+          phonemeList.appendChild(span);
+        }
+      });
+
+      display.appendChild(phonemeList);
+    }
+
+    async function speakWithPitch(sequence, basePitch) {
+      for (const item of sequence) {
+        if (item.type === 'pause') {
+          await new Promise(resolve => setTimeout(resolve, item.duration));
+        } else if (item.type === 'phoneme') {
+          const voderSettings = ipaToVoder.translate(item.ipa);
+          if (!voderSettings || voderSettings.filters.length === 0) continue;
+
+          const phonemeData = ipaToVoder.getPhoneme(item.ipa);
+          if (phonemeData) lips.setPhoneme(item.ipa, phonemeData);
+
+          voderControl.setVoiced(voderSettings.voiced);
+          voderControl.setPitch(basePitch);
+
+          await voderControl.playPhonemeSimple(
+            voderSettings.filters,
+            voderSettings.gains || voderSettings.filters.map(() => 1),
+            item.duration || voderSettings.duration || 100
+          );
+
+          await new Promise(resolve => setTimeout(resolve, 30));
+        }
+      }
+
+      lips.reset();
+    }
+  </script>
+</body>
+</html>

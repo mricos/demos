@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CUI Framework Test & Demo</title>
+
+  <!-- CUI Framework CSS -->
+  <link rel="stylesheet" href="css/cui-base.css">
+  <link rel="stylesheet" href="css/cui-components.css">
+  <link rel="stylesheet" href="css/cui-terminal.css">
+
+  <style>
+    body {
+      padding: var(--cui-space-lg);
+    }
+    .demo-section {
+      margin-bottom: var(--cui-space-xxl);
+      padding: var(--cui-space-lg);
+      background: var(--cui-panel);
+      border-radius: var(--cui-radius-lg);
+    }
+    .demo-section h2 {
+      margin-top: 0;
+      color: var(--cui-accent);
+    }
+    .code-block {
+      background: var(--cui-bg);
+      padding: var(--cui-space-md);
+      border-radius: var(--cui-radius-sm);
+      font-family: monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      margin: var(--cui-space-md) 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>CUI Framework - Test & Documentation</h1>
+  <p>Version <span id="version"></span> | Build Date: <span id="build-date"></span></p>
+
+  <!-- Section 1: Redux-Lite Demo -->
+  <div class="demo-section">
+    <h2>1. Redux-Lite State Management</h2>
+    <p>Test the Redux-lite module with actions and reducers.</p>
+
+    <div>
+      <button id="increment-btn">Increment Counter</button>
+      <button id="decrement-btn">Decrement Counter</button>
+      <button id="reset-btn">Reset Counter</button>
+      <div>Counter: <strong id="counter-value">0</strong></div>
+    </div>
+
+    <div class="code-block">
+// Try in console:<br>
+CUI.dispatch({ type: 'COUNTER/INCREMENT' });<br>
+CUI.dispatch({ type: 'COUNTER/DECREMENT' });<br>
+CUI.getState('counter'); // { value: 0 }<br>
+CUI.Redux.getHistory(); // See action history
+    </div>
+  </div>
+
+  <!-- Section 2: Module Status -->
+  <div class="demo-section">
+    <h2>2. Module Status</h2>
+    <div id="module-status"></div>
+
+    <div class="code-block">
+// Try in console:<br>
+CUIDebug.status();<br>
+CUIDebug.modules();<br>
+CUIDebug.graph();
+    </div>
+  </div>
+
+  <!-- Section 3: Tabs Component -->
+  <div class="demo-section">
+    <h2>3. Tabs Component</h2>
+    <div id="demo-tabs"></div>
+  </div>
+
+  <!-- Section 4: Terminal Plugin -->
+  <div class="demo-section">
+    <h2>4. Terminal Plugin</h2>
+    <div id="terminal"></div>
+
+    <div class="code-block">
+// Try terminal commands:<br>
+help<br>
+version<br>
+modules<br>
+clear
+    </div>
+  </div>
+
+  <!-- Section 5: Event System -->
+  <div class="demo-section">
+    <h2>5. Event System</h2>
+    <button id="emit-event-btn">Emit Test Event</button>
+    <div id="event-log"></div>
+
+    <div class="code-block">
+// Try in console:<br>
+CUI.Events.on('test:event', (data) => console.log('Event fired:', data));<br>
+CUI.Events.emit('test:event', { message: 'Hello!' });
+    </div>
+  </div>
+
+  <!-- CUI Core Modules -->
+  <script src="core/cui-core.js"></script>
+  <script src="core/cui-tokens.js"></script>
+  <script src="core/cui-lifecycle.js"></script>
+
+  <!-- CUI Redux-Lite -->
+  <script src="utils/cui-redux-lite.js"></script>
+
+  <!-- CUI Components -->
+  <script src="components/cui-tabs.js"></script>
+  <script src="components/cui-fab.js"></script>
+  <script src="components/cui-behaviors.js"></script>
+
+  <!-- CUI Plugins -->
+  <script src="plugins/cui-command-manager.js"></script>
+  <script src="plugins/cui-terminal.js"></script>
+  <script src="plugins/cui-meta.js"></script>
+
+  <!-- Test Application -->
+  <script>
+    CUI.ready(function(CUI) {
+      // Inject design tokens
+      CUI.Tokens.inject();
+
+      // Display version
+      document.getElementById('version').textContent = CUI.VERSION;
+      document.getElementById('build-date').textContent = CUI.BUILD_DATE;
+
+      // =================================================================
+      // 1. Redux-Lite Demo
+      // =================================================================
+
+      // Define counter reducer
+      CUI.Redux.reducer('counter', (state = { value: 0 }, action) => {
+        switch (action.type) {
+          case 'COUNTER/INCREMENT':
+            return { value: state.value + 1 };
+          case 'COUNTER/DECREMENT':
+            return { value: state.value - 1 };
+          case 'COUNTER/RESET':
+            return { value: 0 };
+          default:
+            return state;
+        }
+      }, { value: 0 });
+
+      // Subscribe to counter changes
+      CUI.Redux.subscribe((state, prevState, action) => {
+        if (state.counter !== prevState.counter) {
+          document.getElementById('counter-value').textContent = state.counter.value;
+          CUI.log('Counter changed:', state.counter.value);
+        }
+      });
+
+      // Wire up buttons
+      document.getElementById('increment-btn').addEventListener('click', () => {
+        CUI.dispatch({ type: 'COUNTER/INCREMENT' });
+      });
+
+      document.getElementById('decrement-btn').addEventListener('click', () => {
+        CUI.dispatch({ type: 'COUNTER/DECREMENT' });
+      });
+
+      document.getElementById('reset-btn').addEventListener('click', () => {
+        CUI.dispatch({ type: 'COUNTER/RESET' });
+      });
+
+      // =================================================================
+      // 2. Module Status
+      // =================================================================
+
+      const moduleStatus = document.getElementById('module-status');
+      const modules = CUIDebug.modules();
+      moduleStatus.innerHTML = `
+        <strong>Loaded Modules:</strong><br>
+        ${modules.map(m => `✓ ${m.name}`).join('<br>')}
+      `;
+
+      // =================================================================
+      // 3. Tabs Component
+      // =================================================================
+
+      CUI.Tabs.create({
+        containerId: 'demo-tabs',
+        tabs: [
+          {
+            id: 'tab1',
+            label: 'Tab 1',
+            content: '<p>This is tab 1 content</p>'
+          },
+          {
+            id: 'tab2',
+            label: 'Tab 2',
+            content: '<p>This is tab 2 content</p>'
+          },
+          {
+            id: 'tab3',
+            label: 'Tab 3',
+            content: '<p>This is tab 3 content</p>'
+          }
+        ],
+        onChange: (active) => {
+          CUI.log('Tab changed:', active);
+        }
+      });
+
+      // =================================================================
+      // 4. Terminal Plugin
+      // =================================================================
+
+      const terminal = CUI.Terminal.create({
+        id: 'terminal',
+        prompt: 'cui$',
+        crtEffects: true,
+        commands: {
+          test: (args, term) => {
+            term.log('Test command executed!', 'success');
+            term.log(`Args: ${args.join(', ')}`, 'info');
+          }
+        }
+      });
+
+      terminal.log('CUI Framework Test Terminal', 'info');
+      terminal.log('Type "help" for available commands', 'info');
+
+      // =================================================================
+      // 5. Event System Demo
+      // =================================================================
+
+      const eventLog = document.getElementById('event-log');
+      let eventCount = 0;
+
+      CUI.Events.on('test:event', (data) => {
+        eventCount++;
+        const logEntry = document.createElement('div');
+        logEntry.textContent = `[${eventCount}] Event received: ${JSON.stringify(data)}`;
+        logEntry.style.color = 'var(--cui-good)';
+        eventLog.appendChild(logEntry);
+      });
+
+      document.getElementById('emit-event-btn').addEventListener('click', () => {
+        CUI.Events.emit('test:event', {
+          timestamp: Date.now(),
+          message: 'Button clicked!'
+        });
+      });
+
+      // =================================================================
+      // Global Test Function
+      // =================================================================
+
+      window.testCUI = function() {
+        console.group('CUI Framework Test');
+        console.log('Version:', CUI.VERSION);
+        console.log('Modules:', CUIDebug.modules().map(m => m.name));
+        console.log('Redux State:', CUI.getState());
+        console.log('Action History:', CUI.Redux.getHistory());
+        console.log('Reducers:', CUI.Redux.getReducers());
+        console.groupEnd();
+      };
+
+      CUI.log('✓ CUI Framework test page ready');
+      CUI.log('Run testCUI() in console for full status');
+
+    });
+  </script>
+</body>
+</html>

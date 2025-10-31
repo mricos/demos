@@ -1,0 +1,160 @@
+/**
+ * Hierarchical Help System
+ *
+ * Organizes commands into 5-7 top-level categories.
+ * Provides detailed help for each category.
+ */
+
+import { cliLog } from './terminal.js';
+
+/**
+ * Help hierarchy: 5 top-level categories
+ */
+export const HELP_CATEGORIES = {
+  context: {
+    name: 'context',
+    desc: 'Context & field management (3-tier system)',
+    commands: [
+      { cmd: 'ls [namespace]', desc: 'List: fields, games, contexts, s3' },
+      { cmd: 'load <game> [as <name>]', desc: 'Load game → context (lobby)' },
+      { cmd: 'play <context> [as <name>] [3d|2d]', desc: 'Create field instance' },
+      { cmd: 'use <field>', desc: 'Enter field context' },
+      { cmd: 'stop [field]', desc: 'Stop field instance' },
+      { cmd: 'exit', desc: 'Exit current context/field' }
+    ]
+  },
+
+  vecterm: {
+    name: 'vecterm',
+    desc: '3D vector graphics & entities',
+    commands: [
+      { cmd: 'vecterm.demo', desc: 'Start spinning cube demo' },
+      { cmd: 'vecterm.stop', desc: 'Stop demo' },
+      { cmd: 'vecterm.spawn <type> <size> [x,y,z]', desc: 'Create mesh (cube/sphere/box)' },
+      { cmd: 'vecterm.list', desc: 'List entities' },
+      { cmd: 'vecterm.camera.orbit <az> <el>', desc: 'Orbit camera' },
+      { cmd: 'vecterm.camera.zoom <factor>', desc: 'Zoom (0.9=in, 1.1=out)' },
+      { cmd: 'vecterm.camera.reset', desc: 'Reset camera' },
+      { cmd: 'vecterm.grid.type <char|square|none>', desc: 'Set grid type' },
+      { cmd: 'vecterm.grid.toggle <type>', desc: 'Toggle grid visibility' }
+    ]
+  },
+
+  vt100: {
+    name: 'vt100',
+    desc: 'CRT effects for console & game',
+    commands: [
+      { cmd: 'console.vt100.help', desc: 'Console CRT commands' },
+      { cmd: 'console.vt100.status', desc: 'Show console CRT settings' },
+      { cmd: 'console.vt100.scanlines <0-1>', desc: 'Scanline intensity (slider)' },
+      { cmd: 'console.vt100.glow <0-1>', desc: 'Glow intensity (slider)' },
+      { cmd: 'game.vt100.help', desc: 'Game CRT commands' },
+      { cmd: 'game.vt100.status', desc: 'Show game CRT settings' },
+      { cmd: 'game.vt100.toggle', desc: 'Toggle all game effects' }
+    ]
+  },
+
+  input: {
+    name: 'input',
+    desc: 'Gamepad & input configuration',
+    commands: [
+      { cmd: 'gamepad.status', desc: 'Show connected gamepad' },
+      { cmd: 'gamepad.enable/disable', desc: 'Toggle gamepad input' },
+      { cmd: 'gamepad.load <preset>', desc: 'Load preset (xbox/playstation)' },
+      { cmd: 'gamepad.test', desc: 'Live button/axis test' }
+    ]
+  },
+
+  system: {
+    name: 'system',
+    desc: 'State, auth, and utilities',
+    commands: [
+      { cmd: 'state [path]', desc: 'Show Redux state (JSON)' },
+      { cmd: 'inspect <type> <name>', desc: 'Detailed JSON view' },
+      { cmd: 'login <user> <pass>', desc: 'Authenticate & enable S3' },
+      { cmd: 'logout', desc: 'End session' },
+      { cmd: 'clear', desc: 'Clear terminal output' }
+    ]
+  }
+};
+
+/**
+ * Show top-level help (category list)
+ */
+export function showHelp() {
+  cliLog('=== Vecterm Command Categories ===', 'success');
+  cliLog('');
+
+  Object.values(HELP_CATEGORIES).forEach(category => {
+    cliLog(`  help ${category.name.padEnd(10)} - ${category.desc}`);
+  });
+
+  cliLog('');
+  cliLog('Tip: Use TAB for command completion', 'success');
+}
+
+/**
+ * Show detailed help for a category
+ */
+export function showCategoryHelp(categoryName) {
+  const category = HELP_CATEGORIES[categoryName];
+
+  if (!category) {
+    cliLog(`Unknown category: ${categoryName}`, 'error');
+    cliLog('Available: ' + Object.keys(HELP_CATEGORIES).join(', '), 'success');
+    return;
+  }
+
+  cliLog(`=== ${category.name.toUpperCase()}: ${category.desc} ===`, 'success');
+  cliLog('');
+
+  category.commands.forEach(({ cmd, desc }) => {
+    cliLog(`  ${cmd.padEnd(35)} ${desc}`);
+  });
+
+  cliLog('');
+}
+
+/**
+ * Get all command names for tab completion
+ */
+export function getAllCommands() {
+  const commands = [];
+
+  // Add top-level help commands
+  Object.keys(HELP_CATEGORIES).forEach(cat => {
+    commands.push(`help ${cat}`);
+  });
+
+  // Add all actual commands
+  Object.values(HELP_CATEGORIES).forEach(category => {
+    category.commands.forEach(({ cmd }) => {
+      const cmdName = cmd.split(' ')[0].split('<')[0].trim();
+      if (!commands.includes(cmdName)) {
+        commands.push(cmdName);
+      }
+    });
+  });
+
+  return commands.sort();
+}
+
+/**
+ * Get commands for a specific category (for context-aware completion)
+ */
+export function getCommandsForCategory(categoryName) {
+  const category = HELP_CATEGORIES[categoryName];
+  if (!category) return [];
+
+  return category.commands.map(({ cmd }) => cmd.split(' ')[0].trim());
+}
+
+/**
+ * Legacy help mapping (for gradual migration)
+ */
+export const LEGACY_HELP_MAP = {
+  'console.vt100.help': () => showCategoryHelp('vt100'),
+  'game.vt100.help': () => showCategoryHelp('vt100'),
+  'vecterm.help': () => showCategoryHelp('vecterm'),
+  'gamepad.help': () => showCategoryHelp('input')
+};

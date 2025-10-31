@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Combined View</title>
+    <style>
+        body {
+            background: #0c1219;
+            color: #dbe7f3;
+            font-family: monospace;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 { color: #4aa3ff; }
+        #canvas-container {
+            border: 2px solid #4aa3ff;
+            background: #0c1219;
+            margin: 20px 0;
+        }
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #1a2636;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #4aa3ff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        button:hover { background: #6bb5ff; }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #1a2636;
+            border-radius: 8px;
+            border-left: 3px solid #4aa3ff;
+        }
+    </style>
+</head>
+<body>
+    <h1>Combined Trace + Spike Train Test</h1>
+
+    <div class="controls">
+        <div id="status">Loading...</div>
+        <button id="start">Start</button>
+        <button id="stop">Pause</button>
+    </div>
+
+    <div class="info">
+        <strong>Expected:</strong> You should see BOTH the biological neuron animation on top AND the membrane potential graph with spike markers below it.
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="module">
+        import { LIFNeuronFigure } from './figures/LIFNeuronFigure.js';
+
+        const status = document.getElementById('status');
+
+        try {
+            const figure = new LIFNeuronFigure({
+                containerId: 'canvas-container',
+                width: 800,
+                height: 900,  // Enough space for both views
+                speed: 0.06,
+                fps: 30,
+                views: {
+                    biological: true,   // Top view: neuron animation
+                    diagram: false,
+                    trace: false,
+                    spikes: false,
+                    combined: true,     // Bottom view: trace + spikes
+                    ttfs: false
+                },
+                modelConfig: {
+                    threshold: 1.0,
+                    tau: 20,
+                    input: 0.08,
+                    pulseTrain: true,
+                    pulseFrequency: 8,
+                    pulseDuration: 5,
+                    pulseAmplitude: 8.0,
+                    pulseShape: 'alpha'
+                }
+            });
+
+            figure.init();
+
+            // Debug: log layout
+            console.log('Figure layout:', figure.layout);
+            console.log('Views enabled:', figure.views);
+
+            let spikeCount = 0;
+            figure.on('spike', (data) => {
+                spikeCount++;
+                console.log(`Spike ${spikeCount} at t=${data.time.toFixed(1)}ms`);
+                status.textContent = `Spikes: ${spikeCount}`;
+            });
+
+            document.getElementById('start').onclick = () => {
+                figure.play();
+                status.textContent = 'Playing...';
+            };
+
+            document.getElementById('stop').onclick = () => {
+                figure.pause();
+                status.textContent = 'Paused';
+            };
+
+            // Auto-start
+            figure.play();
+            status.textContent = 'Playing...';
+
+        } catch (error) {
+            console.error('Error:', error);
+            status.textContent = `Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

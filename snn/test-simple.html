@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple LIF Test</title>
+    <style>
+        body {
+            background: #0c1219;
+            color: #dbe7f3;
+            font-family: monospace;
+            padding: 20px;
+            padding-bottom: 220px; /* Space for fixed footer */
+            margin: 0;
+        }
+        #log {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a2636;
+            padding: 15px;
+            height: 180px;
+            overflow-y: auto;
+            border-top: 2px solid #4aa3ff;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.5);
+            z-index: 999;
+            font-size: 12px;
+        }
+
+        /* Styled scrollbar for log */
+        #log::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #log::-webkit-scrollbar-track {
+            background: #0c1219;
+            border-radius: 5px;
+        }
+
+        #log::-webkit-scrollbar-thumb {
+            background: #4aa3ff;
+            border-radius: 5px;
+            border: 2px solid #0c1219;
+        }
+
+        #log::-webkit-scrollbar-thumb:hover {
+            background: #6bb5ff;
+        }
+
+        /* Firefox scrollbar */
+        #log {
+            scrollbar-width: thin;
+            scrollbar-color: #4aa3ff #0c1219;
+        }
+        canvas { border: 2px solid #4aa3ff; display: block; margin: 20px 0; }
+        button { padding: 10px 20px; margin: 5px; background: #4aa3ff; color: white; border: none; cursor: pointer; }
+
+        /* Styled range slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(to right, #2a4566 0%, #4aa3ff 50%, #2a4566 100%);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #4aa3ff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(74, 163, 255, 0.6);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #4aa3ff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 8px rgba(74, 163, 255, 0.6);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #6bb5ff;
+            box-shadow: 0 0 12px rgba(74, 163, 255, 0.8);
+        }
+
+        input[type="range"]::-moz-range-thumb:hover {
+            background: #6bb5ff;
+            box-shadow: 0 0 12px rgba(74, 163, 255, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple LIF Neuron Test</h1>
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000; background: #1a2636; padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); min-width: 200px;">
+        <p id="status" style="margin: 0 0 10px 0;">Loading...</p>
+        <button id="start" style="width: 100%; font-weight: bold; margin-bottom: 5px;">Start</button>
+        <button id="stop" style="width: 100%; font-weight: bold; margin-bottom: 15px;">Pause</button>
+
+        <div style="margin-bottom: 10px;">
+            <label style="display: block; margin-bottom: 5px; color: #9fb2c6; font-size: 12px;">Speed: <span id="speedValue" style="color: #4aa3ff; font-weight: bold;">1.0x</span></label>
+            <input type="range" id="speedSlider" min="0.25" max="3.0" step="0.25" value="1.0" style="width: 100%;">
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #9fb2c6; margin-top: 2px;">
+                <span>0.25x</span>
+                <span>3.0x</span>
+            </div>
+        </div>
+    </div>
+    <div id="log"></div>
+    <div id="canvas-container"></div>
+
+    <script type="module">
+        import { LIFModel } from './core/LIFModel.js';
+        import { LIFNeuronFigure } from './figures/LIFNeuronFigure.js';
+
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+
+        function addLog(msg) {
+            const entry = document.createElement('div');
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // Test 1: Basic LIFModel with PULSE TRAIN
+        addLog('=== Test 1: LIFModel standalone with PULSE TRAIN ===');
+        const model = new LIFModel({
+            threshold: 1.0,
+            tau: 20,
+            input: 0.08,
+            inputMultiplier: 1.3,
+            pulseTrain: true,          // Enable pulse train
+            pulseFrequency: 8,         // 8 Hz (one pulse every 125ms)
+            pulseDuration: 5,          // 5ms narrow pulses
+            pulseAmplitude: 8.0,       // Higher amplitude for alpha function
+            pulseShape: 'alpha'        // Alpha function (biologically realistic)
+        });
+
+        addLog(`Initial state: V=${model.membrane.toFixed(3)}, threshold=${model.threshold}`);
+
+        // Step through 100 timesteps
+        let spikeCount = 0;
+        for (let i = 0; i < 200; i++) {
+            const spiked = model.step(1.0); // 1ms timesteps
+            if (spiked) {
+                spikeCount++;
+                addLog(`SPIKE ${spikeCount} at t=${model.time.toFixed(1)}ms, V=${model.membrane.toFixed(3)}`);
+            }
+            if (i % 20 === 0) {
+                addLog(`t=${model.time.toFixed(1)}ms, V=${model.membrane.toFixed(3)}`);
+            }
+        }
+
+        addLog(`Total spikes: ${spikeCount}`);
+        addLog('');
+
+        // Test 2: LIFNeuronFigure
+        addLog('=== Test 2: LIFNeuronFigure ===');
+
+        try {
+            const figure = new LIFNeuronFigure({
+                containerId: 'canvas-container',
+                width: 800,
+                height: 900,
+                speed: 0.02,  // SLOW - easy to observe details
+                fps: 30,
+                views: {
+                    biological: true,
+                    diagram: false,
+                    trace: false,         // Disabled - using combined
+                    spikes: false,        // Disabled - using combined
+                    combined: true,       // Combined trace + spikes in one graph
+                    ttfs: false
+                },
+                modelConfig: {
+                    threshold: 1.0,
+                    tau: 20,
+                    input: 0.08,
+                    pulseTrain: true,          // Enable pulse train
+                    pulseFrequency: 8,         // 8 Hz pulse train (one spike every 125ms)
+                    pulseDuration: 5,          // 5ms narrow pulses
+                    pulseAmplitude: 8.0,       // Higher amplitude for alpha function
+                    pulseShape: 'alpha'        // Alpha function (biologically realistic)
+                }
+            });
+
+            figure.init();
+            addLog('Figure initialized');
+
+            let figureSpikeCount = 0;
+            figure.on('spike', (data) => {
+                figureSpikeCount++;
+                addLog(`Figure SPIKE ${figureSpikeCount} at t=${data.time.toFixed(1)}ms`);
+            });
+
+            figure.on('timeupdate', (data) => {
+                if (Math.floor(data.time / 50) !== Math.floor((data.time - data.dt) / 50)) {
+                    const state = figure.getModelState();
+                    addLog(`Figure: t=${data.time.toFixed(1)}ms, V=${state.membrane.toFixed(3)}`);
+                }
+            });
+
+            document.getElementById('start').onclick = () => {
+                figure.play();
+                addLog('Figure playing');
+                status.textContent = 'Playing...';
+            };
+
+            document.getElementById('stop').onclick = () => {
+                figure.pause();
+                addLog('Figure paused');
+                status.textContent = 'Paused';
+            };
+
+            document.getElementById('speedSlider').oninput = (e) => {
+                const sliderValue = parseFloat(e.target.value);
+                // Scale: slider 1.0 = actual speed 0.02 (SLOW!)
+                const actualSpeed = sliderValue * 0.02;
+                figure.setSpeed(actualSpeed);
+                document.getElementById('speedValue').textContent = sliderValue.toFixed(2) + 'x';
+                addLog(`Speed set to ${sliderValue.toFixed(2)}x`);
+            };
+
+            // Initialize speed display
+            document.getElementById('speedValue').textContent = '1.0x';
+
+            status.textContent = 'Ready! Click Start to begin animation.';
+            addLog('Click Start button to test figure animation');
+
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(error.stack);
+            status.textContent = `Error: ${error.message}`;
+        }
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Multi-Bit TTFS Encoding Test</title>
+    <style>
+        body {
+            background: #0c1219;
+            color: #dbe7f3;
+            font-family: monospace;
+            padding: 20px;
+            padding-bottom: 220px; /* Space for fixed footer */
+            margin: 0;
+        }
+
+        h1 { color: #4aa3ff; }
+
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: #1a2636;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            min-width: 250px;
+        }
+
+        .status {
+            margin: 0 0 15px 0;
+            padding: 10px;
+            background: #0c1219;
+            border-radius: 4px;
+            border-left: 4px solid #4aa3ff;
+        }
+
+        .bit-display {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+            padding: 15px;
+            background: #0c1219;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .bit-sequence {
+            font-size: 16px;
+            margin: 10px 0;
+            padding: 10px;
+            background: #0c1219;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .bit-1 { color: #4aa3ff; }
+        .bit-0 { color: #9fb2c6; }
+        .current-bit {
+            background: #f7b955;
+            color: #0c1219;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        button {
+            padding: 12px 20px;
+            margin: 5px 0;
+            background: #4aa3ff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            width: 100%;
+            font-size: 14px;
+        }
+
+        button:hover { background: #6bb5ff; }
+        button:disabled { background: #2a4566; cursor: not-allowed; }
+
+        #log {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a2636;
+            padding: 15px;
+            height: 180px;
+            overflow-y: auto;
+            border-top: 2px solid #4aa3ff;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.5);
+            z-index: 999;
+            font-size: 12px;
+        }
+
+        /* Styled scrollbar for log */
+        #log::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #log::-webkit-scrollbar-track {
+            background: #0c1219;
+            border-radius: 5px;
+        }
+
+        #log::-webkit-scrollbar-thumb {
+            background: #4aa3ff;
+            border-radius: 5px;
+            border: 2px solid #0c1219;
+        }
+
+        #log::-webkit-scrollbar-thumb:hover {
+            background: #6bb5ff;
+        }
+
+        /* Firefox scrollbar */
+        #log {
+            scrollbar-width: thin;
+            scrollbar-color: #4aa3ff #0c1219;
+        }
+
+        #canvas-container {
+            margin-top: 20px;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 8px;
+            background: #0c1219;
+            border-radius: 4px;
+        }
+
+        .metric label { color: #9fb2c6; }
+        .metric value { color: #4aa3ff; font-weight: bold; }
+
+        .separator {
+            height: 1px;
+            background: #2a4566;
+            margin: 15px 0;
+        }
+
+        /* Styled range slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(to right, #2a4566 0%, #4aa3ff 50%, #2a4566 100%);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #4aa3ff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(74, 163, 255, 0.6);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #4aa3ff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 8px rgba(74, 163, 255, 0.6);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #6bb5ff;
+            box-shadow: 0 0 12px rgba(74, 163, 255, 0.8);
+        }
+
+        input[type="range"]::-moz-range-thumb:hover {
+            background: #6bb5ff;
+            box-shadow: 0 0 12px rgba(74, 163, 255, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <h1>Multi-Bit TTFS Encoding Test</h1>
+
+    <div class="controls">
+        <div class="status" id="status">Loading...</div>
+
+        <div class="bit-display">
+            <div style="font-size: 14px; color: #9fb2c6; margin-bottom: 5px;">ENCODING</div>
+            <div id="currentBit">-</div>
+        </div>
+
+        <div class="bit-display">
+            <div style="font-size: 14px; color: #9fb2c6; margin-bottom: 5px;">DETECTED</div>
+            <div id="detectedBit">-</div>
+        </div>
+
+        <div class="separator"></div>
+
+        <div class="bit-sequence" id="bitSequence">
+            Sequence: -
+        </div>
+
+        <div class="metric">
+            <label>Bit #:</label>
+            <value id="bitIndex">0</value>
+        </div>
+
+        <div class="metric">
+            <label>Accuracy:</label>
+            <value id="accuracy">-</value>
+        </div>
+
+        <div class="separator"></div>
+
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; color: #9fb2c6; font-size: 12px;">Speed: <span id="speedValue" style="color: #4aa3ff; font-weight: bold;">1.0x</span></label>
+            <input type="range" id="speedSlider" min="0.25" max="3.0" step="0.25" value="1.0" style="width: 100%;">
+            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #9fb2c6; margin-top: 2px;">
+                <span>0.25x</span>
+                <span>3.0x</span>
+            </div>
+        </div>
+
+        <button id="start">Start</button>
+        <button id="stop">Pause</button>
+        <button id="reset">Reset</button>
+    </div>
+
+    <div id="log"></div>
+    <div id="canvas-container"></div>
+
+    <script type="module">
+        import { LIFNeuronFigure } from './figures/LIFNeuronFigure.js';
+
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+        let figure = null;
+
+        // Bit sequence state
+        let bitSequence = [1, 0, 1, 1, 0, 1, 0, 0];  // Example sequence
+        let currentBitIndex = 0;
+        let detectedBits = [];
+        let encodingStartTime = 0;
+        let isEncoding = false;
+        const windowDuration = 100; // ms - time to encode one bit
+
+        function addLog(msg) {
+            const entry = document.createElement('div');
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span style="color: #9fb2c6;">[${timestamp}]</span> ${msg}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function updateBitDisplay() {
+            const currentBit = bitSequence[currentBitIndex];
+            document.getElementById('currentBit').textContent = currentBit;
+            document.getElementById('currentBit').className = currentBit === 1 ? 'bit-1' : 'bit-0';
+
+            // Update sequence display
+            const sequenceHtml = bitSequence.map((bit, idx) => {
+                const className = bit === 1 ? 'bit-1' : 'bit-0';
+                if (idx === currentBitIndex) {
+                    return `<span class="current-bit">${bit}</span>`;
+                }
+                return `<span class="${className}">${bit}</span>`;
+            }).join(' ');
+
+            document.getElementById('bitSequence').innerHTML = `Sequence: ${sequenceHtml}`;
+            document.getElementById('bitIndex').textContent = `${currentBitIndex + 1} / ${bitSequence.length}`;
+        }
+
+        function updateAccuracy() {
+            if (detectedBits.length === 0) {
+                document.getElementById('accuracy').textContent = '-';
+                return;
+            }
+
+            let correct = 0;
+            for (let i = 0; i < detectedBits.length; i++) {
+                if (detectedBits[i] === bitSequence[i]) correct++;
+            }
+
+            const accuracy = (correct / detectedBits.length * 100).toFixed(1);
+            document.getElementById('accuracy').textContent = `${accuracy}%`;
+        }
+
+        function encodeNextBit() {
+            if (currentBitIndex >= bitSequence.length) {
+                addLog('<span style="color: #4aa3ff; font-weight: bold;">✓ Sequence complete!</span>');
+                figure.pause();
+                status.textContent = 'Sequence complete!';
+                return;
+            }
+
+            const bit = bitSequence[currentBitIndex];
+            updateBitDisplay();
+
+            // Set input based on bit value
+            // Bit 1: Strong input for early spike
+            // Bit 0: Weak input for late/no spike
+            if (bit === 1) {
+                figure.model.pulseAmplitude = 10.0;  // Strong alpha pulse
+                figure.model.pulseDuration = 5;      // 5ms narrow
+            } else {
+                figure.model.pulseAmplitude = 5.0;   // Weak alpha pulse
+                figure.model.pulseDuration = 5;      // 5ms narrow
+            }
+
+            addLog(`Encoding bit ${currentBitIndex + 1}: <span class="${bit === 1 ? 'bit-1' : 'bit-0'}" style="font-weight: bold;">${bit}</span>`);
+            encodingStartTime = figure.model.time;
+            isEncoding = true;
+        }
+
+        function checkBitDetection() {
+            if (!isEncoding) return;
+
+            const elapsedTime = figure.model.time - encodingStartTime;
+
+            // Check if window has closed
+            if (elapsedTime >= windowDuration) {
+                // Find spikes in the encoding window
+                const spikesInWindow = figure.model.spikes.filter(
+                    spike => spike.time >= encodingStartTime &&
+                             spike.time < encodingStartTime + windowDuration
+                );
+
+                let detectedBit;
+                if (spikesInWindow.length > 0) {
+                    // Check latency of first spike
+                    const firstSpike = spikesInWindow[0];
+                    const latency = firstSpike.time - encodingStartTime;
+
+                    // TTFS: Early spike = 1, Late spike = 0
+                    detectedBit = latency < 50 ? 1 : 0;
+
+                    addLog(`  → Spike at ${latency.toFixed(1)}ms → Detected: <span class="${detectedBit === 1 ? 'bit-1' : 'bit-0'}" style="font-weight: bold;">${detectedBit}</span>`);
+                } else {
+                    // No spike = 0
+                    detectedBit = 0;
+                    addLog(`  → No spike → Detected: <span class="bit-0" style="font-weight: bold;">0</span>`);
+                }
+
+                // Update display
+                document.getElementById('detectedBit').textContent = detectedBit;
+                document.getElementById('detectedBit').className = detectedBit === 1 ? 'bit-1' : 'bit-0';
+
+                // Record result
+                detectedBits.push(detectedBit);
+
+                // Check if correct
+                const expected = bitSequence[currentBitIndex];
+                if (detectedBit === expected) {
+                    addLog(`  <span style="color: #4caf50;">✓ CORRECT</span>`);
+                } else {
+                    addLog(`  <span style="color: #ff6b6b;">✗ WRONG (expected ${expected})</span>`);
+                }
+
+                updateAccuracy();
+
+                // Move to next bit
+                currentBitIndex++;
+                isEncoding = false;
+
+                // Small delay before next bit
+                setTimeout(() => {
+                    if (figure && figure.getIsPlaying()) {
+                        encodeNextBit();
+                    }
+                }, 100);
+            }
+        }
+
+        // Initialize
+        addLog('=== Multi-Bit TTFS Encoding Test ===');
+
+        try {
+            figure = new LIFNeuronFigure({
+                containerId: 'canvas-container',
+                width: 800,
+                height: 900,
+                speed: 0.02,  // SLOW - easy to observe details
+                fps: 30,
+                views: {
+                    biological: true,
+                    diagram: false,
+                    trace: false,         // Disabled - using combined
+                    spikes: false,        // Disabled - using combined
+                    combined: true,       // Combined trace + spikes in one graph
+                    ttfs: false
+                },
+                modelConfig: {
+                    threshold: 1.0,
+                    tau: 20,
+                    input: 0.08,
+                    pulseTrain: true,
+                    pulseFrequency: 10,
+                    pulseDuration: 5,          // 5ms narrow pulses
+                    pulseAmplitude: 8.0,       // Higher amplitude for alpha function
+                    pulseShape: 'alpha'        // Alpha function (biologically realistic)
+                }
+            });
+
+            figure.init();
+            addLog('Figure initialized');
+
+            // Monitor for state updates
+            figure.on('timeupdate', () => {
+                checkBitDetection();
+            });
+
+            document.getElementById('start').onclick = () => {
+                figure.play();
+                if (currentBitIndex === 0 && detectedBits.length === 0) {
+                    encodeNextBit();
+                }
+                addLog('Animation started');
+                status.textContent = 'Encoding in progress...';
+            };
+
+            document.getElementById('stop').onclick = () => {
+                figure.pause();
+                addLog('Animation paused');
+                status.textContent = 'Paused';
+            };
+
+            document.getElementById('reset').onclick = () => {
+                figure.pause();
+                currentBitIndex = 0;
+                detectedBits = [];
+                isEncoding = false;
+                figure.reset();
+                document.getElementById('detectedBit').textContent = '-';
+                updateBitDisplay();
+                updateAccuracy();
+                addLog('<span style="color: #f7b955;">Reset - ready to start</span>');
+                status.textContent = 'Ready to start';
+            };
+
+            document.getElementById('speedSlider').oninput = (e) => {
+                const sliderValue = parseFloat(e.target.value);
+                // Scale: slider 1.0 = actual speed 0.02 (SLOW!)
+                const actualSpeed = sliderValue * 0.02;
+                figure.setSpeed(actualSpeed);
+                document.getElementById('speedValue').textContent = sliderValue.toFixed(2) + 'x';
+                addLog(`Speed set to ${sliderValue.toFixed(2)}x`);
+            };
+
+            updateBitDisplay();
+            status.textContent = 'Ready! Click Start to encode the bit sequence.';
+            addLog('Click Start button to begin encoding bit sequence: ' + bitSequence.join(' '));
+
+        } catch (error) {
+            addLog(`<span style="color: #ff6b6b;">ERROR: ${error.message}</span>`);
+            console.error(error);
+            status.textContent = `Error: ${error.message}`;
+        }
+
+    </script>
+</body>
+</html>

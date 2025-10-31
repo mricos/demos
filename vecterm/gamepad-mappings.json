@@ -1,0 +1,138 @@
+{
+  "xbox": {
+    "name": "Xbox Controller",
+    "description": "Standard Xbox controller layout",
+    "game": {
+      "buttons": {
+        "0": "jump",
+        "1": "action_b",
+        "2": "action_x",
+        "3": "action_y",
+        "4": "left_bumper",
+        "5": "right_bumper",
+        "6": "left_trigger",
+        "7": "right_trigger",
+        "8": "select",
+        "9": "start",
+        "10": "left_stick_press",
+        "11": "right_stick_press",
+        "12": "up",
+        "13": "down",
+        "14": "left",
+        "15": "right"
+      },
+      "axes": {
+        "0": "move_x",
+        "1": "move_y",
+        "2": "aim_x",
+        "3": "aim_y"
+      }
+    },
+    "camera": {
+      "buttons": {
+        "0": "reset",
+        "1": "grid_toggle",
+        "2": "zoom_in",
+        "3": "zoom_out",
+        "4": "decrease_fov",
+        "5": "increase_fov",
+        "8": "toggle_backface",
+        "9": "toggle_hidden_line",
+        "12": "orbit_up",
+        "13": "orbit_down",
+        "14": "orbit_left",
+        "15": "orbit_right"
+      },
+      "axes": {
+        "0": "orbit_horizontal",
+        "1": "orbit_vertical",
+        "3": "zoom"
+      }
+    }
+  },
+  "playstation": {
+    "name": "PlayStation Controller",
+    "description": "DualShock/DualSense controller layout",
+    "game": {
+      "buttons": {
+        "0": "jump",
+        "1": "action_circle",
+        "2": "action_square",
+        "3": "action_triangle",
+        "4": "l1",
+        "5": "r1",
+        "6": "l2",
+        "7": "r2",
+        "8": "share",
+        "9": "options",
+        "10": "l3",
+        "11": "r3",
+        "12": "up",
+        "13": "down",
+        "14": "left",
+        "15": "right"
+      },
+      "axes": {
+        "0": "move_x",
+        "1": "move_y",
+        "2": "aim_x",
+        "3": "aim_y"
+      }
+    },
+    "camera": {
+      "buttons": {
+        "0": "reset",
+        "1": "grid_toggle",
+        "2": "zoom_in",
+        "3": "zoom_out",
+        "4": "decrease_fov",
+        "5": "increase_fov",
+        "8": "toggle_backface",
+        "9": "toggle_hidden_line",
+        "12": "orbit_up",
+        "13": "orbit_down",
+        "14": "orbit_left",
+        "15": "orbit_right"
+      },
+      "axes": {
+        "0": "orbit_horizontal",
+        "1": "orbit_vertical",
+        "3": "zoom"
+      }
+    }
+  },
+  "generic": {
+    "name": "Generic Controller",
+    "description": "Fallback mapping for unrecognized controllers",
+    "game": {
+      "buttons": {
+        "0": "jump",
+        "1": "action_b",
+        "2": "action_x",
+        "3": "action_y",
+        "12": "up",
+        "13": "down",
+        "14": "left",
+        "15": "right"
+      },
+      "axes": {
+        "0": "move_x",
+        "1": "move_y"
+      }
+    },
+    "camera": {
+      "buttons": {
+        "0": "reset",
+        "1": "grid_toggle",
+        "12": "orbit_up",
+        "13": "orbit_down",
+        "14": "orbit_left",
+        "15": "orbit_right"
+      },
+      "axes": {
+        "0": "orbit_horizontal",
+        "1": "orbit_vertical"
+      }
+    }
+  }
+}

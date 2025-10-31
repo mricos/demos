@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Vecterm Test</title>
+  <style>
+    body {
+      background: #000;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    canvas {
+      border: 1px solid #0f0;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="test" width="800" height="600"></canvas>
+
+  <script src="VectermMath.js"></script>
+  <script src="Vecterm.js"></script>
+
+  <script>
+    console.log('VectermMath loaded:', typeof VectermMath);
+    console.log('Vecterm loaded:', typeof Vecterm);
+
+    const canvas = document.getElementById('test');
+    const vecterm = new Vecterm(canvas);
+    const camera = new VectermMath.Camera(
+      new VectermMath.Vector3(5, 5, 10),
+      new VectermMath.Vector3(0, 0, 0)
+    );
+
+    // Create spinning cube
+    const cubeMesh = VectermMesh.cube(2);
+    let rotation = 0;
+
+    function animate() {
+      rotation += 0.02;
+
+      const meshes = [{
+        mesh: cubeMesh,
+        transform: {
+          position: new VectermMath.Vector3(0, 0, 0),
+          rotation: new VectermMath.Vector3(rotation, rotation * 0.7, 0),
+          scale: new VectermMath.Vector3(1, 1, 1)
+        },
+        color: '#00ff88'
+      }];
+
+      vecterm.render(meshes, camera, 0.016);
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+    console.log('Vecterm test running!');
+  </script>
+</body>
+</html>

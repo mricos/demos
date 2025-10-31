@@ -1,0 +1,114 @@
+/* ========================================
+   DESIGN TOKENS
+   Extracted from style.css for better maintainability
+   ======================================== */
+
+:root {
+  /* Primary Color Palette (8) - Blues & Darks */
+  --color-primary-1: #0a1219;  /* Deepest dark */
+  --color-primary-2: #0f151f;  /* Very dark blue */
+  --color-primary-3: #16213e;  /* Dark navy */
+  --color-primary-4: #1a2636;  /* Medium dark blue */
+  --color-primary-5: #0f3460;  /* Rich blue */
+  --color-primary-6: #16537e;  /* Medium blue */
+  --color-primary-7: #4a9eff;  /* Bright blue */
+  --color-primary-8: #5aaeff;  /* Light bright blue */
+
+  /* Contrast Color Palette (8) - Light/White tones */
+  --color-contrast-1: #e6eef9;  /* Very light blue-white */
+  --color-contrast-2: #d4e4f7;  /* Light blue-white */
+  --color-contrast-3: #ccc;     /* Light gray */
+  --color-contrast-4: #aaa;     /* Medium gray */
+  --color-contrast-5: #f5f5f5;  /* Off white */
+  --color-contrast-6: #fff;     /* Pure white */
+  --color-contrast-7: #eee;     /* Light gray */
+  --color-contrast-8: #79b8ff;  /* Light blue accent */
+
+  /* Tertiary Color Palette (8) - Accents & States */
+  --color-tertiary-1: #2ecc71;  /* Success green */
+  --color-tertiary-2: #27ae60;  /* Dark green */
+  --color-tertiary-3: #e74c3c;  /* Error/unvoiced red */
+  --color-tertiary-4: #c0392b;  /* Dark red */
+  --color-tertiary-5: #f39c12;  /* Warning orange */
+  --color-tertiary-6: #e67e22;  /* Dark orange */
+  --color-tertiary-7: #9b59b6;  /* Purple accent */
+  --color-tertiary-8: #8e44ad;  /* Dark purple */
+
+  /* Typography - Font Families */
+  --font-family-primary: 'Courier New', monospace;
+  --font-family-secondary: system-ui, -apple-system, sans-serif;
+  --font-family-code: 'Courier New', Consolas, monospace;
+
+  /* Typography - Font Sizes */
+  --font-size-xs: 0.75em;      /* 12px if base is 16px */
+  --font-size-sm: 0.875em;     /* 14px */
+  --font-size-base: 1em;       /* 16px */
+  --font-size-md: 1.125em;     /* 18px */
+  --font-size-lg: 1.25em;      /* 20px */
+  --font-size-xl: 1.5em;       /* 24px */
+  --font-size-2xl: 2em;        /* 32px */
+  --font-size-3xl: 2.5em;      /* 40px */
+
+  /* Typography - Line Heights */
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.6;
+  --line-height-loose: 1.8;
+
+  /* Typography - Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Spacing Scale - Normal (Desktop) */
+  --space-xs: 0.25em;
+  --space-sm: 0.5em;
+  --space-md: 1em;
+  --space-lg: 1.5em;
+  --space-xl: 2em;
+  --space-2xl: 3em;
+
+  /* Component Spacing - Normal */
+  --section-margin: 2em;
+  --section-padding: 2em;
+  --keyboard-gap: 0.5em;
+  --ipa-gap: 1em;
+  --text-input-margin: 2em;
+
+  /* Border Radius */
+  --radius-sm: 5px;
+  --radius-md: 10px;
+  --radius-lg: 20px;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 14px 30px rgba(0, 0, 0, 0.42);
+}
+
+/* ========================================
+   RESPONSIVE SPACING TOKENS
+   ======================================== */
+
+/* Small screens (tablets) - 1024px and below */
+@media (max-width: 1024px) {
+  :root {
+    --section-margin: 1.5em;
+    --section-padding: 1.5em;
+    --keyboard-gap: 0.4em;
+    --ipa-gap: 0.8em;
+    --text-input-margin: 1.5em;
+  }
+}
+
+/* Phone screens - 768px and below */
+@media (max-width: 768px) {
+  :root {
+    --section-margin: 1em;
+    --section-padding: 1em;
+    --keyboard-gap: 0.3em;
+    --ipa-gap: 0.5em;
+    --text-input-margin: 1em;
+  }
+}

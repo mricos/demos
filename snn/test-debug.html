@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Neuron Animation</title>
+    <style>
+        body { background: #0c1219; color: #dbe7f3; font-family: sans-serif; padding: 20px; }
+        .debug { background: #1a2636; padding: 15px; margin: 10px 0; border-left: 4px solid #4aa3ff; }
+        .spike { color: #ff6b6b; font-weight: bold; }
+        .good { color: #29d398; }
+        button { padding: 10px 20px; margin: 5px; background: #4aa3ff; color: white; border: none; cursor: pointer; border-radius: 4px; }
+        #canvas-container { margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Neuron Animation Debug</h1>
+
+    <div class="debug">
+        <h3>Model State:</h3>
+        <div id="state"></div>
+    </div>
+
+    <div class="debug">
+        <h3>Recent Spikes:</h3>
+        <div id="spikes">No spikes yet</div>
+    </div>
+
+    <div class="debug">
+        <h3>Animation State:</h3>
+        <div id="animation"></div>
+    </div>
+
+    <button id="play">▶ Play</button>
+    <button id="pause">⏸ Pause</button>
+    <button id="fast">⚡ Fast (2x)</button>
+    <button id="slow">🐌 Slow (0.25x)</button>
+    <button id="highinput">🔥 High Input (0.15)</button>
+    <button id="lowinput">❄️ Low Input (0.03)</button>
+
+    <div id="canvas-container"></div>
+
+    <script type="module">
+        import { LIFNeuronFigure } from './figures/LIFNeuronFigure.js';
+
+        const stateDiv = document.getElementById('state');
+        const spikesDiv = document.getElementById('spikes');
+        const animDiv = document.getElementById('animation');
+
+        const figure = new LIFNeuronFigure({
+            containerId: 'canvas-container',
+            width: 800,
+            height: 900,
+            speed: 1.0,
+            fps: 30,
+            views: {
+                biological: true,
+                diagram: false,
+                trace: true,
+                spikes: true,
+                ttfs: false
+            },
+            modelConfig: {
+                threshold: 1.0,
+                tau: 20,
+                input: 0.08
+            }
+        });
+
+        figure.init();
+
+        // Debug: Check if update is being called
+        const originalUpdate = figure.update.bind(figure);
+        let updateCount = 0;
+        figure.update = function(dt) {
+            updateCount++;
+            if (updateCount % 30 === 0) {
+                console.log(`Update called ${updateCount} times, dt=${dt.toFixed(2)}`);
+            }
+            return originalUpdate(dt);
+        };
+
+        let spikeCount = 0;
+        let lastSpikes = [];
+
+        figure.on('spike', (data) => {
+            spikeCount++;
+            lastSpikes.unshift(`#${spikeCount}: t=${data.time.toFixed(1)}ms, V=${data.voltage.toFixed(3)}V`);
+            if (lastSpikes.length > 10) lastSpikes.pop();
+            updateDisplay();
+        });
+
+        figure.on('timeupdate', (data) => {
+            if (Math.floor(data.time / 100) !== Math.floor((data.time - data.dt) / 100)) {
+                updateDisplay();
+            }
+        });
+
+        function updateDisplay() {
+            const modelState = figure.getModelState();
+            const figState = figure.getState();
+
+            stateDiv.innerHTML = `
+                <div>Time: <span class="good">${modelState.time.toFixed(1)} ms</span></div>
+                <div>Membrane: <span class="good">${modelState.membrane.toFixed(4)} V</span></div>
+                <div>Threshold: ${modelState.threshold} V</div>
+                <div>Last Spike: ${modelState.lastSpike.toFixed(1)} ms</div>
+                <div>Time Since Spike: <span class="good">${(modelState.time - modelState.lastSpike).toFixed(1)} ms</span></div>
+                <div>Input: ${modelState.input.toFixed(3)}</div>
+                <div>Tau: ${modelState.tau} ms</div>
+                <div>Total Spikes: <span class="spike">${modelState.spikes.length}</span></div>
+            `;
+
+            if (lastSpikes.length > 0) {
+                spikesDiv.innerHTML = lastSpikes.map(s => `<div class="spike">${s}</div>`).join('');
+            }
+
+            animDiv.innerHTML = `
+                <div>Playing: ${figState.isPlaying ? '<span class="good">YES</span>' : 'NO'}</div>
+                <div>Speed: ${figState.speed}x</div>
+                <div>FPS Target: 30</div>
+            `;
+        }
+
+        document.getElementById('play').onclick = () => figure.play();
+        document.getElementById('pause').onclick = () => figure.pause();
+        document.getElementById('fast').onclick = () => figure.setSpeed(2.0);
+        document.getElementById('slow').onclick = () => figure.setSpeed(0.25);
+        document.getElementById('highinput').onclick = () => {
+            figure.setInput(0.15);
+            console.log('Set input to 0.15');
+        };
+        document.getElementById('lowinput').onclick = () => {
+            figure.setInput(0.03);
+            console.log('Set input to 0.03');
+        };
+
+        // Auto-start
+        setTimeout(() => {
+            console.log('Calling figure.play()...');
+            figure.play();
+            console.log('Play called. isPlaying:', figure.getIsPlaying());
+            updateDisplay();
+
+            // Check after 1 second if animation is running
+            setTimeout(() => {
+                console.log('After 1 second - isPlaying:', figure.getIsPlaying());
+                console.log('After 1 second - time:', figure.getTime());
+                console.log('After 1 second - update count:', updateCount);
+            }, 1000);
+        }, 500);
+
+        console.log('Debug page loaded. Figure should be playing...');
+    </script>
+</body>
+</html>

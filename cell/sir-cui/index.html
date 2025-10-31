@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SIR Model — Cell UI Demo</title>
+
+<!-- Cell UI Framework CSS -->
+<link rel="stylesheet" href="../cui/css/cui-base.css">
+<link rel="stylesheet" href="../cui/css/cui-components.css">
+
+<!-- Demo-specific CSS -->
+<link rel="stylesheet" href="sir.css">
+</head>
+<body>
+<div class="wrap" id="app">
+  <header>
+    <div class="title">SIR Epidemic Model — Cell UI Demo</div>
+    <div class="stats">
+      <span class="pill"><span class="sir-s">S</span>=<b id="sVal">0</b></span>
+      <span class="pill"><span class="sir-i">I</span>=<b id="iVal">0</b></span>
+      <span class="pill"><span class="sir-r">R</span>=<b id="rVal">0</b></span>
+      <span class="pill"><span class="r-number">R₀</span>≈<b id="r0Val">0.00</b></span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="card" id="fieldCard">
+      <h3>Agent Field</h3>
+      <div class="canvas-wrap">
+        <canvas id="field"></canvas>
+      </div>
+    </section>
+    <section class="card">
+      <h3>Time Series</h3>
+      <div class="canvas-wrap">
+        <canvas id="chart"></canvas>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- FABs -->
+<div class="fab-row">
+  <button class="fab sim" id="fab" title="Simulation Controls">⚙</button>
+</div>
+
+<!-- Right controls drawer -->
+<div class="drawer" id="drawer" aria-label="Controls">
+  <div class="drawer-header">
+    <h3>Controls</h3>
+    <button class="close-btn" id="closeDrawer">×</button>
+  </div>
+
+  <div class="drawer-controls">
+    <div class="control-section">
+      <div class="row">
+        <label>Population N</label>
+        <input id="N" type="range" min="50" max="1500" step="10" value="400" />
+        <div class="val" id="N_val">400</div>
+      </div>
+      <div class="row">
+        <label>Initial <span class="sir-i">infected</span> i₀</label>
+        <input id="i0" type="range" min="0" max="60" step="1" value="5" />
+        <div class="val" id="i0_val">5</div>
+      </div>
+      <div class="row">
+        <label>Speed v (px/s)</label>
+        <input id="speed" type="range" min="10" max="180" step="5" value="90" />
+        <div class="val" id="speed_val">90</div>
+      </div>
+      <div class="row">
+        <label>Contact radius r (px)</label>
+        <input id="radius" type="range" min="3" max="16" step="1" value="8" />
+        <div class="val" id="radius_val">8</div>
+      </div>
+      <div class="row">
+        <label><span class="sir-i">Infectivity</span> p</label>
+        <input id="p" type="range" min="0.02" max="0.9" step="0.01" value="0.22" />
+        <div class="val" id="p_val">0.22</div>
+      </div>
+      <div class="row">
+        <label><span class="sir-r">Recovery</span> rate γ (1/s)</label>
+        <input id="gamma" type="range" min="0.001" max="0.2" step="0.001" value="0.02" />
+        <div class="val" id="gamma_val">0.020</div>
+      </div>
+      <div class="row">
+        <label>Noise on p (±%)</label>
+        <input id="noise" type="range" min="0" max="60" step="2" value="0" />
+        <div class="val" id="noise_val">0%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="drawer-actions">
+    <button class="btn primary" id="startBtn">Start</button>
+    <button class="btn" id="pauseBtn">Pause</button>
+    <button class="btn" id="resetBtn">Reset</button>
+  </div>
+</div>
+
+<!-- Cell UI Framework Core -->
+<script src="../cui/core/cui-core.js"></script>
+<script src="../cui/core/cui-tokens.js"></script>
+<script src="../cui/core/cui-lifecycle.js"></script>
+
+<!-- Redux-lite State Management -->
+<script src="../cui/utils/cui-redux-lite.js"></script>
+
+<!-- CUI Components -->
+<script src="../cui/components/cui-fab.js"></script>
+
+<!-- SIR Demo Logic -->
+<script src="sir.js"></script>
+
+<script>
+  CUI.ready(function() {
+    CUI.log('Initializing SIR Demo with Cell UI...');
+    CUI.Tokens.inject();
+    SIRApp.init();
+  });
+</script>
+</body>
+</html>
