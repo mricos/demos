@@ -177,25 +177,5 @@
 
 
     <script type="module" src="app.js"></script>
-    <script>
-        // Debug: Check if docsModal was initialized
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                console.log('[Debug] Checking docsModal state...');
-                console.log('[Debug] docsModal exists?', typeof docsModal !== 'undefined');
-                console.log('[Debug] FAB element?', !!document.getElementById('docsFab'));
-                console.log('[Debug] Modal element?', !!document.getElementById('docsModal'));
-
-                // Add a backup click handler just in case
-                const fab = document.getElementById('docsFab');
-                if (fab) {
-                    console.log('[Debug] Adding backup FAB handler...');
-                    fab.addEventListener('click', () => {
-                        console.log('[Debug] Backup handler triggered!');
-                    });
-                }
-            }, 500);
-        });
-    </script>
 </body>
 </html>

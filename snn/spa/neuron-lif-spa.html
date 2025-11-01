@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Neuron LIF — Vanilla JS SPA</title>
+  <style>
+    :root {
+      --bg: #0b0e12; --fg: #e6e7e9; --muted: #99a1ab;
+      --accent: #4da3ff; --accent2: #ffc24d; --danger: #ff6b6b; --good: #30d158;
+      --panel: #0e131a; --stroke:#1a1f27;
+    }
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font: 13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial; }
+    #app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+    header { padding: 10px 14px; border-bottom: 1px solid var(--stroke); display:flex; align-items:center; gap:16px; }
+    header h1 { margin: 0; font-size: 14px; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+    header .spacer { flex: 1; }
+    header .pill { padding: 4px 8px; border: 1px solid var(--stroke); border-radius: 999px; color: var(--muted); }
+
+    .stage { position:relative; overflow:hidden; }
+    #canvas { width: 100%; height: 100%; display:block; }
+
+    /* Right-side scopes hug edge and scale with view */
+    .rightdock { position:absolute; right: 12px; top: 56px; display:flex; flex-direction: column; gap:10px; align-items: stretch; }
+    .scope, .inset, .membrane { border:1px solid var(--stroke); background: var(--panel); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
+    .scope { width: clamp(220px, 26vw, 360px); height: clamp(100px, 18vh, 160px); }
+    .inset { width: clamp(220px, 26vw, 360px); height: 90px; }
+    .membrane { width: clamp(220px, 26vw, 360px); height: 120px; }
+    .scope canvas, .inset canvas, .membrane canvas { width:100%; height:100%; display:block; }
+
+    /* Left help hugs edge */
+    .help { position:absolute; left:12px; bottom:12px; max-width: min(38ch, 40vw); color: var(--muted); padding:10px 12px; background: rgba(14,19,26,0.6); border:1px solid var(--stroke); border-radius:10px; }
+    .help p { margin: 0 0 6px 0; }
+
+    /* FAB controls */
+    .fab { position:fixed; right:14px; bottom:14px; display:flex; flex-direction:column; align-items:flex-end; gap:10px; z-index: 1000; }
+    .fab button.fab-btn { width:52px; height:52px; border-radius:50%; border:1px solid var(--stroke); background:#101620; color:var(--fg); font-weight:600; cursor:pointer; box-shadow:0 10px 20px rgba(0,0,0,.25); }
+    .fab .panel { width:min(92vw, 380px); max-height:min(70vh, 520px); overflow:auto; padding:12px 12px; border:1px solid var(--stroke); background:var(--panel); border-radius:14px; box-shadow: 0 16px 40px rgba(0,0,0,.35); display:none; }
+    .fab .row { display:flex; align-items:center; gap:8px; padding:6px 0; }
+    .fab label { width: 140px; color:var(--muted); }
+    .fab input[type="range"] { flex:1; }
+    .badge { padding: 2px 6px; border-radius: 6px; border:1px solid #233; color: var(--muted); }
+    .dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; }
+    .na { background: var(--accent); } .k { background: var(--accent2); } .ap { background: var(--good); }
+    .small { font-size: 12px; color: var(--muted); }
+    .refract { color: var(--danger); }
+
+    @media (max-width: 700px) {
+      .rightdock { top: 52px; right: 8px; }
+      .help { display:none; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>LIF — Axon Conduction</h1>
+    <span class="pill" id="status">idle</span>
+    <div class="spacer"></div>
+    <span class="badge">dt=<span id="dt">1 ms</span></span>
+    <span class="badge">τ=<span id="tau">20 ms</span></span>
+    <span class="badge">Vth=<span id="vth">-50 mV</span></span>
+  </header>
+
+  <div class="stage">
+    <canvas id="canvas"></canvas>
+    <div class="rightdock">
+      <div class="scope"><canvas id="scope"></canvas></div>
+      <div class="inset"><canvas id="inset"></canvas></div>
+    </div>
+    <div class="help small">
+      <p>LIF: dV/dt = (-(V - Vrest) + R·I)/τ; threshold → spike → reset to Vreset with refractory.</p>
+      <p>Scope shows V<sub>m</sub> with V<sub>th</sub>/V<sub>reset</sub> markers. Inset shows terms in the integrand: leak, drive, and total dV/dt.</p>
+      <p>Click soma to inject a brief current pulse.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Floating controls -->
+<div class="fab" id="fab">
+  <div class="panel" id="panel">
+    <div class="row"><label>I<sub>app</sub> (nA)</label><input id="iapp" type="range" min="0" max="2.5" step="0.01" value="0.8"><span id="iappVal" class="small">0.80</span></div>
+    <div class="row"><label>τ (ms)</label><input id="tauIn" type="range" min="5" max="50" step="1" value="20"><span id="tauVal" class="small">20</span></div>
+    <div class="row"><label>σ<sub>I</sub> (nA)</label><input id="noise" type="range" min="0" max="1.0" step="0.01" value="0.05"><span id="noiseVal" class="small">0.05</span></div>
+    <div class="row"><label>Conduction (m/s)</label><input id="speed" type="range" min="0.1" max="50" step="0.1" value="25"><span id="speedVal" class="small">25.0</span></div>
+    <div class="row"><label>V<sub>th</sub> (mV)</label><input id="vthIn" type="range" min="-60" max="-40" step="1" value="-50"><span id="vthVal" class="small">-50</span></div>
+    <div class="row"><button id="reset" style="flex:0 0 auto">Reset</button><button id="pause" style="flex:0 0 auto">Pause</button></div>
+    <div class="row small"><span class="dot na"></span>Na⁺ <span class="dot k"></span>K⁺ <span class="dot ap"></span>AP</div>
+  </div>
+  <button class="fab-btn" id="gear" title="Controls">⚙</button>
+</div>
+
+<script>
+(() => {
+  // Canvas setup
+  const canvas = document.getElementById('canvas');
+  const scopeCv = document.getElementById('scope');
+  const insetCv = document.getElementById('inset');
+  const ctx = canvas.getContext('2d');
+  const sctx = scopeCv.getContext('2d');
+  const ictx = insetCv.getContext('2d');
+  let W = 0, H = 0, SW = 0, SH = 0, IW = 0, IH = 0;
+  const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    W = Math.floor(rect.width); H = Math.floor(rect.height);
+    canvas.width = W * DPR; canvas.height = H * DPR; canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    const srect = scopeCv.getBoundingClientRect(); SW = Math.floor(srect.width); SH = Math.floor(srect.height);
+    scopeCv.width = SW * DPR; scopeCv.height = SH * DPR; sctx.setTransform(DPR,0,0,DPR,0,0);
+    const irect = insetCv.getBoundingClientRect(); IW = Math.floor(irect.width); IH = Math.floor(irect.height);
+    insetCv.width = IW * DPR; insetCv.height = IH * DPR; ictx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Parameters
+  const params = {
+    dt: 1.0,            // ms
+    tau: 20.0,          // ms
+    R: 10.0,            // MΩ ⇒ mV per nA = R
+    Vrest: -65.0,       // mV
+    Vreset: -68.0,      // mV
+    Vth: -50.0,         // mV (slider)
+    tref: 5.0,          // ms refractory
+    Iapp: 0.8,          // nA
+    sigmaI: 0.05,       // nA noise std
+    speed: 25.0,        // m/s conduction
+    axonLen: 0.8,       // meters (conceptual)
+    nodes: 12           // nodes of Ranvier
+  };
+
+  // UI wiring
+  const $ = (id) => document.getElementById(id);
+  const status = $('status');
+  const setText = (id, text) => { const el = $(id); if (el) el.textContent = text; };
+  setText('dt', params.dt + ' ms'); setText('tau', params.tau + ' ms'); setText('vth', params.Vth + ' mV');
+
+  const panel = $('panel'); const gear = $('gear');
+  gear.addEventListener('click', () => { panel.style.display = panel.style.display === 'block' ? 'none' : 'block'; });
+
+  function bindRange(id, key, fmt = (v)=>v) {
+    const el = $(id), out = $(id + 'Val');
+    const apply = () => {
+      params[key] = parseFloat(el.value);
+      if (out) out.textContent = fmt(params[key]);
+      if (key==='tau') setText('tau', params.tau + ' ms');
+      if (key==='Vth') setText('vth', params.Vth + ' mV');
+    };
+    if (el) { el.addEventListener('input', apply); apply(); }
+  }
+  bindRange('iapp', 'Iapp', (v)=>v.toFixed(2));
+  bindRange('tauIn', 'tau', (v)=>v.toFixed(0));
+  bindRange('noise', 'sigmaI', (v)=>v.toFixed(2));
+  bindRange('speed', 'speed', (v)=>v.toFixed(1));
+  bindRange('vthIn', 'Vth', (v)=>v.toFixed(0));
+  $('reset').onclick = resetAll;
+  let paused = false; $('pause')?.addEventListener('click', () => { paused = !paused; const p=$('pause'); if(p) p.textContent = paused ? 'Resume' : 'Pause'; });
+
+  // LIF state
+  const state = { V: params.Vrest, tRefLeft: 0.0, lastSpikeT: -Infinity, apQueue: [] };
+
+  // Rolling buffers
+  const scopeBuf = new Float32Array(600);
+  const dLeakBuf = new Float32Array(300); // leak term history
+  const dDriveBuf = new Float32Array(300); // drive term history
+  const dTotBuf = new Float32Array(300); // dV/dt history
+  let scopeIdx = 0, insetIdx = 0;
+  function scopePush(v) { scopeBuf[scopeIdx] = v; scopeIdx = (scopeIdx + 1) % scopeBuf.length; }
+  function insetPush(a,b,c){ dLeakBuf[insetIdx]=a; dDriveBuf[insetIdx]=b; dTotBuf[insetIdx]=c; insetIdx=(insetIdx+1)%dLeakBuf.length; }
+
+  // Ion packets
+  const ions = []; const ION_MAX = 1500;
+  function spawnIonBurst(kind, x0, n = 10) {
+    const add = Math.min(n, Math.max(0, ION_MAX - ions.length));
+    for (let i=0;i<add;i++) ions.push({ kind, x: x0, life: 1.0, jitter: (Math.random()-0.5)*0.004 });
+  }
+
+  // Geometry helpers
+  function layout() { const pad = 60; const y = H*0.55; const x0 = pad, x1 = W - pad; return { x0, x1, y }; }
+
+  // Draw main neuron
+  function drawNeuron() {
+    const g = layout();
+    ctx.clearRect(0,0,W,H);
+    ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto';
+    // Dendritic cloud
+    ctx.fillStyle = '#0f1720'; ctx.strokeStyle = '#1a2633'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(g.x0-90, g.y-20, 70, 40, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = getCSS('--muted'); ctx.fillText('synaptic input', g.x0-120, g.y-70);
+    // Soma
+    ctx.fillStyle = '#101824'; ctx.strokeStyle = '#233042'; ctx.beginPath(); ctx.arc(g.x0, g.y, 28, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    // Axon
+    ctx.strokeStyle = '#2a394d'; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(g.x0+28, g.y); ctx.lineTo(g.x1, g.y); ctx.stroke();
+    // Nodes
+    ctx.strokeStyle = '#3f536e'; ctx.lineWidth = 2; const n = params.nodes; for (let i=1;i<=n;i++){ const t=i/(n+1); const x=g.x0+28+t*(g.x1-(g.x0+28)); ctx.beginPath(); ctx.moveTo(x,g.y-12); ctx.lineTo(x,g.y+12); ctx.stroke(); }
+  }
+
+  function drawAPBand() {
+    const g = layout();
+    for (const ap of state.apQueue) {
+      const t = ap.pos / params.axonLen; const x = g.x0 + 28 + t*(g.x1 - (g.x0+28)); const w = 38;
+      const grd = ctx.createLinearGradient(x-w,0,x+w,0); grd.addColorStop(0,'rgba(48,209,88,0)'); grd.addColorStop(0.5,'rgba(48,209,88,0.55)'); grd.addColorStop(1,'rgba(48,209,88,0)');
+      ctx.fillStyle = grd; ctx.fillRect(x-w, g.y-16, w*2, 32);
+    }
+  }
+
+  function drawIons() {
+    const g = layout();
+    for (const ion of ions) {
+      const t = ion.x / params.axonLen; const x = g.x0 + 28 + t*(g.x1 - (g.x0+28)); const y = g.y + (ion.kind==='na' ? -10 : 10) + ion.jitter*H;
+      ctx.beginPath(); ctx.fillStyle = ion.kind==='na' ? getCSS('--accent') : getCSS('--accent2'); ctx.arc(x, y, 3, 0, Math.PI*2); ctx.fill();
+    }
+  }
+
+  // Scope with thresholds
+  function drawScope() {
+    sctx.fillStyle = '#0e131a'; sctx.fillRect(0,0,SW,SH);
+    sctx.strokeStyle = '#33455e'; sctx.lineWidth = 1; for (let i=0;i<SW;i+=50){ sctx.beginPath(); sctx.moveTo(i,0); sctx.lineTo(i,SH); sctx.stroke(); } for (let j=0;j<SH;j+=30){ sctx.beginPath(); sctx.moveTo(0,j); sctx.lineTo(SW,j); sctx.stroke(); }
+    // thresholds
+    const yFromV = (v)=> SH - ((v + 80) / 50) * (SH-6) - 3; // map [-80,-30] to [bottom, top]
+    sctx.strokeStyle = 'rgba(255,107,107,0.9)'; sctx.setLineDash([6,4]); sctx.beginPath(); const yth = yFromV(params.Vth); sctx.moveTo(0,yth); sctx.lineTo(SW,yth); sctx.stroke();
+    sctx.strokeStyle = 'rgba(173,181,189,0.6)'; sctx.beginPath(); const yrs = yFromV(params.Vreset); sctx.moveTo(0,yrs); sctx.lineTo(SW,yrs); sctx.stroke(); sctx.setLineDash([]);
+    // Vm trace
+    sctx.strokeStyle = getCSS('--good'); sctx.lineWidth = 2; sctx.beginPath();
+    for (let i=0;i<scopeBuf.length;i++) { const idx=(scopeIdx+i)%scopeBuf.length; const v=scopeBuf[idx]; const nx=(i/(scopeBuf.length-1))*(SW-6)+3; const ny=yFromV(v); if(i===0) sctx.moveTo(nx,ny); else sctx.lineTo(nx,ny);} sctx.stroke();
+    sctx.fillStyle = '#8aa1ba'; sctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto'; sctx.fillText('V_m (mV)', 8, 12);
+  }
+
+  // Inset for integrand terms
+  function drawInset(){
+    ictx.fillStyle = '#0e131a'; ictx.fillRect(0,0,IW,IH);
+    ictx.strokeStyle = '#33455e'; ictx.lineWidth = 1; for (let i=0;i<IW;i+=40){ ictx.beginPath(); ictx.moveTo(i,0); ictx.lineTo(i,IH); ictx.stroke(); } for (let j=0;j<IH;j+=20){ ictx.beginPath(); ictx.moveTo(0,j); ictx.lineTo(IW,j); ictx.stroke(); }
+    // map dV/dt approx in mV/ms into [-3,3] domain
+    const mapY = (dv)=> { const min=-3, max=3; const t=(dv-min)/(max-min); return (1-t)*(IH-6)+3; };
+    function series(buf, stroke){ ictx.strokeStyle=stroke; ictx.lineWidth=2; ictx.beginPath(); for(let i=0;i<dLeakBuf.length;i++){ const idx=(insetIdx+i)%dLeakBuf.length; const v=buf[idx]; const nx=(i/(dLeakBuf.length-1))*(IW-6)+3; const ny=mapY(v); if(i===0) ictx.moveTo(nx,ny); else ictx.lineTo(nx,ny);} ictx.stroke(); }
+    series(dLeakBuf, getCSS('--accent')); // leak term
+    series(dDriveBuf, getCSS('--accent2')); // drive term
+    series(dTotBuf, getCSS('--good')); // total
+    ictx.fillStyle = '#8aa1ba'; ictx.font='12px system-ui, -apple-system, Segoe UI, Roboto'; ictx.fillText('Integrand: leak / drive / total', 8, 12);
+  }
+
+  function getCSS(varName) { return getComputedStyle(document.documentElement).getPropertyValue(varName).trim(); }
+
+  // Simulation step
+  let t = 0.0; let iPulseLeft = 0.0;
+  function step() {
+    const dt = params.dt;
+    if (state.tRefLeft > 0) {
+      state.tRefLeft -= dt; state.V = params.Vreset;
+      insetPush(0,0,0);
+    } else {
+      // generate input current with optional pulse
+      let I = params.Iapp + randn() * params.sigmaI; if (iPulseLeft > 0) { I += 1.5; iPulseLeft -= dt; }
+      const leak = (-(state.V - params.Vrest)) / params.tau; // mV/ms
+      const drive = (params.R * I) / params.tau;             // mV/ms
+      const dVdt = leak + drive;
+      state.V += dVdt * dt;
+      if (state.V >= params.Vth) emitSpike();
+      insetPush(leak, drive, dVdt);
+    }
+    // ions
+    for (let i=ions.length-1;i>=0;i--) { const ion=ions[i]; ion.life-=0.01; ion.x += (params.speed * (dt/1000)); if (ion.kind==='k') ion.x -= 0.015; if (ion.x < 0 || ion.x > params.axonLen || ion.life <= 0) ions.splice(i,1); }
+    // APs
+    for (let i=state.apQueue.length-1;i>=0;i--) { const ap=state.apQueue[i]; ap.pos += params.speed*(dt/1000); ap.age+=dt; spawnIonBurst('na', ap.pos, 1); if (ap.age>2.0) spawnIonBurst('k', ap.pos-0.015, 1); if (ap.pos>params.axonLen+0.02) state.apQueue.splice(i,1); }
+    // scope
+    scopePush(state.V); t += dt;
+  }
+
+  function emitSpike() {
+    scopePush(20); state.V = params.Vreset; state.tRefLeft = params.tref; status.textContent = 'spike'; status.classList.add('refract'); setTimeout(()=>{ status.textContent = 'idle'; status.classList.remove('refract'); }, 120);
+    state.apQueue.push({ pos: 0.0, age: 0.0 }); spawnIonBurst('na', 0.0, 30);
+  }
+
+  // RNG
+  let z2 = null; function randn(){ if (z2!==null){ const z=z2; z2=null; return z; } let u=0,v=0; while(u===0) u=Math.random(); while(v===0) v=Math.random(); const r=Math.sqrt(-2.0*Math.log(u)); const th=2*Math.PI*v; z2=r*Math.sin(th); return r*Math.cos(th); }
+
+  function resetAll(){ state.V=params.Vrest; state.tRefLeft=0; state.lastSpikeT=-Infinity; state.apQueue.length=0; ions.length=0; t=0; for(let i=0;i<scopeBuf.length;i++) scopeBuf[i]=params.Vrest; for(let i=0;i<dLeakBuf.length;i++){ dLeakBuf[i]=0; dDriveBuf[i]=0; dTotBuf[i]=0; } }
+
+  // Soma click → brief pulse
+  canvas.addEventListener('click', (e)=>{ const g=layout(); const rect=canvas.getBoundingClientRect(); const x=e.clientX-rect.left, y=e.clientY-rect.top; const dx=x-g.x0, dy=y-g.y; if (dx*dx+dy*dy<=28*28) { iPulseLeft=5.0; } });
+
+  // Main loop
+  let lastRAF=0; const tick=(now)=>{ if(!paused){ if(lastRAF){ let acc=Math.min(50, now-lastRAF); while(acc>0){ step(); acc-=params.dt; } } else { step(); } drawNeuron(); drawAPBand(); drawIons(); drawScope(); drawInset(); } lastRAF=now; requestAnimationFrame(tick); };
+
+  resetAll(); requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

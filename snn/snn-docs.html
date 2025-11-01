@@ -1,6 +1,7 @@
 <div class="docs-tabs">
     <button class="docs-tab active" data-tab="overview">Overview</button>
     <button class="docs-tab" data-tab="model">Model</button>
+    <button class="docs-tab" data-tab="encoding">Bit Encoding</button>
     <button class="docs-tab" data-tab="parameters">Parameters</button>
     <button class="docs-tab" data-tab="controls">Controls</button>
 </div>
@@ -14,8 +15,70 @@
         </p>
 
         <div class="figure-container">
-            <div id="neuronPulseCanvas" class="neuron-pulse-canvas"></div>
-            <p class="figure-caption">Neurotransmitters bind to ligand-gated receptors on dendrites, generating excitatory or inhibitory postsynaptic potentials (EPSPs/IPSPs). These graded potentials summate at the <strong>axon hillock</strong> (the integration zone where the axon originates from the soma). If the membrane potential (V) crosses threshold (Vth), voltage-gated Na⁺ channels open, initiating an action potential. The spike propagates via sequential Na⁺ influx (depolarization) and K⁺ efflux (repolarization) along the axon, generating a spike train—the temporal code that transmits information to downstream neurons.</p>
+            <div class="figure-controls-top">
+                <button id="neuronPlayPause">▶ Play</button>
+                <button id="neuronStepBack">◀ Step Back</button>
+                <button id="neuronStepForward">Step Forward ▶</button>
+                <button id="neuronReset">↻ Reset</button>
+                <span class="time-display" id="neuronTimeDisplay">t = 0.0 ms</span>
+            </div>
+
+            <div class="figure-layout">
+                <div class="figure-canvas-wrapper">
+                    <div id="neuronPulseCanvas" class="neuron-pulse-canvas"></div>
+                </div>
+
+                <div class="figure-info-panel">
+                    <h3 style="margin-top: 0; font-size: 14px; color: #4aa3ff;">Action Potential Stages</h3>
+
+                    <div class="stage-info" data-stage="0">
+                        <h4>1. Resting Potential (-70mV)</h4>
+                        <p>Neuron at baseline. Na⁺/K⁺ pumps maintain voltage gradient.</p>
+                    </div>
+
+                    <div class="stage-info" data-stage="1">
+                        <h4>2. Threshold (-55mV)</h4>
+                        <p>EPSPs summate at axon hillock. Approaching firing threshold.</p>
+                    </div>
+
+                    <div class="stage-info" data-stage="2">
+                        <h4>3. Na⁺ Channels Open (+10mV)</h4>
+                        <p>Voltage-gated Na⁺ channels open. Sodium ready to rush in.</p>
+                    </div>
+
+                    <div class="stage-info" data-stage="3">
+                        <h4>4. Na⁺ Influx (+30mV)</h4>
+                        <p>Massive Na⁺ influx. Rapid depolarization. Peak of spike!</p>
+                    </div>
+
+                    <div class="stage-info" data-stage="4">
+                        <h4>5. Na⁺ Channels Close (+20mV)</h4>
+                        <p>Na⁺ channels inactivate. Depolarization stops.</p>
+                    </div>
+
+                    <div class="stage-info" data-stage="5">
+                        <h4>6. K⁺ Channels Open (0mV)</h4>
+                        <p>Voltage-gated K⁺ channels open. Potassium exits cell.</p>
+                    </div>
+
+                    <div class="stage-info" data-stage="6">
+                        <h4>7. K⁺ Efflux (-70mV)</h4>
+                        <p>K⁺ rushes out. Rapid repolarization back to resting.</p>
+                    </div>
+
+                    <div class="stage-info" data-stage="7">
+                        <h4>8. Hyperpolarization (-80mV)</h4>
+                        <p>Brief undershoot. K⁺ channels slow to close. Refractory period.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="figure-text-content">
+            <p class="figure-caption">
+                <strong>Figure 1: Complete Neuron Action Potential Visualization</strong><br><br>
+                Neurotransmitters bind to ligand-gated receptors on dendrites, generating excitatory postsynaptic potentials (EPSPs). These graded potentials summate at the <strong>axon hillock</strong>. When membrane potential (V) crosses threshold (V<sub>th</sub>), voltage-gated Na⁺ channels open, initiating an action potential that propagates down the axon via sequential ionic currents.
+            </p>
         </div>
 
         <p>
@@ -37,25 +100,70 @@
 
         <h3>How It Works</h3>
         <p>
-            Input bits are encoded as spike trains: a '1' bit produces early spikes, while a '0' bit
-            produces late or no spikes. The network learns through a learning rate
+            Input bits are encoded as spike trains (see <strong>Bit Encoding</strong> tab for details).
+            The network learns through a learning rate
             <span class="param-set" data-param="learningRate" data-value="0.01">η=0.01</span>,
             using a rule inspired by <strong>Spike-Timing-Dependent Plasticity (STDP)</strong>.
         </p>
-
-        <div class="figure-container">
-            <div class="canvas-container">
-                <canvas id="spikeTrainCanvas"></canvas>
-                <button class="canvas-control-btn" id="spikeTrainToggle">▶ Play Animation</button>
-            </div>
-            <p class="figure-caption">Spike Train Encoding - Binary bits are encoded temporally. Bit '1' fires early/frequently; bit '0' fires late/rarely.</p>
-        </div>
 
         <div class="equation-block">
             <p><strong>Loss Function:</strong></p>
             $$L = \frac{1}{N}\sum_{i=1}^{N}(y_i - \hat{y}_i)^2$$
             <p class="equation-note">Where \(y_i\) is the expected output and \(\hat{y}_i\) is the predicted output</p>
         </div>
+    </div>
+
+    <div class="docs-tab-content" id="encoding-tab">
+        <h3>Temporal Encoding of Binary Information</h3>
+        <p>
+            In spiking neural networks, information is encoded in the <strong>timing</strong> of spikes,
+            not just their presence. This demo uses <strong>Time-to-First-Spike (TTFS)</strong> encoding
+            to represent binary values.
+        </p>
+
+        <h4>How Bits Become Spikes</h4>
+        <p>
+            Each binary digit (0 or 1) is converted into a temporal pattern of action potentials:
+        </p>
+        <ul>
+            <li><strong>Bit = 1:</strong> Neuron fires early and frequently (high input current)</li>
+            <li><strong>Bit = 0:</strong> Neuron fires late or not at all (low/no input current)</li>
+        </ul>
+
+        <div class="figure-container">
+            <div class="canvas-container">
+                <canvas id="spikeTrainCanvas"></canvas>
+                <button class="canvas-control-btn" id="spikeTrainToggle">▶ Play Animation</button>
+            </div>
+            <p class="figure-caption"><strong>Spike Train Encoding</strong> – Binary bits encoded temporally. Bit '1' fires early/frequently (top); bit '0' fires late/rarely (bottom). Time flows left to right.</p>
+        </div>
+
+        <h4>Why Temporal Encoding?</h4>
+        <p>
+            Temporal encoding offers several advantages over rate-based coding:
+        </p>
+        <ul>
+            <li><strong>Speed:</strong> Information can be transmitted with just a few spikes</li>
+            <li><strong>Efficiency:</strong> Fewer spikes means lower energy consumption</li>
+            <li><strong>Precision:</strong> Spike timing carries more information than spike count</li>
+            <li><strong>Biological realism:</strong> Real neurons use spike timing to encode stimuli</li>
+        </ul>
+
+        <div class="equation-block">
+            <p><strong>Time-to-First-Spike Encoding:</strong></p>
+            $$t_{spike} = \begin{cases}
+            t_{early} & \text{if bit = 1} \\
+            t_{late} & \text{if bit = 0}
+            \end{cases}$$
+            <p class="equation-note">Where t<sub>early</sub> ≈ 5-15ms and t<sub>late</sub> > 35ms in this demo</p>
+        </div>
+
+        <h4>Network Input Encoding</h4>
+        <p>
+            The 8-bit input (two 4-bit numbers) becomes 8 independent spike trains. Each input neuron
+            receives a constant current proportional to its bit value, causing it to spike early (bit=1)
+            or late/not at all (bit=0). These temporal patterns propagate through the network layers.
+        </p>
     </div>
 
     <div class="docs-tab-content" id="model-tab">

@@ -14,7 +14,79 @@
  */
 
 export class ActiveFigure {
+  // Static registry for figure management
+  static registry = new Map();
+  static classRegistry = new Map(); // For figure classes
+
+  /**
+   * Register a figure class (for NarrativeDocs)
+   * @param {string} id - Unique identifier
+   * @param {class} FigureClass - Figure class constructor
+   */
+  static register(id, FigureClass) {
+    if (this.classRegistry.has(id)) {
+      console.warn(`[ActiveFigure] Overwriting existing figure class: ${id}`);
+    }
+    this.classRegistry.set(id, FigureClass);
+    return FigureClass;
+  }
+
+  /**
+   * Get a registered figure class by ID
+   * @param {string} id - Figure identifier
+   * @returns {class|undefined}
+   */
+  static getFigureClass(id) {
+    return this.classRegistry.get(id);
+  }
+
+  /**
+   * Register a figure instance with an ID
+   * @param {string} id - Unique identifier
+   * @param {ActiveFigure} instance - Figure instance
+   */
+  static registerInstance(id, instance) {
+    if (this.registry.has(id)) {
+      console.warn(`[ActiveFigure] Overwriting existing figure instance: ${id}`);
+    }
+    this.registry.set(id, instance);
+    return instance;
+  }
+
+  /**
+   * Get a registered figure instance by ID
+   * @param {string} id - Figure identifier
+   * @returns {ActiveFigure|undefined}
+   */
+  static get(id) {
+    return this.registry.get(id);
+  }
+
+  /**
+   * Get all registered figures
+   * @returns {Map<string, ActiveFigure>}
+   */
+  static getAll() {
+    return this.registry;
+  }
+
+  /**
+   * Unregister a figure
+   * @param {string} id - Figure identifier
+   */
+  static unregister(id) {
+    return this.registry.delete(id);
+  }
+
   constructor(config = {}) {
+    // Store config for later access
+    this.config = config;
+
+    // Figure identification
+    this.id = config.id; // Optional ID for registry
+    this.title = config.title || 'Untitled Figure';
+    this.description = config.description || '';
+
     // Canvas configuration
     this.containerId = config.containerId;
     this.width = config.width ?? 800;
@@ -34,6 +106,10 @@ export class ActiveFigure {
     this.frameInterval = 1000 / this.fps;
     this.animationFrameId = null;
 
+    // Visibility state
+    this.isVisible = true;
+    this.isFocused = false;
+
     // Canvas elements
     this.container = null;
     this.canvas = null;
@@ -41,6 +117,11 @@ export class ActiveFigure {
 
     // Event system
     this.listeners = {};
+
+    // Auto-register if ID provided
+    if (this.id) {
+      ActiveFigure.register(this.id, this);
+    }
   }
 
   /**
@@ -61,6 +142,12 @@ export class ActiveFigure {
     if (this.canvas && this.container) {
       this.container.removeChild(this.canvas);
     }
+
+    // Unregister from static registry
+    if (this.id) {
+      ActiveFigure.unregister(this.id);
+    }
+
     this.listeners = {};
     this.emit('destroyed');
   }
@@ -90,6 +177,27 @@ export class ActiveFigure {
   }
 
   /**
+   * Aliases for common API compatibility
+   */
+  start() {
+    this.play();
+  }
+
+  stop() {
+    this.pause();
+  }
+
+  reset() {
+    this.stop();
+    this.time = 0;
+    this.emit('reset');
+    // Render one frame at reset state
+    if (this.ctx) {
+      this.render();
+    }
+  }
+
+  /**
    * Seek to specific time
    * @param {number} time - Time in milliseconds
    */
@@ -110,6 +218,13 @@ export class ActiveFigure {
   setSpeed(multiplier) {
     this.speed = Math.max(0, multiplier);
     this.emit('speedchange', { speed: this.speed });
+  }
+
+  /**
+   * Getter for isRunning (alias for isPlaying)
+   */
+  get isRunning() {
+    return this.isPlaying;
   }
 
   /**
@@ -194,6 +309,100 @@ export class ActiveFigure {
   }
 
   // ============================================================================
+  // Lifecycle Hooks (optional, can be overridden by subclasses)
+  // ============================================================================
+
+  /**
+   * Called when figure becomes visible (e.g., scrolled into view)
+   * Override to start animations, load resources, etc.
+   */
+  onShow() {
+    // Default: no-op
+  }
+
+  /**
+   * Called when figure is hidden (e.g., scrolled out of view)
+   * Override to pause animations, release resources, etc.
+   */
+  onHide() {
+    // Default: no-op
+  }
+
+  /**
+   * Called when figure gains focus/attention
+   * Override to highlight, show controls, etc.
+   */
+  onFocus() {
+    // Default: no-op
+  }
+
+  /**
+   * Called when figure loses focus
+   * Override to hide controls, dim, etc.
+   */
+  onBlur() {
+    // Default: no-op
+  }
+
+  // ============================================================================
+  // Visibility & Focus Management
+  // ============================================================================
+
+  /**
+   * Show the figure (called by external controller)
+   */
+  show() {
+    if (this.isVisible) return;
+    this.isVisible = true;
+    this.onShow();
+    this.emit('show');
+  }
+
+  /**
+   * Hide the figure (called by external controller)
+   */
+  hide() {
+    if (!this.isVisible) return;
+    this.isVisible = false;
+    this.onHide();
+    this.emit('hide');
+  }
+
+  /**
+   * Focus the figure (called by external controller)
+   */
+  focus() {
+    if (this.isFocused) return;
+    this.isFocused = true;
+    this.onFocus();
+    this.emit('focus');
+  }
+
+  /**
+   * Blur the figure (called by external controller)
+   */
+  blur() {
+    if (!this.isFocused) return;
+    this.isFocused = false;
+    this.onBlur();
+    this.emit('blur');
+  }
+
+  // ============================================================================
+  // Term Highlighting (for glossary integration)
+  // ============================================================================
+
+  /**
+   * Highlight a glossary term
+   * Subclasses can override to implement term-specific visual highlighting
+   * @param {string} termId - Glossary term identifier
+   * @param {number} duration - Highlight duration in ms
+   */
+  highlightTerm(termId, duration = 2000) {
+    this.emit('term-highlight', { termId, duration });
+  }
+
+  // ============================================================================
   // Internal methods
   // ============================================================================
 
@@ -245,6 +454,36 @@ export class ActiveFigure {
   }
 
   /**
+   * Mount the figure - create canvas and initialize
+   * @public
+   */
+  mount() {
+    this._createCanvas();
+    this._setupContext();
+
+    // Call setup hook if defined by subclass
+    if (typeof this.setup === 'function') {
+      this.setup();
+    }
+
+    console.log(`ActiveFigure: Mounted figure in container "${this.containerId}"`);
+  }
+
+  /**
+   * Unmount the figure - cleanup canvas
+   * @public
+   */
+  unmount() {
+    this.stop();
+    if (this.canvas && this.container) {
+      this.container.removeChild(this.canvas);
+    }
+    this.canvas = null;
+    this.ctx = null;
+    console.log(`ActiveFigure: Unmounted figure from container "${this.containerId}"`);
+  }
+
+  /**
    * Create canvas element
    * @private
    */
@@ -285,4 +524,5 @@ export class ActiveFigure {
   }
 }
 
-export default ActiveFigure;
+// Make globally available
+window.ActiveFigure = ActiveFigure;

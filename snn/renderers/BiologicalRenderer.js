@@ -5,9 +5,7 @@
  * Includes animated synaptic activity and action potential propagation.
  */
 
-import { NeuronRendererBase } from './NeuronRendererBase.js';
-
-export class BiologicalRenderer extends NeuronRendererBase {
+class BiologicalRenderer {
   /**
    * Render biological neuron visualization
    * @param {CanvasRenderingContext2D} ctx
@@ -318,4 +316,5 @@ export class BiologicalRenderer extends NeuronRendererBase {
   }
 }
 
-export default BiologicalRenderer;
+// Make globally available
+window.BiologicalRenderer = BiologicalRenderer;

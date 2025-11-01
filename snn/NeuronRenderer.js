@@ -6,13 +6,19 @@
  * No physics, no state management - pure visualization.
  */
 
-import { theme } from './theme.js';
-
 export class NeuronRenderer {
   constructor(config = {}) {
     // Color theme (can be overridden)
+    const defaultTheme = {
+      background: '#0a0a0a',
+      soma: '#4a9eff',
+      dendrite: '#4aa3ff',
+      axon: '#ff6b6b',
+      spike: '#ffeb3b',
+      membrane: '#666'
+    };
     this.colors = {
-      ...theme,
+      ...defaultTheme,
       ...config.theme
     };
 
@@ -476,23 +482,44 @@ export class NeuronRenderer {
   _drawSynapticActivity(ctx, modelState, endX, endY, centerX, centerY, angle, index) {
     const phase = (this.synapticPhase + index * 0.4) % 1;
 
+    // Make activity more prominent when input is high
+    const inputStrength = modelState.input || 0;
+    const isActive = inputStrength > 0.05;
+
     if (phase < 0.15) {
       // Neurotransmitter approaching synapse
       const progress = 1 - phase / 0.15;
       const ntX = endX - Math.cos(angle) * 25 * progress;
       const ntY = endY - Math.sin(angle) * 25 * progress;
 
-      ctx.fillStyle = this.colors.neurotransmitter;
-      ctx.beginPath();
-      ctx.arc(ntX, ntY, 5, 0, Math.PI * 2);
-      ctx.fill();
+      // Size based on input strength
+      const size = isActive ? 6 : 4;
+      const alpha = isActive ? 1.0 : 0.6;
 
-      // Label on first dendrite
+      ctx.fillStyle = this.colors.neurotransmitter;
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.arc(ntX, ntY, size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+
+      // Glow effect when input is high
+      if (isActive) {
+        ctx.fillStyle = 'rgba(41, 211, 152, 0.3)';
+        ctx.beginPath();
+        ctx.arc(ntX, ntY, size * 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Label on first dendrite with input value
       if (index === 0 && phase < 0.1) {
         ctx.fillStyle = this.colors.neurotransmitter;
         ctx.font = 'bold 11px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('Neurotransmitter', ntX + 8, ntY);
+        ctx.fillText(`Input: ${(inputStrength * 100).toFixed(0)}%`, ntX + 8, ntY - 5);
+        ctx.font = '10px sans-serif';
+        ctx.fillStyle = this.colors.label;
+        ctx.fillText('Neurotransmitter', ntX + 8, ntY + 10);
       }
     } else if (phase < 0.8) {
       // Ion current flowing into dendrite
@@ -500,17 +527,31 @@ export class NeuronRenderer {
       const ionX = endX + (centerX - endX) * ionPhase;
       const ionY = endY + (centerY - endY) * ionPhase;
 
+      // Size and color based on input strength
+      const size = isActive ? 5 : 3;
+      const alpha = isActive ? 1.0 : 0.5;
+
       ctx.fillStyle = this.colors.calcium;
+      ctx.globalAlpha = alpha;
       ctx.beginPath();
-      ctx.arc(ionX, ionY, 4, 0, Math.PI * 2);
+      ctx.arc(ionX, ionY, size, 0, Math.PI * 2);
       ctx.fill();
+      ctx.globalAlpha = 1.0;
+
+      // Show EPSP (Excitatory Post-Synaptic Potential) when active
+      if (isActive && ionPhase > 0.5) {
+        ctx.fillStyle = 'rgba(247, 185, 85, 0.4)';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 50 * ionPhase, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // Label
       if (index === 1 && ionPhase > 0.3 && ionPhase < 0.5) {
         ctx.fillStyle = this.colors.calcium;
         ctx.font = 'bold 11px sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText('Ca²⁺ influx', ionX - 8, ionY);
+        ctx.fillText('Ca²⁺ → EPSP', ionX - 8, ionY);
       }
     }
   }
@@ -526,11 +567,52 @@ export class NeuronRenderer {
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // Membrane potential value
-    ctx.fillStyle = this.colors.somaText;
-    ctx.font = 'bold 14px sans-serif';
+    // Draw voltage meter bar
+    const meterWidth = 80;
+    const meterHeight = 12;
+    const meterX = centerX - meterWidth / 2;
+    const meterY = centerY - 10;
+
+    // Background
+    ctx.fillStyle = '#1a2636';
+    ctx.fillRect(meterX, meterY, meterWidth, meterHeight);
+
+    // Fill showing current voltage
+    const fillWidth = (modelState.membrane / modelState.threshold) * meterWidth;
+    const gradient = ctx.createLinearGradient(meterX, 0, meterX + meterWidth, 0);
+    gradient.addColorStop(0, '#29d398');
+    gradient.addColorStop(0.7, '#f7b955');
+    gradient.addColorStop(1, '#ff6b6b');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(meterX, meterY, Math.max(0, fillWidth), meterHeight);
+
+    // Border
+    ctx.strokeStyle = '#4a6a99';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(meterX, meterY, meterWidth, meterHeight);
+
+    // Threshold marker
+    ctx.strokeStyle = '#ff6b6b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(meterX + meterWidth, meterY);
+    ctx.lineTo(meterX + meterWidth, meterY + meterHeight);
+    ctx.stroke();
+
+    // Membrane potential value - LARGER
+    ctx.fillStyle = intensity > 0.8 ? '#ff6b6b' : this.colors.somaText;
+    ctx.font = 'bold 18px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(`V=${modelState.membrane.toFixed(2)}`, centerX, centerY + 6);
+    ctx.shadowColor = intensity > 0.8 ? '#ff6b6b' : 'transparent';
+    ctx.shadowBlur = intensity > 0.8 ? 10 : 0;
+    ctx.fillText(`V = ${modelState.membrane.toFixed(2)}`, centerX, centerY + 12);
+    ctx.shadowBlur = 0;
+
+    // Show ionic explanation
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#9fb2c6';
+    ctx.fillText('Na⁺ in = depolarize', centerX, centerY + 26);
+    ctx.fillText('K⁺ out = repolarize', centerX, centerY + 38);
 
     // Label
     ctx.fillStyle = this.colors.label;
@@ -600,45 +682,177 @@ export class NeuronRenderer {
 
   _drawActionPotential(ctx, modelState, startX, centerY, length) {
     const timeSinceSpike = modelState.time - modelState.lastSpike;
+    const actionPotentialDuration = 200; // ms - increased duration for visibility
 
-    if (timeSinceSpike >= 0 && timeSinceSpike < 100) {
-      const progress = timeSinceSpike / 100;
+    if (timeSinceSpike >= 0 && timeSinceSpike < actionPotentialDuration) {
+      // Each stage lasts 25ms (>= 2 ticks at 10ms/tick)
+      const stage = Math.floor(timeSinceSpike / 25);
+      const progress = timeSinceSpike / actionPotentialDuration;
       const spikeX = startX + length * progress;
 
-      // Na+ influx (red)
-      ctx.fillStyle = 'rgba(255, 107, 107, 0.6)';
-      ctx.beginPath();
-      ctx.arc(spikeX, centerY - 18, 6, 0, Math.PI * 2);
-      ctx.fill();
+      // Define 8 stages of action potential
+      const stages = [
+        { name: 'Resting', label: '1. Resting Potential', color: '#4a6a99', active: stage === 0 },
+        { name: 'Threshold', label: '2. Threshold Reached', color: '#f7b955', active: stage === 1 },
+        { name: 'Na⁺ Open', label: '3. Na⁺ Channels Open', color: '#ff6b6b', active: stage === 2 },
+        { name: 'Na⁺ Influx', label: '4. Na⁺ Influx (Depolarization)', color: '#ff4444', active: stage === 3 },
+        { name: 'Na⁺ Close', label: '5. Na⁺ Channels Close', color: '#ff8888', active: stage === 4 },
+        { name: 'K⁺ Open', label: '6. K⁺ Channels Open', color: '#4aa3ff', active: stage === 5 },
+        { name: 'K⁺ Efflux', label: '7. K⁺ Efflux (Repolarization)', color: '#2288ff', active: stage === 6 },
+        { name: 'Hyperpolarize', label: '8. Hyperpolarization', color: '#6688cc', active: stage === 7 }
+      ];
 
-      ctx.fillStyle = this.colors.sodium;
-      ctx.font = 'bold 13px sans-serif';
+      // Ghost labels removed - now in side panel
+      // Just show current stage number above wave
+      const currentStage = Math.min(stage, 7);
+      ctx.fillStyle = stages[currentStage].color;
+      ctx.font = 'bold 18px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Na⁺', spikeX, centerY - 26);
-      ctx.font = '10px sans-serif';
-      ctx.fillText('(influx)', spikeX, centerY - 36);
+      ctx.shadowColor = stages[currentStage].color;
+      ctx.shadowBlur = 15;
+      ctx.fillText(`Stage ${currentStage + 1}`, spikeX, centerY - 100);
+      ctx.shadowBlur = 0;
 
-      // K+ efflux (blue) - trails behind
-      if (progress > 0.3) {
-        const kX = startX + length * (progress - 0.3);
-        ctx.fillStyle = 'rgba(74, 163, 255, 0.6)';
+      // Draw current stage visualization
+      // Stage 0-1: Resting/Threshold
+      if (stage <= 1) {
+        ctx.fillStyle = stages[stage].color;
+        ctx.globalAlpha = 0.6;
         ctx.beginPath();
-        ctx.arc(kX, centerY + 18, 6, 0, Math.PI * 2);
+        ctx.arc(spikeX, centerY, 12, 0, Math.PI * 2);
         ctx.fill();
-
-        ctx.fillStyle = this.colors.potassium;
-        ctx.font = 'bold 13px sans-serif';
-        ctx.fillText('K⁺', kX, centerY + 32);
-        ctx.font = '10px sans-serif';
-        ctx.fillText('(efflux)', kX, centerY + 42);
+        ctx.globalAlpha = 1.0;
       }
 
-      // Action potential wave
-      ctx.strokeStyle = this.colors.sodium;
-      ctx.lineWidth = 3;
+      // Stage 2-4: Na⁺ influx (depolarization) - MUCH LARGER
+      if (stage >= 2 && stage <= 4) {
+        // Na⁺ ions entering - BIGGER IONS
+        const naCount = stage === 3 ? 7 : 4;
+        for (let i = 0; i < naCount; i++) {
+          const offset = (i - naCount / 2) * 20;
+          const naY = centerY - 30 - (stage - 2) * 12;
+
+          // LARGER ion circles
+          ctx.fillStyle = 'rgba(255, 107, 107, 0.9)';
+          ctx.beginPath();
+          ctx.arc(spikeX + offset, naY, 10, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Glow around each ion
+          ctx.fillStyle = 'rgba(255, 107, 107, 0.3)';
+          ctx.beginPath();
+          ctx.arc(spikeX + offset, naY, 16, 0, Math.PI * 2);
+          ctx.fill();
+
+          // THICKER arrow showing influx
+          ctx.strokeStyle = '#ff6b6b';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(spikeX + offset, naY);
+          ctx.lineTo(spikeX + offset, centerY - 8);
+          ctx.stroke();
+
+          // LARGER arrowhead
+          ctx.fillStyle = '#ff6b6b';
+          ctx.beginPath();
+          ctx.moveTo(spikeX + offset, centerY - 8);
+          ctx.lineTo(spikeX + offset - 6, centerY - 16);
+          ctx.lineTo(spikeX + offset + 6, centerY - 16);
+          ctx.fill();
+        }
+
+        // MUCH LARGER Na⁺ label
+        ctx.fillStyle = this.colors.sodium;
+        ctx.font = 'bold 24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#ff6b6b';
+        ctx.shadowBlur = 15;
+        ctx.fillText('Na⁺', spikeX, centerY - 55);
+        ctx.shadowBlur = 0;
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText('INFLUX', spikeX, centerY - 75);
+
+        // BIGGER membrane depolarization glow
+        ctx.fillStyle = 'rgba(255, 107, 107, 0.4)';
+        ctx.beginPath();
+        ctx.arc(spikeX, centerY, 35, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Stage 5-7: K⁺ efflux (repolarization) - MUCH LARGER
+      if (stage >= 5 && stage <= 7) {
+        // K⁺ ions leaving - BIGGER IONS
+        const kCount = stage === 6 ? 7 : 4;
+        for (let i = 0; i < kCount; i++) {
+          const offset = (i - kCount / 2) * 20;
+          const kY = centerY + 30 + (stage - 5) * 12;
+
+          // LARGER ion circles
+          ctx.fillStyle = 'rgba(74, 163, 255, 0.9)';
+          ctx.beginPath();
+          ctx.arc(spikeX + offset, kY, 10, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Glow around each ion
+          ctx.fillStyle = 'rgba(74, 163, 255, 0.3)';
+          ctx.beginPath();
+          ctx.arc(spikeX + offset, kY, 16, 0, Math.PI * 2);
+          ctx.fill();
+
+          // THICKER arrow showing efflux
+          ctx.strokeStyle = '#4aa3ff';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(spikeX + offset, centerY + 8);
+          ctx.lineTo(spikeX + offset, kY);
+          ctx.stroke();
+
+          // LARGER arrowhead
+          ctx.fillStyle = '#4aa3ff';
+          ctx.beginPath();
+          ctx.moveTo(spikeX + offset, kY);
+          ctx.lineTo(spikeX + offset - 6, kY - 8);
+          ctx.lineTo(spikeX + offset + 6, kY - 8);
+          ctx.fill();
+        }
+
+        // MUCH LARGER K⁺ label
+        ctx.fillStyle = this.colors.potassium;
+        ctx.font = 'bold 24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#4aa3ff';
+        ctx.shadowBlur = 15;
+        ctx.fillText('K⁺', spikeX, centerY + 70);
+        ctx.shadowBlur = 0;
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText('EFFLUX', spikeX, centerY + 90);
+
+        // BIGGER membrane repolarization glow
+        ctx.fillStyle = 'rgba(74, 163, 255, 0.4)';
+        ctx.beginPath();
+        ctx.arc(spikeX, centerY, 35, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Action potential wave (always visible during spike) - BIGGER & BOLDER
+      ctx.strokeStyle = stages[Math.min(stage, 7)].color;
+      ctx.lineWidth = 6;
+      ctx.shadowColor = stages[Math.min(stage, 7)].color;
+      ctx.shadowBlur = 25;
       ctx.beginPath();
-      ctx.arc(spikeX, centerY, 10, 0, Math.PI * 2);
+      ctx.arc(spikeX, centerY, 22, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Show voltage change indicator - MUCH LARGER
+      const voltageLabels = ['-70mV', '-55mV', '+10mV', '+30mV', '+20mV', '0mV', '-70mV', '-80mV'];
+      ctx.fillStyle = stages[Math.min(stage, 7)].color;
+      ctx.font = 'bold 22px monospace';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = stages[Math.min(stage, 7)].color;
+      ctx.shadowBlur = 10;
+      ctx.fillText(voltageLabels[Math.min(stage, 7)], spikeX, centerY + 8);
+      ctx.shadowBlur = 0;
     }
   }
 
@@ -709,6 +923,37 @@ export class NeuronRenderer {
     });
     ctx.stroke();
   }
+
+  /**
+   * Render combined membrane trace and spike train
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {object} modelState
+   * @param {object} bounds
+   */
+  renderCombinedTrace(ctx, modelState, bounds) {
+    const { x: startX, y: startY, width, height } = bounds;
+
+    // Split the bounds in half
+    const traceHeight = height * 0.6;
+    const spikeHeight = height * 0.4;
+
+    // Render membrane trace on top
+    this.renderMembraneTrace(ctx, modelState, {
+      x: startX,
+      y: startY,
+      width: width,
+      height: traceHeight
+    });
+
+    // Render spike train on bottom
+    this.renderSpikeTrain(ctx, modelState, {
+      x: startX,
+      y: startY + traceHeight,
+      width: width,
+      height: spikeHeight
+    });
+  }
 }
 
-export default NeuronRenderer;
+// Make globally available
+window.NeuronRenderer = NeuronRenderer;

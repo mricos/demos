@@ -1,7 +1,7 @@
 // Spiking Neural Network for 4-bit Addition
 console.log('[App.js] File loading...');
 
-import { LIFNeuronFigure } from './LIFNeuronFigure.js';
+import { LIFNeuronFigure } from './figures/LIFNeuronFigure.js?v=8';
 
 class SpikingNeuron {
     constructor(threshold = 1.0, tau = 20) {
@@ -872,15 +872,16 @@ const docsModal = {
             this.neuronAnimation = new LIFNeuronFigure({
                 containerId: 'neuronPulseCanvas',
                 width: 800,
-                height: 900,
-                speed: 0.5,
+                height: 500,  // Reduced to match new CSS
+                speed: 0.1,  // SLOWED DOWN from 0.5 to 0.1
                 fps: 30,
                 views: {
                     biological: true,
-                    diagram: true,
-                    trace: true,
-                    spikes: true,
-                    ttfs: true
+                    diagram: false,  // Hide diagram for cleaner view
+                    trace: false,
+                    spikes: false,
+                    combined: true,  // Show combined trace
+                    ttfs: false
                 },
                 modelConfig: {
                     threshold: 1.0,
@@ -888,7 +889,7 @@ const docsModal = {
                     input: 0.08
                 },
                 ttfs: {
-                    enabled: true,
+                    enabled: false,
                     windowDuration: 100,
                     threshold: 50
                 }
@@ -906,9 +907,106 @@ const docsModal = {
             this.neuronAnimation.on('bitdetected', (data) => {
                 console.log('[NeuronAnimation] Bit detected:', data.bit, 'at t =', data.time.toFixed(2), 'ms');
             });
+
+            // Setup control buttons - DELAY to ensure DOM is ready
+            setTimeout(() => {
+                this.setupNeuronControls();
+            }, 100);
         }
 
-        this.neuronAnimation.play();
+        // Start PAUSED so user can step through
+        this.neuronAnimation.pause();
+    },
+
+    setupNeuronControls() {
+        const playPauseBtn = document.getElementById('neuronPlayPause');
+        const stepBackBtn = document.getElementById('neuronStepBack');
+        const stepForwardBtn = document.getElementById('neuronStepForward');
+        const resetBtn = document.getElementById('neuronReset');
+        const timeDisplay = document.getElementById('neuronTimeDisplay');
+
+        console.log('[NeuronControls] Setting up controls', { playPauseBtn, stepBackBtn, stepForwardBtn, resetBtn, timeDisplay });
+
+        if (!playPauseBtn) {
+            console.error('[NeuronControls] Play/Pause button not found!');
+            return;
+        }
+
+        // Play/Pause
+        playPauseBtn.addEventListener('click', () => {
+            if (this.neuronAnimation.isPlaying) {
+                this.neuronAnimation.pause();
+                playPauseBtn.textContent = '▶ Play';
+                playPauseBtn.classList.remove('active');
+            } else {
+                this.neuronAnimation.play();
+                playPauseBtn.textContent = '⏸ Pause';
+                playPauseBtn.classList.add('active');
+            }
+        });
+
+        // Step Back
+        if (stepBackBtn) {
+            stepBackBtn.addEventListener('click', () => {
+                const currentTime = this.neuronAnimation.time;
+                const newTime = Math.max(0, currentTime - 10); // Step back 10ms
+                this.neuronAnimation.seek(newTime);
+            });
+        }
+
+        // Step Forward
+        if (stepForwardBtn) {
+            stepForwardBtn.addEventListener('click', () => {
+                const currentTime = this.neuronAnimation.time;
+                this.neuronAnimation.seek(currentTime + 10); // Step forward 10ms
+            });
+        }
+
+        // Reset
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                this.neuronAnimation.reset();
+                this.neuronAnimation.pause();
+                playPauseBtn.textContent = '▶ Play';
+                playPauseBtn.classList.remove('active');
+            });
+        }
+
+        // Update time display and stage highlighting
+        let stageInfoElementsChecked = false;
+        const updateTimeDisplay = () => {
+            if (timeDisplay && this.neuronAnimation) {
+                timeDisplay.textContent = `t = ${this.neuronAnimation.time.toFixed(1)} ms`;
+
+                // Check for stage-info elements (only log once)
+                const stageInfoElements = document.querySelectorAll('.stage-info');
+                if (!stageInfoElementsChecked) {
+                    console.log('[NeuronControls] Found stage-info elements:', stageInfoElements.length);
+                    stageInfoElementsChecked = true;
+                }
+
+                // Update stage highlighting
+                const timeSinceSpike = this.neuronAnimation.time - (this.neuronAnimation.model?.lastSpike || 0);
+                const stage = Math.floor(timeSinceSpike / 25);
+
+                if (timeSinceSpike >= 0 && timeSinceSpike < 200 && stageInfoElements.length > 0) {
+                    // Highlight active stage
+                    stageInfoElements.forEach((el, idx) => {
+                        if (idx === stage) {
+                            el.classList.add('active');
+                            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        } else {
+                            el.classList.remove('active');
+                        }
+                    });
+                } else if (stageInfoElements.length > 0) {
+                    // No active stage
+                    stageInfoElements.forEach(el => el.classList.remove('active'));
+                }
+            }
+            requestAnimationFrame(updateTimeDisplay);
+        };
+        updateTimeDisplay();
     },
 
     startSpikeTrainAnimation() {

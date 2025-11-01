@@ -8,9 +8,9 @@
  * for visualizing LIF neuron dynamics.
  */
 
-import { ActiveFigure } from '../core/ActiveFigure.js';
-import { LIFModel } from '../core/LIFModel.js';
-import { NeuronRenderer } from '../NeuronRenderer.js';
+import { ActiveFigure } from '../core/ActiveFigure.js?v=7';
+import { LIFModel } from '../core/LIFModel.js?v=7';
+import { NeuronRenderer } from '../NeuronRenderer.js?v=7';
 
 export class LIFNeuronFigure extends ActiveFigure {
   constructor(config = {}) {

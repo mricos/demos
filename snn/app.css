@@ -515,9 +515,9 @@ header {
     -webkit-backdrop-filter: blur(16px) saturate(1.3);
     border: 1px solid rgba(26, 38, 54, 0.85);
     border-radius: 18px;
-    max-width: 900px;
+    max-width: none;
+    width: 90%; /* 5% margin on each side */
     max-height: 90vh;
-    width: 100%;
     display: flex;
     flex-direction: column;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
@@ -729,10 +729,141 @@ header {
 
 .neuron-pulse-canvas {
     width: 100%;
-    height: 400px;
+    height: 500px;
     border-radius: 8px;
     background: #0c1219;
     display: block;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.figure-layout {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 24px;
+    margin-top: 16px;
+}
+
+.figure-canvas-wrapper {
+    position: relative;
+    z-index: 1;
+    min-width: 0; /* Prevent grid overflow */
+}
+
+.figure-info-panel {
+    position: relative;
+    z-index: 2;
+    background: rgba(26, 38, 54, 0.6);
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid #1a2636;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.figure-info-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.figure-info-panel::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+.figure-info-panel::-webkit-scrollbar-thumb {
+    background: #4a6a99;
+    border-radius: 3px;
+}
+
+.figure-info-panel::-webkit-scrollbar-thumb:hover {
+    background: #4aa3ff;
+}
+
+.stage-info {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: rgba(15, 21, 31, 0.5);
+    border-radius: 6px;
+    border-left: 3px solid transparent;
+    transition: all 0.3s;
+}
+
+.stage-info.active {
+    background: rgba(74, 163, 255, 0.15);
+    border-left-color: #4aa3ff;
+}
+
+.stage-info h4 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #9fb2c6;
+}
+
+.stage-info.active h4 {
+    color: #4aa3ff;
+}
+
+.stage-info p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #7a8a9e;
+}
+
+.stage-info.active p {
+    color: #9fb2c6;
+}
+
+.figure-text-content {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 2px solid #1a2636;
+}
+
+.figure-controls-top {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 12px;
+    background: rgba(26, 38, 54, 0.4);
+    border-radius: 8px;
+    align-items: center;
+    justify-content: center;
+}
+
+.figure-controls-top button {
+    padding: 8px 16px;
+    background: #1a2636;
+    border: 1px solid #2a3a4e;
+    color: #9fb2c6;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.figure-controls-top button:hover {
+    background: #2a3a4e;
+    border-color: #4aa3ff;
+    color: #4aa3ff;
+}
+
+.figure-controls-top button.active {
+    background: #4aa3ff;
+    border-color: #4aa3ff;
+    color: #fff;
+}
+
+.figure-controls-top .time-display {
+    padding: 8px 16px;
+    background: #0c1219;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: #f7b955;
+    border: 1px solid #1a2636;
 }
 
 .canvas-control-btn {

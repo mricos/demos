@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glossary System Test</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <style>
+        body {
+            background: #0b0f14;
+            color: #dbe7f3;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            padding: 40px;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #4aa3ff;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #9fb2c6;
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+
+        section {
+            background: #11161d;
+            padding: 24px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            border: 1px solid #1a2636;
+        }
+
+        h2 {
+            color: #f7b955;
+            margin-top: 0;
+            font-size: 18px;
+        }
+
+        p {
+            margin: 16px 0;
+        }
+
+        .test-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #1a2636;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .test-status.success {
+            border-left: 3px solid #29d398;
+        }
+
+        .test-status.error {
+            border-left: 3px solid #ff6b6b;
+        }
+
+        code {
+            background: #0a0f14;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 13px;
+            color: #f7b955;
+        }
+    </style>
+</head>
+<body>
+    <h1>Glossary System Test</h1>
+    <p class="subtitle">Testing term highlighting, tooltips, and KaTeX rendering</p>
+
+    <div class="test-status" id="status">Loading...</div>
+
+    <section>
+        <h2>Test 1: Basic Terms</h2>
+        <p>
+            A biological neuron consists of <span data-term="dendrite"></span>s that receive signals,
+            a <span data-term="soma"></span> that integrates them, and an <span data-term="axon"></span>
+            that transmits the output.
+        </p>
+        <p>
+            <strong>Expected:</strong> Terms should be colored, have dotted underlines, and show tooltips on hover.
+        </p>
+    </section>
+
+    <section>
+        <h2>Test 2: Mathematical Terms with KaTeX</h2>
+        <p>
+            The <span data-term="membrane"></span> voltage changes according to the time constant
+            <span data-term="tau"></span>. When it reaches the <span data-term="threshold"></span>,
+            a <span data-term="spike"></span> is generated.
+        </p>
+        <p>
+            <strong>Expected:</strong> Greek letters and subscripts rendered with KaTeX.
+        </p>
+    </section>
+
+    <section>
+        <h2>Test 3: Ion Channels</h2>
+        <p>
+            During depolarization, <span data-term="sodium"></span> ions flow into the cell.
+            During repolarization, <span data-term="potassium"></span> ions flow out.
+            <span data-term="calcium"></span> ions trigger neurotransmitter release.
+        </p>
+        <p>
+            <strong>Expected:</strong> Chemical formulas (Na⁺, K⁺, Ca²⁺) rendered correctly.
+        </p>
+    </section>
+
+    <section>
+        <h2>Test 4: Model Equation</h2>
+        <p>
+            The <span data-term="lif">LIF model</span> is governed by:
+            <span data-term="lif-equation"></span>
+        </p>
+        <p>
+            <strong>Expected:</strong> Full differential equation rendered in LaTeX.
+        </p>
+    </section>
+
+    <section>
+        <h2>Test 5: Click Highlighting</h2>
+        <p>
+            Click on any term to highlight all instances. For example, click
+            <span data-term="membrane">membrane</span> and see all
+            <span data-term="membrane">membrane</span> terms highlight.
+        </p>
+        <p>
+            <strong>Expected:</strong> All instances briefly highlight with blue background.
+        </p>
+    </section>
+
+    <section>
+        <h2>Test 6: Coding Terms</h2>
+        <p>
+            Information is encoded in the <span data-term="spike-train"></span> via
+            <span data-term="firing-rate">rate coding</span> or
+            <span data-term="ttfs">time-to-first-spike</span> encoding.
+        </p>
+    </section>
+
+    <script type="module">
+        import { GlossaryRenderer } from './utils/GlossaryRenderer.js';
+        import { GLOSSARY } from './core/glossary.js';
+
+        const status = document.getElementById('status');
+
+        try {
+            console.log('[Test] Glossary loaded:', Object.keys(GLOSSARY).length, 'terms');
+
+            // Wait for KaTeX to load
+            const checkKatex = () => {
+                if (window.katex) {
+                    console.log('[Test] KaTeX loaded');
+                    initGlossary();
+                } else {
+                    console.log('[Test] Waiting for KaTeX...');
+                    setTimeout(checkKatex, 100);
+                }
+            };
+
+            const initGlossary = () => {
+                // Initialize glossary renderer
+                const renderer = GlossaryRenderer.init(document.body);
+                console.log('[Test] GlossaryRenderer initialized');
+
+                // Count enhanced terms
+                const termCount = document.querySelectorAll('.glossary-term').length;
+                console.log('[Test] Enhanced', termCount, 'terms');
+
+                status.textContent = `✓ Test Passed: ${termCount} terms enhanced`;
+                status.classList.add('success');
+
+                // Test highlighting
+                console.log('[Test] Click any term to test highlighting');
+            };
+
+            checkKatex();
+
+        } catch (error) {
+            console.error('[Test] Error:', error);
+            status.textContent = `✗ Test Failed: ${error.message}`;
+            status.classList.add('error');
+        }
+    </script>
+</body>
+</html>
