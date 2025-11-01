@@ -34,7 +34,9 @@
 
     /* FAB controls */
     .fab { position:fixed; right:14px; bottom:14px; display:flex; flex-direction:column; align-items:flex-end; gap:10px; z-index: 1000; }
-    .fab button.fab-btn { width:52px; height:52px; border-radius:50%; border:1px solid var(--stroke); background:#101620; color:var(--fg); font-weight:600; cursor:pointer; box-shadow:0 10px 20px rgba(0,0,0,.25); }
+    .fab button.fab-btn { width:52px; height:52px; border-radius:50%; border:1px solid var(--stroke); background:#101620; color:var(--fg); font-weight:600; cursor:pointer; box-shadow:0 10px 20px rgba(0,0,0,.25); transition: transform 0.2s; }
+    .fab button.fab-btn:hover { transform: scale(1.05); }
+    .fab button.fab-btn.fab-docs { background: var(--good); color: #06140f; font-size: 20px; }
     .fab .panel { width:min(92vw, 380px); max-height:min(70vh, 520px); overflow:auto; padding:12px 12px; border:1px solid var(--stroke); background:var(--panel); border-radius:14px; box-shadow: 0 16px 40px rgba(0,0,0,.35); display:none; }
     .fab .row { display:flex; align-items:center; gap:8px; padding:6px 0; }
     .fab label { width: 140px; color:var(--muted); }
@@ -45,9 +47,29 @@
     .small { font-size: 12px; color: var(--muted); }
     .refract { color: var(--danger); }
 
+    /* Documentation modal */
+    .docs-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); backdrop-filter: blur(3px); z-index: 2000; align-items: center; justify-content: center; }
+    .docs-modal.active { display: flex; }
+    .docs-modal-content { width: 90%; max-width: 900px; max-height: 90vh; background: var(--panel); border: 1px solid var(--stroke); border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,0.5); overflow: hidden; display: flex; flex-direction: column; animation: slideUp 0.3s ease-out; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    .docs-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--stroke); background: rgba(14,19,26,0.8); }
+    .docs-header h2 { margin: 0; font-size: 18px; color: var(--fg); }
+    .close-btn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--stroke); background: var(--bg); color: var(--muted); font-size: 24px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    .close-btn:hover { background: var(--stroke); color: var(--fg); transform: rotate(90deg); }
+    .docs-content { flex: 1; overflow-y: auto; padding: 24px; color: var(--fg); }
+    .docs-content h3 { color: var(--good); margin: 24px 0 12px 0; font-size: 16px; }
+    .docs-content h3:first-child { margin-top: 0; }
+    .docs-content p { margin: 8px 0; line-height: 1.6; color: var(--muted); }
+    .docs-content code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Monaco, monospace; font-size: 12px; color: var(--accent); }
+    .docs-content .equation { background: var(--bg); padding: 12px; border-radius: 8px; margin: 12px 0; font-family: 'SF Mono', Monaco, monospace; border-left: 3px solid var(--accent); }
+    .docs-content ul { margin: 8px 0; padding-left: 24px; }
+    .docs-content li { margin: 6px 0; color: var(--muted); line-height: 1.6; }
+
     @media (max-width: 700px) {
       .rightdock { top: 52px; right: 8px; }
       .help { display:none; }
+      .docs-modal-content { width: 95%; max-height: 95vh; }
+      .docs-content { padding: 16px; }
     }
   </style>
 </head>
@@ -67,12 +89,24 @@
     <div class="rightdock">
       <div class="scope"><canvas id="scope"></canvas></div>
       <div class="inset"><canvas id="inset"></canvas></div>
+      <div class="membrane"><canvas id="membrane"></canvas></div>
     </div>
     <div class="help small">
       <p>LIF: dV/dt = (-(V - Vrest) + R·I)/τ; threshold → spike → reset to Vreset with refractory.</p>
       <p>Scope shows V<sub>m</sub> with V<sub>th</sub>/V<sub>reset</sub> markers. Inset shows terms in the integrand: leak, drive, and total dV/dt.</p>
-      <p>Click soma to inject a brief current pulse.</p>
+      <p>Membrane shows ion channels with Na⁺/K⁺ crossing during action potential. Click soma to inject current pulse.</p>
     </div>
+  </div>
+</div>
+
+<!-- Documentation modal -->
+<div class="docs-modal" id="docsModal">
+  <div class="docs-modal-content">
+    <div class="docs-header">
+      <h2>Neuron Biophysics & LIF Model</h2>
+      <button class="close-btn" id="closeDocsModal">×</button>
+    </div>
+    <div class="docs-content" id="docsContainer"></div>
   </div>
 </div>
 
@@ -83,11 +117,13 @@
     <div class="row"><label>τ (ms)</label><input id="tauIn" type="range" min="5" max="50" step="1" value="20"><span id="tauVal" class="small">20</span></div>
     <div class="row"><label>σ<sub>I</sub> (nA)</label><input id="noise" type="range" min="0" max="1.0" step="0.01" value="0.05"><span id="noiseVal" class="small">0.05</span></div>
     <div class="row"><label>Conduction (m/s)</label><input id="speed" type="range" min="0.1" max="50" step="0.1" value="25"><span id="speedVal" class="small">25.0</span></div>
+    <div class="row"><label>Ion Speed</label><input id="ionSpeed" type="range" min="0.1" max="3.0" step="0.1" value="1.0"><span id="ionSpeedVal" class="small">1.0×</span></div>
     <div class="row"><label>V<sub>th</sub> (mV)</label><input id="vthIn" type="range" min="-60" max="-40" step="1" value="-50"><span id="vthVal" class="small">-50</span></div>
     <div class="row"><button id="reset" style="flex:0 0 auto">Reset</button><button id="pause" style="flex:0 0 auto">Pause</button></div>
     <div class="row small"><span class="dot na"></span>Na⁺ <span class="dot k"></span>K⁺ <span class="dot ap"></span>AP</div>
   </div>
   <button class="fab-btn" id="gear" title="Controls">⚙</button>
+  <button class="fab-btn fab-docs" id="docsFab" title="Documentation">📖</button>
 </div>
 
 <script>
@@ -96,10 +132,12 @@
   const canvas = document.getElementById('canvas');
   const scopeCv = document.getElementById('scope');
   const insetCv = document.getElementById('inset');
+  const membraneCv = document.getElementById('membrane');
   const ctx = canvas.getContext('2d');
   const sctx = scopeCv.getContext('2d');
   const ictx = insetCv.getContext('2d');
-  let W = 0, H = 0, SW = 0, SH = 0, IW = 0, IH = 0;
+  const mctx = membraneCv.getContext('2d');
+  let W = 0, H = 0, SW = 0, SH = 0, IW = 0, IH = 0, MW = 0, MH = 0;
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
   function resize() {
     const rect = canvas.parentElement.getBoundingClientRect();
@@ -110,6 +148,8 @@
     scopeCv.width = SW * DPR; scopeCv.height = SH * DPR; sctx.setTransform(DPR,0,0,DPR,0,0);
     const irect = insetCv.getBoundingClientRect(); IW = Math.floor(irect.width); IH = Math.floor(irect.height);
     insetCv.width = IW * DPR; insetCv.height = IH * DPR; ictx.setTransform(DPR,0,0,DPR,0,0);
+    const mrect = membraneCv.getBoundingClientRect(); MW = Math.floor(mrect.width); MH = Math.floor(mrect.height);
+    membraneCv.width = MW * DPR; membraneCv.height = MH * DPR; mctx.setTransform(DPR,0,0,DPR,0,0);
   }
   window.addEventListener('resize', resize);
   resize();
@@ -126,6 +166,7 @@
     Iapp: 0.8,          // nA
     sigmaI: 0.05,       // nA noise std
     speed: 25.0,        // m/s conduction
+    ionSpeed: 1.0,      // ion animation speed multiplier
     axonLen: 0.8,       // meters (conceptual)
     nodes: 12           // nodes of Ranvier
   };
@@ -153,9 +194,18 @@
   bindRange('tauIn', 'tau', (v)=>v.toFixed(0));
   bindRange('noise', 'sigmaI', (v)=>v.toFixed(2));
   bindRange('speed', 'speed', (v)=>v.toFixed(1));
+  bindRange('ionSpeed', 'ionSpeed', (v)=>v.toFixed(1) + '×');
   bindRange('vthIn', 'Vth', (v)=>v.toFixed(0));
   $('reset').onclick = resetAll;
   let paused = false; $('pause')?.addEventListener('click', () => { paused = !paused; const p=$('pause'); if(p) p.textContent = paused ? 'Resume' : 'Pause'; });
+
+  // Documentation modal
+  const docsModal = $('docsModal');
+  const docsFab = $('docsFab');
+  const closeDocsModal = $('closeDocsModal');
+  docsFab?.addEventListener('click', () => { docsModal.classList.add('active'); populateDocs(); });
+  closeDocsModal?.addEventListener('click', () => { docsModal.classList.remove('active'); });
+  docsModal?.addEventListener('click', (e) => { if (e.target === docsModal) docsModal.classList.remove('active'); });
 
   // LIF state
   const state = { V: params.Vrest, tRefLeft: 0.0, lastSpikeT: -Infinity, apQueue: [] };
@@ -169,17 +219,23 @@
   function scopePush(v) { scopeBuf[scopeIdx] = v; scopeIdx = (scopeIdx + 1) % scopeBuf.length; }
   function insetPush(a,b,c){ dLeakBuf[insetIdx]=a; dDriveBuf[insetIdx]=b; dTotBuf[insetIdx]=c; insetIdx=(insetIdx+1)%dLeakBuf.length; }
 
-  // Ion packets
+  // Ion packets - enhanced for membrane crossing
   const ions = []; const ION_MAX = 1500;
+  const membraneIons = []; // ions in the membrane cross-section view
   function spawnIonBurst(kind, x0, n = 10) {
     const add = Math.min(n, Math.max(0, ION_MAX - ions.length));
     for (let i=0;i<add;i++) ions.push({ kind, x: x0, life: 1.0, jitter: (Math.random()-0.5)*0.004 });
+  }
+  function spawnMembraneIon(kind, direction) {
+    // direction: 'influx' or 'efflux'
+    const y = direction === 'influx' ? -10 : 10;
+    membraneIons.push({ kind, y, direction, life: 1.0, phase: Math.random() });
   }
 
   // Geometry helpers
   function layout() { const pad = 60; const y = H*0.55; const x0 = pad, x1 = W - pad; return { x0, x1, y }; }
 
-  // Draw main neuron
+  // Draw main neuron with labels
   function drawNeuron() {
     const g = layout();
     ctx.clearRect(0,0,W,H);
@@ -190,10 +246,20 @@
     ctx.fillStyle = getCSS('--muted'); ctx.fillText('synaptic input', g.x0-120, g.y-70);
     // Soma
     ctx.fillStyle = '#101824'; ctx.strokeStyle = '#233042'; ctx.beginPath(); ctx.arc(g.x0, g.y, 28, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = getCSS('--accent'); ctx.fillText('Soma', g.x0-16, g.y+48);
     // Axon
     ctx.strokeStyle = '#2a394d'; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(g.x0+28, g.y); ctx.lineTo(g.x1, g.y); ctx.stroke();
-    // Nodes
-    ctx.strokeStyle = '#3f536e'; ctx.lineWidth = 2; const n = params.nodes; for (let i=1;i<=n;i++){ const t=i/(n+1); const x=g.x0+28+t*(g.x1-(g.x0+28)); ctx.beginPath(); ctx.moveTo(x,g.y-12); ctx.lineTo(x,g.y+12); ctx.stroke(); }
+    ctx.fillStyle = getCSS('--muted'); ctx.fillText('Axon', g.x0+60, g.y-18);
+    // Nodes of Ranvier and myelin labels
+    ctx.strokeStyle = '#3f536e'; ctx.lineWidth = 2; const n = params.nodes;
+    for (let i=1;i<=n;i++){
+      const t=i/(n+1); const x=g.x0+28+t*(g.x1-(g.x0+28));
+      ctx.beginPath(); ctx.moveTo(x,g.y-12); ctx.lineTo(x,g.y+12); ctx.stroke();
+      if (i === 3) { ctx.fillStyle = getCSS('--accent2'); ctx.fillText('Node of Ranvier', x-50, g.y+30); }
+    }
+    // Myelin label
+    const mx = g.x0 + 28 + 0.15*(g.x1-(g.x0+28));
+    ctx.fillStyle = getCSS('--muted'); ctx.fillText('Myelin Sheath', mx-30, g.y+18);
   }
 
   function drawAPBand() {
@@ -213,14 +279,23 @@
     }
   }
 
-  // Scope with thresholds
+  // Scope with thresholds and phase annotations
   function drawScope() {
     sctx.fillStyle = '#0e131a'; sctx.fillRect(0,0,SW,SH);
     sctx.strokeStyle = '#33455e'; sctx.lineWidth = 1; for (let i=0;i<SW;i+=50){ sctx.beginPath(); sctx.moveTo(i,0); sctx.lineTo(i,SH); sctx.stroke(); } for (let j=0;j<SH;j+=30){ sctx.beginPath(); sctx.moveTo(0,j); sctx.lineTo(SW,j); sctx.stroke(); }
-    // thresholds
+    // thresholds and phase labels
     const yFromV = (v)=> SH - ((v + 80) / 50) * (SH-6) - 3; // map [-80,-30] to [bottom, top]
+    sctx.font = '10px system-ui, -apple-system, Segoe UI, Roboto';
+    // Threshold line
     sctx.strokeStyle = 'rgba(255,107,107,0.9)'; sctx.setLineDash([6,4]); sctx.beginPath(); const yth = yFromV(params.Vth); sctx.moveTo(0,yth); sctx.lineTo(SW,yth); sctx.stroke();
-    sctx.strokeStyle = 'rgba(173,181,189,0.6)'; sctx.beginPath(); const yrs = yFromV(params.Vreset); sctx.moveTo(0,yrs); sctx.lineTo(SW,yrs); sctx.stroke(); sctx.setLineDash([]);
+    sctx.fillStyle = 'rgba(255,107,107,0.9)'; sctx.fillText('Threshold (' + params.Vth + ' mV)', SW-110, yth-4);
+    // Reset line
+    sctx.strokeStyle = 'rgba(173,181,189,0.6)'; sctx.beginPath(); const yrs = yFromV(params.Vreset); sctx.moveTo(0,yrs); sctx.lineTo(SW,yrs); sctx.stroke();
+    sctx.fillStyle = 'rgba(173,181,189,0.6)'; sctx.fillText('Reset (' + params.Vreset.toFixed(0) + ' mV)', SW-90, yrs+10);
+    // Resting potential line
+    const yrest = yFromV(params.Vrest);
+    sctx.strokeStyle = 'rgba(77,163,255,0.4)'; sctx.moveTo(0,yrest); sctx.lineTo(SW,yrest); sctx.stroke(); sctx.setLineDash([]);
+    sctx.fillStyle = 'rgba(77,163,255,0.7)'; sctx.fillText('Resting (' + params.Vrest.toFixed(0) + ' mV)', 6, yrest-4);
     // Vm trace
     sctx.strokeStyle = getCSS('--good'); sctx.lineWidth = 2; sctx.beginPath();
     for (let i=0;i<scopeBuf.length;i++) { const idx=(scopeIdx+i)%scopeBuf.length; const v=scopeBuf[idx]; const nx=(i/(scopeBuf.length-1))*(SW-6)+3; const ny=yFromV(v); if(i===0) sctx.moveTo(nx,ny); else sctx.lineTo(nx,ny);} sctx.stroke();
@@ -238,6 +313,60 @@
     series(dDriveBuf, getCSS('--accent2')); // drive term
     series(dTotBuf, getCSS('--good')); // total
     ictx.fillStyle = '#8aa1ba'; ictx.font='12px system-ui, -apple-system, Segoe UI, Roboto'; ictx.fillText('Integrand: leak / drive / total', 8, 12);
+  }
+
+  // Membrane cross-section with ion channels and concentration gradients
+  function drawMembrane() {
+    mctx.fillStyle = '#0e131a'; mctx.fillRect(0,0,MW,MH);
+    const midY = MH / 2;
+    const memThick = 20;
+    // Labels
+    mctx.font = '11px system-ui, -apple-system, Segoe UI, Roboto';
+    mctx.fillStyle = getCSS('--muted'); mctx.fillText('Extracellular', 6, 14);
+    mctx.fillText('Intracellular', 6, MH-6);
+    // Lipid bilayer (two layers)
+    mctx.fillStyle = '#1a2633'; mctx.fillRect(0, midY-memThick/2, MW, memThick);
+    mctx.strokeStyle = '#2a394d'; mctx.lineWidth = 2;
+    mctx.beginPath(); mctx.moveTo(0, midY-memThick/2); mctx.lineTo(MW, midY-memThick/2); mctx.stroke();
+    mctx.beginPath(); mctx.moveTo(0, midY+memThick/2); mctx.lineTo(MW, midY+memThick/2); mctx.stroke();
+    // Lipid heads (circles along edges)
+    mctx.fillStyle = '#3a4a5d';
+    for (let x=8; x<MW; x+=16) {
+      mctx.beginPath(); mctx.arc(x, midY-memThick/2, 3, 0, Math.PI*2); mctx.fill();
+      mctx.beginPath(); mctx.arc(x, midY+memThick/2, 3, 0, Math.PI*2); mctx.fill();
+    }
+    // Ion channels (voltage-gated)
+    const drawChannel = (x, label, col) => {
+      mctx.strokeStyle = col; mctx.lineWidth = 4; mctx.lineCap = 'round';
+      mctx.beginPath(); mctx.moveTo(x, midY-memThick/2-6); mctx.lineTo(x, midY+memThick/2+6); mctx.stroke();
+      mctx.fillStyle = col; mctx.font = '10px system-ui, -apple-system, Segoe UI, Roboto';
+      mctx.fillText(label, x-14, midY-memThick/2-12);
+    };
+    drawChannel(MW*0.3, 'Na⁺', getCSS('--accent'));
+    drawChannel(MW*0.7, 'K⁺', getCSS('--accent2'));
+    // Capacitance indicator (capacitor symbol)
+    const capX = MW-60;
+    mctx.strokeStyle = getCSS('--good'); mctx.lineWidth = 2;
+    mctx.beginPath(); mctx.moveTo(capX-10, midY-memThick/2-8); mctx.lineTo(capX+10, midY-memThick/2-8); mctx.stroke();
+    mctx.beginPath(); mctx.moveTo(capX-10, midY+memThick/2+8); mctx.lineTo(capX+10, midY+memThick/2+8); mctx.stroke();
+    mctx.fillStyle = getCSS('--good'); mctx.font = '9px system-ui, -apple-system, Segoe UI, Roboto';
+    mctx.fillText('C', capX+14, midY+3); mctx.fillText('m', capX+21, midY+6);
+    // Concentration gradient (more Na+ outside, more K+ inside)
+    // Extracellular ions (higher Na+)
+    for (let i=0; i<12; i++) { const x = 20 + (i%6)*35 + Math.random()*8; const y = 20 + Math.floor(i/6)*10; mctx.beginPath(); mctx.fillStyle = getCSS('--accent'); mctx.arc(x, y, 2.5, 0, Math.PI*2); mctx.fill(); }
+    for (let i=0; i<4; i++) { const x = 30 + i*45 + Math.random()*8; const y = 28; mctx.beginPath(); mctx.fillStyle = getCSS('--accent2'); mctx.arc(x, y, 2.5, 0, Math.PI*2); mctx.fill(); }
+    // Intracellular ions (higher K+)
+    for (let i=0; i<12; i++) { const x = 20 + (i%6)*35 + Math.random()*8; const y = MH - 30 + Math.floor(i/6)*10; mctx.beginPath(); mctx.fillStyle = getCSS('--accent2'); mctx.arc(x, y, 2.5, 0, Math.PI*2); mctx.fill(); }
+    for (let i=0; i<4; i++) { const x = 30 + i*45 + Math.random()*8; const y = MH - 22; mctx.beginPath(); mctx.fillStyle = getCSS('--accent'); mctx.arc(x, y, 2.5, 0, Math.PI*2); mctx.fill(); }
+    // Animated ions crossing channels
+    for (const ion of membraneIons) {
+      const channelX = ion.kind === 'na' ? MW*0.3 : MW*0.7;
+      const col = ion.kind === 'na' ? getCSS('--accent') : getCSS('--accent2');
+      mctx.beginPath(); mctx.fillStyle = col;
+      mctx.arc(channelX, midY + ion.y, 3, 0, Math.PI*2); mctx.fill();
+    }
+    // Title
+    mctx.fillStyle = '#8aa1ba'; mctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto'; mctx.fillText('Membrane Cross-Section', MW-180, 14);
   }
 
   function getCSS(varName) { return getComputedStyle(document.documentElement).getPropertyValue(varName).trim(); }
@@ -259,10 +388,26 @@
       if (state.V >= params.Vth) emitSpike();
       insetPush(leak, drive, dVdt);
     }
-    // ions
-    for (let i=ions.length-1;i>=0;i--) { const ion=ions[i]; ion.life-=0.01; ion.x += (params.speed * (dt/1000)); if (ion.kind==='k') ion.x -= 0.015; if (ion.x < 0 || ion.x > params.axonLen || ion.life <= 0) ions.splice(i,1); }
+    // ions (axon)
+    for (let i=ions.length-1;i>=0;i--) { const ion=ions[i]; ion.life-=0.01*params.ionSpeed; ion.x += (params.speed * (dt/1000) * params.ionSpeed); if (ion.kind==='k') ion.x -= 0.015*params.ionSpeed; if (ion.x < 0 || ion.x > params.axonLen || ion.life <= 0) ions.splice(i,1); }
+    // membrane ions (crossing channels)
+    for (let i=membraneIons.length-1;i>=0;i--) {
+      const mion = membraneIons[i];
+      mion.life -= 0.02*params.ionSpeed;
+      if (mion.direction === 'influx') mion.y += 0.8*params.ionSpeed; // Na+ flows in
+      else mion.y -= 0.8*params.ionSpeed; // K+ flows out
+      if (Math.abs(mion.y) > 20 || mion.life <= 0) membraneIons.splice(i,1);
+    }
     // APs
-    for (let i=state.apQueue.length-1;i>=0;i--) { const ap=state.apQueue[i]; ap.pos += params.speed*(dt/1000); ap.age+=dt; spawnIonBurst('na', ap.pos, 1); if (ap.age>2.0) spawnIonBurst('k', ap.pos-0.015, 1); if (ap.pos>params.axonLen+0.02) state.apQueue.splice(i,1); }
+    for (let i=state.apQueue.length-1;i>=0;i--) {
+      const ap=state.apQueue[i]; ap.pos += params.speed*(dt/1000); ap.age+=dt;
+      spawnIonBurst('na', ap.pos, 1);
+      if (ap.age>2.0) spawnIonBurst('k', ap.pos-0.015, 1);
+      if (ap.pos>params.axonLen+0.02) state.apQueue.splice(i,1);
+    }
+    // Spawn membrane ions based on voltage state
+    if (state.V > params.Vth - 5 && state.V < params.Vth + 10 && Math.random() < 0.3) spawnMembraneIon('na', 'influx');
+    if (state.V > params.Vth && state.tRefLeft === 0 && Math.random() < 0.25) spawnMembraneIon('k', 'efflux');
     // scope
     scopePush(state.V); t += dt;
   }
@@ -275,13 +420,86 @@
   // RNG
   let z2 = null; function randn(){ if (z2!==null){ const z=z2; z2=null; return z; } let u=0,v=0; while(u===0) u=Math.random(); while(v===0) v=Math.random(); const r=Math.sqrt(-2.0*Math.log(u)); const th=2*Math.PI*v; z2=r*Math.sin(th); return r*Math.cos(th); }
 
-  function resetAll(){ state.V=params.Vrest; state.tRefLeft=0; state.lastSpikeT=-Infinity; state.apQueue.length=0; ions.length=0; t=0; for(let i=0;i<scopeBuf.length;i++) scopeBuf[i]=params.Vrest; for(let i=0;i<dLeakBuf.length;i++){ dLeakBuf[i]=0; dDriveBuf[i]=0; dTotBuf[i]=0; } }
+  function resetAll(){ state.V=params.Vrest; state.tRefLeft=0; state.lastSpikeT=-Infinity; state.apQueue.length=0; ions.length=0; membraneIons.length=0; t=0; for(let i=0;i<scopeBuf.length;i++) scopeBuf[i]=params.Vrest; for(let i=0;i<dLeakBuf.length;i++){ dLeakBuf[i]=0; dDriveBuf[i]=0; dTotBuf[i]=0; } }
+
+  // Documentation content
+  function populateDocs() {
+    const container = $('docsContainer');
+    if (!container || container.innerHTML) return;
+    container.innerHTML = `
+      <h3>Biophysical Mechanisms</h3>
+      <p>The action potential arises from voltage-gated ion channels that open and close in response to changes in membrane potential. The key players are Na⁺ and K⁺ ions, which have different concentrations inside and outside the cell.</p>
+
+      <p><strong>Nernst Potential:</strong> The equilibrium potential for an ion species is given by:</p>
+      <div class="equation">E_ion = (RT/zF) × ln([ion]_out / [ion]_in)</div>
+      <p>For Na⁺: E_Na ≈ +60 mV (high outside)<br>For K⁺: E_K ≈ -90 mV (high inside)</p>
+
+      <p><strong>Goldman-Hodgkin-Katz Equation:</strong> The resting membrane potential depends on the relative permeabilities and concentrations of all ions:</p>
+      <div class="equation">V_m = (RT/F) × ln((P_K[K⁺]_out + P_Na[Na⁺]_out) / (P_K[K⁺]_in + P_Na[Na⁺]_in))</div>
+
+      <p><strong>Ion Channels & Pumps:</strong></p>
+      <ul>
+        <li><strong>Voltage-gated Na⁺ channels:</strong> Open rapidly during depolarization (V > -55 mV), causing Na⁺ influx and the upstroke of the action potential.</li>
+        <li><strong>Voltage-gated K⁺ channels:</strong> Open more slowly, causing K⁺ efflux during repolarization.</li>
+        <li><strong>Na⁺/K⁺-ATPase pump:</strong> Actively maintains concentration gradients by pumping 3 Na⁺ out and 2 K⁺ in per ATP hydrolyzed.</li>
+      </ul>
+
+      <h3>Leaky Integrate-and-Fire (LIF) Model</h3>
+      <p>The LIF model simplifies the complex Hodgkin-Huxley dynamics into a single differential equation with a threshold-reset mechanism:</p>
+
+      <div class="equation">τ × dV/dt = -(V - V_rest) + R × I</div>
+
+      <p><strong>Parameters:</strong></p>
+      <ul>
+        <li><code>τ</code> — Membrane time constant (ms): How quickly voltage responds to input</li>
+        <li><code>V_rest</code> — Resting potential (mV): Equilibrium voltage with no input (~-65 mV)</li>
+        <li><code>V_th</code> — Spike threshold (mV): When V crosses this, a spike is emitted (~-50 mV)</li>
+        <li><code>V_reset</code> — Reset potential (mV): Voltage is reset here after spike (~-68 mV)</li>
+        <li><code>R</code> — Membrane resistance (MΩ): Relates current to voltage change</li>
+        <li><code>I</code> — Applied current (nA): External drive + synaptic input + noise</li>
+      </ul>
+
+      <p><strong>Spike-and-Reset Mechanism:</strong></p>
+      <ul>
+        <li>When V ≥ V_th, emit a spike event and set V = V_reset</li>
+        <li>Enter refractory period for t_ref ms (voltage clamped at V_reset)</li>
+        <li>Refractory period models Na⁺ channel inactivation</li>
+      </ul>
+
+      <h3>Cable Theory, Capacitance & Conduction</h3>
+      <p><strong>Membrane Capacitance (C_m):</strong> The lipid bilayer acts as a capacitor, storing charge across the membrane. Typical value: C_m ≈ 1 μF/cm². This capacitance slows voltage changes:</p>
+      <div class="equation">C_m × dV/dt = I_ion + I_applied</div>
+
+      <p><strong>Membrane Resistance (R_m):</strong> Represents ion leakage through channels. Together with C_m, it forms the time constant:</p>
+      <div class="equation">τ = R_m × C_m</div>
+
+      <p><strong>Cable Equation:</strong> For axonal conduction, voltage varies in space and time:</p>
+      <div class="equation">λ² × ∂²V/∂x² = τ × ∂V/∂t + (V - V_rest)</div>
+      <p>where λ = space constant (how far voltage spreads along axon)</p>
+
+      <p><strong>Saltatory Conduction:</strong> In myelinated axons, action potentials "jump" between nodes of Ranvier (gaps in myelin sheath). This dramatically increases conduction velocity:</p>
+      <ul>
+        <li><strong>Unmyelinated fibers:</strong> ~0.5-2 m/s (continuous AP propagation)</li>
+        <li><strong>Myelinated fibers:</strong> ~10-100 m/s (saltatory jumping between nodes)</li>
+        <li>Myelin insulates the axon, reducing capacitance and preventing ion leakage between nodes</li>
+        <li>Ion channels concentrate at nodes, where current flows across the membrane</li>
+      </ul>
+
+      <p><strong>Factors Affecting Conduction Velocity:</strong></p>
+      <ul>
+        <li>Axon diameter (larger → faster due to lower internal resistance)</li>
+        <li>Myelination (myelinated → much faster)</li>
+        <li>Temperature (warmer → faster channel kinetics)</li>
+        <li>Node spacing (optimal spacing maximizes speed)</li>
+      </ul>
+    `;
+  }
 
   // Soma click → brief pulse
   canvas.addEventListener('click', (e)=>{ const g=layout(); const rect=canvas.getBoundingClientRect(); const x=e.clientX-rect.left, y=e.clientY-rect.top; const dx=x-g.x0, dy=y-g.y; if (dx*dx+dy*dy<=28*28) { iPulseLeft=5.0; } });
 
   // Main loop
-  let lastRAF=0; const tick=(now)=>{ if(!paused){ if(lastRAF){ let acc=Math.min(50, now-lastRAF); while(acc>0){ step(); acc-=params.dt; } } else { step(); } drawNeuron(); drawAPBand(); drawIons(); drawScope(); drawInset(); } lastRAF=now; requestAnimationFrame(tick); };
+  let lastRAF=0; const tick=(now)=>{ if(!paused){ if(lastRAF){ let acc=Math.min(50, now-lastRAF); while(acc>0){ step(); acc-=params.dt; } } else { step(); } drawNeuron(); drawAPBand(); drawIons(); drawScope(); drawInset(); drawMembrane(); } lastRAF=now; requestAnimationFrame(tick); };
 
   resetAll(); requestAnimationFrame(tick);
 })();
