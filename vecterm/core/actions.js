@@ -123,6 +123,24 @@ export const GRID_TOGGLE = 'GRID_TOGGLE';
 // Player Input actions (for game mode)
 export const PLAYER_INPUT = 'PLAYER_INPUT';
 
+// Audio Engine actions (tines.js)
+export const AUDIO_INIT = 'AUDIO_INIT';
+export const AUDIO_DISPOSE = 'AUDIO_DISPOSE';
+export const AUDIO_PLAY_PATTERN = 'AUDIO_PLAY_PATTERN';
+export const AUDIO_STOP_PATTERN = 'AUDIO_STOP_PATTERN';
+export const AUDIO_STOP_ALL = 'AUDIO_STOP_ALL';
+export const AUDIO_STOP_CHANNEL = 'AUDIO_STOP_CHANNEL';
+export const AUDIO_SET_BPM = 'AUDIO_SET_BPM';
+export const AUDIO_SET_MASTER_VOLUME = 'AUDIO_SET_MASTER_VOLUME';
+export const AUDIO_SET_CHANNEL_VOLUME = 'AUDIO_SET_CHANNEL_VOLUME';
+export const AUDIO_SET_CHANNEL_MUTE = 'AUDIO_SET_CHANNEL_MUTE';
+export const AUDIO_SET_CONFIG = 'AUDIO_SET_CONFIG';
+export const AUDIO_CLOCK_START = 'AUDIO_CLOCK_START';
+export const AUDIO_CLOCK_STOP = 'AUDIO_CLOCK_STOP';
+export const AUDIO_CLOCK_PAUSE = 'AUDIO_CLOCK_PAUSE';
+export const AUDIO_CLOCK_RESUME = 'AUDIO_CLOCK_RESUME';
+export const AUDIO_LOAD_PRESET = 'AUDIO_LOAD_PRESET';
+
 // ==========================================
 // ACTION CREATORS
 // ==========================================
@@ -322,6 +340,51 @@ export const playerInput = (playerId, action, pressed) => ({
   payload: { playerId, action, pressed }
 });
 
+// Audio Engine
+export const audioInit = () => ({ type: AUDIO_INIT });
+export const audioDispose = () => ({ type: AUDIO_DISPOSE });
+export const audioPlayPattern = (channel, pattern, params = {}) => ({
+  type: AUDIO_PLAY_PATTERN,
+  payload: { channel, pattern, params }
+});
+export const audioStopPattern = (patternId) => ({
+  type: AUDIO_STOP_PATTERN,
+  payload: patternId
+});
+export const audioStopAll = () => ({ type: AUDIO_STOP_ALL });
+export const audioStopChannel = (channel) => ({
+  type: AUDIO_STOP_CHANNEL,
+  payload: channel
+});
+export const audioSetBPM = (bpm) => ({
+  type: AUDIO_SET_BPM,
+  payload: bpm
+});
+export const audioSetMasterVolume = (volume) => ({
+  type: AUDIO_SET_MASTER_VOLUME,
+  payload: volume
+});
+export const audioSetChannelVolume = (channel, volume) => ({
+  type: AUDIO_SET_CHANNEL_VOLUME,
+  payload: { channel, volume }
+});
+export const audioSetChannelMute = (channel, muted) => ({
+  type: AUDIO_SET_CHANNEL_MUTE,
+  payload: { channel, muted }
+});
+export const audioSetConfig = (config) => ({
+  type: AUDIO_SET_CONFIG,
+  payload: config
+});
+export const audioClockStart = () => ({ type: AUDIO_CLOCK_START });
+export const audioClockStop = () => ({ type: AUDIO_CLOCK_STOP });
+export const audioClockPause = () => ({ type: AUDIO_CLOCK_PAUSE });
+export const audioClockResume = () => ({ type: AUDIO_CLOCK_RESUME });
+export const audioLoadPreset = (presetName) => ({
+  type: AUDIO_LOAD_PRESET,
+  payload: presetName
+});
+
 // Vecterm namespace object for convenient imports
 export const vectermActions = {
   addEntity: vectermAddEntity,
@@ -349,4 +412,24 @@ export const vectermActions = {
   toggleGridVisible: vectermToggleGridVisible,
   setCharacterGrid: vectermSetCharacterGrid,
   setSquareGrid: vectermSetSquareGrid
+};
+
+// Audio namespace object for convenient imports
+export const audioActions = {
+  init: audioInit,
+  dispose: audioDispose,
+  playPattern: audioPlayPattern,
+  stopPattern: audioStopPattern,
+  stopAll: audioStopAll,
+  stopChannel: audioStopChannel,
+  setBPM: audioSetBPM,
+  setMasterVolume: audioSetMasterVolume,
+  setChannelVolume: audioSetChannelVolume,
+  setChannelMute: audioSetChannelMute,
+  setConfig: audioSetConfig,
+  clockStart: audioClockStart,
+  clockStop: audioClockStop,
+  clockPause: audioClockPause,
+  clockResume: audioClockResume,
+  loadPreset: audioLoadPreset
 };

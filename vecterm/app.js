@@ -1,208 +1,220 @@
 // ==========================================
-// REDUX DEMO - Main Application
+// VECTERM - Main Application Entry Point
 // ==========================================
+//
+// This file bootstraps the application using the BootManager.
+// The BootManager handles:
+// - Phased initialization with dependency tracking
+// - Health monitoring and timeout protection
+// - Graceful degradation for optional systems
+// - System retry capabilities
+// - Global status API
+//
+// For direct system access, use: window.Vecterm.System
+// For MIDI controls, use: window.Vecterm.MIDI
+// For audio controls, use: window.Vecterm.Tines
 
-// Import Redux core modules
-import { store, visualizationHooks, savedUIState } from './core/store-instance.js';
+import { bootApplication } from './core/boot-manager.js';
 import * as Actions from './core/actions.js';
 import { getQueryParams } from './utils/query-params.js';
 
-// Import UI modules
-import { createRenderer } from './ui/renderer.js';
-import { initializeEventHandlers, initializeUptimeCounter } from './ui/event-handlers.js';
-
-// Import CLI modules
-import { cliLog, initializeCLI } from './cli/terminal.js';
-import { addToHistory, navigateUp, navigateDown } from './cli/history.js';
-import { handleTabCompletion } from './cli/tab-completion.js';
-import { createCommandProcessor } from './cli/command-processor.js';
-import { initVT100Params } from './cli/vt100-params.js';
-
-// Import game manager
-import { createGameManager } from './games/game-manager.js';
-
-// Import vecterm demo
-import {
-  startVectermDemo,
-  stopVectermDemo,
-  getVectermCamera,
-  getVectermRenderer,
-  setupVectermInitialization
-} from './vecterm/vecterm-demo.js';
-
-// Import gamepad system
-import { GamepadInputSystem } from './GamepadInputSystem.js';
-
-// Import multiplayer system
-import { initializeMultiplayer } from './multiplayer.js';
-
 // ==========================================
-// SETUP DELAY CONTROL
+// BOOT APPLICATION
 // ==========================================
 
-// Expose delay control to visualization hooks
-const delayControl = {
-  get currentDelay() { return visualizationHooks.currentDelay; },
-  set currentDelay(val) { visualizationHooks.currentDelay = val; }
-};
+let bootManager;
 
-// ==========================================
-// SETUP GAME MANAGER
-// ==========================================
+(async () => {
+  try {
+    console.log('🚀 Starting Vecterm...');
 
-const gameManager = createGameManager(store);
-const { startGamePlay, stopGame, startGamePreview } = gameManager;
+    // Boot the application
+    bootManager = await bootApplication();
 
-// ==========================================
-// SETUP VECTERM CONTROLS
-// ==========================================
+    // Get systems from boot manager
+    const store = bootManager.getSystem('store');
 
-const vectermControls = {
-  get vectermCamera() { return getVectermCamera(); },
-  startVectermDemo,
-  stopVectermDemo,
-  getVectermRenderer
-};
+    // ==========================================
+    // POST-BOOT INITIALIZATION
+    // ==========================================
 
-// ==========================================
-// SETUP CLI COMMAND PROCESSOR
-// ==========================================
+    // Check query params and dispatch login
+    const params = getQueryParams();
+    if (params.name === 'mike' && params.pass === '1234') {
+      store.dispatch(Actions.login('mike'));
+    }
 
-const processCLICommand = createCommandProcessor(
-  store,
-  vectermControls,
-  gameManager
-);
+    // Set initial path
+    store.dispatch(Actions.setPath('/projects/redux-demo.md'));
 
-// ==========================================
-// SETUP RENDERER
-// ==========================================
+    // Initial render
+    const render = bootManager.getSystem('render');
+    render();
 
-const render = createRenderer(store, visualizationHooks);
+    // Add introductory canvas items with delay
+    setTimeout(() => store.dispatch(Actions.addCanvasItem('Welcome to Redux!')), 2000);
+    setTimeout(() => store.dispatch(Actions.addCanvasItem('Click buttons to dispatch actions')), 4000);
+    setTimeout(() => store.dispatch(Actions.addCanvasItem('Watch the flow diagram animate')), 6000);
 
-// Subscribe to state changes
-store.subscribe(render);
+    // ==========================================
+    // INITIALIZE GAMEPAD SYSTEM
+    // ==========================================
 
-// ==========================================
-// INITIALIZE EVENT HANDLERS
-// ==========================================
+    const gamepadSystem = bootManager.getSystem('gamepadSystem');
+    if (gamepadSystem) {
+      // Load gamepad mappings from JSON
+      try {
+        const response = await fetch('./gamepad-mappings.json');
+        const mappings = await response.json();
 
-initializeEventHandlers(store, delayControl, savedUIState, cliLog);
+        // Update Redux state with loaded mappings
+        store.dispatch(Actions.setGamepadConfig({ mappings }));
 
-// ==========================================
-// INITIALIZE CLI
-// ==========================================
-
-initializeCLI();
-initVT100Params();
-
-// CLI input: Enter key for command execution
-const cliInput = document.getElementById('cli-input');
-if (cliInput) {
-  cliInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      const command = e.target.value.trim();
-      if (command) {
-        // Add to history (avoid duplicates of last command)
-        addToHistory(command);
-        processCLICommand(command);
+        const { cliLog } = await import('./cli/terminal.js');
+        cliLog('Gamepad mappings loaded', 'success');
+      } catch (error) {
+        console.error('Failed to load gamepad mappings:', error);
+        const { cliLog } = await import('./cli/terminal.js');
+        cliLog('Warning: Failed to load gamepad mappings. Using defaults.', 'error');
       }
-      e.target.value = '';
+
+      gamepadSystem.init();
     }
-  });
 
-  // CLI input: Arrow keys for history, Tab for completion
-  cliInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      handleTabCompletion(cliInput, store, processCLICommand);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      cliInput.value = navigateUp(cliInput.value);
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      cliInput.value = navigateDown();
+    // ==========================================
+    // INITIALIZE MULTIPLAYER
+    // ==========================================
+
+    const { initializeMultiplayer } = await import('./multiplayer.js');
+    const { cliLog } = await import('./cli/terminal.js');
+    const multiplayerClient = initializeMultiplayer(store);
+    cliLog('Multiplayer system ready. Type "connect <name>" to join.', 'info');
+
+    // ==========================================
+    // MAIN ANIMATION LOOP (for gamepad polling)
+    // ==========================================
+
+    function animationLoop() {
+      // Poll gamepad state
+      if (gamepadSystem) {
+        gamepadSystem.poll();
+      }
+
+      // Continue loop
+      requestAnimationFrame(animationLoop);
     }
-  });
+
+    // Start animation loop
+    animationLoop();
+
+    console.log('✨ Vecterm ready!');
+
+  } catch (error) {
+    console.error('💥 Failed to boot Vecterm:', error);
+    console.error('Stack trace:', error.stack);
+
+    // Create error details for clipboard
+    const errorDetails = `
+=== VECTERM BOOT ERROR ===
+Time: ${new Date().toISOString()}
+Browser: ${navigator.userAgent}
+
+Error: ${error.message}
+
+Stack Trace:
+${error.stack}
+
+System Status:
+${bootManager ? JSON.stringify(bootManager.getSystemStatus(), null, 2) : 'Boot manager not initialized'}
+    `.trim();
+
+    // Store in window for copy button
+    window.__vectermError = errorDetails;
+
+    // Show error to user
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #1a1a1a;
+      border: 2px solid #ff4444;
+      padding: 40px;
+      border-radius: 8px;
+      font-family: monospace;
+      color: #ff4444;
+      max-width: 700px;
+    `;
+
+    errorDiv.innerHTML = `
+      <h2 style="margin-top: 0;">⚠️ Vecterm Failed to Start</h2>
+      <p><strong>Error:</strong> ${error.message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+
+      <details style="margin: 20px 0; color: #888;">
+        <summary style="cursor: pointer; color: #ff4444;">Show Stack Trace</summary>
+        <pre style="
+          background: #0a0a0a;
+          padding: 15px;
+          border-radius: 4px;
+          overflow: auto;
+          max-height: 300px;
+          font-size: 11px;
+          margin-top: 10px;
+          color: #ccc;
+        ">${error.stack.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+      </details>
+
+      <div style="display: flex; gap: 10px;">
+        <button id="copy-error-btn" style="
+          background: #666;
+          color: #fff;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-family: monospace;
+          font-weight: bold;
+        ">
+          Copy Error Details
+        </button>
+        <button id="reload-btn" style="
+          background: #ff4444;
+          color: #000;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-family: monospace;
+          font-weight: bold;
+        ">
+          Reload Page
+        </button>
+      </div>
+    `;
+
+    document.body.innerHTML = '';
+    document.body.appendChild(errorDiv);
+
+    // Attach event listeners
+    document.getElementById('copy-error-btn').addEventListener('click', function() {
+      navigator.clipboard.writeText(window.__vectermError).then(() => {
+        this.textContent = '✓ Copied!';
+        setTimeout(() => this.textContent = 'Copy Error Details', 2000);
+      });
+    });
+
+    document.getElementById('reload-btn').addEventListener('click', () => {
+      location.reload();
+    });
+  }
+})();
+
+// ==========================================
+// GLOBAL EXPORTS FOR DEBUGGING
+// ==========================================
+
+// Expose boot manager for debugging
+if (typeof window !== 'undefined') {
+  window.__bootManager = () => bootManager;
 }
-
-// ==========================================
-// INITIALIZE VECTERM
-// ==========================================
-
-setupVectermInitialization();
-
-// ==========================================
-// INITIALIZE UPTIME COUNTER
-// ==========================================
-
-initializeUptimeCounter();
-
-// ==========================================
-// INITIALIZATION
-// ==========================================
-
-// Check query params and dispatch login
-const params = getQueryParams();
-if (params.name === 'mike' && params.pass === '1234') {
-  store.dispatch(Actions.login('mike'));
-}
-
-// Set initial path
-store.dispatch(Actions.setPath('/projects/redux-demo.md'));
-
-// Initial render
-render();
-
-// Add introductory canvas items with delay
-setTimeout(() => store.dispatch(Actions.addCanvasItem('Welcome to Redux!')), 2000);
-setTimeout(() => store.dispatch(Actions.addCanvasItem('Click buttons to dispatch actions')), 4000);
-setTimeout(() => store.dispatch(Actions.addCanvasItem('Watch the flow diagram animate')), 6000);
-
-// ==========================================
-// INITIALIZE GAMEPAD SYSTEM
-// ==========================================
-
-// Load gamepad mappings from JSON
-let gamepadMappings = null;
-fetch('./gamepad-mappings.json')
-  .then(response => response.json())
-  .then(mappings => {
-    gamepadMappings = mappings;
-
-    // Update Redux state with loaded mappings
-    store.dispatch(Actions.setGamepadConfig({ mappings }));
-
-    cliLog('Gamepad mappings loaded', 'success');
-  })
-  .catch(error => {
-    console.error('Failed to load gamepad mappings:', error);
-    cliLog('Warning: Failed to load gamepad mappings. Using defaults.', 'error');
-  });
-
-// Initialize gamepad input system
-const gamepadSystem = new GamepadInputSystem(store, gamepadMappings);
-gamepadSystem.init();
-
-// ==========================================
-// INITIALIZE MULTIPLAYER
-// ==========================================
-
-// Initialize multiplayer system
-const multiplayerClient = initializeMultiplayer(store);
-cliLog('Multiplayer system ready. Type "connect <name>" to join.', 'info');
-
-// ==========================================
-// MAIN ANIMATION LOOP (for gamepad polling)
-// ==========================================
-
-function animationLoop() {
-  // Poll gamepad state
-  gamepadSystem.poll();
-
-  // Continue loop
-  requestAnimationFrame(animationLoop);
-}
-
-// Start animation loop
-animationLoop();

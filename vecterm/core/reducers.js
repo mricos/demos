@@ -3,6 +3,8 @@
 // ==========================================
 
 import * as ActionTypes from './actions.js';
+import { midiReducer, initialMidiState, MIDI_ACTIONS } from '../modules/midi/midi-context.js';
+import { vscopeReducer, initialVscopeState, vscopeActions } from '../modules/vscope/index.js';
 
 export const initialState = {
   // Legacy state
@@ -139,6 +141,46 @@ export const initialState = {
     mappings: null,            // Loaded mappings (will be set from JSON)
     deadzone: 0.15             // Analog stick deadzone threshold
   },
+
+  // Audio Engine State (tines.js)
+  audio: {
+    initialized: false,        // Whether audio engine is initialized
+    bpm: 120,                  // Beats per minute
+    masterVolume: 0.7,         // Master volume (0-1)
+    playing: false,            // Whether clock is playing
+    patterns: {},              // Active patterns by ID
+    channels: {                // Channel states
+      drone: { volume: 1.0, muted: false },
+      synth: { volume: 1.0, muted: false },
+      bells: { volume: 1.0, muted: false },
+      drums: { volume: 1.0, muted: false }
+    },
+    config: {                  // Engine configuration
+      maxVoices: 16,
+      swing: 0,
+      subdivision: 16,
+      // Instrument defaults
+      drone: {
+        waveform: 'sawtooth',
+        detune: 10,
+        voices: 3,
+        filterFreq: 2000,
+        filterQ: 1,
+        lfoRate: 0.2,
+        lfoDepth: 0.3,
+        volume: 0.5,
+        attack: 2.0,
+        release: 2.0
+      }
+    },
+    presets: {}                // Saved pattern presets
+  },
+
+  // MIDI Controller State
+  midi: initialMidiState,
+
+  // VScope State
+  vscope: initialVscopeState,
 
   // Vecterm 3D rendering state
   vecterm: {
@@ -1408,6 +1450,236 @@ export function rootReducer(state = initialState, action) {
             }
           }
         }
+      };
+
+    // Audio Engine actions
+    case ActionTypes.AUDIO_INIT:
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          initialized: true
+        }
+      };
+
+    case ActionTypes.AUDIO_DISPOSE:
+      return {
+        ...state,
+        audio: {
+          ...initialState.audio,
+          initialized: false
+        }
+      };
+
+    case ActionTypes.AUDIO_PLAY_PATTERN:
+      const patternId = `${action.payload.channel}_${Date.now()}`;
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          patterns: {
+            ...state.audio.patterns,
+            [patternId]: {
+              id: patternId,
+              channel: action.payload.channel,
+              pattern: action.payload.pattern,
+              params: action.payload.params,
+              playing: true
+            }
+          }
+        }
+      };
+
+    case ActionTypes.AUDIO_STOP_PATTERN: {
+      const { [action.payload]: removedPattern, ...remainingPatterns } = state.audio.patterns;
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          patterns: remainingPatterns
+        }
+      };
+    }
+
+    case ActionTypes.AUDIO_STOP_ALL:
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          patterns: {},
+          playing: false
+        }
+      };
+
+    case ActionTypes.AUDIO_STOP_CHANNEL:
+      const channelPatterns = Object.fromEntries(
+        Object.entries(state.audio.patterns)
+          .filter(([id, p]) => p.channel !== action.payload)
+      );
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          patterns: channelPatterns
+        }
+      };
+
+    case ActionTypes.AUDIO_SET_BPM:
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          bpm: action.payload
+        }
+      };
+
+    case ActionTypes.AUDIO_SET_MASTER_VOLUME:
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          masterVolume: action.payload
+        }
+      };
+
+    case ActionTypes.AUDIO_SET_CHANNEL_VOLUME:
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          channels: {
+            ...state.audio.channels,
+            [action.payload.channel]: {
+              ...state.audio.channels[action.payload.channel],
+              volume: action.payload.volume
+            }
+          }
+        }
+      };
+
+    case ActionTypes.AUDIO_SET_CHANNEL_MUTE:
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          channels: {
+            ...state.audio.channels,
+            [action.payload.channel]: {
+              ...state.audio.channels[action.payload.channel],
+              muted: action.payload.muted
+            }
+          }
+        }
+      };
+
+    case ActionTypes.AUDIO_SET_CONFIG:
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          config: {
+            ...state.audio.config,
+            ...action.payload
+          }
+        }
+      };
+
+    case ActionTypes.AUDIO_CLOCK_START:
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          playing: true
+        }
+      };
+
+    case ActionTypes.AUDIO_CLOCK_STOP:
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          playing: false
+        }
+      };
+
+    case ActionTypes.AUDIO_CLOCK_PAUSE:
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          playing: false
+        }
+      };
+
+    case ActionTypes.AUDIO_CLOCK_RESUME:
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          playing: true
+        }
+      };
+
+    case ActionTypes.AUDIO_LOAD_PRESET:
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          ...state.audio.presets[action.payload]
+        }
+      };
+
+    // MIDI Controller actions - delegate to midiReducer
+    case MIDI_ACTIONS.MIDI_DEVICES_DETECTED:
+    case MIDI_ACTIONS.MIDI_DEVICE_CONNECTED:
+    case MIDI_ACTIONS.MIDI_DEVICE_DISCONNECTED:
+    case MIDI_ACTIONS.MIDI_DEVICE_SELECT:
+    case MIDI_ACTIONS.MIDI_VISUAL_TOGGLE:
+    case MIDI_ACTIONS.MIDI_VISUAL_MOVE:
+    case MIDI_ACTIONS.MIDI_VISUAL_RESIZE:
+    case MIDI_ACTIONS.MIDI_CONTROL_CHANGE:
+    case MIDI_ACTIONS.MIDI_BUTTON_PRESS:
+    case MIDI_ACTIONS.MIDI_BUTTON_RELEASE:
+    case MIDI_ACTIONS.MIDI_MAP_CONTROL:
+    case MIDI_ACTIONS.MIDI_UNMAP_CONTROL:
+    case MIDI_ACTIONS.MIDI_RESET_MAPPINGS:
+    case MIDI_ACTIONS.MIDI_LEARN_START:
+    case MIDI_ACTIONS.MIDI_LEARN_COMPLETE:
+    case MIDI_ACTIONS.MIDI_LEARN_CANCEL:
+    case MIDI_ACTIONS.MIDI_TRANSPORT_PLAY:
+    case MIDI_ACTIONS.MIDI_TRANSPORT_STOP:
+    case MIDI_ACTIONS.MIDI_TRANSPORT_RECORD:
+    case MIDI_ACTIONS.MIDI_TRANSPORT_TEMPO:
+      return {
+        ...state,
+        midi: midiReducer(state.midi, action)
+      };
+
+    // VScope Actions
+    case 'VSCOPE_ENABLE':
+    case 'VSCOPE_DISABLE':
+    case 'VSCOPE_SET_CONTEXT':
+    case 'VSCOPE_SET_ACTIVE_CAMERA':
+    case 'VSCOPE_UPDATE_CAMERA':
+    case 'VSCOPE_RESET_CAMERA':
+    case 'VSCOPE_TRACK_ENTITY':
+    case 'VSCOPE_TRACK_ENTITIES':
+    case 'VSCOPE_TRACK_REGION':
+    case 'VSCOPE_RESET_TRACKING':
+    case 'VSCOPE_UPDATE_TRACKING':
+    case 'VSCOPE_SET_FIELD_MODE':
+    case 'VSCOPE_UPDATE_FIELD_REGION':
+    case 'VSCOPE_UPDATE_EFFECT':
+    case 'VSCOPE_SET_QUADRANT':
+    case 'VSCOPE_SET_UPDATE_RATE':
+    case 'VSCOPE_SET_PROJECTION_ALGORITHM':
+    case 'VSCOPE_SET_PROJECTION_FLATTEN':
+    case 'VSCOPE_TOGGLE_BORDER_BOX':
+    case 'VSCOPE_TOGGLE_CONNECTION_LINES':
+    case 'VSCOPE_SET_PIXEL_GRID_RESOLUTION':
+      return {
+        ...state,
+        vscope: vscopeReducer(state.vscope, action)
       };
 
     default:

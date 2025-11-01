@@ -17,8 +17,14 @@ import { loadState } from './actions.js';
 const visualizationHooks = {
   currentDelay: 1000,
   actionHistory: [],
+  animationEnabled: false, // Off by default, toggle to see state flow visualization
 
   async visualizeStep(stepId, action) {
+    // Skip animation if disabled
+    if (!this.animationEnabled) {
+      return;
+    }
+
     // Remove active class from all steps
     document.querySelectorAll('.flow-step').forEach(step => {
       step.classList.remove('active');
@@ -70,16 +76,38 @@ const visualizationHooks = {
     const display = document.getElementById('state-display');
     if (!display) return;
 
-    // Colorized JSON syntax highlighting
-    const json = JSON.stringify(state, null, 2);
-    const colorized = json
-      .replace(/(".*?"):/g, '<span class="json-key">$1</span>:')
-      .replace(/: (".*?")/g, ': <span class="json-string">$1</span>')
-      .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
-      .replace(/: (null)/g, ': <span class="json-null">$1</span>')
-      .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
+    // Use the enhanced JSON viewer with mapping support
+    // Import dynamically to avoid circular dependencies
+    import('../cli/json-renderer.js').then(({ createJsonViewer }) => {
+      display.innerHTML = ''; // Clear previous content
 
-    display.innerHTML = colorized;
+      const viewer = createJsonViewer(state, {
+        collapsedDepth: 2,
+        maxArrayItems: 50,
+        maxStringLength: 200,
+        showDataTypes: false,
+        rootCollapsed: false,
+        enableMapping: true,
+        onMapParameter: (path, value) => {
+          // Trigger MIDI learn mode for this parameter
+          if (window.Vecterm?.MIDI?.learnParameter) {
+            window.Vecterm.MIDI.learnParameter(path);
+            if (window.Vecterm?.CLI?.log) {
+              window.Vecterm.CLI.log(`✓ MIDI learn activated for: ${path}`, 'success');
+              window.Vecterm.CLI.log(`Move any MIDI control to map it`, '');
+            }
+          } else {
+            console.log(`Parameter selected for mapping: ${path} = ${value}`);
+          }
+        }
+      });
+
+      display.appendChild(viewer);
+    }).catch(err => {
+      console.error('Failed to load JSON viewer:', err);
+      // Fallback to simple display
+      display.textContent = JSON.stringify(state, null, 2);
+    });
   },
 
   updateHUD() {

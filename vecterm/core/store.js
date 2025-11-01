@@ -15,7 +15,8 @@ export function createStore(reducer, enhancer, hooks = {}) {
     return enhancer(createStore)(reducer, null, hooks);
   }
 
-  let state;
+  // Initialize state immediately (synchronously) before any async operations
+  let state = reducer(undefined, { type: '@@INIT' });
   let listeners = [];
 
   const getState = () => state;
@@ -56,9 +57,6 @@ export function createStore(reducer, enhancer, hooks = {}) {
       listeners = listeners.filter(l => l !== listener);
     };
   };
-
-  // Initialize state
-  dispatch({ type: '@@INIT' });
 
   return { getState, dispatch, subscribe };
 }

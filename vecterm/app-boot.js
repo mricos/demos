@@ -69,9 +69,4 @@ if (document.readyState === 'loading') {
   main();
 }
 
-// Export for debugging
-window.__vecterm = {
-  get bootManager() {
-    return require('./core/boot-manager.js').bootManager;
-  }
-};
+// Export for debugging (use window.__bootManager() from app.js instead)
