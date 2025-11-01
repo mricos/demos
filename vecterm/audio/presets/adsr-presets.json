@@ -1,0 +1,142 @@
+{
+  "pluck": {
+    "name": "Pluck",
+    "description": "Sharp plucked string sound",
+    "attack": 0.001,
+    "attackCurve": 0.5,
+    "decay": 0.3,
+    "decayCurve": 2.0,
+    "sustain": 0.0,
+    "release": 0.1
+  },
+  "stab": {
+    "name": "Stab",
+    "description": "Sharp synth stab",
+    "attack": 0.001,
+    "attackCurve": 0.3,
+    "decay": 0.15,
+    "decayCurve": 1.5,
+    "sustain": 0.0,
+    "release": 0.05
+  },
+  "perc": {
+    "name": "Percussion",
+    "description": "General percussion envelope",
+    "attack": 0.001,
+    "attackCurve": 1.0,
+    "decay": 0.1,
+    "decayCurve": 1.0,
+    "sustain": 0.0,
+    "release": 0.05
+  },
+  "pad": {
+    "name": "Pad",
+    "description": "Lush atmospheric pad",
+    "attack": 0.5,
+    "attackCurve": 2.0,
+    "decay": 0.3,
+    "decayCurve": 1.5,
+    "sustain": 0.7,
+    "release": 1.0
+  },
+  "organ": {
+    "name": "Organ",
+    "description": "Classic organ envelope",
+    "attack": 0.01,
+    "attackCurve": 1.0,
+    "decay": 0.05,
+    "decayCurve": 1.0,
+    "sustain": 1.0,
+    "release": 0.05
+  },
+  "brass": {
+    "name": "Brass",
+    "description": "Brass instrument envelope",
+    "attack": 0.1,
+    "attackCurve": 1.2,
+    "decay": 0.2,
+    "decayCurve": 1.5,
+    "sustain": 0.8,
+    "release": 0.2
+  },
+  "strings": {
+    "name": "Strings",
+    "description": "String section envelope",
+    "attack": 0.3,
+    "attackCurve": 1.5,
+    "decay": 0.2,
+    "decayCurve": 1.0,
+    "sustain": 0.9,
+    "release": 0.5
+  },
+  "bell": {
+    "name": "Bell",
+    "description": "Bell-like metallic tone",
+    "attack": 0.001,
+    "attackCurve": 0.3,
+    "decay": 1.0,
+    "decayCurve": 2.5,
+    "sustain": 0.2,
+    "release": 0.8
+  },
+  "glass": {
+    "name": "Glass",
+    "description": "Glassy FM-like tone",
+    "attack": 0.001,
+    "attackCurve": 0.2,
+    "decay": 0.5,
+    "decayCurve": 3.0,
+    "sustain": 0.1,
+    "release": 0.6
+  },
+  "synth-lead": {
+    "name": "Synth Lead",
+    "description": "Classic synth lead",
+    "attack": 0.01,
+    "attackCurve": 0.8,
+    "decay": 0.1,
+    "decayCurve": 1.2,
+    "sustain": 0.6,
+    "release": 0.2
+  },
+  "synth-bass": {
+    "name": "Synth Bass",
+    "description": "Punchy synth bass",
+    "attack": 0.001,
+    "attackCurve": 0.5,
+    "decay": 0.2,
+    "decayCurve": 1.5,
+    "sustain": 0.4,
+    "release": 0.15
+  },
+  "kick": {
+    "name": "Kick Drum",
+    "description": "Kick drum envelope",
+    "attack": 0.001,
+    "attackCurve": 0.3,
+    "decay": 0.2,
+    "decayCurve": 3.0,
+    "sustain": 0.0,
+    "release": 0.01
+  },
+  "snare": {
+    "name": "Snare Drum",
+    "description": "Snare drum envelope",
+    "attack": 0.001,
+    "attackCurve": 0.2,
+    "decay": 0.1,
+    "decayCurve": 2.0,
+    "sustain": 0.0,
+    "release": 0.05
+  },
+  "hihat": {
+    "name": "Hi-Hat",
+    "description": "Hi-hat envelope",
+    "attack": 0.001,
+    "attackCurve": 0.5,
+    "decay": 0.05,
+    "decayCurve": 1.5,
+    "sustain": 0.0,
+    "release": 0.02
+  }
+}
