@@ -116,6 +116,36 @@ function updateConsoleGlow(intensity) {
   if (!cliPanel) return;
 
   cliPanel.style.setProperty('--vt100-glow-intensity', intensity);
+
+  // Update dynamic glow animation with scaled values
+  let styleEl = document.getElementById('vt100-glow-animation');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'vt100-glow-animation';
+    document.head.appendChild(styleEl);
+  }
+
+  // Scale animation values based on intensity
+  const minGlow = intensity * 0.6;  // Lower bound
+  const maxGlow = intensity * 1.0;  // Upper bound
+  const minInset = intensity * 0.3;
+  const maxInset = intensity * 0.5;
+
+  styleEl.textContent = `
+    @keyframes vt100BorderGlow {
+      0% {
+        box-shadow:
+          0 0 8px rgba(79, 195, 247, ${minGlow}),
+          inset 0 0 50px rgba(79, 195, 247, ${minInset});
+      }
+      100% {
+        box-shadow:
+          0 0 15px rgba(79, 195, 247, ${maxGlow}),
+          inset 0 0 80px rgba(79, 195, 247, ${maxInset});
+      }
+    }
+  `;
+
   cliPanel.offsetHeight; // Force reflow
 }
 
@@ -129,6 +159,34 @@ function updateConsoleGlowspeed(speed) {
   if (!cliPanel) return;
 
   cliPanel.style.setProperty('--vt100-glow-speed', `${speed}s`);
+  cliPanel.offsetHeight; // Force reflow
+}
+
+/**
+ * Silently update console VT100 border intensity
+ *
+ * @param {number} intensity - Border intensity (0-1)
+ */
+function updateConsoleBorder(intensity) {
+  const cliPanel = document.getElementById('cli-panel');
+  if (!cliPanel) return;
+
+  // Update border color with alpha channel
+  const r = 79, g = 195, b = 247; // #4fc3f7
+  cliPanel.style.border = `1px solid rgba(${r}, ${g}, ${b}, ${intensity})`;
+  cliPanel.offsetHeight; // Force reflow
+}
+
+/**
+ * Silently update console VT100 border width
+ *
+ * @param {number} width - Border width in pixels (0-5)
+ */
+function updateConsoleBorderwidth(width) {
+  const cliPanel = document.getElementById('cli-panel');
+  if (!cliPanel) return;
+
+  cliPanel.style.borderWidth = `${width}px`;
   cliPanel.offsetHeight; // Force reflow
 }
 
@@ -160,41 +218,258 @@ function updateGameVT100(property, value) {
 }
 
 /**
- * Map command to silent updater function
+ * Silently update tines BPM
  *
+ * @param {number} bpm - BPM value (20-300)
+ */
+function updateTinesBPM(bpm) {
+  if (window.Vecterm && window.Vecterm.Tines) {
+    try {
+      window.Vecterm.Tines.bpm(Math.round(bpm));
+    } catch (error) {
+      console.error('Failed to update BPM:', error);
+    }
+  }
+}
+
+/**
+ * Silently update tines master volume
+ *
+ * @param {number} volume - Volume value (0-1)
+ */
+function updateTinesVolume(volume) {
+  if (window.Vecterm && window.Vecterm.Tines) {
+    try {
+      window.Vecterm.Tines.volume(volume);
+    } catch (error) {
+      console.error('Failed to update volume:', error);
+    }
+  }
+}
+
+/**
+ * Silently update tines channel pan
+ *
+ * @param {string} channel - Channel name
+ * @param {number} pan - Pan value (-1 to 1)
+ */
+function updateTinesPan(channel, pan) {
+  if (window.Vecterm && window.Vecterm.Tines) {
+    try {
+      window.Vecterm.Tines.pan(channel, pan);
+    } catch (error) {
+      console.error(`Failed to update ${channel} pan:`, error);
+    }
+  }
+}
+
+/**
+ * Parameter value registry and listeners
+ */
+const parameterValues = new Map();
+const parameterListeners = new Map();
+
+/**
+ * Subscribe to parameter changes
+ * @param {string} command - Command name to listen to
+ * @param {Function} callback - Called with (command, value) when parameter changes
+ * @returns {Function} Unsubscribe function
+ */
+function onParameterChange(command, callback) {
+  if (!parameterListeners.has(command)) {
+    parameterListeners.set(command, new Set());
+  }
+  parameterListeners.get(command).add(callback);
+
+  // Return unsubscribe function
+  return () => {
+    const listeners = parameterListeners.get(command);
+    if (listeners) {
+      listeners.delete(callback);
+    }
+  };
+}
+
+/**
+ * Notify all listeners that a parameter changed
  * @param {string} command - Command name
  * @param {number} value - New value
  */
-function updateVT100Silent(command, value) {
+function notifyParameterChange(command, value) {
+  const listeners = parameterListeners.get(command);
+  if (listeners) {
+    listeners.forEach(callback => {
+      try {
+        callback(command, value);
+      } catch (error) {
+        console.error(`Error in parameter listener for ${command}:`, error);
+      }
+    });
+  }
+}
+
+/**
+ * Parameter metadata for proper value scaling and rounding
+ */
+const parameterMetadata = {
+  'vt100.scanlines': { min: 0, max: 1, step: 0.05 },
+  'vt100.scanspeed': { min: 1, max: 20, step: 0.5 },
+  'vt100.wave': { min: 0, max: 10, step: 0.5 },
+  'vt100.wavespeed': { min: 1, max: 10, step: 0.5 },
+  'vt100.glow': { min: 0, max: 1, step: 0.05 },
+  'vt100.glowspeed': { min: 1, max: 10, step: 0.5 },
+  'vt100.border': { min: 0, max: 1, step: 0.05 },
+  'vt100.borderwidth': { min: 0, max: 5, step: 0.5 },
+  'tines.bpm': { min: 20, max: 300, step: 1 },
+  'tines.volume': { min: 0, max: 1, step: 0.01 },
+  'tines.pan.drone': { min: -1, max: 1, step: 0.05 },
+  'tines.pan.bells': { min: -1, max: 1, step: 0.05 },
+  'tines.pan.synth': { min: -1, max: 1, step: 0.05 }
+};
+
+/**
+ * Round value to nearest step
+ * @param {number} value - Raw value
+ * @param {number} step - Step size
+ * @returns {number} Rounded value
+ */
+function roundToStep(value, step) {
+  return Math.round(value / step) * step;
+}
+
+/**
+ * Normalize and scale value based on parameter metadata
+ * @param {string} command - Command name
+ * @param {number} value - Input value (0-1 for MIDI, or actual value)
+ * @param {boolean} isMidiValue - Whether value is 0-1 normalized MIDI value
+ * @returns {number} Scaled and rounded value
+ */
+function normalizeValue(command, value, isMidiValue = false) {
+  const metadata = parameterMetadata[command];
+  if (!metadata) return value;
+
+  let scaledValue = value;
+
+  // If it's a MIDI value (0-1), scale to parameter range
+  if (isMidiValue) {
+    scaledValue = metadata.min + (value * (metadata.max - metadata.min));
+  }
+
+  // Round to step
+  scaledValue = roundToStep(scaledValue, metadata.step);
+
+  // Clamp to range
+  return Math.max(metadata.min, Math.min(metadata.max, scaledValue));
+}
+
+/**
+ * Map command to updater function
+ *
+ * @param {string} command - Command name
+ * @param {number} value - New value (0-1 for MIDI, or actual value)
+ * @param {boolean} isMidiValue - Whether value is 0-1 normalized MIDI value
+ */
+function update(command, value, isMidiValue = false) {
+  // Normalize and scale value
+  const finalValue = normalizeValue(command, value, isMidiValue);
+
+  // Store the value in registry
+  parameterValues.set(command, finalValue);
+
   const handlers = {
-    'console.vt100.scanlines': () => updateConsoleScanlines(value),
-    'console.vt100.scanspeed': () => updateConsoleScanspeed(value),
-    'console.vt100.wave': () => updateConsoleWave(value),
-    'console.vt100.wavespeed': () => updateConsoleWavespeed(value),
-    'console.vt100.glow': () => updateConsoleGlow(value),
-    'console.vt100.glowspeed': () => updateConsoleGlowspeed(value),
-    'game.vt100.wave': () => updateGameVT100('wave', value),
-    'game.vt100.drift': () => updateGameVT100('drift', value),
-    'game.vt100.jitter': () => updateGameVT100('jitter', value),
-    'game.vt100.scanlines': () => updateGameVT100('scanlines', value),
-    'game.vt100.bloom': () => updateGameVT100('bloom', value),
-    'game.vt100.brightness': () => updateGameVT100('brightness', value),
-    'game.vt100.contrast': () => updateGameVT100('contrast', value)
+    'vt100.scanlines': () => updateConsoleScanlines(finalValue),
+    'vt100.scanspeed': () => updateConsoleScanspeed(finalValue),
+    'vt100.wave': () => updateConsoleWave(finalValue),
+    'vt100.wavespeed': () => updateConsoleWavespeed(finalValue),
+    'vt100.glow': () => updateConsoleGlow(finalValue),
+    'vt100.glowspeed': () => updateConsoleGlowspeed(finalValue),
+    'vt100.border': () => updateConsoleBorder(finalValue),
+    'vt100.borderwidth': () => updateConsoleBorderwidth(finalValue),
+    'game.vt100.wave': () => updateGameVT100('wave', finalValue),
+    'game.vt100.drift': () => updateGameVT100('drift', finalValue),
+    'game.vt100.jitter': () => updateGameVT100('jitter', finalValue),
+    'game.vt100.scanlines': () => updateGameVT100('scanlines', finalValue),
+    'game.vt100.bloom': () => updateGameVT100('bloom', finalValue),
+    'game.vt100.brightness': () => updateGameVT100('brightness', finalValue),
+    'game.vt100.contrast': () => updateGameVT100('contrast', finalValue),
+    'tines.bpm': () => updateTinesBPM(finalValue),
+    'tines.volume': () => updateTinesVolume(finalValue),
+    'tines.pan.drone': () => updateTinesPan('drone', finalValue),
+    'tines.pan.bells': () => updateTinesPan('bells', finalValue),
+    'tines.pan.synth': () => updateTinesPan('synth', finalValue)
   };
 
   const handler = handlers[command];
   if (handler) {
     handler();
   }
+
+  // Notify all listeners about the change
+  notifyParameterChange(command, finalValue);
+}
+
+/**
+ * Initialize parameter update API
+ * Sets up window.Vecterm.update() at top level (generic parameter router)
+ * and window.Vecterm.vt100 for vt100-specific utilities
+ */
+function initVT100API() {
+  if (!window.Vecterm) {
+    window.Vecterm = {};
+  }
+
+  // Top-level generic update (routes to any destination)
+  window.Vecterm.update = update;
+
+  // Parameter synchronization API
+  window.Vecterm.onParameterChange = onParameterChange;
+  window.Vecterm.getParameterValue = (command) => parameterValues.get(command);
+
+  // VT100-specific namespace for direct access to VT100 utilities
+  window.Vecterm.vt100 = {
+    updateConsoleScanlines,
+    updateConsoleScanspeed,
+    updateConsoleWave,
+    updateConsoleWavespeed,
+    updateConsoleGlow,
+    updateConsoleGlowspeed,
+    updateConsoleBorder,
+    updateConsoleBorderwidth,
+    updateGameVT100
+  };
+
+  // Tines-specific utilities (if not already defined by tines-manager)
+  if (!window.Vecterm.Tines) {
+    window.Vecterm.Tines = {};
+  }
+  if (!window.Vecterm.Tines.updateBPM) {
+    window.Vecterm.Tines.updateBPM = updateTinesBPM;
+    window.Vecterm.Tines.updateVolume = updateTinesVolume;
+    window.Vecterm.Tines.updatePan = updateTinesPan;
+  }
+}
+
+// Initialize on module load
+if (typeof window !== 'undefined') {
+  initVT100API();
 }
 
 export {
+  update,
+  onParameterChange,
   updateConsoleScanlines,
   updateConsoleScanspeed,
   updateConsoleWave,
   updateConsoleWavespeed,
   updateConsoleGlow,
   updateConsoleGlowspeed,
+  updateConsoleBorder,
+  updateConsoleBorderwidth,
   updateGameVT100,
-  updateVT100Silent
+  updateTinesBPM,
+  updateTinesVolume,
+  updateTinesPan,
+  initVT100API,
+  // Backwards compatibility
+  update as updateVT100Silent
 };

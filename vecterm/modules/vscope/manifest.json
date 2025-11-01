@@ -1,0 +1,230 @@
+{
+  "name": "vscope",
+  "version": "1.0.0",
+  "description": "Vectorscope - visual mapping between field canvas and VT100 terminal with dual camera system and entity tracking",
+  "entrypoint": "index.js",
+  "commands": [
+    {
+      "name": "vscope",
+      "description": "Enter vscope context",
+      "args": [],
+      "examples": ["vscope"]
+    },
+    {
+      "namespace": "vscope",
+      "name": "enable",
+      "description": "Enable vectorscope system",
+      "args": [],
+      "examples": ["vscope.enable"]
+    },
+    {
+      "namespace": "vscope",
+      "name": "disable",
+      "description": "Disable vectorscope system",
+      "args": [],
+      "examples": ["vscope.disable"]
+    },
+    {
+      "namespace": "vscope",
+      "name": "status",
+      "description": "Show vscope status and configuration",
+      "args": [],
+      "examples": ["vscope.status"]
+    },
+    {
+      "namespace": "vscope.camera",
+      "name": "field",
+      "description": "Switch to field camera controls",
+      "args": [],
+      "examples": ["vscope.camera.field"]
+    },
+    {
+      "namespace": "vscope.camera",
+      "name": "scope",
+      "description": "Switch to scope camera controls",
+      "args": [],
+      "examples": ["vscope.camera.scope"]
+    },
+    {
+      "namespace": "vscope.camera",
+      "name": "pan",
+      "description": "Pan active camera",
+      "args": ["<x>", "<y>"],
+      "examples": ["vscope.camera.pan 100 50"]
+    },
+    {
+      "namespace": "vscope.camera",
+      "name": "zoom",
+      "description": "Set active camera zoom",
+      "args": ["<factor>"],
+      "examples": ["vscope.camera.zoom 2.0"]
+    },
+    {
+      "namespace": "vscope.camera",
+      "name": "projection",
+      "description": "Set active camera projection mode",
+      "args": ["<mode>"],
+      "examples": ["vscope.camera.projection perspective", "vscope.camera.projection orthographic"]
+    },
+    {
+      "namespace": "vscope.camera",
+      "name": "reset",
+      "description": "Reset active camera to defaults",
+      "args": [],
+      "examples": ["vscope.camera.reset"]
+    },
+    {
+      "namespace": "vscope.field",
+      "name": "vector",
+      "description": "Switch to vector rendering mode",
+      "args": [],
+      "examples": ["vscope.field.vector"]
+    },
+    {
+      "namespace": "vscope.field",
+      "name": "grid",
+      "description": "Switch to grid overlay mode",
+      "args": [],
+      "examples": ["vscope.field.grid"]
+    },
+    {
+      "namespace": "vscope.field",
+      "name": "pixel",
+      "description": "Switch to pixel/raster mode",
+      "args": [],
+      "examples": ["vscope.field.pixel"]
+    },
+    {
+      "namespace": "vscope.track",
+      "name": "entity",
+      "description": "Track a single entity",
+      "args": ["<entityId>"],
+      "examples": ["vscope.track.entity ball", "vscope.track.entity player1"]
+    },
+    {
+      "namespace": "vscope.track",
+      "name": "entities",
+      "description": "Track multiple entities",
+      "args": ["<entityIds>"],
+      "examples": ["vscope.track.entities ball,paddle-left,paddle-right"]
+    },
+    {
+      "namespace": "vscope.track",
+      "name": "region",
+      "description": "Track a static region (microscope mode)",
+      "args": ["<x>", "<y>", "<width>", "<height>"],
+      "examples": ["vscope.track.region 100 100 400 300"]
+    },
+    {
+      "namespace": "vscope.track",
+      "name": "reset",
+      "description": "Reset tracking to full field view",
+      "args": [],
+      "examples": ["vscope.track.reset"]
+    },
+    {
+      "namespace": "vscope",
+      "name": "quadrant",
+      "description": "Set terminal display quadrant (0=full, 1-4=quadrants)",
+      "args": ["<quadrant>"],
+      "examples": ["vscope.quadrant 1", "vscope.quadrant 0"]
+    },
+    {
+      "namespace": "vscope",
+      "name": "updaterate",
+      "description": "Set terminal update rate in FPS",
+      "args": ["<fps>"],
+      "examples": ["vscope.updaterate 30"]
+    }
+  ],
+  "completions": [
+    {
+      "pattern": "vscope.",
+      "options": [
+        "enable",
+        "disable",
+        "status",
+        "camera",
+        "field",
+        "track",
+        "quadrant",
+        "updaterate"
+      ]
+    },
+    {
+      "pattern": "vscope.camera.",
+      "options": [
+        "field",
+        "scope",
+        "pan",
+        "zoom",
+        "projection",
+        "reset"
+      ]
+    },
+    {
+      "pattern": "vscope.camera.projection",
+      "options": [
+        "perspective",
+        "orthographic",
+        "isometric"
+      ]
+    },
+    {
+      "pattern": "vscope.field.",
+      "options": [
+        "vector",
+        "grid",
+        "pixel"
+      ]
+    },
+    {
+      "pattern": "vscope.track.",
+      "options": [
+        "entity",
+        "entities",
+        "region",
+        "reset"
+      ]
+    }
+  ],
+  "contexts": [
+    {
+      "name": "vscope",
+      "enterCommand": "vscope",
+      "exitCommand": "exit",
+      "prompt": "vscope",
+      "subcontexts": ["camera.field", "camera.scope", "field.vector", "field.grid", "field.pixel"]
+    },
+    {
+      "name": "vscope.camera.field",
+      "enterCommand": "vscope.camera.field",
+      "exitCommand": "exit",
+      "prompt": "vscope:cam:field"
+    },
+    {
+      "name": "vscope.camera.scope",
+      "enterCommand": "vscope.camera.scope",
+      "exitCommand": "exit",
+      "prompt": "vscope:cam:scope"
+    },
+    {
+      "name": "vscope.field.vector",
+      "enterCommand": "vscope.field.vector",
+      "exitCommand": "exit",
+      "prompt": "vscope:field:vector"
+    },
+    {
+      "name": "vscope.field.grid",
+      "enterCommand": "vscope.field.grid",
+      "exitCommand": "exit",
+      "prompt": "vscope:field:grid"
+    },
+    {
+      "name": "vscope.field.pixel",
+      "enterCommand": "vscope.field.pixel",
+      "exitCommand": "exit",
+      "prompt": "vscope:field:pixel"
+    }
+  ]
+}

@@ -31,7 +31,9 @@ export function createJsonViewer(data, options = {}) {
     maxArrayItems = 100,    // Show first N items in arrays
     maxStringLength = 500,  // Truncate long strings
     showDataTypes = false,  // Show type annotations
-    rootCollapsed = false   // Start with root collapsed
+    rootCollapsed = false,  // Start with root collapsed
+    enableMapping = false,  // Enable MIDI mapping via long-click
+    onMapParameter = null   // Callback when parameter is long-clicked: (path, value) => {}
   } = options;
 
   const container = document.createElement('div');
@@ -42,8 +44,15 @@ export function createJsonViewer(data, options = {}) {
   container.style.userSelect = 'text';
 
   let uniqueId = 0;
+  let pressTimer = null;
 
-  function render(obj, depth = 0, key = null, parentDiv = container) {
+  // Build parameter path as we traverse the tree
+  function buildPath(pathParts) {
+    return pathParts.filter(p => p !== null).join('.');
+  }
+
+  function render(obj, depth = 0, key = null, parentDiv = container, pathParts = []) {
+    const currentPath = key !== null ? [...pathParts, key] : pathParts;
     const line = document.createElement('div');
     line.style.paddingLeft = `${depth * 16}px`;
     line.style.display = 'flex';
@@ -112,7 +121,7 @@ export function createJsonViewer(data, options = {}) {
       if (Array.isArray(obj)) {
         const itemsToShow = obj.slice(0, maxArrayItems);
         itemsToShow.forEach((item, index) => {
-          render(item, depth + 1, null, contentDiv);
+          render(item, depth + 1, null, contentDiv, currentPath);
         });
         if (obj.length > maxArrayItems) {
           const ellipsis = document.createElement('div');
@@ -124,7 +133,7 @@ export function createJsonViewer(data, options = {}) {
         }
       } else {
         Object.entries(obj).forEach(([k, v]) => {
-          render(v, depth + 1, k, contentDiv);
+          render(v, depth + 1, k, contentDiv, currentPath);
         });
       }
 
@@ -141,6 +150,59 @@ export function createJsonViewer(data, options = {}) {
 
     } else {
       // Non-collapsible (primitives)
+      const fullPath = buildPath(currentPath);
+
+      // Make line interactive if mapping is enabled
+      if (enableMapping && (typeof obj === 'number' || typeof obj === 'boolean')) {
+        line.style.cursor = 'pointer';
+        line.style.transition = 'background-color 0.2s';
+        line.dataset.path = fullPath;
+        line.dataset.value = obj;
+
+        // Hover effect
+        line.addEventListener('mouseenter', () => {
+          line.style.backgroundColor = 'rgba(0, 255, 255, 0.1)';
+        });
+        line.addEventListener('mouseleave', () => {
+          line.style.backgroundColor = 'transparent';
+        });
+
+        // Long-press to map (desktop)
+        line.addEventListener('mousedown', (e) => {
+          pressTimer = setTimeout(() => {
+            line.style.backgroundColor = 'rgba(0, 255, 0, 0.2)';
+            if (onMapParameter) {
+              onMapParameter(fullPath, obj);
+            }
+          }, 800); // 800ms long press
+        });
+
+        line.addEventListener('mouseup', () => {
+          clearTimeout(pressTimer);
+        });
+
+        line.addEventListener('mouseleave', () => {
+          clearTimeout(pressTimer);
+        });
+
+        // Touch support for long-press (mobile)
+        line.addEventListener('touchstart', (e) => {
+          pressTimer = setTimeout(() => {
+            line.style.backgroundColor = 'rgba(0, 255, 0, 0.2)';
+            if (onMapParameter) {
+              onMapParameter(fullPath, obj);
+            }
+          }, 800);
+        });
+
+        line.addEventListener('touchend', () => {
+          clearTimeout(pressTimer);
+        });
+
+        line.addEventListener('touchcancel', () => {
+          clearTimeout(pressTimer);
+        });
+      }
 
       // Render key if exists
       if (key !== null) {
@@ -176,6 +238,17 @@ export function createJsonViewer(data, options = {}) {
       }
 
       line.appendChild(valueSpan);
+
+      // Mapping indicator
+      if (enableMapping && (typeof obj === 'number' || typeof obj === 'boolean')) {
+        const mapIcon = document.createElement('span');
+        mapIcon.style.color = 'var(--color-base-3)';
+        mapIcon.style.marginLeft = 'var(--space-sm)';
+        mapIcon.style.fontSize = 'var(--font-size-xs)';
+        mapIcon.style.opacity = '0.5';
+        mapIcon.textContent = ' [hold to map]';
+        line.appendChild(mapIcon);
+      }
 
       // Type annotation
       if (showDataTypes) {

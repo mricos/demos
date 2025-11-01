@@ -139,4 +139,92 @@ function updateCliPrompt(state) {
   promptEl.textContent = `${promptText}> `;
 }
 
-export { cliLog, cliLogHtml, cliLogJson, updateHUD, initializeCLI, updateCliPrompt };
+/**
+ * Setup CLI input handlers (keypress, paste, history navigation, tab completion)
+ *
+ * @param {Function} processCLICommand - Command processor function
+ * @param {Object} store - Redux store
+ */
+async function setupCliInput(processCLICommand, store) {
+  const { addToHistory, navigateUp, navigateDown } = await import('./history.js');
+  const { handleTabCompletion } = await import('./tab-completion.js');
+
+  const cliInput = document.getElementById('cli-input');
+  if (!cliInput) {
+    console.warn('CLI input element not found');
+    return;
+  }
+
+  // Enter key: execute command
+  cliInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      const command = e.target.value.trim();
+      if (command) {
+        addToHistory(command);
+        cliLog(`> ${command}`);
+        processCLICommand(command);
+        e.target.value = '';
+      }
+    }
+  });
+
+  // Paste handler: execute each line separately
+  cliInput.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData('text');
+
+    // Split by newlines and filter out empty lines
+    const lines = pastedText.split(/\r?\n/).filter(line => line.trim());
+
+    if (lines.length === 0) return;
+
+    // If only one line, just paste it normally
+    if (lines.length === 1) {
+      e.target.value = lines[0];
+      return;
+    }
+
+    // Multiple lines: execute each one sequentially
+    let delay = 0;
+    lines.forEach((line) => {
+      const command = line.trim();
+      if (command && !command.startsWith('#')) { // Skip empty lines and comments
+        setTimeout(() => {
+          addToHistory(command);
+          cliLog(`> ${command}`);
+          processCLICommand(command);
+        }, delay);
+
+        // Check if this is a sleep command and adjust delay accordingly
+        const parts = command.split(/\s+/);
+        if (parts[0].toLowerCase() === 'sleep' && parts.length > 1) {
+          const sleepMs = parseInt(parts[1]);
+          if (!isNaN(sleepMs) && sleepMs > 0) {
+            delay += sleepMs;
+          }
+        } else {
+          delay += 100; // Default delay between commands
+        }
+      }
+    });
+
+    // Clear the input
+    e.target.value = '';
+  });
+
+  // Arrow keys: history navigation
+  cliInput.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      e.target.value = navigateUp() || e.target.value;
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      e.target.value = navigateDown() || '';
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      handleTabCompletion(e.target, store, processCLICommand);
+    }
+  });
+}
+
+export { cliLog, cliLogHtml, cliLogJson, updateHUD, initializeCLI, updateCliPrompt, setupCliInput };

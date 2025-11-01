@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modal Test</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div style="padding: 40px; text-align: center;">
+    <h1 style="color: #4fc3f7; font-family: monospace;">Vecterm Modal Test</h1>
+
+    <button id="test-alert" class="top-bar-btn" style="margin: 10px;">
+      Test Alert
+    </button>
+
+    <button id="test-confirm" class="top-bar-btn" style="margin: 10px;">
+      Test Confirm
+    </button>
+
+    <button id="test-danger" class="top-bar-btn" style="margin: 10px;">
+      Test Danger Confirm
+    </button>
+
+    <button id="test-prompt" class="top-bar-btn" style="margin: 10px;">
+      Test Prompt
+    </button>
+
+    <div id="result" style="color: #00ff88; font-family: monospace; margin-top: 20px; font-size: 14px;">
+      Click a button to test the modal system
+    </div>
+  </div>
+
+  <script type="module">
+    import { showAlert, showConfirm, showDangerConfirm, showPrompt } from './ui/modal.js';
+
+    const resultDiv = document.getElementById('result');
+
+    document.getElementById('test-alert').addEventListener('click', async () => {
+      await showAlert('This is an alert message!', 'Test Alert');
+      resultDiv.textContent = 'Alert closed';
+    });
+
+    document.getElementById('test-confirm').addEventListener('click', async () => {
+      const result = await showConfirm('Do you want to proceed?', 'Test Confirm');
+      resultDiv.textContent = `Confirm result: ${result}`;
+    });
+
+    document.getElementById('test-danger').addEventListener('click', async () => {
+      const result = await showDangerConfirm(
+        'This is a dangerous action. Are you sure?',
+        'Warning',
+        { confirmLabel: 'Yes, Delete', cancelLabel: 'Cancel' }
+      );
+      resultDiv.textContent = `Danger confirm result: ${result}`;
+    });
+
+    document.getElementById('test-prompt').addEventListener('click', async () => {
+      const result = await showPrompt('Enter your name:', 'Test Prompt', 'John Doe');
+      resultDiv.textContent = `Prompt result: ${result || 'cancelled'}`;
+    });
+
+    console.log('Modal test page loaded successfully');
+  </script>
+</body>
+</html>

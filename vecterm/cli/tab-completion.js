@@ -8,7 +8,10 @@
 
 import { cliLog, cliLogHtml } from './terminal.js';
 import { getAllCommands, HELP_CATEGORIES } from './help-system.js';
-import { updateVT100Silent } from './vt100-silent-updater.js';
+import { getLifecycleManager } from './slider-lifecycle.js';
+import { initGestureHandler, getGestureHandler } from './slider-gestures.js';
+import { startMidiLearn } from './slider-midi-capture.js';
+import { initQuickSettings, getQuickSettings } from './quick-settings.js';
 
 // Top-level commands for tab completion (global context)
 const TOP_LEVEL_COMMANDS = [
@@ -17,13 +20,24 @@ const TOP_LEVEL_COMMANDS = [
   'vecterm.demo', 'vecterm.stop', 'vecterm.spawn', 'vecterm.list', 'vecterm.delete',
   'vecterm.camera.orbit', 'vecterm.camera.zoom', 'vecterm.camera.reset',
   'vecterm.grid.type', 'vecterm.grid.toggle', 'vecterm.grid.status',
-  'console.vt100.help', 'console.vt100.status', 'console.vt100.scanlines',
-  'console.vt100.scanspeed', 'console.vt100.wave', 'console.vt100.wavespeed',
-  'console.vt100.glow', 'console.vt100.glowspeed', 'console.vt100.reset',
+  'vt100.help', 'vt100.status', 'vt100.scanlines',
+  'vt100.scanspeed', 'vt100.wave', 'vt100.wavespeed',
+  'vt100.glow', 'vt100.glowspeed', 'vt100.border',
+  'vt100.borderwidth', 'vt100.reset',
   'game.vt100.help', 'game.vt100.status', 'game.vt100.wave', 'game.vt100.drift',
   'game.vt100.jitter', 'game.vt100.scanlines', 'game.vt100.bloom',
   'game.vt100.brightness', 'game.vt100.contrast', 'game.vt100.toggle',
-  'gamepad.status', 'gamepad.enable', 'gamepad.disable', 'gamepad.test'
+  'gamepad.status', 'gamepad.enable', 'gamepad.disable', 'gamepad.test',
+  'tines.status', 'tines.drone', 'tines.bells', 'tines.stop', 'tines.bpm', 'tines.volume',
+  'tines.channel', 'tines.mute', 'tines.unmute', 'tines.pan', 'tines.start', 'tines.pause',
+  'tines.resume', 'tines.set', 'tines.get', 'tines.vars', 'tines.preset',
+  'midi.status', 'midi.devices', 'midi.show', 'midi.hide', 'midi.controller', 'midi.popup', 'midi.map', 'midi.unmap',
+  'midi.learn', 'midi.preset', 'midi.presets',
+  'vscope.enable', 'vscope.disable', 'vscope.status',
+  'vscope.camera.field', 'vscope.camera.scope', 'vscope.camera.pan', 'vscope.camera.zoom', 'vscope.camera.projection', 'vscope.camera.reset',
+  'vscope.field.vector', 'vscope.field.grid', 'vscope.field.pixel',
+  'vscope.track.entity', 'vscope.track.entities', 'vscope.track.region', 'vscope.track.reset',
+  'vscope.quadrant', 'vscope.updaterate'
 ];
 
 // Add help category commands
@@ -33,23 +47,41 @@ Object.keys(HELP_CATEGORIES).forEach(cat => {
 
 // Continuous variable command metadata for slider controls
 const CONTINUOUS_COMMANDS = {
-  'console.vt100.scanlines': { min: 0, max: 1, step: 0.05, default: 0.15, unit: '' },
-  'console.vt100.scanspeed': { min: 1, max: 20, step: 0.5, default: 8, unit: 's' },
-  'console.vt100.wave': { min: 0, max: 10, step: 0.5, default: 2, unit: 'px' },
-  'console.vt100.wavespeed': { min: 1, max: 10, step: 0.5, default: 3, unit: 's' },
-  'console.vt100.glow': { min: 0, max: 1, step: 0.05, default: 0.4, unit: '' },
-  'console.vt100.glowspeed': { min: 1, max: 10, step: 0.5, default: 2, unit: 's' },
+  'vt100.scanlines': { min: 0, max: 1, step: 0.05, default: 0.15, unit: '' },
+  'vt100.scanspeed': { min: 1, max: 20, step: 0.5, default: 8, unit: 's' },
+  'vt100.wave': { min: 0, max: 10, step: 0.5, default: 2, unit: 'px' },
+  'vt100.wavespeed': { min: 1, max: 10, step: 0.5, default: 3, unit: 's' },
+  'vt100.glow': { min: 0, max: 1, step: 0.05, default: 0.4, unit: '' },
+  'vt100.glowspeed': { min: 1, max: 10, step: 0.5, default: 2, unit: 's' },
+  'vt100.border': { min: 0, max: 1, step: 0.05, default: 1, unit: '' },
+  'vt100.borderwidth': { min: 0, max: 5, step: 0.5, default: 1, unit: 'px' },
   'game.vt100.wave': { min: 0, max: 10, step: 0.5, default: 2, unit: 'px' },
   'game.vt100.drift': { min: 0, max: 5, step: 0.1, default: 1, unit: 'px' },
   'game.vt100.jitter': { min: 0, max: 5, step: 0.1, default: 0.5, unit: 'px' },
   'game.vt100.scanlines': { min: 0, max: 1, step: 0.05, default: 0.2, unit: '' },
   'game.vt100.bloom': { min: 0, max: 1, step: 0.05, default: 0.3, unit: '' },
   'game.vt100.brightness': { min: 0.5, max: 2, step: 0.05, default: 1, unit: '' },
-  'game.vt100.contrast': { min: 0.5, max: 2, step: 0.05, default: 1, unit: '' }
+  'game.vt100.contrast': { min: 0.5, max: 2, step: 0.05, default: 1, unit: '' },
+  'tines.bpm': { min: 20, max: 300, step: 1, default: 120, unit: ' BPM' },
+  'tines.volume': { min: 0, max: 1, step: 0.05, default: 0.7, unit: '' },
+  'tines.pan.drone': { min: -1, max: 1, step: 0.1, default: 0, unit: '' },
+  'tines.pan.bells': { min: -1, max: 1, step: 0.1, default: 0, unit: '' },
+  'tines.pan.synth': { min: -1, max: 1, step: 0.1, default: 0, unit: '' },
+  'vscope.camera.zoom': { min: 0.1, max: 10, step: 0.1, default: 1.0, unit: 'x' },
+  'vscope.camera.fov': { min: 10, max: 120, step: 1, default: 60, unit: '°' },
+  'vscope.track.smoothing': { min: 0, max: 1, step: 0.05, default: 0.1, unit: '' },
+  'vscope.glow.intensity': { min: 0, max: 1, step: 0.05, default: 0.3, unit: '' },
+  'vscope.glow.radius': { min: 0, max: 30, step: 1, default: 10, unit: 'px' },
+  'vscope.bloom.radius': { min: 0, max: 20, step: 0.5, default: 5, unit: 'px' },
+  'vscope.bloom.intensity': { min: 0, max: 1, step: 0.05, default: 0.5, unit: '' },
+  'vscope.scanlines.intensity': { min: 0, max: 1, step: 0.05, default: 0.15, unit: '' },
+  'vscope.scanlines.speed': { min: 1, max: 20, step: 0.5, default: 8, unit: 's' },
+  'vscope.updaterate': { min: 10, max: 60, step: 5, default: 30, unit: ' FPS' },
+  'vscope.quadrant': { min: 0, max: 4, step: 1, default: 1, unit: '' }
 };
 
-// Active slider state
-let activeSlider = null;
+// Initialization flag
+let systemsInitialized = false;
 
 /**
  * Format command completions with category-based colors
@@ -57,9 +89,11 @@ let activeSlider = null;
  * Colors the text after category.dot with accent colors:
  * - Base commands → cyan (--color-base-1)
  * - vecterm.* → green (--color-base-4)
- * - console.vt100.* → orange (--color-base-6)
+ * - vt100.* → orange (--color-base-6)
  * - game.vt100.* → purple (--color-base-7)
  * - gamepad.* → blue (--color-base-3)
+ * - tines.* → magenta (--color-base-5)
+ * - midi.* → yellow (--color-base-2)
  *
  * @param {Array<string>} commands - Command list to format
  * @returns {string} HTML string with colored spans
@@ -70,7 +104,7 @@ function formatCompletionsWithColors(commands) {
     if (cmd.startsWith('vecterm.')) {
       const [category, ...rest] = cmd.split('.');
       return `${category}.<span class="token-green">${rest.join('.')}</span>`;
-    } else if (cmd.startsWith('console.vt100.')) {
+    } else if (cmd.startsWith('vt100.')) {
       const parts = cmd.split('.');
       return `${parts[0]}.${parts[1]}.<span class="token-orange">${parts.slice(2).join('.')}</span>`;
     } else if (cmd.startsWith('game.vt100.')) {
@@ -79,6 +113,15 @@ function formatCompletionsWithColors(commands) {
     } else if (cmd.startsWith('gamepad.')) {
       const [category, ...rest] = cmd.split('.');
       return `${category}.<span class="token-blue">${rest.join('.')}</span>`;
+    } else if (cmd.startsWith('tines.')) {
+      const [category, ...rest] = cmd.split('.');
+      return `${category}.<span class="token-magenta">${rest.join('.')}</span>`;
+    } else if (cmd.startsWith('midi.')) {
+      const [category, ...rest] = cmd.split('.');
+      return `${category}.<span class="token-yellow">${rest.join('.')}</span>`;
+    } else if (cmd.startsWith('vscope.')) {
+      const [category, ...rest] = cmd.split('.');
+      return `${category}.<span class="token-cyan">${rest.join('.')}</span>`;
     } else if (cmd.startsWith('help ')) {
       // help commands - color the category name
       const [helpCmd, category] = cmd.split(' ');
@@ -93,73 +136,82 @@ function formatCompletionsWithColors(commands) {
 }
 
 /**
- * Show inline slider for continuous variable commands
+ * Find longest common prefix among an array of strings
+ *
+ * @param {Array<string>} strings - Array of strings
+ * @returns {string} Longest common prefix
+ */
+function findCommonPrefix(strings) {
+  if (strings.length === 0) return '';
+  if (strings.length === 1) return strings[0];
+
+  let prefix = strings[0];
+  for (let i = 1; i < strings.length; i++) {
+    while (strings[i].indexOf(prefix) !== 0) {
+      prefix = prefix.substring(0, prefix.length - 1);
+      if (prefix === '') return '';
+    }
+  }
+  return prefix;
+}
+
+/**
+ * Initialize the new slider systems (lifecycle, gestures, quick settings)
+ */
+function initializeSystems() {
+  if (systemsInitialized) return;
+
+  // Initialize Quick Settings
+  initQuickSettings();
+
+  // Initialize gesture handler with callbacks
+  const handleQuickSettings = (sliderId, slider) => {
+    const qs = getQuickSettings();
+    qs.addSlider(sliderId, slider);
+  };
+
+  const handleMidiCapture = (sliderId, slider) => {
+    startMidiLearn(sliderId, slider);
+  };
+
+  initGestureHandler(handleQuickSettings, handleMidiCapture);
+
+  systemsInitialized = true;
+  console.log('[Tab Completion] Systems initialized');
+}
+
+/**
+ * Show inline slider for continuous variable commands using new lifecycle system
  *
  * @param {string} command - Command name
  * @param {Object} config - Slider configuration
- * @returns {HTMLElement} Slider container element
  */
 function showInlineSlider(command, config) {
-  // Remove any existing slider
-  if (activeSlider) {
-    activeSlider.remove();
-    activeSlider = null;
-  }
+  // Initialize systems on first use
+  initializeSystems();
 
   const cliOutput = document.getElementById('cli-output');
+  const lifecycleManager = getLifecycleManager();
+  const gestureHandler = getGestureHandler();
 
-  // Create slider container
-  const sliderContainer = document.createElement('div');
-  sliderContainer.className = 'cli-slider-container';
-  sliderContainer.id = 'active-slider';
+  // Create slider using lifecycle manager
+  const sliderId = lifecycleManager.createSlider(command, config, cliOutput);
+  const slider = lifecycleManager.getSlider(sliderId);
 
-  // Create label
-  const label = document.createElement('div');
-  label.className = 'cli-slider-label';
-  label.textContent = `${command}:`;
+  if (!slider) {
+    console.error('[Tab Completion] Failed to create slider');
+    return;
+  }
 
-  // Create slider input
-  const slider = document.createElement('input');
-  slider.type = 'range';
-  slider.className = 'cli-slider';
-  slider.min = config.min;
-  slider.max = config.max;
-  slider.step = config.step;
-  slider.value = config.default;
+  // Attach gesture handlers
+  if (gestureHandler) {
+    gestureHandler.attachToSlider(slider.element);
+  }
 
-  // Create value display
-  const valueDisplay = document.createElement('span');
-  valueDisplay.className = 'cli-slider-value';
-  valueDisplay.textContent = `${config.default}${config.unit}`;
-
-  // Assemble container
-  sliderContainer.appendChild(label);
-  sliderContainer.appendChild(slider);
-  sliderContainer.appendChild(valueDisplay);
-
-  // Add to output
-  cliOutput.appendChild(sliderContainer);
-  activeSlider = sliderContainer;
-
-  // Scroll to show slider
-  cliOutput.scrollTop = cliOutput.scrollHeight;
-
-  // Handle slider input - continuously update (silently, without logging)
-  slider.addEventListener('input', (e) => {
-    const value = parseFloat(e.target.value);
-    valueDisplay.textContent = `${value}${config.unit}`;
-
-    // Update VT100 effect silently without logging to console
-    updateVT100Silent(command, value);
-  });
-
-  // Handle Enter or Escape to dismiss slider
+  // Handle Enter or Escape to move slider to history
   const dismissHandler = (e) => {
     if (e.key === 'Enter' || e.key === 'Escape') {
-      if (activeSlider) {
-        activeSlider.remove();
-        activeSlider = null;
-      }
+      lifecycleManager.moveToHistory(sliderId);
       document.removeEventListener('keydown', dismissHandler);
 
       // Refocus input
@@ -171,9 +223,10 @@ function showInlineSlider(command, config) {
   document.addEventListener('keydown', dismissHandler);
 
   // Focus the slider for immediate interaction
-  slider.focus();
-
-  return sliderContainer;
+  const sliderInput = slider.element.querySelector('input[type="range"]');
+  if (sliderInput) {
+    sliderInput.focus();
+  }
 }
 
 /**
@@ -216,11 +269,23 @@ function getContextualCommands(store) {
  */
 function handleTabCompletion(input, store, processCLICommand) {
   const currentInput = input.value;
-  const parts = currentInput.split(/\s+/);  // Don't trim - we need to detect trailing space
+  const endsWithSpace = currentInput.endsWith(' ');
+  const trimmedInput = currentInput.trim();
+  const parts = currentInput.split(/\s+/);
   const firstWord = parts[0].toLowerCase();
 
   // Get context-aware command list
   const availableCommands = getContextualCommands(store);
+
+  // NEW: Detect space+tab pattern for continuous commands
+  // If input ends with space and the trimmed part is a continuous command, show slider
+  if (endsWithSpace && trimmedInput && CONTINUOUS_COMMANDS[trimmedInput.toLowerCase()]) {
+    const matchedCommand = trimmedInput.toLowerCase();
+    input.value = '';
+    cliLog(`vecterm> ${matchedCommand}`, 'success');
+    showInlineSlider(matchedCommand, CONTINUOUS_COMMANDS[matchedCommand]);
+    return true;
+  }
 
   // Check if we're completing a command with arguments (load/preview/play)
   if (firstWord === 'load' || firstWord === 'preview' || firstWord === 'play' || firstWord === 'play3d') {
@@ -248,26 +313,36 @@ function handleTabCompletion(input, store, processCLICommand) {
 
   // Standard command completion (context-aware)
   const matches = availableCommands.filter(cmd =>
-    cmd.startsWith(currentInput.toLowerCase())
+    cmd.startsWith(trimmedInput.toLowerCase())
   );
 
-  if (matches.length === 1) {
+  if (matches.length === 0) {
+    // No matches
+    return true;
+  } else if (matches.length === 1) {
     const matchedCommand = matches[0];
 
     // Check if this is a continuous variable command
     if (CONTINUOUS_COMMANDS[matchedCommand]) {
-      // Clear input and show slider
-      input.value = '';
-      cliLog(`redux> ${matchedCommand}`, 'success');
-      showInlineSlider(matchedCommand, CONTINUOUS_COMMANDS[matchedCommand]);
+      // Don't auto-show slider, just complete the command
+      // User needs to press space+tab to show slider
+      input.value = matchedCommand;
     } else {
       // Regular completion
       input.value = matchedCommand;
     }
-  } else if (matches.length > 1) {
-    // Multiple matches - show them with colored output
-    const coloredCompletions = formatCompletionsWithColors(matches);
-    cliLogHtml(`Possible completions: ${coloredCompletions}`, 'success');
+  } else {
+    // Multiple matches - complete up to ambiguity
+    const commonPrefix = findCommonPrefix(matches);
+
+    // Always complete to the longest common prefix if it's longer than current input
+    if (commonPrefix && commonPrefix.length > trimmedInput.length) {
+      input.value = commonPrefix;
+    } else {
+      // Already at ambiguity or no common prefix, show all matches
+      const coloredCompletions = formatCompletionsWithColors(matches);
+      cliLogHtml(`Possible completions: ${coloredCompletions}`, 'success');
+    }
   }
 
   return true;

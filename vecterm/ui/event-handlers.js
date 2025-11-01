@@ -16,6 +16,15 @@ import * as Actions from '../core/actions.js';
  * @param {Function} cliLog - CLI logging function
  */
 function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
+  // Animation toggle control
+  const animationToggle = document.getElementById('animation-toggle');
+  if (animationToggle) {
+    animationToggle.addEventListener('change', (e) => {
+      delayControl.animationEnabled = e.target.checked;
+      cliLog(`State flow animation ${e.target.checked ? 'enabled' : 'disabled'}`, 'success');
+    });
+  }
+
   // Delay slider control
   const delaySlider = document.getElementById('delay');
   const delayValue = document.getElementById('delay-value');
@@ -183,6 +192,61 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
     });
   }
 
+  // Make Settings Panel Draggable
+  const settingsPanel = document.getElementById('settings-panel');
+  const panelHeader = settingsPanel ? settingsPanel.querySelector('.panel-header') : null;
+
+  if (settingsPanel && panelHeader) {
+    let isDragging = false;
+    let currentX;
+    let currentY;
+    let initialX;
+    let initialY;
+    let xOffset = 0;
+    let yOffset = 0;
+
+    panelHeader.addEventListener('mousedown', dragStart);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', dragEnd);
+
+    function dragStart(e) {
+      if (e.target.closest('.minimize-btn')) return; // Don't drag when clicking close button
+
+      initialX = e.clientX - xOffset;
+      initialY = e.clientY - yOffset;
+
+      if (e.target === panelHeader || panelHeader.contains(e.target)) {
+        isDragging = true;
+        settingsPanel.classList.add('dragging');
+      }
+    }
+
+    function drag(e) {
+      if (isDragging) {
+        e.preventDefault();
+        currentX = e.clientX - initialX;
+        currentY = e.clientY - initialY;
+
+        xOffset = currentX;
+        yOffset = currentY;
+
+        setTranslate(currentX, currentY, settingsPanel);
+      }
+    }
+
+    function dragEnd(e) {
+      initialX = currentX;
+      initialY = currentY;
+
+      isDragging = false;
+      settingsPanel.classList.remove('dragging');
+    }
+
+    function setTranslate(xPos, yPos, el) {
+      el.style.transform = `translate(${xPos}px, ${yPos}px)`;
+    }
+  }
+
   // Grid Toggle Button (top bar)
   const toggleGrid = document.getElementById('toggle-grid');
   if (toggleGrid) {
@@ -193,6 +257,77 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
       store.dispatch(Actions.vectermSetGridType(newType));
     });
   }
+
+  // MIDI Controller Buttons
+  const midiShowController = document.getElementById('midi-show-controller');
+  if (midiShowController) {
+    midiShowController.addEventListener('click', () => {
+      if (window.Vecterm && window.Vecterm.MIDI) {
+        window.Vecterm.MIDI.toggleVisual();
+      }
+      // Silent if not available - MIDI is optional
+    });
+  }
+
+  const midiStatus = document.getElementById('midi-status');
+  if (midiStatus) {
+    midiStatus.addEventListener('click', () => {
+      if (window.Vecterm && window.Vecterm.MIDI) {
+        window.Vecterm.MIDI.status();
+      }
+      // Silent if not available - MIDI is optional
+    });
+  }
+
+  // Subscribe to MIDI state changes to update sidebar
+  store.subscribe(() => {
+    const state = store.getState();
+    if (!state.midi) {
+      console.log('[MIDI UI] No MIDI state in Redux');
+      return;
+    }
+
+    // Update device list
+    const deviceList = document.getElementById('midi-device-list');
+    if (deviceList) {
+      const devices = state.midi.devices.inputs;
+      console.log('[MIDI UI] Updating device list, found', devices.length, 'devices');
+      if (devices.length === 0) {
+        deviceList.textContent = 'No MIDI devices detected';
+        deviceList.style.color = '#666';
+      } else {
+        console.log('[MIDI UI] Rendering devices:', devices);
+        deviceList.innerHTML = devices.map(d =>
+          `<div style="color: #0f0; margin: 2px 0;">${d.name}</div>`
+        ).join('');
+      }
+    } else {
+      console.log('[MIDI UI] Device list element not found');
+    }
+
+    // Update mappings list
+    const mappingList = document.getElementById('midi-mapping-list');
+    if (mappingList) {
+      const mappings = state.midi.mappings;
+      const entries = Object.entries(mappings);
+      if (entries.length === 0) {
+        mappingList.textContent = 'No mappings';
+        mappingList.style.color = '#666';
+      } else {
+        mappingList.innerHTML = entries.map(([control, param]) =>
+          `<div style="color: #0ff; margin: 2px 0; font-size: 11px;">
+            ${control} → ${param}
+          </div>`
+        ).join('');
+      }
+    }
+
+    // Update show/hide button text
+    const showBtn = document.getElementById('midi-show-controller');
+    if (showBtn) {
+      showBtn.textContent = state.midi.visual.visible ? 'Hide Controller' : 'Show Controller';
+    }
+  });
 
   // Settings Panel - Grid Type Select
   const gridTypeSelect = document.getElementById('grid-type-select');
@@ -280,6 +415,17 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
       }));
       if (cameraFov) cameraFov.value = 60;
       if (fovValue) fovValue.textContent = '60°';
+    });
+  }
+
+  // Settings Panel - Toggle Sidebar
+  const settingsToggleSidebar = document.getElementById('settings-toggle-sidebar');
+  if (settingsToggleSidebar) {
+    settingsToggleSidebar.addEventListener('click', () => {
+      const sidebar = document.getElementById('right-sidebar');
+      if (sidebar) {
+        sidebar.classList.toggle('collapsed');
+      }
     });
   }
 

@@ -16,21 +16,31 @@ import { multiplayerCommands } from '../multiplayer.js';
  * @param {Object} store - Redux store
  * @param {Object} vectermControls - Vecterm controls (camera, start/stop, renderer getter)
  * @param {Object} gameControls - Game controls (start, stop, preview functions)
+ * @param {Object} tinesManager - Tines audio manager (optional)
  * @returns {Function} Command processor function
  */
-function createCommandProcessor(store, vectermControls, gameControls) {
+function createCommandProcessor(store, vectermControls, gameControls, tinesManagerOrGetter = null) {
   // Don't destructure vectermCamera - it's a getter that needs lazy evaluation
   const { startVectermDemo, stopVectermDemo, getVectermRenderer } = vectermControls;
   const { startGamePlay, stopGame, startGamePreview } = gameControls;
 
+  // Support both direct value and getter function for tinesManager
+  const getTinesManager = () => {
+    if (typeof tinesManagerOrGetter === 'function') {
+      return tinesManagerOrGetter();
+    }
+    return tinesManagerOrGetter;
+  };
+
   return function processCLICommand(command) {
+    const tinesManager = getTinesManager();
     const trimmed = command.trim();
     const parts = trimmed.split(' ');
     const cmdPath = parts[0].toLowerCase().split('.');
     const cmd = cmdPath[0];
     const args = parts.slice(1);
 
-    cliLog(`redux> ${command}`);
+    cliLog(`vecterm> ${command}`);
 
     if (cmd === 'help') {
       // New hierarchical help system
@@ -113,6 +123,13 @@ function createCommandProcessor(store, vectermControls, gameControls) {
       const output = document.getElementById('cli-output');
       if (output) output.innerHTML = '';
       cliLog('CLI cleared', 'success');
+
+    } else if (cmd === 'sleep') {
+      // Sleep command for pasted scripts - does nothing, just provides timing
+      const ms = args.length > 0 ? parseInt(args[0]) : 0;
+      if (ms > 0) {
+        cliLog(`Sleeping for ${ms}ms...`, 'success');
+      }
 
     } else if (cmd === 'inspect' && parts.length === 3) {
       // inspect context <name> OR inspect field <name>
@@ -810,6 +827,488 @@ function createCommandProcessor(store, vectermControls, gameControls) {
         cliLog('No gamepad detected. Connect a gamepad and press any button.', 'error');
       }
 
+    } else if (cmd === 'tines' && cmdPath[1] === 'status') {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        const status = tinesManager.getStatus();
+        cliLog('Tines Audio Engine Status:', 'success');
+        cliLog(`  Initialized: ${status.engine.initialized}`, 'info');
+        cliLog(`  BPM: ${status.clock.bpm}`, 'info');
+        cliLog(`  Playing: ${status.clock.playing ? 'YES' : 'NO'}`, 'info');
+        cliLog(`  Master Volume: ${status.engine.masterVolume.toFixed(2)}`, 'info');
+        cliLog(`  Active Voices: ${status.engine.activeVoices} / ${status.engine.maxVoices}`, 'info');
+        cliLog(`  Active Patterns: ${status.patterns.length}`, 'info');
+        cliLog('  Channels:', 'info');
+        status.engine.channels.forEach(ch => {
+          const muted = ch.muted ? ' [MUTED]' : '';
+          cliLog(`    ${ch.name}: vol=${ch.volume.toFixed(2)}, voices=${ch.voiceCount}${muted}`, 'info');
+        });
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'drone' && args.length >= 1) {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        const pattern = args.join(' ');
+        tinesManager.playPattern('drone', pattern);
+        cliLog(`Playing drone: ${pattern}`, 'success');
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'bells' && args.length >= 1) {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        const pattern = args.join(' ');
+        tinesManager.playPattern('bells', pattern);
+        cliLog(`Playing bells: ${pattern}`, 'success');
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'pan' && args.length >= 2) {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        const channel = args[0];
+        const pan = parseFloat(args[1]);
+        if (isNaN(pan) || pan < -1 || pan > 1) {
+          cliLog('ERROR: Pan must be between -1 (left) and 1 (right)', 'error');
+        } else {
+          tinesManager.setChannelPan(channel, pan);
+          cliLog(`Set ${channel} pan to ${pan}`, 'success');
+        }
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'set' && args.length >= 2) {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        const varName = args[0];
+        const varValue = args.slice(1).join(' ');
+        tinesManager.setVariable(varName, varValue);
+        cliLog(`Set variable ${varName} = ${varValue}`, 'success');
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'get' && args.length >= 1) {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        const varName = args[0];
+        const varValue = tinesManager.getVariable(varName);
+        if (varValue !== undefined) {
+          cliLog(`${varName} = ${varValue}`, 'info');
+        } else {
+          cliLog(`Variable '${varName}' not found`, 'error');
+        }
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'vars') {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        const vars = tinesManager.listVariables();
+        cliLog('Global Variables:', 'success');
+        if (Object.keys(vars.global).length === 0) {
+          cliLog('  (none)', 'info');
+        } else {
+          Object.entries(vars.global).forEach(([name, value]) => {
+            cliLog(`  ${name} = ${value}`, 'info');
+          });
+        }
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'preset' && args.length >= 1) {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        const presetName = args[0];
+        const bellsInstrument = tinesManager.getInstrument('bells');
+        if (bellsInstrument && bellsInstrument.setPreset) {
+          bellsInstrument.setPreset(presetName);
+          cliLog(`Set bells preset to: ${presetName}`, 'success');
+        } else {
+          cliLog('ERROR: Bells instrument not available', 'error');
+        }
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'stop') {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        if (args.length === 0) {
+          tinesManager.stopAll();
+          cliLog('Stopped all audio', 'success');
+        } else {
+          const channel = args[0];
+          tinesManager.stopChannel(channel);
+          cliLog(`Stopped channel: ${channel}`, 'success');
+        }
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'bpm' && args.length === 1) {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        const bpm = parseFloat(args[0]);
+        if (isNaN(bpm) || bpm < 20 || bpm > 300) {
+          cliLog('ERROR: BPM must be between 20 and 300', 'error');
+        } else {
+          tinesManager.setBPM(bpm);
+          cliLog(`BPM set to ${bpm}`, 'success');
+        }
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'volume' && args.length === 1) {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        const volume = parseFloat(args[0]);
+        if (isNaN(volume) || volume < 0 || volume > 1) {
+          cliLog('ERROR: Volume must be between 0 and 1', 'error');
+        } else {
+          tinesManager.setMasterVolume(volume);
+          cliLog(`Master volume set to ${volume.toFixed(2)}`, 'success');
+        }
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'channel' && args.length === 2) {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        const channel = args[0];
+        const volume = parseFloat(args[1]);
+        if (isNaN(volume) || volume < 0 || volume > 1) {
+          cliLog('ERROR: Volume must be between 0 and 1', 'error');
+        } else {
+          tinesManager.setChannelVolume(channel, volume);
+          cliLog(`${channel} volume set to ${volume.toFixed(2)}`, 'success');
+        }
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'mute' && args.length === 1) {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        const channel = args[0];
+        tinesManager.setChannelMute(channel, true);
+        cliLog(`${channel} muted`, 'success');
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'unmute' && args.length === 1) {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        const channel = args[0];
+        tinesManager.setChannelMute(channel, false);
+        cliLog(`${channel} unmuted`, 'success');
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'start') {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        tinesManager.start();
+        cliLog('Clock started', 'success');
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'pause') {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        tinesManager.pause();
+        cliLog('Clock paused', 'success');
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'resume') {
+      if (!tinesManager) {
+        cliLog('ERROR: Tines audio engine not initialized', 'error');
+      } else {
+        tinesManager.resume();
+        cliLog('Clock resumed', 'success');
+      }
+
+    } else if (cmd === 'tines' && cmdPath[1] === 'help') {
+      cliLog('Tines Audio Engine Commands:', 'success');
+      cliLog('  tines.status              - Show engine status', 'info');
+      cliLog('  tines.drone <pattern>     - Play drone pattern (e.g., "C2" or "C2 ~ G2 ~")', 'info');
+      cliLog('  tines.bells <pattern>     - Play bells pattern (e.g., "C4 E4 G4")', 'info');
+      cliLog('  tines.stop [channel]      - Stop all or specific channel', 'info');
+      cliLog('  tines.bpm <bpm>           - Set BPM (20-300)', 'info');
+      cliLog('  tines.volume <vol>        - Set master volume (0-1)', 'info');
+      cliLog('  tines.channel <ch> <vol>  - Set channel volume', 'info');
+      cliLog('  tines.mute <channel>      - Mute channel', 'info');
+      cliLog('  tines.unmute <channel>    - Unmute channel', 'info');
+      cliLog('  tines.pan <ch> <val>      - Set channel pan (-1 left, 0 center, 1 right)', 'info');
+      cliLog('  tines.set <name> <value>  - Set variable', 'info');
+      cliLog('  tines.get <name>          - Get variable value', 'info');
+      cliLog('  tines.vars                - List all variables', 'info');
+      cliLog('  tines.preset <name>       - Set bells preset (classic, bright, soft, glass, gong)', 'info');
+      cliLog('  tines.start               - Start clock', 'info');
+      cliLog('  tines.pause               - Pause clock', 'info');
+      cliLog('  tines.resume              - Resume clock', 'info');
+      cliLog('', 'info');
+      cliLog('Pattern Syntax (Strudel-inspired):', 'success');
+      cliLog('  "C4 E4 G4"        - Play notes in sequence', 'info');
+      cliLog('  "C4 ~ E4 ~"       - Rests (~)', 'info');
+      cliLog('  "C4*2"            - Repeat (C4 C4)', 'info');
+      cliLog('  "[C4 E4]*2"       - Group repeat', 'info');
+      cliLog('  "<C4 E4>"         - Alternate between options', 'info');
+      cliLog('  "C4/2"            - Sustain for 2 steps', 'info');
+      cliLog('  "euclid(3,8)"     - Euclidean rhythm (3 hits in 8 steps)', 'info');
+      cliLog('  "euclid(3,8,C4)"  - Euclidean with note', 'info');
+      cliLog('  "[C4,E4,G4]"      - Random choice (comma-separated)', 'info');
+      cliLog('  "$rootnote+7"     - Variable interpolation', 'info');
+      cliLog('  "C4+10hz"         - Frequency offset (Hz)', 'info');
+      cliLog('  "C4+50c"          - Cents offset (tuning)', 'info');
+      cliLog('  "60"              - MIDI note number', 'info');
+
+    } else if (cmd === 'midi' && cmdPath[1] === 'status') {
+      if (window.Vecterm?.MIDI) {
+        window.Vecterm.MIDI.status();
+      } else {
+        cliLog('ERROR: MIDI system not initialized', 'error');
+      }
+
+    } else if (cmd === 'midi' && cmdPath[1] === 'devices') {
+      if (window.Vecterm?.MIDI) {
+        const devices = window.Vecterm.MIDI.getDevices();
+        if (devices.inputs.length === 0) {
+          cliLog('No MIDI devices connected', 'info');
+        } else {
+          cliLog('Connected MIDI Devices:', 'success');
+          devices.inputs.forEach(dev => {
+            cliLog(`  ${dev.name} (${dev.manufacturer})`, 'info');
+          });
+        }
+      } else {
+        cliLog('ERROR: MIDI system not initialized', 'error');
+      }
+
+    } else if (cmd === 'midi' && cmdPath[1] === 'show') {
+      if (window.Vecterm?.MIDI) {
+        window.Vecterm.MIDI.showVisual();
+        cliLog('Showing MIDI visual controller', 'success');
+      } else {
+        cliLog('ERROR: MIDI system not initialized', 'error');
+      }
+
+    } else if (cmd === 'midi' && cmdPath[1] === 'hide') {
+      if (window.Vecterm?.MIDI) {
+        window.Vecterm.MIDI.hideVisual();
+        cliLog('Hiding MIDI visual controller', 'success');
+      } else {
+        cliLog('ERROR: MIDI system not initialized', 'error');
+      }
+
+    } else if (cmd === 'midi' && cmdPath[1] === 'popup') {
+      if (window.Vecterm?.MIDI) {
+        window.Vecterm.MIDI.showVT100();
+        cliLog('Showing MIDI controller (popup)', 'success');
+      } else {
+        cliLog('ERROR: MIDI system not initialized', 'error');
+      }
+
+    } else if (cmd === 'midi' && cmdPath[1] === 'controller') {
+      if (window.Vecterm?.MIDI) {
+        window.Vecterm.MIDI.showVT100Inline();
+      } else {
+        cliLog('ERROR: MIDI system not initialized', 'error');
+      }
+
+    } else if (cmd === 'midi' && cmdPath[1] === 'map' && args.length >= 2) {
+      if (window.Vecterm?.MIDI) {
+        const controlId = args[0];
+        const parameter = args[1];
+        window.Vecterm.MIDI.map(controlId, parameter);
+        cliLog(`Mapped ${controlId} → ${parameter}`, 'success');
+      } else {
+        cliLog('ERROR: MIDI system not initialized', 'error');
+      }
+
+    } else if (cmd === 'midi' && cmdPath[1] === 'unmap' && args.length >= 1) {
+      if (window.Vecterm?.MIDI) {
+        const controlId = args[0];
+        window.Vecterm.MIDI.unmap(controlId);
+        cliLog(`Unmapped ${controlId}`, 'success');
+      } else {
+        cliLog('ERROR: MIDI system not initialized', 'error');
+      }
+
+    } else if (cmd === 'midi' && cmdPath[1] === 'learn' && args.length >= 1) {
+      if (window.Vecterm?.MIDI) {
+        const parameter = args[0];
+        window.Vecterm.MIDI.learn(parameter);
+        cliLog(`MIDI Learn: Move a control to map it to ${parameter}`, 'success');
+      } else {
+        cliLog('ERROR: MIDI system not initialized', 'error');
+      }
+
+    } else if (cmd === 'midi' && cmdPath[1] === 'preset' && args.length >= 1) {
+      if (window.Vecterm?.MIDI) {
+        const presetName = args[0];
+        window.Vecterm.MIDI.loadPreset(presetName);
+        cliLog(`Loaded MIDI preset: ${presetName}`, 'success');
+      } else {
+        cliLog('ERROR: MIDI system not initialized', 'error');
+      }
+
+    } else if (cmd === 'midi' && cmdPath[1] === 'presets') {
+      if (window.Vecterm?.MIDI) {
+        const presets = window.Vecterm.MIDI.listPresets();
+        if (presets.length === 0) {
+          cliLog('No MIDI presets available', 'info');
+        } else {
+          cliLog('Available MIDI Presets:', 'success');
+          presets.forEach(preset => {
+            cliLog(`  ${preset.name} - ${preset.description || 'No description'}`, 'info');
+          });
+        }
+      } else {
+        cliLog('ERROR: MIDI system not initialized', 'error');
+      }
+
+    // ==========================================
+    // VSCOPE COMMANDS
+    // ==========================================
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'status') {
+      if (window.Vecterm?.VScope) {
+        window.Vecterm.VScope.status();
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'enable') {
+      if (window.Vecterm?.VScope) {
+        window.Vecterm.VScope.enable();
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'disable') {
+      if (window.Vecterm?.VScope) {
+        window.Vecterm.VScope.disable();
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'camera' && cmdPath[2] === 'field') {
+      if (window.Vecterm?.VScope) {
+        window.Vecterm.VScope.camera.field();
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'camera' && cmdPath[2] === 'scope') {
+      if (window.Vecterm?.VScope) {
+        window.Vecterm.VScope.camera.scope();
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'camera' && cmdPath[2] === 'pan' && args.length >= 2) {
+      if (window.Vecterm?.VScope) {
+        const x = parseFloat(args[0]);
+        const y = parseFloat(args[1]);
+        window.Vecterm.VScope.camera.pan(x, y);
+        cliLog(`Camera panned by (${x}, ${y})`, 'success');
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'camera' && cmdPath[2] === 'zoom' && args.length >= 1) {
+      if (window.Vecterm?.VScope) {
+        const factor = parseFloat(args[0]);
+        window.Vecterm.VScope.camera.zoom(factor);
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'camera' && cmdPath[2] === 'projection' && args.length >= 1) {
+      if (window.Vecterm?.VScope) {
+        const mode = args[0];
+        window.Vecterm.VScope.camera.projection(mode);
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'camera' && cmdPath[2] === 'reset') {
+      if (window.Vecterm?.VScope) {
+        window.Vecterm.VScope.camera.reset();
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'field' && cmdPath[2] === 'vector') {
+      if (window.Vecterm?.VScope) {
+        window.Vecterm.VScope.field.vector();
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'field' && cmdPath[2] === 'grid') {
+      if (window.Vecterm?.VScope) {
+        window.Vecterm.VScope.field.grid();
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'field' && cmdPath[2] === 'pixel') {
+      if (window.Vecterm?.VScope) {
+        window.Vecterm.VScope.field.pixel();
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'track' && cmdPath[2] === 'entity' && args.length >= 1) {
+      if (window.Vecterm?.VScope) {
+        const entityId = args[0];
+        window.Vecterm.VScope.track.entity(entityId);
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'track' && cmdPath[2] === 'entities' && args.length >= 1) {
+      if (window.Vecterm?.VScope) {
+        const entityIds = args[0];
+        window.Vecterm.VScope.track.entities(entityIds);
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'track' && cmdPath[2] === 'region' && args.length >= 4) {
+      if (window.Vecterm?.VScope) {
+        const x = parseFloat(args[0]);
+        const y = parseFloat(args[1]);
+        const width = parseFloat(args[2]);
+        const height = parseFloat(args[3]);
+        window.Vecterm.VScope.track.region(x, y, width, height);
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'track' && cmdPath[2] === 'reset') {
+      if (window.Vecterm?.VScope) {
+        window.Vecterm.VScope.track.reset();
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'quadrant' && args.length >= 1) {
+      if (window.Vecterm?.VScope) {
+        const quadrant = parseInt(args[0]);
+        window.Vecterm.VScope.quadrant(quadrant);
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'updaterate' && args.length >= 1) {
+      if (window.Vecterm?.VScope) {
+        const fps = parseInt(args[0]);
+        window.Vecterm.VScope.updaterate(fps);
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
     } else if (cmd === 'console' && cmdPath[1] === 'vt100') {
       handleConsoleVT100Command(cmdPath[2], args);
 
@@ -854,7 +1353,19 @@ function createCommandProcessor(store, vectermControls, gameControls) {
     } else if (trimmed === '') {
       // Empty command, do nothing
     } else {
-      cliLog(`Unknown command: ${trimmed}. Type 'help' for available commands.`, 'error');
+      // Try to evaluate as JavaScript expression
+      try {
+        const result = eval(trimmed);
+        if (result !== undefined) {
+          if (typeof result === 'object') {
+            cliLogJson(result);
+          } else {
+            cliLog(String(result), 'success');
+          }
+        }
+      } catch (error) {
+        cliLog(`Unknown command: ${trimmed}. Type 'help' for available commands.`, 'error');
+      }
     }
   };
 }
@@ -867,15 +1378,15 @@ function handleConsoleVT100Command(action, args) {
 
   if (!action || action === 'help') {
     cliLog('=== Console VT100 Commands ===', 'success');
-    cliLog('  console.vt100.scanlines <intensity> - Scanline darkness (0-1, default: 0.15)');
-    cliLog('  console.vt100.scanspeed <seconds> - Scanline scroll speed (default: 8)');
-    cliLog('  console.vt100.wave <amplitude> - Raster wave pixels (default: 2)');
-    cliLog('  console.vt100.wavespeed <seconds> - Wave oscillation speed (default: 3)');
-    cliLog('  console.vt100.glow <intensity> - Border glow intensity (0-1, default: 0.4)');
-    cliLog('  console.vt100.glowspeed <seconds> - Glow pulse speed (default: 2)');
-    cliLog('  console.vt100.status - Show current console settings');
-    cliLog('  console.vt100.reset - Reset console effects to defaults');
-    cliLog('  console.vt100.test - Test if variables are updating');
+    cliLog('  vt100.scanlines <intensity> - Scanline darkness (0-1, default: 0.15)');
+    cliLog('  vt100.scanspeed <seconds> - Scanline scroll speed (default: 8)');
+    cliLog('  vt100.wave <amplitude> - Raster wave pixels (default: 2)');
+    cliLog('  vt100.wavespeed <seconds> - Wave oscillation speed (default: 3)');
+    cliLog('  vt100.glow <intensity> - Border glow intensity (0-1, default: 0.4)');
+    cliLog('  vt100.glowspeed <seconds> - Glow pulse speed (default: 2)');
+    cliLog('  vt100.status - Show current console settings');
+    cliLog('  vt100.reset - Reset console effects to defaults');
+    cliLog('  vt100.test - Test if variables are updating');
   } else if (action === 'test') {
     cliLog('Testing VT100 variable updates...', 'success');
     const before = getComputedStyle(cliPanel).getPropertyValue('--vt100-scanline-intensity').trim();
@@ -1001,7 +1512,7 @@ function handleConsoleVT100Command(action, args) {
     cliPanel.style.setProperty('--vt100-glow-speed', '2s');
     cliLog('Console VT100 effects reset to defaults', 'success');
   } else {
-    cliLog('Unknown console.vt100 command. Try "console.vt100.help"', 'error');
+    cliLog('Unknown vt100 command. Try "vt100.help"', 'error');
   }
 }
 

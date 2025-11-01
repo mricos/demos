@@ -44,10 +44,10 @@ export const HELP_CATEGORIES = {
     name: 'vt100',
     desc: 'CRT effects for console & game',
     commands: [
-      { cmd: 'console.vt100.help', desc: 'Console CRT commands' },
-      { cmd: 'console.vt100.status', desc: 'Show console CRT settings' },
-      { cmd: 'console.vt100.scanlines <0-1>', desc: 'Scanline intensity (slider)' },
-      { cmd: 'console.vt100.glow <0-1>', desc: 'Glow intensity (slider)' },
+      { cmd: 'vt100.help', desc: 'Console CRT commands' },
+      { cmd: 'vt100.status', desc: 'Show console CRT settings' },
+      { cmd: 'vt100.scanlines <0-1>', desc: 'Scanline intensity (slider)' },
+      { cmd: 'vt100.glow <0-1>', desc: 'Glow intensity (slider)' },
       { cmd: 'game.vt100.help', desc: 'Game CRT commands' },
       { cmd: 'game.vt100.status', desc: 'Show game CRT settings' },
       { cmd: 'game.vt100.toggle', desc: 'Toggle all game effects' }
@@ -65,6 +65,41 @@ export const HELP_CATEGORIES = {
     ]
   },
 
+  tines: {
+    name: 'tines',
+    desc: 'BPM-aware audio engine (Strudel-inspired)',
+    commands: [
+      { cmd: 'tines.status', desc: 'Show engine status & active patterns' },
+      { cmd: 'tines.drone <pattern>', desc: 'Play drone pattern (e.g., "C2 ~ G2 ~")' },
+      { cmd: 'tines.stop [channel]', desc: 'Stop all or specific channel' },
+      { cmd: 'tines.bpm <bpm>', desc: 'Set BPM (20-300)' },
+      { cmd: 'tines.volume <0-1>', desc: 'Set master volume' },
+      { cmd: 'tines.channel <ch> <vol>', desc: 'Set channel volume' },
+      { cmd: 'tines.mute <channel>', desc: 'Mute channel' },
+      { cmd: 'tines.unmute <channel>', desc: 'Unmute channel' },
+      { cmd: 'tines.start/pause/resume', desc: 'Clock control' },
+      { cmd: 'tines.help', desc: 'Pattern syntax guide' }
+    ]
+  },
+
+  midi: {
+    name: 'midi',
+    desc: 'MIDI controller & hardware mapping',
+    commands: [
+      { cmd: 'midi.status', desc: 'Show MIDI devices & mappings' },
+      { cmd: 'midi.devices', desc: 'List connected MIDI devices' },
+      { cmd: 'midi.controller', desc: 'Show inline MIDI controller (8 channels)' },
+      { cmd: 'midi.popup', desc: 'Show popup MIDI controller' },
+      { cmd: 'midi.show', desc: 'Show visual MIDI controller (legacy)' },
+      { cmd: 'midi.hide', desc: 'Hide visual controller' },
+      { cmd: 'midi.map <ctrl> <param>', desc: 'Map control to parameter (e.g., 1k tines.bpm)' },
+      { cmd: 'midi.unmap <ctrl>', desc: 'Remove mapping' },
+      { cmd: 'midi.learn <param>', desc: 'MIDI learn - move control to map it' },
+      { cmd: 'midi.preset <name>', desc: 'Load mapping preset (tines-mixer)' },
+      { cmd: 'midi.presets', desc: 'List available presets' }
+    ]
+  },
+
   system: {
     name: 'system',
     desc: 'State, auth, and utilities',
@@ -73,7 +108,8 @@ export const HELP_CATEGORIES = {
       { cmd: 'inspect <type> <name>', desc: 'Detailed JSON view' },
       { cmd: 'login <user> <pass>', desc: 'Authenticate & enable S3' },
       { cmd: 'logout', desc: 'End session' },
-      { cmd: 'clear', desc: 'Clear terminal output' }
+      { cmd: 'clear', desc: 'Clear terminal output' },
+      { cmd: 'sleep <ms>', desc: 'Delay for multi-line scripts (paste)' }
     ]
   }
 };
@@ -153,8 +189,9 @@ export function getCommandsForCategory(categoryName) {
  * Legacy help mapping (for gradual migration)
  */
 export const LEGACY_HELP_MAP = {
-  'console.vt100.help': () => showCategoryHelp('vt100'),
+  'vt100.help': () => showCategoryHelp('vt100'),
   'game.vt100.help': () => showCategoryHelp('vt100'),
   'vecterm.help': () => showCategoryHelp('vecterm'),
-  'gamepad.help': () => showCategoryHelp('input')
+  'gamepad.help': () => showCategoryHelp('input'),
+  'tines.help': () => showCategoryHelp('tines')
 };

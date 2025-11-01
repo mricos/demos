@@ -33,13 +33,10 @@
 
     <!-- Right: Quick Actions -->
     <div id="top-bar-right">
-      <button id="toggle-grid" class="top-bar-btn" title="Toggle Grid">
-        <span class="btn-icon">▢</span>
-      </button>
+      <button id="toggle-auth" class="top-bar-btn">Toggle Login</button>
       <button id="toggle-settings" class="top-bar-btn" title="Settings">
         <span class="btn-icon">⚙</span>
       </button>
-      <button id="toggle-auth" class="top-bar-btn">Toggle Login</button>
     </div>
   </div>
 
@@ -106,8 +103,36 @@
     </div>
 
     <div class="sidebar-section">
+      <h3 class="section-title" data-section="midi">MIDI Controller</h3>
+      <div class="section-content" id="midi-content">
+        <div class="midi-controls">
+          <button id="midi-show-controller" class="config-btn">Show Controller</button>
+          <button id="midi-status" class="config-btn">Status</button>
+        </div>
+        <div id="midi-info" class="midi-info">
+          <div class="midi-devices">
+            <h4>Devices:</h4>
+            <div id="midi-device-list">No MIDI devices detected</div>
+          </div>
+          <div class="midi-mappings">
+            <h4>Active Mappings:</h4>
+            <div id="midi-mapping-list">No mappings</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
       <h3 class="section-title" data-section="config">Config</h3>
       <div class="section-content" id="config-content">
+        <div class="control-group">
+          <label for="animation-toggle">
+            <input type="checkbox" id="animation-toggle">
+            Enable State Flow Animation
+          </label>
+          <p style="font-size: 11px; color: #666; margin: 4px 0;">Toggle to see Redux state flow visualization (slower)</p>
+        </div>
+
         <div class="control-group">
           <label for="delay">Animation Delay:</label>
           <input type="range" id="delay" min="0" max="3000" value="1000" step="100">
@@ -403,6 +428,14 @@
           </small>
         </div>
       </div>
+
+      <!-- UI Controls -->
+      <div class="settings-section" id="ui-controls">
+        <h4 class="settings-title">UI Controls</h4>
+        <div class="settings-group">
+          <button id="settings-toggle-sidebar" class="settings-btn">Toggle Sidebar</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -421,7 +454,7 @@
     <!-- Absolute positioned input at bottom -->
     <div class="vt100-input">
       <span class="vt100-prompt" id="cli-prompt">vecterm&gt;</span>
-      <input type="text" id="cli-input" placeholder="">
+      <input type="text" id="cli-input" placeholder="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     </div>
     <!-- VT100 Parameter Controls - HUD centered INSIDE terminal -->
     <div id="vt100-params" class="hidden">
@@ -465,7 +498,7 @@
   <div id="footer">
     <div class="footer-section">
       <span class="footer-label">VECTERM PLAYGROUND</span>
-      <span class="footer-value">v1.0.0</span>
+      <span class="footer-value">v0.0.3</span>
     </div>
     <div class="footer-section">
       <span class="footer-label">RENDER ENGINE</span>
