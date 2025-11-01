@@ -1,0 +1,85 @@
+{
+  "name": "midi",
+  "version": "1.0.0",
+  "description": "MIDI controller integration (hardware + visual UI)",
+  "entrypoint": "index.js",
+  "commands": [
+    {
+      "name": "midi",
+      "description": "Enter MIDI context",
+      "args": [],
+      "examples": ["midi"]
+    },
+    {
+      "namespace": "midi",
+      "name": "status",
+      "description": "Show MIDI devices and mappings",
+      "args": [],
+      "examples": ["midi.status"]
+    },
+    {
+      "namespace": "midi",
+      "name": "map",
+      "description": "Map MIDI control to parameter",
+      "args": ["<control>", "<parameter>"],
+      "examples": [
+        "midi.map 1k tines.volume.drone",
+        "midi.map 1s tines.adsr.bells.attack"
+      ]
+    },
+    {
+      "namespace": "midi",
+      "name": "unmap",
+      "description": "Remove MIDI mapping",
+      "args": ["<control>"],
+      "examples": ["midi.unmap 1k"]
+    },
+    {
+      "namespace": "midi",
+      "name": "learn",
+      "description": "Enter MIDI learn mode",
+      "args": ["<parameter>"],
+      "examples": ["midi.learn tines.bpm"]
+    },
+    {
+      "namespace": "midi",
+      "name": "ui",
+      "description": "Toggle visual MIDI controller",
+      "args": ["show|hide"],
+      "examples": ["midi.ui show", "midi.ui hide"]
+    },
+    {
+      "namespace": "midi",
+      "name": "reset",
+      "description": "Reset all MIDI mappings",
+      "args": [],
+      "examples": ["midi.reset"]
+    }
+  ],
+  "completions": [
+    {
+      "pattern": "midi.",
+      "options": [
+        "status",
+        "map",
+        "unmap",
+        "learn",
+        "ui",
+        "reset"
+      ]
+    },
+    {
+      "pattern": "midi.ui",
+      "options": ["show", "hide"]
+    }
+  ],
+  "contexts": [
+    {
+      "name": "midi",
+      "enterCommand": "midi",
+      "exitCommand": "exit",
+      "prompt": "midi",
+      "subcontexts": []
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MIDI Debug</title>
+  <style>
+    body {
+      background: #000;
+      color: #0f0;
+      font-family: monospace;
+      padding: 20px;
+    }
+    .info { color: #0ff; margin: 10px 0; }
+    .device { color: #0f0; margin: 5px 0 5px 20px; }
+    .error { color: #f00; }
+  </style>
+</head>
+<body>
+  <h1>MIDI Device Detection Test</h1>
+  <div id="output"></div>
+
+  <script type="module">
+    const output = document.getElementById('output');
+
+    function log(msg, color = '#0f0') {
+      const div = document.createElement('div');
+      div.style.color = color;
+      div.textContent = msg;
+      output.appendChild(div);
+    }
+
+    async function testMIDI() {
+      log('Testing Web MIDI API...', '#0ff');
+
+      // Check browser support
+      if (!navigator.requestMIDIAccess) {
+        log('ERROR: Web MIDI API not supported in this browser', '#f00');
+        log('Try using Chrome/Edge/Opera', '#f00');
+        return;
+      }
+
+      log('✓ Web MIDI API supported', '#0f0');
+
+      try {
+        log('Requesting MIDI access...', '#0ff');
+        const midiAccess = await navigator.requestMIDIAccess({ sysex: false });
+        log('✓ MIDI access granted', '#0f0');
+
+        // List inputs
+        log('', '#fff');
+        log('MIDI Input Devices:', '#0ff');
+        const inputs = Array.from(midiAccess.inputs.values());
+        if (inputs.length === 0) {
+          log('  No MIDI input devices found', '#ff0');
+        } else {
+          inputs.forEach((input, i) => {
+            log(`  ${i + 1}. ${input.name} (${input.manufacturer})`, '#0f0');
+            log(`     ID: ${input.id}`, '#666');
+            log(`     State: ${input.state}`, '#666');
+            log(`     Connection: ${input.connection}`, '#666');
+          });
+        }
+
+        // List outputs
+        log('', '#fff');
+        log('MIDI Output Devices:', '#0ff');
+        const outputs = Array.from(midiAccess.outputs.values());
+        if (outputs.length === 0) {
+          log('  No MIDI output devices found', '#ff0');
+        } else {
+          outputs.forEach((output, i) => {
+            log(`  ${i + 1}. ${output.name} (${output.manufacturer})`, '#0f0');
+            log(`     ID: ${output.id}`, '#666');
+          });
+        }
+
+        // Set up message listener
+        log('', '#fff');
+        log('Listening for MIDI messages (move a control)...', '#0ff');
+        inputs.forEach(input => {
+          input.onmidimessage = (event) => {
+            const [status, data1, data2] = event.data;
+            const command = status >> 4;
+            const channel = status & 0x0F;
+
+            let msgType = 'Unknown';
+            if (command === 0x9) msgType = 'Note On';
+            else if (command === 0x8) msgType = 'Note Off';
+            else if (command === 0xB) msgType = 'Control Change';
+
+            log(`${msgType}: Ch${channel + 1} | Data: ${data1} ${data2}`, '#ff0');
+          };
+        });
+
+      } catch (error) {
+        log(`ERROR: ${error.message}`, '#f00');
+        log('Make sure you granted MIDI permissions', '#f00');
+      }
+    }
+
+    testMIDI();
+  </script>
+</body>
+</html>

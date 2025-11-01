@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MIDI Module Test</title>
+  <style>
+    body {
+      background: #000;
+      color: #0f0;
+      font-family: monospace;
+      padding: 20px;
+    }
+    .log { margin: 5px 0; }
+    .error { color: #f00; }
+    .success { color: #0f0; }
+    .info { color: #0ff; }
+  </style>
+</head>
+<body>
+  <h1>MIDI Module Loading Test</h1>
+  <div id="output"></div>
+
+  <script type="module">
+    const output = document.getElementById('output');
+
+    function log(msg, className = 'log') {
+      const div = document.createElement('div');
+      div.className = className;
+      div.textContent = msg;
+      output.appendChild(div);
+      console.log(msg);
+    }
+
+    async function testMIDIModule() {
+      log('Testing MIDI module loading...', 'info');
+
+      // Create minimal Redux store mock
+      const storeMock = {
+        getState: () => ({
+          midi: {
+            devices: { inputs: [], outputs: [], selected: null },
+            visual: { visible: false },
+            controls: {},
+            mappings: {},
+            transport: { playing: false, recording: false, tempo: 120 },
+            learn: { active: false }
+          }
+        }),
+        dispatch: (action) => {
+          log(`  Action: ${action.type}`, 'log');
+        }
+      };
+
+      try {
+        log('1. Importing MIDI module...', 'info');
+        const midiModule = await import('./modules/midi/index.js');
+        log('✓ MIDI module imported successfully', 'success');
+
+        log('2. Initializing MIDI module...', 'info');
+        await midiModule.init(storeMock);
+        log('✓ MIDI module initialized', 'success');
+
+        log('3. Checking window.Vecterm.MIDI...', 'info');
+        if (window.Vecterm && window.Vecterm.MIDI) {
+          log('✓ window.Vecterm.MIDI exists!', 'success');
+
+          log('4. Testing MIDI API methods...', 'info');
+          log(`  - getState: ${typeof window.Vecterm.MIDI.getState}`, 'log');
+          log(`  - getDevices: ${typeof window.Vecterm.MIDI.getDevices}`, 'log');
+          log(`  - showVisual: ${typeof window.Vecterm.MIDI.showVisual}`, 'log');
+          log(`  - status: ${typeof window.Vecterm.MIDI.status}`, 'log');
+
+          log('5. Calling status()...', 'info');
+          window.Vecterm.MIDI.status();
+          log('✓ Check console for MIDI status output', 'success');
+        } else {
+          log('✗ window.Vecterm.MIDI is undefined!', 'error');
+        }
+
+      } catch (error) {
+        log(`✗ Error: ${error.message}`, 'error');
+        log(`Stack: ${error.stack}`, 'error');
+      }
+    }
+
+    testMIDIModule();
+  </script>
+</body>
+</html>
