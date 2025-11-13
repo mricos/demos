@@ -1,0 +1,14 @@
+{
+  "timestamp": 1762308218,
+  "audio_file": "/Users/mricos/src/mricos/demos/tscale/audio.wav",
+  "data_file": "/Users/mricos/src/mricos/demos/tscale/db/1762305205.data.raw.audio.tsv",
+  "position": 1.7498549999999993,
+  "markers": [],
+  "kernel_params": {
+    "tau_a": 0.001,
+    "tau_r": 0.005,
+    "threshold": 3.0,
+    "refractory": 0.015
+  },
+  "display_mode": "envelope"
+}

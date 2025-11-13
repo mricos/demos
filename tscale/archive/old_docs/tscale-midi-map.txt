@@ -1,0 +1,79 @@
+# tscale MIDI Mapping Configuration
+# Format: control_id|type|channel|cc_number|param_name|min|max|scale
+#
+# Control Types: SLIDER, POT
+# Scale: linear, log, enum
+#
+# SLIDERS (s1-s8) - Primary parameters
+s1|SLIDER|1|1|tau_a|0.0001|0.010|log
+s2|SLIDER|1|2|tau_r|0.001|0.100|log
+s3|SLIDER|1|3|threshold|0.1|10.0|linear
+s4|SLIDER|1|4|refractory|0.001|0.100|log
+s5|SLIDER|1|5|zoom|0.5|5.0|linear
+s6|SLIDER|1|6|history|1.0|10.0|linear
+s7|SLIDER|1|7|blend|0.0|1.0|linear
+s8|SLIDER|1|8|reserved|0.0|1.0|linear
+
+# POTS (p1-p8) - Fine-tune and mode controls
+p1|POT|1|9|fine_tau_a|-0.001|0.001|linear
+p2|POT|1|10|fine_tau_r|-0.010|0.010|linear
+p3|POT|1|11|fine_thr|-0.5|0.5|linear
+p4|POT|1|12|fine_ref|-0.005|0.005|linear
+p5|POT|1|13|norm|0|2|enum
+p6|POT|1|14|mode|0|1|enum
+p7|POT|1|15|zerophase|0|1|enum
+p8|POT|1|16|theme|0|3|enum
+
+# Semantic Mappings (for TMC integration)
+# syntax|semantic|description
+s1|TAU_ATTACK|Attack time constant for biexponential kernel
+s2|TAU_RECOVERY|Recovery time constant for biexponential kernel
+s3|THRESHOLD|Detection threshold in sigma units
+s4|REFRACTORY|Refractory period to prevent double-triggering
+s5|VIZ_ZOOM|Time domain zoom level for visualization
+s6|EVENT_HISTORY|Event history window length in seconds
+s7|COMPONENT_BLEND|Blend between component and combined view
+s8|RESERVED|Reserved for future use
+
+p1|FINE_TAU_ATTACK|Fine adjustment for tau_a
+p2|FINE_TAU_RECOVERY|Fine adjustment for tau_r
+p3|FINE_THRESHOLD|Fine adjustment for threshold
+p4|FINE_REFRACTORY|Fine adjustment for refractory period
+p5|NORMALIZATION|Normalization mode (L2, area, none)
+p6|PROCESSING_MODE|Processing mode (convolution, IIR)
+p7|ZERO_PHASE|Zero-phase filtering on/off
+p8|COLOR_THEME|Color theme selection
+
+# Keyboard Mappings (virtual MIDI)
+# Matches bb.c style bindings
+# z/Z - s1 down/up fast
+# s/S - s1 up/up fast
+# x/X - s2 down/up fast
+# d/D - s2 up/up fast
+# c/C - s3 down/up fast
+# f/F - s3 up/up fast
+# v/V - s4 down/up fast
+# g/G - s4 up/up fast
+# b/B - s5 down/up fast
+# h/H - s5 up/up fast
+# n/N - s6 down/up fast
+# j/J - s6 up/up fast
+# m/M - s7 down/up fast
+# k/K - s7 up/up fast
+# ,/< - s8 down/up fast
+# l/L - s8 up/up fast
+
+# e/E - p1 down/up
+# r/R - p2 down/up
+# t/T - p3 down/up
+# y/Y - p4 down/up
+# u/U - p5 down/up
+# i/I - p6 down/up
+# o/O - p7 down/up
+# p/P - p8 down/up
+
+# Notes:
+# - All CC values range from 0-127
+# - Fine-tune pots are centered at 64 (neutral)
+# - Enum pots use discrete steps (norm: 0=l2, 1=area, 2=none)
+# - Log scale parameters use exponential mapping for better control

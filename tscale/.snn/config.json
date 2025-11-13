@@ -1,0 +1,5 @@
+{
+  "quick_press_threshold_ms": 200,
+  "medium_press_threshold_ms": 500,
+  "long_press_threshold_ms": 1000
+}

@@ -1,0 +1,39 @@
+--- ascii_scope.c
++++ ascii_scope.c
+@@
+ #include <stdarg.h>
+ #include <string.h>
+ #include <sys/ioctl.h>
++#include <limits.h>
+ #include <sys/select.h>
+ #include <termios.h>
+ #include <time.h>
+ #include <unistd.h>
+@@
+ static double monotime_s(void) {
+   struct timespec ts;
+   clock_gettime(CLOCK_MONOTONIC, &ts);
+   return (double)ts.tv_sec + 1e-9*ts.tv_nsec;
+ }
++
++// qsort comparator for double
++static int cmpd(const void *a, const void *b) {
++  double da = *(const double *)a;
++  double db = *(const double *)b;
++  return (da > db) - (da < db);
++}
+@@
+   if (k==0) { free(dts); return NAN; }
+-  // partial sort for median
+-  // simple nth-element via qsort then pick middle (ok for small k)
+-  qsort(dts, (size_t)k, sizeof(double),
+-        (int(*)(const void*,const void*)) (int (*)(const double*, const double*)) strcmp);
+-  // ^ above trick is UB; provide comparator:
+-  int cmpd(const void *a, const void *b){ double da=*(const double*)a, db=*(const double*)b; return (da<db)?-1:(da>db); }
+-  // re-qsort with valid comparator
+-  qsort(dts, (size_t)k, sizeof(double), cmpd);
++  qsort(dts, (size_t)k, sizeof(double), cmpd);
+   double med = dts[k/2];
+   free(dts);
+   return med;
+ }

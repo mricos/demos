@@ -1,0 +1,5 @@
+tau_a = 0.001
+tau_r = 0.005
+threshold = 3.0
+refractory = 0.015
+fs = 48000
