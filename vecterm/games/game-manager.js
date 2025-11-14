@@ -7,6 +7,7 @@
 
 import * as Actions from '../core/actions.js';
 import { cliLog } from '../cli/terminal.js';
+import { SpinningCube } from './spinning-cube.js';
 
 /**
  * Create game manager with dependencies injected
@@ -78,6 +79,22 @@ function createGameManager(store) {
 
       // Start ASCII rendering loop
       startASCIIPreview(gameCanvas, previewDiv, previewWidth, previewHeight, gameId);
+    } else if (gameId === 'spinning-cube') {
+      const ctx = gameCanvas.getContext('2d');
+      const gameInstance = new SpinningCube(gameCanvas, ctx);
+      gameInstance.start();
+
+      store.dispatch(Actions.updateGameInstance(gameId, {
+        instance: gameInstance,
+        mode: 'preview',
+        canvas: gameCanvas,
+        previewDiv: previewDiv,
+        previewWidth: previewWidth,
+        previewHeight: previewHeight
+      }));
+
+      // NO ASCII! VScope will handle wireframe rendering
+      previewDiv.textContent = 'Spinning cube loaded. Use VScope for terminal visualization.';
     }
   }
 
@@ -152,14 +169,33 @@ function createGameManager(store) {
         canvas: canvas
       }));
 
-      cliLog('Type "stop" to end the game', 'success');
-      cliLog('Type "game.vt100.help" for VT100 effects', 'success');
+      // Connect VScope to game instance for vectorscope visualization
+      if (window.Vecterm && window.Vecterm.VScope) {
+        window.Vecterm.VScope.setGameInstance(gameInstance);
+      }
+    } else if (gameId === 'spinning-cube') {
+      const ctx = canvas.getContext('2d');
+      const gameInstance = new SpinningCube(canvas, ctx);
+      gameInstance.start();
 
-      // Minimize CLI automatically
-      setTimeout(() => {
-        const cliPanel = document.getElementById('cli-panel');
-        if (cliPanel) cliPanel.classList.add('minimized');
-      }, 1000);
+      store.dispatch(Actions.updateGameInstance(gameId, {
+        instance: gameInstance,
+        mode: 'play',
+        canvas: canvas
+      }));
+
+      // Connect VScope to game instance for vectorscope visualization
+      if (window.Vecterm && window.Vecterm.VScope) {
+        window.Vecterm.VScope.setGameInstance(gameInstance);
+        // Auto-enable VScope for spinning cube
+        window.Vecterm.VScope.enable();
+        cliLog('✓ VScope enabled - cube rendering to terminal', 'success');
+      }
+
+      cliLog('Type "stop" to end the game', 'success');
+
+      // Terminal is first-class - don't auto-minimize
+      // Users can manually minimize with the minimize button if desired
     }
   }
 

@@ -717,6 +717,15 @@ const Quadrapong = (() => {
       this.ecs.addSystem(system);
       return this;
     }
+
+    // VScope API - provide line segments for vectorscope visualization
+    getLineSegments() {
+      if (this.vecterm && this.vecterm.renderer && this.vecterm.renderer.lines) {
+        // Return lines from Vecterm renderer
+        return this.vecterm.renderer.lines;
+      }
+      return [];
+    }
   }
 
   // ==========================================

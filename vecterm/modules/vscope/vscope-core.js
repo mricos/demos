@@ -167,15 +167,33 @@ export class VScope {
    */
   disable() {
     if (!this.enabled) {
+      console.log('[VScope] Already disabled, skipping');
       return;
     }
 
-    this.stopAnimation();
-    this.overlay.clear();
-    this.renderer.clear();
+    console.log('[VScope] Disabling...');
 
+    // CRITICAL: Set enabled to false FIRST to stop animation loop
     this.enabled = false;
-    console.log('✓ VScope disabled');
+
+    // Stop the animation loop
+    this.stopAnimation();
+
+    // Clear all rendering artifacts
+    if (this.overlay) {
+      this.overlay.clear();
+    }
+
+    if (this.renderer) {
+      this.renderer.clear();
+    }
+
+    // Clear pixel grid
+    if (this.pixelGrid) {
+      this.pixelGrid.clear();
+    }
+
+    console.log('✓ VScope disabled and cleared');
   }
 
   /**
@@ -204,7 +222,25 @@ export class VScope {
    * Main update loop
    */
   update(currentTime) {
+    // GLOBAL KILL SWITCH - set window.VSCOPE_DISABLE_ALL = true in console
+    if (window.VSCOPE_DISABLE_ALL) {
+      console.warn('[VScope] KILLED BY GLOBAL SWITCH');
+      this.enabled = false;
+      this.animationId = null;
+      return;
+    }
+
+    // EMERGENCY STOP: Check enabled flag multiple times
     if (!this.enabled) {
+      console.log('[VScope] Update called but disabled - stopping animation');
+      this.animationId = null;
+      return;
+    }
+
+    // Safety check: if no renderer, stop
+    if (!this.renderer || !this.vt100Renderer) {
+      console.warn('[VScope] Missing renderer - disabling');
+      this.disable();
       return;
     }
 
@@ -231,16 +267,28 @@ export class VScope {
     this.mapper.setSourceRegion(trackedRegion);
     this.mapper.setTargetQuadrant(state.scope.targetQuadrant);
 
-    // Render to terminal
-    this.renderToTerminal(state);
-
-    // Render overlay on main canvas
-    if (state.overlay.borderBox || state.overlay.connectionLines) {
+    // OVERLAY DISABLED ENTIRELY - debugging rendering issues
+    // TODO: Re-enable once we figure out what's drawing game objects on canvas
+    /*
+    const shouldRenderOverlay = state.overlay.borderBox || state.overlay.connectionLines;
+    if (shouldRenderOverlay && state.field.mode !== 'pixel') {
       this.overlay.render(trackedRegion, state.scope.targetQuadrant);
     }
+    */
 
-    // Continue animation
-    this.animationId = requestAnimationFrame(this.update);
+    // Render to terminal (samples canvas in pixel mode)
+    this.renderToTerminal(state);
+
+    // Clear overlay if we rendered it (so next frame doesn't capture it in pixel mode)
+    // Actually, don't clear - let the game's render loop handle it
+    // The game should be clearing/redrawing the canvas each frame
+
+    // Continue animation only if still enabled
+    if (this.enabled) {
+      this.animationId = requestAnimationFrame(this.update);
+    } else {
+      this.animationId = null;
+    }
   }
 
   /**
@@ -278,11 +326,15 @@ export class VScope {
   getVectorData() {
     // If we have a game instance, get its line segments
     if (this.gameInstance && typeof this.gameInstance.getLineSegments === 'function') {
+      const lines = this.gameInstance.getLineSegments();
+      console.log('[VScope] Got', lines.length, 'lines from game');
       return {
         type: 'vectors',
-        lines: this.gameInstance.getLineSegments()
+        lines
       };
     }
+
+    console.warn('[VScope] No game instance or getLineSegments method');
 
     // Otherwise, try to get from Vecterm if it's rendering 3D
     if (window.Vecterm && window.Vecterm.vecterm) {
@@ -316,6 +368,13 @@ export class VScope {
   getPixelData() {
     // Sample canvas pixels in tracked region
     const region = this.tracker.getTrackedRegion();
+
+    // IMPORTANT: Ensure overlay is cleared before sampling to prevent feedback loop
+    // The overlay draws on the same canvas, so if we sample after overlay rendering,
+    // we'll capture the overlay artifacts and render them to terminal
+    if (this.overlay) {
+      this.overlay.clear();
+    }
 
     try {
       const imageData = this.mainCtx.getImageData(

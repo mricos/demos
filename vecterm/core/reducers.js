@@ -18,7 +18,7 @@ export const initialState = {
   // Scene editor state (demo namespace)
   entities: [],
 
-  // Game Management
+  // Game Management (immutable game definitions)
   games: {
     registry: {
       quadrapong: {
@@ -26,12 +26,116 @@ export const initialState = {
         name: 'Quadrapong',
         description: '4-player pong with ECS architecture and VT100 effects',
         version: '1.0.0',
-        loaded: false
+        loaded: false,
+        bounds: { x: 0, y: 0, width: 1920, height: 1080 }
+      },
+      'spinning-cube': {
+        id: 'spinning-cube',
+        name: 'Spinning Cube',
+        description: '3D wireframe cube demo for VScope terminal visualization',
+        version: '1.0.0',
+        loaded: false,
+        bounds: { x: 0, y: 0, width: 1920, height: 1080 }
       }
     },
+    instances: {},         // Running game instances
     activeGame: null,      // Currently loaded game ID
-    previewGame: null,     // Game being previewed
-    instances: {}          // Loaded game instances by ID
+    previewGame: null      // Game being previewed
+  },
+
+  // Contexts (game configurations in lobby before spawning fields)
+  contexts: {},
+
+  // World Registry (platonic simulation spaces - metadata only, not live instances)
+  worlds: {
+    // worldId → world metadata
+    // Live World instances stored in fieldRegistry, not Redux
+    // Example:
+    // 'quadrapong_main': {
+    //   id: 'quadrapong_main',
+    //   name: 'Quadrapong Main World',
+    //   fieldId: 'field_123',  // Parent field
+    //   bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+    //   entityCount: 6,
+    //   scenes: ['main', 'debug'],
+    //   created: '2025-10-31T14:00:00Z'
+    // }
+  },
+
+  // Field Registry (running game instances - metadata only)
+  fields: {
+    instances: {},         // fieldId → field metadata
+    nextInstanceNumber: {} // gameId → next instance number
+    // Example:
+    // instances: {
+    //   'field_123': {
+    //     id: 'field_123',
+    //     name: 'epic-battle',
+    //     gameSpec: 'quadrapong',
+    //     worldId: 'quadrapong_main',
+    //     status: 'running',  // 'stopped' | 'running' | 'paused'
+    //     mode: '3d',        // '2d' | '3d'
+    //     tick: 1234,
+    //     created: '2025-10-31T14:05:00Z',
+    //     surfaces: ['main', 'terminal']  // Bound surface IDs
+    //   }
+    // }
+  },
+
+  // Surface Registry (rendering targets - metadata only)
+  surfaces: {
+    // surfaceId → surface metadata
+    // Example:
+    // 'main': {
+    //   id: 'main',
+    //   name: 'Main Canvas',
+    //   type: 'Canvas2D',
+    //   canvasId: 'main-canvas',
+    //   bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+    //   viewports: ['vp_main']
+    // },
+    // 'terminal': {
+    //   id: 'terminal',
+    //   name: 'VT100 Terminal',
+    //   type: 'VT100',
+    //   canvasId: 'vt100-canvas',
+    //   bounds: { x: 0, y: 0, width: 800, height: 600 },
+    //   cols: 80,
+    //   rows: 24,
+    //   viewports: ['vp_q1', 'vp_q2', 'vp_q3', 'vp_q4']
+    // }
+    main: {
+      id: 'main',
+      name: 'Main Canvas',
+      type: 'Canvas2D',
+      canvasId: 'main-canvas',
+      bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+      viewports: []
+    },
+    terminal: {
+      id: 'terminal',
+      name: 'VT100 Terminal',
+      type: 'VT100',
+      canvasId: 'vt100-canvas',
+      bounds: { x: 0, y: 0, width: 800, height: 600 },
+      cols: 80,
+      rows: 24,
+      viewports: []
+    }
+  },
+
+  // Viewport Registry
+  viewports: {
+    // viewportId → viewport metadata
+    // Example:
+    // 'vp_q1': {
+    //   id: 'vp_q1',
+    //   name: 'Quadrant 1',
+    //   surfaceId: 'terminal',
+    //   rect: { x: 0, y: 0, width: 40, height: 12 },
+    //   camera: { x: 0, y: 0, zoom: 1.0 },
+    //   fieldId: 'field_123'  // Which field this viewport shows
+    // }
   },
 
   // Namespace-aware entities
@@ -70,32 +174,14 @@ export const initialState = {
     cliLabel: null             // Optional label (deprecated, use cliPrompt)
   },
 
-  // CLI Prompt State (new semantic structure)
+  // CLI Prompt State (context stack for prompt display)
   cliPrompt: {
-    mode: 'toplevel',          // 'toplevel' | 'context' | 'field'
-    username: null,            // Username if logged in
-    contextId: null,           // Active context being edited (ctx:name)
-    fieldId: null,             // Active field instance (name)
-    fieldState: null           // Field state modifier ('paused', '3d', etc.)
-  },
-
-  // Game Contexts (Tier 2: loaded templates in lobby)
-  contexts: {},
-  // Example:
-  // {
-  //   'quadrapong': {
-  //     id: 'quadrapong',
-  //     gameId: 'quadrapong',
-  //     customName: null,
-  //     customizations: { ball: { speed: 12 } },
-  //     createdAt: '2025-10-31T14:00:00Z'
-  //   }
-  // }
-
-  // Field Instances (Tier 3: running games)
-  fields: {
-    instances: {},
-    nextInstanceNumber: {}
+    // Context stack: [@fieldId|vscope:#entityId|^surfaceId:viewportId]
+    fieldId: null,           // Active field (@qp)
+    vscopeTarget: null,      // VScope viewing target (vscope:#ball or vscope:query:name)
+    surfaceId: null,         // Active surface (^terminal)
+    viewportId: null,        // Active viewport (q1)
+    username: null           // Username if logged in
   },
 
   // Multiplayer Network State

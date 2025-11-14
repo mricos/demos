@@ -24,6 +24,11 @@ const TOP_LEVEL_COMMANDS = [
   'vt100.scanspeed', 'vt100.wave', 'vt100.wavespeed',
   'vt100.glow', 'vt100.glowspeed', 'vt100.border',
   'vt100.borderwidth', 'vt100.reset',
+  // View VT100 effects (new namespace)
+  'view.vt100.help', 'view.vt100.status', 'view.vt100.wave', 'view.vt100.drift',
+  'view.vt100.jitter', 'view.vt100.scanlines', 'view.vt100.bloom',
+  'view.vt100.brightness', 'view.vt100.contrast', 'view.vt100.toggle',
+  // Game VT100 effects (deprecated - use view.vt100.*)
   'game.vt100.help', 'game.vt100.status', 'game.vt100.wave', 'game.vt100.drift',
   'game.vt100.jitter', 'game.vt100.scanlines', 'game.vt100.bloom',
   'game.vt100.brightness', 'game.vt100.contrast', 'game.vt100.toggle',
@@ -55,6 +60,15 @@ const CONTINUOUS_COMMANDS = {
   'vt100.glowspeed': { min: 1, max: 10, step: 0.5, default: 2, unit: 's' },
   'vt100.border': { min: 0, max: 1, step: 0.05, default: 1, unit: '' },
   'vt100.borderwidth': { min: 0, max: 5, step: 0.5, default: 1, unit: 'px' },
+  // View VT100 slider configs
+  'view.vt100.wave': { min: 0, max: 10, step: 0.5, default: 2, unit: 'px' },
+  'view.vt100.drift': { min: 0, max: 5, step: 0.1, default: 1, unit: 'px' },
+  'view.vt100.jitter': { min: 0, max: 5, step: 0.1, default: 0.5, unit: 'px' },
+  'view.vt100.scanlines': { min: 0, max: 1, step: 0.05, default: 0.2, unit: '' },
+  'view.vt100.bloom': { min: 0, max: 1, step: 0.05, default: 0.3, unit: '' },
+  'view.vt100.brightness': { min: 0.5, max: 2, step: 0.05, default: 1, unit: '' },
+  'view.vt100.contrast': { min: 0.5, max: 2, step: 0.05, default: 1, unit: '' },
+  // Game VT100 slider configs (deprecated - same as view)
   'game.vt100.wave': { min: 0, max: 10, step: 0.5, default: 2, unit: 'px' },
   'game.vt100.drift': { min: 0, max: 5, step: 0.1, default: 1, unit: 'px' },
   'game.vt100.jitter': { min: 0, max: 5, step: 0.1, default: 0.5, unit: 'px' },
@@ -107,7 +121,7 @@ function formatCompletionsWithColors(commands) {
     } else if (cmd.startsWith('vt100.')) {
       const parts = cmd.split('.');
       return `${parts[0]}.${parts[1]}.<span class="token-orange">${parts.slice(2).join('.')}</span>`;
-    } else if (cmd.startsWith('game.vt100.')) {
+    } else if (cmd.startsWith('view.vt100.') || cmd.startsWith('game.vt100.')) {
       const parts = cmd.split('.');
       return `${parts[0]}.${parts[1]}.<span class="token-purple">${parts.slice(2).join('.')}</span>`;
     } else if (cmd.startsWith('gamepad.')) {

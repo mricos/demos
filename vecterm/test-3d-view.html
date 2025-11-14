@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vecterm3DView Test</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    h1, h2 {
+      color: #0ff;
+      border-bottom: 1px solid #0ff;
+      padding-bottom: 5px;
+    }
+    canvas {
+      border: 1px solid #0f0;
+      display: block;
+      margin: 20px 0;
+    }
+    button {
+      background: #003300;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+    }
+    button:hover {
+      background: #005500;
+    }
+    .info {
+      background: #001100;
+      border: 1px solid #0f0;
+      padding: 10px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎮 Vecterm3DView Test</h1>
+  <p>Testing World/Field/View with 3D rendering</p>
+
+  <div class="info">
+    <h2>Controls</h2>
+    <button onclick="startDemo()">Start Animation</button>
+    <button onclick="stopDemo()">Stop Animation</button>
+    <button onclick="toggleHiddenLineRemoval()">Toggle Hidden Line Removal</button>
+  </div>
+
+  <canvas id="vecterm-canvas" width="800" height="600"></canvas>
+
+  <div class="info" id="stats"></div>
+
+  <!-- Dependencies -->
+  <script src="VectermMath.js"></script>
+  <script src="Vecterm.js"></script>
+
+  <script type="module">
+    import { World } from './core/world.js';
+    import { Field, System } from './core/field.js';
+    import { Vecterm3DView, Frame, Camera3D } from './core/view.js';
+
+    // Global state
+    let world, field, view, camera;
+    let running = false;
+    let animationId = null;
+
+    // Initialize the demo
+    function init() {
+      // Create world
+      world = new World({ name: '3d-demo' });
+
+      // Create 3D view
+      const canvas = document.getElementById('vecterm-canvas');
+      view = new Vecterm3DView('vecterm', '3D View', canvas, {
+        vecterm: {
+          phosphorColor: '#00ff88',
+          glowIntensity: 0.5,
+          hiddenLineRemoval: true,
+          backfaceCulling: true
+        }
+      });
+
+      // Create camera
+      camera = new Camera3D(
+        {x: 0, y: 5, z: 15},  // position
+        {x: 0, y: 0, z: 0}    // target
+      );
+      view.setCamera(camera.getCamera());
+
+      // Create spinning cube entity
+      const cube = world.createEntity({
+        id: '#cube',
+        labels: { type: 'mesh', shape: 'cube' }
+      });
+      world.addComponent('#cube', 'mesh', VectermMesh.cube(2));
+      world.addComponent('#cube', 'transform', {
+        position: { x: -3, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0 },
+        scale: { x: 1, y: 1, z: 1 }
+      });
+      world.addComponent('#cube', 'spin', { x: 0.5, y: 1.0, z: 0.3 });
+      world.addComponent('#cube', 'color', '#00ff88');
+
+      // Create sphere entity
+      const sphere = world.createEntity({
+        id: '#sphere',
+        labels: { type: 'mesh', shape: 'sphere' }
+      });
+      world.addComponent('#sphere', 'mesh', VectermMesh.sphere(1.5, 1));
+      world.addComponent('#sphere', 'transform', {
+        position: { x: 3, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0 },
+        scale: { x: 1, y: 1, z: 1 }
+      });
+      world.addComponent('#sphere', 'spin', { x: 0.3, y: 0.8, z: 0.5 });
+      world.addComponent('#sphere', 'color', '#00ffff');
+
+      // Create field
+      field = new Field({ world, name: '3d-demo' });
+
+      // Add rotation system
+      class RotationSystem extends System {
+        execute(world, dt, field) {
+          const entities = world.queryComponents('transform', 'spin');
+          for (const { entityId, components } of entities) {
+            const transform = components.transform;
+            const spin = components.spin;
+
+            // Create new transform with updated rotation
+            const newTransform = {
+              position: { ...transform.position },
+              rotation: {
+                x: transform.rotation.x + spin.x * (dt / 1000),
+                y: transform.rotation.y + spin.y * (dt / 1000),
+                z: transform.rotation.z + spin.z * (dt / 1000)
+              },
+              scale: { ...transform.scale }
+            };
+
+            world.addComponent(entityId, 'transform', newTransform);
+          }
+        }
+      }
+
+      field.addSystem(new RotationSystem());
+
+      console.log('3D Demo initialized');
+      updateStats();
+    }
+
+    // Render function
+    function render() {
+      const frame = new Frame();
+
+      // Get all mesh entities and add them to the frame
+      const meshEntities = world.queryComponents('mesh', 'transform');
+      for (const { entityId, components } of meshEntities) {
+        const color = world.getComponent(entityId, 'color') || '#00ff00';
+
+        // Convert transform to Vecterm format
+        const t = components.transform;
+        frame.addMesh(
+          components.mesh,
+          {
+            position: new VectermMath.Vector3(t.position.x, t.position.y, t.position.z),
+            rotation: new VectermMath.Vector3(t.rotation.x, t.rotation.y, t.rotation.z),
+            scale: new VectermMath.Vector3(t.scale.x, t.scale.y, t.scale.z)
+          },
+          color
+        );
+      }
+
+      view.render(frame);
+    }
+
+    // Animation loop
+    function animate() {
+      if (!running) return;
+
+      field.tick(16.67); // 60 FPS
+      render();
+      updateStats();
+
+      animationId = requestAnimationFrame(animate);
+    }
+
+    // Update stats display
+    function updateStats() {
+      const metrics = field.getMetrics();
+      const worldMetrics = world.getMetrics();
+
+      document.getElementById('stats').innerHTML = `
+        <h2>Stats</h2>
+        <pre>
+Field:    ${field.name} (${field.state.status})
+Tick:     ${metrics.tick}
+Time:     ${(metrics.time / 1000).toFixed(2)}s
+Rate:     ${metrics.tickRate.toFixed(1)} tps
+
+World:    ${world.name}
+Entities: ${worldMetrics.entityCount}
+Scenes:   ${worldMetrics.sceneCount}
+
+View:     ${view.name}
+Camera:   (${camera.camera.position.x.toFixed(1)}, ${camera.camera.position.y.toFixed(1)}, ${camera.camera.position.z.toFixed(1)})
+        </pre>
+      `;
+    }
+
+    // Start animation
+    window.startDemo = function() {
+      if (running) return;
+
+      field.start();
+      running = true;
+      animate();
+      console.log('Demo started');
+    };
+
+    // Stop animation
+    window.stopDemo = function() {
+      running = false;
+      field.stop();
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+      console.log('Demo stopped');
+    };
+
+    // Toggle hidden line removal
+    window.toggleHiddenLineRemoval = function() {
+      const current = view.getConfig('hiddenLineRemoval');
+      view.setConfig('hiddenLineRemoval', !current);
+      console.log('Hidden line removal:', !current);
+    };
+
+    // Initialize on load
+    init();
+    render(); // Initial render
+  </script>
+</body>
+</html>

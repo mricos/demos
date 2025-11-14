@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spinning Cube Terminal Demo</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Courier New', monospace;
+    }
+    #terminal {
+      background: #000;
+      border: 2px solid #00ff00;
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+    }
+    .info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #00ff00;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="info">
+    SPINNING CUBE TERMINAL DEMO<br>
+    Press SPACE to toggle rotation<br>
+    Arrow keys to rotate manually
+  </div>
+  <canvas id="terminal" width="800" height="600"></canvas>
+
+  <script>
+    // Terminal setup
+    const canvas = document.getElementById('terminal');
+    const ctx = canvas.getContext('2d');
+
+    // Terminal dimensions
+    const termWidth = 80;
+    const termHeight = 24;
+    const charWidth = canvas.width / termWidth;
+    const charHeight = canvas.height / termHeight;
+
+    // Cube vertices (8 corners of a cube centered at origin)
+    const vertices = [
+      [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], // Back face
+      [-1, -1,  1], [1, -1,  1], [1, 1,  1], [-1, 1,  1]  // Front face
+    ];
+
+    // Cube edges (connecting vertices)
+    const edges = [
+      [0, 1], [1, 2], [2, 3], [3, 0], // Back face
+      [4, 5], [5, 6], [6, 7], [7, 4], // Front face
+      [0, 4], [1, 5], [2, 6], [3, 7]  // Connecting edges
+    ];
+
+    // Rotation angles
+    let angleX = 0;
+    let angleY = 0;
+    let angleZ = 0;
+    let autoRotate = true;
+
+    // 3D rotation matrices
+    function rotateX(point, angle) {
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const [x, y, z] = point;
+      return [x, y * cos - z * sin, y * sin + z * cos];
+    }
+
+    function rotateY(point, angle) {
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const [x, y, z] = point;
+      return [x * cos + z * sin, y, -x * sin + z * cos];
+    }
+
+    function rotateZ(point, angle) {
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const [x, y, z] = point;
+      return [x * cos - y * sin, x * sin + y * cos, z];
+    }
+
+    // Project 3D point to 2D
+    function project(point) {
+      const scale = 100;
+      const distance = 5;
+      const [x, y, z] = point;
+
+      // Perspective projection
+      const factor = distance / (distance + z);
+      const projX = x * factor * scale;
+      const projY = y * factor * scale;
+
+      // Map to terminal coordinates (center of screen)
+      const termX = termWidth / 2 + projX / charWidth;
+      const termY = termHeight / 2 - projY / charHeight;
+
+      return [termX, termY];
+    }
+
+    // Clear terminal
+    function clearTerminal() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Draw line on terminal
+    function drawLine(x1, y1, x2, y2, color = '#00ff00') {
+      const px1 = x1 * charWidth;
+      const py1 = y1 * charHeight;
+      const px2 = x2 * charWidth;
+      const py2 = y2 * charHeight;
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(px1, py1);
+      ctx.lineTo(px2, py2);
+      ctx.stroke();
+    }
+
+    // Render cube
+    function render() {
+      clearTerminal();
+
+      // Transform vertices
+      const transformedVertices = vertices.map(vertex => {
+        let point = vertex.slice();
+        point = rotateX(point, angleX);
+        point = rotateY(point, angleY);
+        point = rotateZ(point, angleZ);
+        return point;
+      });
+
+      // Project to 2D
+      const projected = transformedVertices.map(project);
+
+      // Draw edges
+      edges.forEach(([start, end]) => {
+        const [x1, y1] = projected[start];
+        const [x2, y2] = projected[end];
+
+        // Only draw if within terminal bounds
+        if (x1 >= 0 && x1 < termWidth && y1 >= 0 && y1 < termHeight &&
+            x2 >= 0 && x2 < termWidth && y2 >= 0 && y2 < termHeight) {
+          drawLine(x1, y1, x2, y2);
+        }
+      });
+
+      // Draw vertices as dots
+      projected.forEach(([x, y]) => {
+        if (x >= 0 && x < termWidth && y >= 0 && y < termHeight) {
+          ctx.fillStyle = '#00ff00';
+          ctx.fillRect(x * charWidth - 2, y * charHeight - 2, 4, 4);
+        }
+      });
+    }
+
+    // Animation loop
+    function animate() {
+      if (autoRotate) {
+        angleX += 0.01;
+        angleY += 0.015;
+        angleZ += 0.005;
+      }
+
+      render();
+      requestAnimationFrame(animate);
+    }
+
+    // Keyboard controls
+    document.addEventListener('keydown', (e) => {
+      switch(e.code) {
+        case 'Space':
+          autoRotate = !autoRotate;
+          break;
+        case 'ArrowUp':
+          angleX -= 0.1;
+          break;
+        case 'ArrowDown':
+          angleX += 0.1;
+          break;
+        case 'ArrowLeft':
+          angleY -= 0.1;
+          break;
+        case 'ArrowRight':
+          angleY += 0.1;
+          break;
+      }
+    });
+
+    // Start animation
+    animate();
+  </script>
+</body>
+</html>

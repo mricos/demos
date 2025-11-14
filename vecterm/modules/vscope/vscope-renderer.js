@@ -34,6 +34,12 @@ export class VscopeRenderer {
    * Main render function
    */
   render(sceneData, state) {
+    // EMERGENCY KILL SWITCH - set this to true in console to stop all rendering
+    if (window.VSCOPE_DISABLE_ALL) {
+      console.warn('[VscopeRenderer] DISABLED BY KILL SWITCH');
+      return;
+    }
+
     if (!this.vt100Renderer) {
       console.warn('VT100 renderer not available');
       return;
@@ -62,39 +68,76 @@ export class VscopeRenderer {
   }
 
   /**
-   * Render vectors to terminal
+   * Render vectors to terminal - WIREFRAME MODE (not ASCII!)
    */
   renderVectors(lines, state) {
     if (!lines || lines.length === 0) {
+      console.warn('[VscopeRenderer] No lines to render');
       return;
     }
 
-    // Register vectors in pixel grid
-    this.pixelGrid.clear();
+    console.log('[VscopeRenderer] Rendering', lines.length, 'lines');
+
+    // Get VT100 canvas context for direct drawing
+    if (!this.vt100Renderer.canvas || !this.vt100Renderer.ctx) {
+      console.warn('[VscopeRenderer] VT100 canvas not available for vector rendering');
+      return;
+    }
+
+    const canvas = this.vt100Renderer.canvas;
+    const ctx = this.vt100Renderer.ctx;
+
+    // CRITICAL: Ensure canvas is sized properly
+    if (canvas.width === 0 || canvas.height === 0) {
+      const parent = canvas.parentElement;
+      canvas.width = parent.clientWidth;
+      canvas.height = parent.clientHeight;
+      console.log('[VscopeRenderer] Sized canvas:', canvas.width, 'x', canvas.height);
+    }
+
+    const targetRegion = this.mapper.getTargetRegion();
+
+    // Calculate pixel positions for target region
+    const charWidth = canvas.width / this.vt100Renderer.cols;
+    const charHeight = canvas.height / this.vt100Renderer.rows;
+
+    const regionX = targetRegion.col * charWidth;
+    const regionY = targetRegion.row * charHeight;
+    const regionWidth = targetRegion.cols * charWidth;
+    const regionHeight = targetRegion.rows * charHeight;
+
+    // Clear the target region first
+    ctx.fillStyle = '#000';
+    ctx.fillRect(regionX, regionY, regionWidth, regionHeight);
+
+    // Set up drawing style
+    ctx.save();
+    ctx.strokeStyle = '#00ff00'; // Green vectors
+    ctx.lineWidth = 2;
+    ctx.setLineDash([]);
+
+    // Draw each line segment
     for (const line of lines) {
-      if (line.p1 && line.p2) {
-        this.pixelGrid.registerVector(line.p1.x, line.p1.y, line.p2.x, line.p2.y, line);
-      }
+      if (!line.p1 || !line.p2) continue;
+
+      // Map canvas coordinates to terminal pixel coordinates
+      const p1Terminal = this.mapper.canvasToTerminal(line.p1.x, line.p1.y);
+      const p2Terminal = this.mapper.canvasToTerminal(line.p2.x, line.p2.y);
+
+      // Convert terminal cell coordinates to pixel coordinates
+      const x1 = regionX + p1Terminal.col * charWidth;
+      const y1 = regionY + p1Terminal.row * charHeight;
+      const x2 = regionX + p2Terminal.col * charWidth;
+      const y2 = regionY + p2Terminal.row * charHeight;
+
+      // Draw line
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
     }
 
-    // Render grid cells to terminal
-    const maxDensity = this.pixelGrid.getMaxDensity();
-
-    for (const cell of this.mapper.iterateTerminalCells()) {
-      // Get canvas region for this terminal cell
-      const { canvasRegion, terminalCol, terminalRow } = cell;
-
-      // Sample pixel grid in this region
-      const density = this.sampleRegionDensity(canvasRegion);
-
-      // Map density to character
-      const char = this.densityToChar(density, maxDensity);
-
-      // Write to terminal
-      if (char !== ' ') {
-        this.vt100Renderer.writeAt(terminalCol, terminalRow, char);
-      }
-    }
+    ctx.restore();
   }
 
   /**
@@ -246,17 +289,27 @@ export class VscopeRenderer {
    */
   clearTargetRegion() {
     if (!this.vt100Renderer) {
+      console.warn('[VscopeRenderer] clearTargetRegion: VT100 renderer not available');
       return;
     }
 
     const targetRegion = this.mapper.getTargetRegion();
 
+    // Batched clear to prevent flicker
     for (let row = 0; row < targetRegion.rows; row++) {
       for (let col = 0; col < targetRegion.cols; col++) {
         const terminalCol = targetRegion.col + col;
         const terminalRow = targetRegion.row + row;
-        this.vt100Renderer.writeAt(terminalCol, terminalRow, ' ');
+        this.vt100Renderer.writeAt(terminalCol, terminalRow, ' ', true);
       }
+    }
+
+    // CRITICAL: Force render to flush the clear to display
+    this.vt100Renderer.requestRender();
+
+    // Also clear the pixel grid to prevent stale data
+    if (this.pixelGrid) {
+      this.pixelGrid.clear();
     }
   }
 

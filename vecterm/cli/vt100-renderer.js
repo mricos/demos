@@ -39,6 +39,12 @@ class VT100Renderer {
     // Font
     this.font = '16px "Courier New", monospace';
 
+    // Batched rendering (prevents flicker from multiple writes)
+    this.renderPending = false;
+
+    // Dirty region tracking (for partial rendering)
+    this.dirtyRegion = null; // {minX, minY, maxX, maxY}
+
     // Resize canvas
     this.resize();
 
@@ -75,8 +81,10 @@ class VT100Renderer {
 
   /**
    * Write text to the terminal at current cursor position
+   * @param {string} text - Text to write
+   * @param {boolean} batchRender - If true, defer rendering until requestRender() called
    */
-  write(text) {
+  write(text, batchRender = false) {
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
 
@@ -91,6 +99,10 @@ class VT100Renderer {
       } else {
         // Write character to buffer
         this.buffer[this.cursorY][this.cursorX] = char;
+
+        // Mark cell as dirty
+        this.markDirty(this.cursorX, this.cursorY);
+
         this.cursorX++;
 
         // Wrap to next line
@@ -104,23 +116,55 @@ class VT100Renderer {
       }
     }
 
-    this.render();
+    if (batchRender) {
+      this.renderPending = true;
+    } else {
+      this.render();
+    }
+  }
+
+  /**
+   * Mark a cell as dirty (needs redraw)
+   */
+  markDirty(x, y) {
+    if (!this.dirtyRegion) {
+      this.dirtyRegion = { minX: x, minY: y, maxX: x, maxY: y };
+    } else {
+      this.dirtyRegion.minX = Math.min(this.dirtyRegion.minX, x);
+      this.dirtyRegion.minY = Math.min(this.dirtyRegion.minY, y);
+      this.dirtyRegion.maxX = Math.max(this.dirtyRegion.maxX, x);
+      this.dirtyRegion.maxY = Math.max(this.dirtyRegion.maxY, y);
+    }
   }
 
   /**
    * Write text at specific position
+   * @param {number} x - Column position
+   * @param {number} y - Row position
+   * @param {string} text - Text to write
+   * @param {boolean} batchRender - If true, defer rendering
    */
-  writeAt(x, y, text) {
+  writeAt(x, y, text, batchRender = false) {
     const savedX = this.cursorX;
     const savedY = this.cursorY;
 
     this.cursorX = x;
     this.cursorY = y;
 
-    this.write(text);
+    this.write(text, batchRender);
 
     this.cursorX = savedX;
     this.cursorY = savedY;
+  }
+
+  /**
+   * Request a render (used with batched writes)
+   */
+  requestRender() {
+    if (this.renderPending) {
+      this.render();
+      this.renderPending = false;
+    }
   }
 
   /**
@@ -161,13 +205,29 @@ class VT100Renderer {
 
   /**
    * Render the terminal buffer to canvas
+   * Only redraws dirty region if partial rendering is enabled
    */
   render() {
     const ctx = this.ctx;
 
-    // Clear canvas
+    // Determine render region
+    let minX = 0, minY = 0, maxX = this.cols - 1, maxY = this.rows - 1;
+
+    if (this.dirtyRegion) {
+      // Partial render - only dirty region
+      minX = this.dirtyRegion.minX;
+      minY = this.dirtyRegion.minY;
+      maxX = this.dirtyRegion.maxX;
+      maxY = this.dirtyRegion.maxY;
+    }
+
+    // Clear only the render region
     ctx.fillStyle = this.bgColor;
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    const clearX = minX * this.charWidth;
+    const clearY = minY * this.charHeight;
+    const clearW = (maxX - minX + 1) * this.charWidth;
+    const clearH = (maxY - minY + 1) * this.charHeight;
+    ctx.fillRect(clearX, clearY, clearW, clearH);
 
     // Set font
     ctx.font = this.font;
@@ -178,9 +238,9 @@ class VT100Renderer {
     ctx.shadowColor = this.fgColor;
     ctx.shadowBlur = 5;
 
-    // Render buffer
-    for (let y = 0; y < this.rows; y++) {
-      for (let x = 0; x < this.cols; x++) {
+    // Render only the dirty region
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
         const char = this.buffer[y][x];
         if (char !== ' ') {
           const px = x * this.charWidth;
@@ -190,12 +250,17 @@ class VT100Renderer {
       }
     }
 
-    // Render cursor
-    if (this.cursorVisible) {
+    // Render cursor if in dirty region
+    if (this.cursorVisible &&
+        this.cursorX >= minX && this.cursorX <= maxX &&
+        this.cursorY >= minY && this.cursorY <= maxY) {
       const px = this.cursorX * this.charWidth;
       const py = this.cursorY * this.charHeight;
       ctx.fillRect(px, py, this.charWidth, 2);
     }
+
+    // Clear dirty region after rendering
+    this.dirtyRegion = null;
   }
 
   /**

@@ -291,18 +291,15 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
     const deviceList = document.getElementById('midi-device-list');
     if (deviceList) {
       const devices = state.midi.devices.inputs;
-      console.log('[MIDI UI] Updating device list, found', devices.length, 'devices');
+      // Only log on device count change, not every update
       if (devices.length === 0) {
         deviceList.textContent = 'No MIDI devices detected';
         deviceList.style.color = '#666';
       } else {
-        console.log('[MIDI UI] Rendering devices:', devices);
         deviceList.innerHTML = devices.map(d =>
           `<div style="color: #0f0; margin: 2px 0;">${d.name}</div>`
         ).join('');
       }
-    } else {
-      console.log('[MIDI UI] Device list element not found');
     }
 
     // Update mappings list

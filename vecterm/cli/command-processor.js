@@ -131,13 +131,23 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
         cliLog(`Sleeping for ${ms}ms...`, 'success');
       }
 
-    } else if (cmd === 'inspect' && parts.length === 3) {
-      // inspect context <name> OR inspect field <name>
+    } else if (cmd === 'inspect') {
+      // inspect context <name> OR inspect field <name> OR inspect entities OR inspect entity <id>
       const type = parts[1];
       const name = parts[2];
       const state = store.getState();
 
+      if (!type) {
+        cliLog('Usage: inspect <type> [name]', 'error');
+        cliLog('Types: context, field, entities, entity', 'info');
+        return;
+      }
+
       if (type === 'context') {
+        if (!name) {
+          cliLog('Usage: inspect context <name>', 'error');
+          return;
+        }
         if (state.contexts[name]) {
           cliLog(`Context: ${name}`, 'success');
           cliLogJson(state.contexts[name], { collapsedDepth: 5, rootCollapsed: false });
@@ -145,6 +155,10 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
           cliLog(`Context '${name}' not found.`, 'error');
         }
       } else if (type === 'field') {
+        if (!name) {
+          cliLog('Usage: inspect field <name>', 'error');
+          return;
+        }
         if (state.fields.instances[name]) {
           cliLog(`Field: ${name}`, 'success');
           // Don't show the actual instance object (too large), just metadata
@@ -156,8 +170,47 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
         } else {
           cliLog(`Field '${name}' not found.`, 'error');
         }
+      } else if (type === 'entities') {
+        // List all entities with component summary
+        const entities = state.entities;
+
+        if (!entities || entities.length === 0) {
+          cliLog('No entities found', 'info');
+          cliLog('Tip: Make sure a game is running with "play quadrapong"', 'info');
+        } else {
+          cliLog(`=== Entities (${entities.length}) ===`, 'success');
+          entities.forEach(entity => {
+            // Get component list
+            const components = Object.keys(entity).filter(key =>
+              !['id', 'type', 'x', 'y', 'width', 'height', 'color', 'label', 'layerId'].includes(key)
+            );
+            const componentStr = components.length > 0 ? ` [${components.join(', ')}]` : '';
+            const typeInfo = entity.type ? ` ${entity.type}` : '';
+            const posInfo = (entity.x !== undefined && entity.y !== undefined)
+              ? ` @ (${Math.round(entity.x)}, ${Math.round(entity.y)})`
+              : '';
+            const labelInfo = entity.label ? ` "${entity.label}"` : '';
+
+            cliLog(`  ${entity.id}${typeInfo}${labelInfo}${posInfo}${componentStr}`, 'success');
+          });
+        }
+      } else if (type === 'entity') {
+        if (!name) {
+          cliLog('Usage: inspect entity <id>', 'error');
+          cliLog('Use "inspect entities" to list all entities', 'info');
+          return;
+        }
+        // Inspect specific entity by ID
+        const entity = state.entities.find(e => e.id === name);
+        if (entity) {
+          cliLog(`Entity: ${name}`, 'success');
+          cliLogJson(entity, { collapsedDepth: 3, rootCollapsed: false });
+        } else {
+          cliLog(`Entity '${name}' not found.`, 'error');
+          cliLog('Use "inspect entities" to list all entities', 'info');
+        }
       } else {
-        cliLog(`Unknown type: ${type}. Use 'context' or 'field'.`, 'error');
+        cliLog(`Unknown type: ${type}. Use 'context', 'field', 'entities', or 'entity'.`, 'error');
       }
 
     } else if (cmd === 'state') {
@@ -1180,6 +1233,7 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
     } else if (cmd === 'vscope' && cmdPath[1] === 'enable') {
       if (window.Vecterm?.VScope) {
         window.Vecterm.VScope.enable();
+        cliLog('✓ VScope enabled', 'success');
       } else {
         cliLog('ERROR: VScope system not initialized', 'error');
       }
@@ -1187,6 +1241,67 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
     } else if (cmd === 'vscope' && cmdPath[1] === 'disable') {
       if (window.Vecterm?.VScope) {
         window.Vecterm.VScope.disable();
+        cliLog('✓ VScope disabled', 'success');
+      } else {
+        cliLog('ERROR: VScope system not initialized', 'error');
+      }
+
+    } else if (cmd === 'test' && cmdPath[1] === 'box') {
+      // Draw a static box on the VT100 canvas in upper right
+      const vt100Canvas = document.getElementById('vt100-canvas');
+      if (!vt100Canvas) {
+        cliLog('ERROR: vt100-canvas not found', 'error');
+        return;
+      }
+
+      // CRITICAL: Size the canvas based on parent element
+      const parent = vt100Canvas.parentElement;
+      const parentWidth = parent.clientWidth;
+      const parentHeight = parent.clientHeight;
+
+      // Set canvas dimensions (this creates the drawing buffer)
+      vt100Canvas.width = parentWidth;
+      vt100Canvas.height = parentHeight;
+
+      const ctx = vt100Canvas.getContext('2d');
+      const width = vt100Canvas.width;
+      const height = vt100Canvas.height;
+
+      cliLog('Parent size: ' + parentWidth + 'x' + parentHeight, 'info');
+      cliLog('Canvas size: ' + width + 'x' + height, 'info');
+
+      // Clear canvas first
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw a box in upper right quadrant
+      const boxX = width * 0.5;  // Start at 50% (right half)
+      const boxY = 0;             // Start at top
+      const boxWidth = width * 0.4;  // 40% width
+      const boxHeight = height * 0.4; // 40% height
+
+      ctx.strokeStyle = '#00ff00';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+      // Draw an X inside
+      ctx.beginPath();
+      ctx.moveTo(boxX, boxY);
+      ctx.lineTo(boxX + boxWidth, boxY + boxHeight);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(boxX + boxWidth, boxY);
+      ctx.lineTo(boxX, boxY + boxHeight);
+      ctx.stroke();
+
+      cliLog('✓ Box drawn on VT100 canvas (upper right)', 'success');
+
+    } else if (cmd === 'vscope' && cmdPath[1] === 'debug') {
+      if (window.Vecterm?.VScope) {
+        const output = window.Vecterm.VScope.debug();
+        // Output is already logged to console by the debug function
+        cliLog('✓ Debug info printed to console - check browser console', 'success');
       } else {
         cliLog('ERROR: VScope system not initialized', 'error');
       }
@@ -1194,6 +1309,7 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
     } else if (cmd === 'vscope' && cmdPath[1] === 'camera' && cmdPath[2] === 'field') {
       if (window.Vecterm?.VScope) {
         window.Vecterm.VScope.camera.field();
+        cliLog('✓ Camera set to field view', 'success');
       } else {
         cliLog('ERROR: VScope system not initialized', 'error');
       }
@@ -1201,6 +1317,7 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
     } else if (cmd === 'vscope' && cmdPath[1] === 'camera' && cmdPath[2] === 'scope') {
       if (window.Vecterm?.VScope) {
         window.Vecterm.VScope.camera.scope();
+        cliLog('✓ Camera set to scope view', 'success');
       } else {
         cliLog('ERROR: VScope system not initialized', 'error');
       }
@@ -1234,6 +1351,7 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
     } else if (cmd === 'vscope' && cmdPath[1] === 'camera' && cmdPath[2] === 'reset') {
       if (window.Vecterm?.VScope) {
         window.Vecterm.VScope.camera.reset();
+        cliLog('✓ Camera reset to default', 'success');
       } else {
         cliLog('ERROR: VScope system not initialized', 'error');
       }
@@ -1241,6 +1359,7 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
     } else if (cmd === 'vscope' && cmdPath[1] === 'field' && cmdPath[2] === 'vector') {
       if (window.Vecterm?.VScope) {
         window.Vecterm.VScope.field.vector();
+        cliLog('✓ Field mode: vector', 'success');
       } else {
         cliLog('ERROR: VScope system not initialized', 'error');
       }
@@ -1248,6 +1367,7 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
     } else if (cmd === 'vscope' && cmdPath[1] === 'field' && cmdPath[2] === 'grid') {
       if (window.Vecterm?.VScope) {
         window.Vecterm.VScope.field.grid();
+        cliLog('✓ Field mode: grid', 'success');
       } else {
         cliLog('ERROR: VScope system not initialized', 'error');
       }
@@ -1255,6 +1375,7 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
     } else if (cmd === 'vscope' && cmdPath[1] === 'field' && cmdPath[2] === 'pixel') {
       if (window.Vecterm?.VScope) {
         window.Vecterm.VScope.field.pixel();
+        cliLog('✓ Field mode: pixel', 'success');
       } else {
         cliLog('ERROR: VScope system not initialized', 'error');
       }
@@ -1263,6 +1384,7 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
       if (window.Vecterm?.VScope) {
         const entityId = args[0];
         window.Vecterm.VScope.track.entity(entityId);
+        cliLog(`✓ Tracking entity: ${entityId}`, 'success');
       } else {
         cliLog('ERROR: VScope system not initialized', 'error');
       }
@@ -1271,6 +1393,7 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
       if (window.Vecterm?.VScope) {
         const entityIds = args[0];
         window.Vecterm.VScope.track.entities(entityIds);
+        cliLog(`✓ Tracking entities: ${entityIds}`, 'success');
       } else {
         cliLog('ERROR: VScope system not initialized', 'error');
       }
@@ -1289,6 +1412,7 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
     } else if (cmd === 'vscope' && cmdPath[1] === 'track' && cmdPath[2] === 'reset') {
       if (window.Vecterm?.VScope) {
         window.Vecterm.VScope.track.reset();
+        cliLog('✓ Tracking reset to full field', 'success');
       } else {
         cliLog('ERROR: VScope system not initialized', 'error');
       }
@@ -1297,6 +1421,8 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
       if (window.Vecterm?.VScope) {
         const quadrant = parseInt(args[0]);
         window.Vecterm.VScope.quadrant(quadrant);
+        const quadName = quadrant === 0 ? 'full terminal' : `quadrant ${quadrant}`;
+        cliLog(`✓ Display: ${quadName}`, 'success');
       } else {
         cliLog('ERROR: VScope system not initialized', 'error');
       }
@@ -1305,6 +1431,7 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
       if (window.Vecterm?.VScope) {
         const fps = parseInt(args[0]);
         window.Vecterm.VScope.updaterate(fps);
+        cliLog(`✓ Update rate: ${fps} FPS`, 'success');
       } else {
         cliLog('ERROR: VScope system not initialized', 'error');
       }
@@ -1312,7 +1439,11 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
     } else if (cmd === 'console' && cmdPath[1] === 'vt100') {
       handleConsoleVT100Command(cmdPath[2], args);
 
+    } else if (cmd === 'view' && cmdPath[1] === 'vt100') {
+      handleViewVT100Command(cmdPath[2], args, store);
+
     } else if (cmd === 'game' && cmdPath[1] === 'vt100') {
+      // Backward compatibility: redirect to view.vt100
       handleGameVT100Command(cmdPath[2], args, store);
 
     } else if (cmd === 'login' && parts.length === 3) {
@@ -1519,28 +1650,37 @@ function handleConsoleVT100Command(action, args) {
 /**
  * Handle game VT100 commands
  */
-function handleGameVT100Command(action, args, store) {
+function handleViewVT100Command(action, args, store) {
   const state = store.getState();
-  const gameId = state.games.activeGame || state.games.previewGame;
+  const fieldId = state.fields.activeField; // TODO: Update to use field instead of game
 
-  if (!gameId || !state.games.instances[gameId]) {
-    cliLog('No game running. Use "play <game>" or "preview <game>" first.', 'error');
+  // Backward compatibility: check for game if no field
+  const gameId = state.games?.activeGame || state.games?.previewGame;
+
+  if (!fieldId && (!gameId || !state.games.instances[gameId])) {
+    cliLog('No field or game running. Use "play <game>" first.', 'error');
     return;
   }
 
-  const game = state.games.instances[gameId].instance;
+  // Get the game instance (contains VT100 config for now)
+  const game = state.games.instances[gameId]?.instance;
+
+  if (!game || !game.vt100Config) {
+    cliLog('Active instance does not support VT100 effects', 'error');
+    return;
+  }
 
   if (!action || action === 'help') {
-    cliLog('=== Game VT100 Commands ===', 'success');
-    cliLog('  game.vt100.wave <freq> <amp> - Raster wave (freq: Hz, amp: pixels)');
-    cliLog('  game.vt100.drift <amount> - Slow drift amount');
-    cliLog('  game.vt100.jitter <amount> - Jitter amount');
-    cliLog('  game.vt100.scanlines <intensity> - Scanline intensity (0-1)');
-    cliLog('  game.vt100.bloom <pixels> - Phosphor bloom blur');
-    cliLog('  game.vt100.brightness <value> - Brightness (0-2)');
-    cliLog('  game.vt100.contrast <value> - Contrast (0-2)');
-    cliLog('  game.vt100.toggle - Enable/disable raster wave');
-    cliLog('  game.vt100.status - Show game settings');
+    cliLog('=== View VT100 Commands ===', 'success');
+    cliLog('  view.vt100.wave <freq> <amp> - Raster wave (freq: Hz, amp: pixels)');
+    cliLog('  view.vt100.drift <amount> - Slow drift amount');
+    cliLog('  view.vt100.jitter <amount> - Jitter amount');
+    cliLog('  view.vt100.scanlines <intensity> - Scanline intensity (0-1)');
+    cliLog('  view.vt100.bloom <pixels> - Phosphor bloom blur');
+    cliLog('  view.vt100.brightness <value> - Brightness (0-2)');
+    cliLog('  view.vt100.contrast <value> - Contrast (0-2)');
+    cliLog('  view.vt100.toggle - Enable/disable raster wave');
+    cliLog('  view.vt100.status - Show view settings');
   } else if (action === 'wave' && args.length === 2) {
     const freq = parseFloat(args[0]);
     const amp = parseFloat(args[1]);
@@ -1588,8 +1728,11 @@ function handleGameVT100Command(action, args, store) {
     cliLog(`  Brightness: ${config.brightness}`);
     cliLog(`  Contrast: ${config.contrast}`);
   } else {
-    cliLog('Unknown game.vt100 command. Try "game.vt100.help"', 'error');
+    cliLog('Unknown view.vt100 command. Try "view.vt100.help"', 'error');
   }
 }
+
+// Backward compatibility alias
+const handleGameVT100Command = handleViewVT100Command;
 
 export { createCommandProcessor };

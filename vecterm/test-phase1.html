@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phase 1 Architecture Test</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1, h2 {
+      color: #0ff;
+      border-bottom: 1px solid #0ff;
+      padding-bottom: 5px;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #333;
+      background: #111;
+    }
+    .test-result {
+      margin: 10px 0;
+      padding: 10px;
+      border-left: 3px solid #0f0;
+      background: #001100;
+    }
+    .test-result.error {
+      border-left-color: #f00;
+      background: #110000;
+      color: #f00;
+    }
+    .test-result.success {
+      border-left-color: #0f0;
+      background: #001100;
+      color: #0f0;
+    }
+    pre {
+      background: #000;
+      padding: 10px;
+      overflow-x: auto;
+      border: 1px solid #333;
+    }
+    button {
+      background: #003300;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+    }
+    button:hover {
+      background: #005500;
+    }
+    canvas {
+      border: 1px solid #0f0;
+      display: block;
+      margin: 10px 0;
+    }
+    #output {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Phase 1 Architecture Test Suite</h1>
+  <p>Testing World/Field/View separation and core functionality</p>
+
+  <div class="test-section">
+    <h2>Test Controls</h2>
+    <button onclick="runAllTests()">Run All Tests</button>
+    <button onclick="clearOutput()">Clear Output</button>
+    <button onclick="copyOutput()">📋 Copy Output</button>
+    <button onclick="saveSnapshot()">💾 Save Snapshot</button>
+    <button onclick="loadSnapshot()">📂 Load Snapshot</button>
+    <button onclick="compareSnapshot()">🔍 Compare to Snapshot</button>
+  </div>
+
+  <div class="test-section">
+    <h2>Regression Testing</h2>
+    <div id="snapshot-status" style="color: #888; font-style: italic;">No snapshot loaded</div>
+    <div id="comparison-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Individual Tests</h2>
+    <button onclick="testWorld()">1. Test World</button>
+    <button onclick="testField()">2. Test Field</button>
+    <button onclick="testView()">3. Test View</button>
+    <button onclick="testIntegration()">4. Test Integration</button>
+  </div>
+
+  <div class="test-section">
+    <h2>Canvas Tests</h2>
+    <canvas id="test-canvas" width="400" height="300"></canvas>
+    <canvas id="test-vt100" width="800" height="480"></canvas>
+  </div>
+
+  <div id="output"></div>
+
+  <script type="module">
+    import { World } from './core/world.js';
+    import { Field, System } from './core/field.js';
+    import { Canvas2DView, VT100View, Frame, Camera2D } from './core/view.js';
+
+    // Make available globally for button handlers
+    window.World = World;
+    window.Field = Field;
+    window.System = System;
+    window.Canvas2DView = Canvas2DView;
+    window.VT100View = VT100View;
+    window.Frame = Frame;
+    window.Camera2D = Camera2D;
+
+    // Test results tracking
+    let testResults = [];
+    let currentSnapshot = null;
+    let testMetrics = {
+      startTime: null,
+      endTime: null,
+      totalTests: 0,
+      passed: 0,
+      failed: 0,
+      duration: 0
+    };
+
+    window.log = function(message, type = 'info') {
+      const output = document.getElementById('output');
+      const result = document.createElement('div');
+      result.className = `test-result ${type}`;
+      result.innerHTML = message;
+      output.appendChild(result);
+      output.scrollTop = output.scrollHeight;
+    };
+
+    window.clearOutput = function() {
+      document.getElementById('output').innerHTML = '';
+      testResults = [];
+      testMetrics = {
+        startTime: null,
+        endTime: null,
+        totalTests: 0,
+        passed: 0,
+        failed: 0,
+        duration: 0
+      };
+    };
+
+    window.assert = function(condition, message) {
+      if (condition) {
+        log(`✓ ${message}`, 'success');
+        testResults.push({ pass: true, message, timestamp: Date.now() });
+        testMetrics.passed++;
+        return true;
+      } else {
+        log(`✗ ${message}`, 'error');
+        testResults.push({ pass: false, message, timestamp: Date.now() });
+        testMetrics.failed++;
+        return false;
+      }
+    };
+
+    // ==========================================
+    // COPY OUTPUT FUNCTIONALITY
+    // ==========================================
+    window.copyOutput = function() {
+      const output = document.getElementById('output');
+      const textContent = output.innerText;
+
+      // Also include test results summary
+      const summary = generateTestSummary();
+      const fullOutput = summary + '\n\n' + textContent;
+
+      navigator.clipboard.writeText(fullOutput).then(() => {
+        log('✓ Output copied to clipboard!', 'success');
+        setTimeout(() => {
+          const lastChild = output.lastChild;
+          if (lastChild && lastChild.textContent.includes('copied to clipboard')) {
+            lastChild.remove();
+          }
+        }, 2000);
+      }).catch(err => {
+        log(`✗ Failed to copy: ${err.message}`, 'error');
+      });
+    };
+
+    function generateTestSummary() {
+      const passed = testResults.filter(r => r.pass).length;
+      const failed = testResults.filter(r => !r.pass).length;
+      const total = testResults.length;
+      const duration = testMetrics.duration || 0;
+
+      return `
+========================================
+PHASE 1 ARCHITECTURE TEST RESULTS
+========================================
+Date: ${new Date().toISOString()}
+Duration: ${(duration / 1000).toFixed(2)}s
+Total Tests: ${total}
+Passed: ${passed} (${total > 0 ? ((passed/total)*100).toFixed(1) : 0}%)
+Failed: ${failed}
+Status: ${failed === 0 ? 'PASS ✓' : 'FAIL ✗'}
+========================================
+`.trim();
+    }
+
+    // ==========================================
+    // SNAPSHOT FUNCTIONALITY FOR REGRESSION
+    // ==========================================
+    window.saveSnapshot = function() {
+      const snapshot = {
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        results: testResults.map(r => ({
+          pass: r.pass,
+          message: r.message
+        })),
+        metrics: {
+          total: testResults.length,
+          passed: testResults.filter(r => r.pass).length,
+          failed: testResults.filter(r => !r.pass).length,
+          duration: testMetrics.duration
+        }
+      };
+
+      const json = JSON.stringify(snapshot, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `test-snapshot-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      log('✓ Snapshot saved!', 'success');
+      currentSnapshot = snapshot;
+      updateSnapshotStatus();
+    };
+
+    window.loadSnapshot = function() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            try {
+              currentSnapshot = JSON.parse(event.target.result);
+              updateSnapshotStatus();
+              log('✓ Snapshot loaded successfully!', 'success');
+            } catch (err) {
+              log(`✗ Failed to load snapshot: ${err.message}`, 'error');
+            }
+          };
+          reader.readAsText(file);
+        }
+      };
+      input.click();
+    };
+
+    window.compareSnapshot = function() {
+      if (!currentSnapshot) {
+        log('✗ No snapshot loaded. Load a snapshot first.', 'error');
+        return;
+      }
+
+      const comparisonResult = document.getElementById('comparison-result');
+      comparisonResult.innerHTML = '';
+
+      log('<h2>Snapshot Comparison</h2>');
+
+      // Compare metrics
+      const currentPassed = testResults.filter(r => r.pass).length;
+      const currentFailed = testResults.filter(r => !r.pass).length;
+      const snapshotPassed = currentSnapshot.metrics.passed;
+      const snapshotFailed = currentSnapshot.metrics.failed;
+
+      const passedDiff = currentPassed - snapshotPassed;
+      const failedDiff = currentFailed - snapshotFailed;
+
+      log(`<strong>Metrics Comparison:</strong>`);
+      log(`Passed: ${currentPassed} (snapshot: ${snapshotPassed}, diff: ${passedDiff >= 0 ? '+' : ''}${passedDiff})`);
+      log(`Failed: ${currentFailed} (snapshot: ${snapshotFailed}, diff: ${failedDiff >= 0 ? '+' : ''}${failedDiff})`);
+
+      // Compare individual test results
+      const currentMessages = new Set(testResults.map(r => r.message));
+      const snapshotMessages = new Set(currentSnapshot.results.map(r => r.message));
+
+      // Find new tests
+      const newTests = [...currentMessages].filter(m => !snapshotMessages.has(m));
+      if (newTests.length > 0) {
+        log(`<strong>New tests (${newTests.length}):</strong>`, 'info');
+        newTests.forEach(t => log(`  + ${t}`, 'info'));
+      }
+
+      // Find removed tests
+      const removedTests = [...snapshotMessages].filter(m => !currentMessages.has(m));
+      if (removedTests.length > 0) {
+        log(`<strong>Removed tests (${removedTests.length}):</strong>`, 'info');
+        removedTests.forEach(t => log(`  - ${t}`, 'info'));
+      }
+
+      // Find changed results
+      const currentResultMap = new Map(testResults.map(r => [r.message, r.pass]));
+      const snapshotResultMap = new Map(currentSnapshot.results.map(r => [r.message, r.pass]));
+
+      const changedResults = [];
+      for (const [msg, currentPass] of currentResultMap) {
+        if (snapshotResultMap.has(msg) && snapshotResultMap.get(msg) !== currentPass) {
+          changedResults.push({
+            message: msg,
+            was: snapshotResultMap.get(msg),
+            now: currentPass
+          });
+        }
+      }
+
+      if (changedResults.length > 0) {
+        log(`<strong>Changed results (${changedResults.length}):</strong>`, 'error');
+        changedResults.forEach(c => {
+          const status = c.now ? 'FIXED ✓' : 'BROKEN ✗';
+          const type = c.now ? 'success' : 'error';
+          log(`  ${status} ${c.message}`, type);
+        });
+      }
+
+      // Overall verdict
+      const regressions = changedResults.filter(c => !c.now).length;
+      if (regressions > 0) {
+        log(`<strong>⚠️  REGRESSION DETECTED: ${regressions} test(s) now failing!</strong>`, 'error');
+      } else if (changedResults.some(c => c.now)) {
+        log(`<strong>✓ IMPROVEMENTS: Some tests now passing!</strong>`, 'success');
+      } else if (newTests.length === 0 && removedTests.length === 0) {
+        log(`<strong>✓ No regressions detected</strong>`, 'success');
+      }
+    };
+
+    function updateSnapshotStatus() {
+      const statusDiv = document.getElementById('snapshot-status');
+      if (currentSnapshot) {
+        statusDiv.style.color = '#0f0';
+        statusDiv.innerHTML = `Snapshot loaded: ${currentSnapshot.timestamp} (${currentSnapshot.metrics.total} tests)`;
+      } else {
+        statusDiv.style.color = '#888';
+        statusDiv.innerHTML = 'No snapshot loaded';
+      }
+    }
+
+    // ==========================================
+    // TEST 1: World
+    // ==========================================
+    window.testWorld = function() {
+      log('<h2>Test 1: World Architecture</h2>');
+
+      try {
+        // Create world
+        const world = new World({ name: 'test-world' });
+        assert(world.id, 'World created with ID');
+        assert(world.name === 'test-world', 'World has correct name');
+
+        // Create entity
+        const entity1 = world.createEntity({
+          id: '#ball',
+          labels: { type: 'ball', player: '1' }
+        });
+        assert(entity1.id === '#ball', 'Entity created with custom ID');
+        assert(entity1.labels.type === 'ball', 'Entity has labels');
+
+        // Add components
+        world.addComponent('#ball', 'position', { x: 100, y: 200 });
+        world.addComponent('#ball', 'velocity', { vx: 5, vy: -3 });
+
+        const pos = world.getComponent('#ball', 'position');
+        assert(pos.x === 100 && pos.y === 200, 'Component data stored correctly');
+
+        // Query by components
+        const movable = world.queryComponents('position', 'velocity');
+        assert(movable.length === 1, 'Query by components works');
+        assert(movable[0].entityId === '#ball', 'Query returns correct entity');
+
+        // Create more entities
+        world.createEntity({
+          id: '#paddle1',
+          labels: { type: 'paddle', player: '1', position: 'left' }
+        });
+        world.addComponent('#paddle1', 'position', { x: 50, y: 500 });
+
+        world.createEntity({
+          id: '#paddle2',
+          labels: { type: 'paddle', player: '2', position: 'right' }
+        });
+        world.addComponent('#paddle2', 'position', { x: 1870, y: 500 });
+
+        // Query by labels
+        const paddles = world.queryLabels({ type: 'paddle' });
+        assert(paddles.length === 2, 'Label query finds multiple entities');
+
+        const player1 = world.queryLabels({ player: '1' });
+        assert(player1.length === 2, 'Label query with different key works');
+
+        // Query by regex
+        const leftPaddle = world.queryLabels({ position: /left/ });
+        assert(leftPaddle.length === 1, 'Regex label query works');
+
+        // Spatial query
+        const nearOrigin = world.querySpatial({ x: 0, y: 0, width: 100, height: 100 });
+        assert(nearOrigin.length === 0, 'Spatial query returns empty for empty region');
+
+        const inRange = world.querySpatial({ x: 0, y: 0, width: 200, height: 300 });
+        assert(inRange.length === 2, 'Spatial query finds entities in range');
+
+        // Scenes
+        world.getScene('debug'); // Create debug scene first
+        world.createEntity({
+          id: '#debug-marker',
+          labels: { type: 'marker' },
+          scene: 'debug'
+        });
+
+        const mainScene = world.queryScene('main');
+        const debugScene = world.queryScene('debug');
+        assert(mainScene.length === 3, 'Main scene has correct entity count');
+        assert(debugScene.length === 1, 'Debug scene has correct entity count');
+
+        // Metrics
+        const metrics = world.getMetrics();
+        assert(metrics.entityCount === 4, 'Metrics track entity count');
+        log(`<pre>World metrics: ${JSON.stringify(metrics, null, 2)}</pre>`);
+
+        // Serialization
+        const serialized = world.serialize();
+        const restored = World.deserialize(serialized);
+        assert(restored.entities.size === 4, 'Deserialized world has all entities');
+        assert(restored.getComponent('#ball', 'position').x === 100, 'Deserialized components intact');
+
+        log('✅ World tests complete', 'success');
+
+      } catch (error) {
+        log(`❌ World test failed: ${error.message}`, 'error');
+        console.error(error);
+      }
+    };
+
+    // ==========================================
+    // TEST 2: Field
+    // ==========================================
+    window.testField = function() {
+      log('<h2>Test 2: Field Runtime</h2>');
+
+      try {
+        // Create field with world
+        const world = new World({ name: 'field-test-world' });
+        const field = new Field({
+          name: 'test-field',
+          world: world,
+          seed: 12345 // Deterministic RNG
+        });
+
+        assert(field.id, 'Field created with ID');
+        assert(field.world === world, 'Field owns world instance');
+        assert(field.state.status === 'stopped', 'Field starts stopped');
+
+        // Add entities to world
+        world.createEntity({ id: '#entity1', labels: { type: 'test' } });
+        world.addComponent('#entity1', 'position', { x: 0, y: 0 });
+        world.addComponent('#entity1', 'velocity', { vx: 10, vy: 0 });
+
+        // Create a simple movement system
+        class MovementSystem extends System {
+          execute(world, dt, field) {
+            const entities = world.queryComponents('position', 'velocity');
+            for (const { entityId, components } of entities) {
+              const pos = components.position;
+              const vel = components.velocity;
+
+              // Create new position object (don't mutate the existing one)
+              const newPos = {
+                x: pos.x + vel.vx * (dt / 1000),
+                y: pos.y + vel.vy * (dt / 1000)
+              };
+
+              // Update component in world
+              world.addComponent(entityId, 'position', newPos);
+            }
+          }
+        }
+
+        field.addSystem(new MovementSystem());
+        assert(field.systems.length === 1, 'System added to field');
+
+        // Start field
+        field.start();
+        assert(field.state.status === 'running', 'Field starts running');
+
+        // Tick simulation
+        const initialPos = world.getComponent('#entity1', 'position');
+        log(`Initial position: (${initialPos.x}, ${initialPos.y})`);
+
+        field.tick(16.67); // 1 frame at 60 FPS
+
+        const newPos = world.getComponent('#entity1', 'position');
+        log(`After 1 tick: (${newPos.x.toFixed(2)}, ${newPos.y.toFixed(2)})`);
+        assert(newPos.x > initialPos.x, 'Entity moved after tick');
+
+        // Tick multiple times
+        for (let i = 0; i < 60; i++) {
+          field.tick(16.67);
+        }
+
+        const finalPos = world.getComponent('#entity1', 'position');
+        log(`After 60 ticks: (${finalPos.x.toFixed(2)}, ${finalPos.y.toFixed(2)})`);
+        assert(finalPos.x > newPos.x, 'Entity continued moving');
+
+        // Test pause/resume
+        field.pause();
+        assert(field.state.status === 'paused', 'Field pauses');
+
+        const pausedPos = world.getComponent('#entity1', 'position');
+        field.tick(16.67);
+        const afterPauseTick = world.getComponent('#entity1', 'position');
+        assert(afterPauseTick.x === pausedPos.x, 'Entity does not move when paused');
+
+        field.resume();
+        assert(field.state.status === 'running', 'Field resumes');
+
+        // Test RNG determinism
+        const rng1 = field.random();
+        const rng2 = field.random();
+        assert(rng1 !== rng2, 'RNG generates different values');
+
+        field.rng.state = field.rng.seed; // Reset RNG
+        const rng3 = field.random();
+        assert(rng3 === rng1, 'RNG is deterministic with same seed');
+
+        // Test checkpoints
+        field.saveCheckpoint('test-checkpoint');
+        assert(field.session.checkpoints.has('test-checkpoint'), 'Checkpoint saved');
+
+        // Advance more
+        for (let i = 0; i < 30; i++) {
+          field.tick(16.67);
+        }
+
+        const beforeRestore = world.getComponent('#entity1', 'position');
+        field.loadCheckpoint('test-checkpoint');
+        const afterRestore = world.getComponent('#entity1', 'position');
+
+        assert(afterRestore.x < beforeRestore.x, 'Position restored from checkpoint');
+
+        // Metrics
+        const metrics = field.getMetrics();
+        log(`<pre>Field metrics: ${JSON.stringify(metrics, null, 2)}</pre>`);
+        assert(metrics.tick > 0, 'Field tracked ticks');
+
+        log('✅ Field tests complete', 'success');
+
+      } catch (error) {
+        log(`❌ Field test failed: ${error.message}`, 'error');
+        console.error(error);
+      }
+    };
+
+    // ==========================================
+    // TEST 3: View
+    // ==========================================
+    window.testView = function() {
+      log('<h2>Test 3: View Rendering</h2>');
+
+      try {
+        // Test Canvas2D View
+        const canvas = document.getElementById('test-canvas');
+        const view = new Canvas2DView('test', 'Test Canvas', canvas);
+
+        assert(view.id === 'test', 'Canvas2D view created');
+        assert(view.bounds.width === 400, 'View has correct bounds');
+
+        // Create frame with primitives
+        const frame = new Frame();
+
+        // Draw some shapes
+        frame.addPrimitive({
+          type: 'rect',
+          x: 10, y: 10,
+          width: 100, height: 100,
+          color: '#0ff',
+          filled: false
+        });
+
+        frame.addPrimitive({
+          type: 'circle',
+          x: 200, y: 150,
+          radius: 50,
+          color: '#0f0',
+          filled: true
+        });
+
+        frame.addPrimitive({
+          type: 'line',
+          from: { x: 50, y: 200 },
+          to: { x: 350, y: 250 },
+          color: '#ff0',
+          width: 2
+        });
+
+        frame.addPrimitive({
+          type: 'text',
+          x: 10, y: 280,
+          text: 'Phase 1 Test',
+          color: '#0f0',
+          font: '20px monospace'
+        });
+
+        // Render frame
+        view.render(frame);
+        log('✓ Rendered primitives to Canvas2D view', 'success');
+
+        // Test viewport
+        const camera = new Camera2D(0, 0, 400, 300, 1.0);
+        const viewport = view.createViewport('vp1',
+          { x: 0, y: 0, width: 200, height: 150 },
+          camera
+        );
+
+        assert(viewport.name === 'vp1', 'Viewport created');
+        assert(view.viewports.has('vp1'), 'Viewport registered in view');
+
+        // Test VT100 View
+        const vt100Canvas = document.getElementById('test-vt100');
+        const vt100 = new VT100View('vt100-test', 'VT100 Test', vt100Canvas, 80, 24);
+
+        assert(vt100.cols === 80, 'VT100 view has correct columns');
+        assert(vt100.rows === 24, 'VT100 view has correct rows');
+
+        // Create terminal frame
+        const termFrame = new Frame();
+
+        // Draw box
+        termFrame.addPrimitive({
+          type: 'rect',
+          x: 100, y: 100,
+          width: 300, height: 200,
+          char: '█',
+          color: '#0f0',
+          filled: false
+        });
+
+        // Draw line
+        termFrame.addPrimitive({
+          type: 'line',
+          from: { x: 50, y: 50 },
+          to: { x: 700, y: 400 },
+          char: '█',
+          color: '#0ff'
+        });
+
+        // Direct character placement
+        vt100.writeAt(2, 2, 'VECTERM TERMINAL TEST', '#0f0');
+        vt100.writeAt(2, 3, 'Phase 1 Architecture', '#0ff');
+        vt100.writeAt(2, 5, 'World / Field / View', '#ff0');
+
+        // Render and blit
+        vt100.render(termFrame);
+
+        log('✓ Rendered to VT100 view', 'success');
+
+        log('✅ View tests complete', 'success');
+
+      } catch (error) {
+        log(`❌ View test failed: ${error.message}`, 'error');
+        console.error(error);
+      }
+    };
+
+    // ==========================================
+    // TEST 4: Integration
+    // ==========================================
+    window.testIntegration = function() {
+      log('<h2>Test 4: Full Integration</h2>');
+
+      try {
+        // Create complete game simulation
+        const world = new World({
+          name: 'mini-game',
+          bounds: { x: 0, y: 0, width: 400, height: 300 }
+        });
+
+        // Create ball entity
+        const ball = world.createEntity({
+          id: '#ball',
+          labels: { type: 'ball' }
+        });
+        world.addComponent('#ball', 'position', { x: 200, y: 150 });
+        world.addComponent('#ball', 'velocity', { vx: 100, vy: 80 });
+        world.addComponent('#ball', 'renderable', { color: '#0f0', radius: 5 });
+
+        // Create paddle
+        const paddle = world.createEntity({
+          id: '#paddle',
+          labels: { type: 'paddle' }
+        });
+        world.addComponent('#paddle', 'position', { x: 20, y: 130 });
+        world.addComponent('#paddle', 'renderable', { color: '#0ff', width: 10, height: 40 });
+
+        // Create field with systems
+        const field = new Field({ world, name: 'mini-game' });
+
+        // Movement system
+        class MovementSystem extends System {
+          execute(world, dt, field) {
+            const entities = world.queryComponents('position', 'velocity');
+            for (const { entityId, components } of entities) {
+              const pos = components.position;
+              const vel = components.velocity;
+
+              // Create new position object
+              const newPos = {
+                x: pos.x + vel.vx * (dt / 1000),
+                y: pos.y + vel.vy * (dt / 1000)
+              };
+
+              world.addComponent(entityId, 'position', newPos);
+            }
+          }
+        }
+
+        // Bounce system
+        class BounceSystem extends System {
+          execute(world, dt, field) {
+            const bounds = world.bounds;
+            const entities = world.queryComponents('position', 'velocity', 'renderable');
+
+            for (const { entityId, components } of entities) {
+              const pos = components.position;
+              const vel = components.velocity;
+              const render = components.renderable;
+
+              const radius = render.radius || 0;
+
+              // Create new objects instead of mutating
+              let newVx = vel.vx;
+              let newVy = vel.vy;
+              let newX = pos.x;
+              let newY = pos.y;
+
+              if (newX - radius < bounds.x || newX + radius > bounds.width) {
+                newVx *= -1;
+                newX = Math.max(radius, Math.min(bounds.width - radius, newX));
+              }
+
+              if (newY - radius < bounds.y || newY + radius > bounds.height) {
+                newVy *= -1;
+                newY = Math.max(radius, Math.min(bounds.height - radius, newY));
+              }
+
+              world.addComponent(entityId, 'velocity', { vx: newVx, vy: newVy });
+              world.addComponent(entityId, 'position', { x: newX, y: newY });
+            }
+          }
+        }
+
+        field.addSystem(new MovementSystem());
+        field.addSystem(new BounceSystem());
+
+        // Create view
+        const canvas = document.getElementById('test-canvas');
+        const view = new Canvas2DView('game', 'Game Canvas', canvas);
+
+        // Render function
+        function render() {
+          const frame = new Frame();
+
+          // Render entities
+          const renderables = world.queryComponents('position', 'renderable');
+          for (const { components } of renderables) {
+            const pos = components.position;
+            const render = components.renderable;
+
+            if (render.radius) {
+              // Ball
+              frame.addPrimitive({
+                type: 'circle',
+                x: pos.x,
+                y: pos.y,
+                radius: render.radius,
+                color: render.color,
+                filled: true
+              });
+            } else if (render.width) {
+              // Paddle
+              frame.addPrimitive({
+                type: 'rect',
+                x: pos.x,
+                y: pos.y,
+                width: render.width,
+                height: render.height,
+                color: render.color,
+                filled: true
+              });
+            }
+          }
+
+          view.render(frame);
+        }
+
+        // Start field
+        field.start();
+
+        // Animate
+        let frameCount = 0;
+        const maxFrames = 180; // 3 seconds at 60 FPS
+
+        function animate() {
+          field.tick(16.67);
+          render();
+
+          frameCount++;
+          if (frameCount < maxFrames) {
+            requestAnimationFrame(animate);
+          } else {
+            field.stop();
+            log(`✓ Simulation ran for ${frameCount} frames`, 'success');
+            log(`✓ Final tick: ${field.state.tick}`, 'success');
+
+            const ballPos = world.getComponent('#ball', 'position');
+            log(`✓ Ball final position: (${ballPos.x.toFixed(1)}, ${ballPos.y.toFixed(1)})`, 'success');
+          }
+        }
+
+        animate();
+
+        log('✅ Integration test complete - watch the animation!', 'success');
+
+      } catch (error) {
+        log(`❌ Integration test failed: ${error.message}`, 'error');
+        console.error(error);
+      }
+    };
+
+    // ==========================================
+    // Run All Tests
+    // ==========================================
+    window.runAllTests = function() {
+      clearOutput();
+      testMetrics.startTime = Date.now();
+      log('<h1>Running All Tests...</h1>');
+
+      setTimeout(() => testWorld(), 100);
+      setTimeout(() => testField(), 500);
+      setTimeout(() => testView(), 1000);
+      setTimeout(() => testIntegration(), 1500);
+
+      setTimeout(() => {
+        testMetrics.endTime = Date.now();
+        testMetrics.duration = testMetrics.endTime - testMetrics.startTime;
+        testMetrics.totalTests = testResults.length;
+
+        log('<h2>Test Summary</h2>');
+        const passed = testResults.filter(r => r.pass).length;
+        const failed = testResults.filter(r => !r.pass).length;
+        const duration = (testMetrics.duration / 1000).toFixed(2);
+
+        log(`<strong>Total: ${testResults.length} | Passed: ${passed} | Failed: ${failed} | Duration: ${duration}s</strong>`,
+            failed === 0 ? 'success' : 'error');
+
+        if (failed === 0) {
+          log('<strong>✓ All tests passed! Safe to save snapshot.</strong>', 'success');
+        } else {
+          log('<strong>✗ Some tests failed. Fix issues before saving snapshot.</strong>', 'error');
+        }
+      }, 6000);
+    };
+
+    // Auto-run on load
+    setTimeout(() => {
+      log('Test suite loaded. Click "Run All Tests" to begin.');
+    }, 100);
+  </script>
+</body>
+</html>

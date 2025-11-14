@@ -291,15 +291,22 @@ export class BootManager {
     }, { timeout: 5000, critical: true });
 
     // 4.3: CLI (depends on: processCLICommand, terminal setup)
-    const { initializeCLI, cliLog } = await import('../cli/terminal.js');
+    const { initializeCLI, cliLog, setupCliInput } = await import('../cli/terminal.js');
     initializeCLI();
-    await this.setupCLIInput();
+    await setupCliInput(this.systems.processCLICommand, this.store);
 
     // Expose CLI log function to global API
     if (!window.Vecterm.CLI) {
       window.Vecterm.CLI = {};
     }
+    console.log('[BOOT] Setting CLI.log, cliLog is:', cliLog);
     window.Vecterm.CLI.log = cliLog;
+    console.log('[BOOT] CLI.log set to:', window.Vecterm.CLI.log);
+
+    // Initialize VT100 terminal renderer (for VScope)
+    const { VT100Renderer } = await import('../cli/vt100-renderer.js');
+    window.Vecterm.vt100Renderer = new VT100Renderer('vt100-canvas');
+    this.logBoot('VT100 renderer initialized');
 
     // Initialize VT100 parameter update API
     await import('../cli/vt100-silent-updater.js');
@@ -312,48 +319,6 @@ export class BootManager {
     if (Object.keys(queryParams).length > 0) {
       this.logBoot(`Query params: ${JSON.stringify(queryParams)}`);
     }
-  }
-
-  /**
-   * Setup CLI input handlers
-   */
-  async setupCLIInput() {
-    const { addToHistory, navigateUp, navigateDown } = await import('../cli/history.js');
-    const { handleTabCompletion } = await import('../cli/tab-completion.js');
-    const { cliLog } = await import('../cli/terminal.js');
-
-    const cliInput = document.getElementById('cli-input');
-    if (!cliInput) {
-      console.warn('CLI input element not found');
-      return;
-    }
-
-    // Enter key: execute command
-    cliInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        const command = e.target.value.trim();
-        if (command) {
-          addToHistory(command);
-          cliLog(`> ${command}`);
-          this.systems.processCLICommand(command);
-          e.target.value = '';
-        }
-      }
-    });
-
-    // Arrow keys: history navigation
-    cliInput.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        e.target.value = navigateUp() || e.target.value;
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        e.target.value = navigateDown() || '';
-      } else if (e.key === 'Tab') {
-        e.preventDefault();
-        handleTabCompletion(e.target, this.store, this.systems.processCLICommand);
-      }
-    });
   }
 
   /**

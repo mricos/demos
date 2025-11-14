@@ -328,9 +328,56 @@ function setupGlobalAPI() {
     },
 
     disable: () => {
+      console.log('[VScope API] DISABLING - forcing full shutdown');
       store.dispatch(vscopeActions.disable());
-      vscope.disable();
+      if (vscope) {
+        vscope.disable();
+      }
       console.log('✓ VScope disabled');
+    },
+
+    // EMERGENCY KILL SWITCH
+    kill: () => {
+      console.log('[VScope API] ========== EMERGENCY KILL ==========');
+
+      // Set global kill switch
+      window.VSCOPE_DISABLE_ALL = true;
+
+      if (vscope) {
+        vscope.enabled = false;
+
+        // Cancel animation
+        if (vscope.animationId) {
+          cancelAnimationFrame(vscope.animationId);
+          vscope.animationId = null;
+        }
+
+        // Clear all renderers
+        if (vscope.renderer) {
+          vscope.renderer.clear();
+        }
+        if (vscope.overlay) {
+          vscope.overlay.clear();
+        }
+        if (vscope.pixelGrid) {
+          vscope.pixelGrid.clear();
+        }
+
+        // Clear VT100 canvas entirely
+        if (vscope.vt100Renderer && vscope.vt100Renderer.canvas) {
+          const ctx = vscope.vt100Renderer.canvas.getContext('2d');
+          ctx.clearRect(0, 0, vscope.vt100Renderer.canvas.width, vscope.vt100Renderer.canvas.height);
+        }
+
+        // Clear main canvas (in case overlay drew on it)
+        if (vscope.mainCanvas && vscope.mainCtx) {
+          vscope.mainCtx.clearRect(0, 0, vscope.mainCanvas.width, vscope.mainCanvas.height);
+        }
+      }
+
+      store.dispatch(vscopeActions.disable());
+      console.log('✓ VScope KILLED - all rendering stopped');
+      console.log('  To re-enable: window.VSCOPE_DISABLE_ALL = false; Vecterm.VScope.enable()');
     },
 
     getState: () => store.getState().vscope,
@@ -452,26 +499,182 @@ function setupGlobalAPI() {
       console.log(`✓ Update rate: ${rate} FPS`);
     },
 
-    // Status
-    status: () => {
+    // Debug mapping - prints all mapping info for debugging
+    debug: () => {
       const state = store.getState().vscope;
-      console.log('VScope Status:');
-      console.log(`  Enabled: ${state.enabled ? 'yes' : 'no'}`);
-      console.log(`  Context: ${state.context}`);
-      console.log(`  Active camera: ${state.camera.active}`);
-      console.log(`  Field mode: ${state.field.mode}`);
-      console.log(`  Tracking: ${state.track.mode}`);
-      if (state.track.mode === 'entity' && state.track.entityId) {
-        console.log(`    Entity: ${state.track.entityId}`);
-      } else if (state.track.mode === 'multi-entity' && state.track.entityIds.length > 0) {
-        console.log(`    Entities: ${state.track.entityIds.join(', ')}`);
+      const output = [];
+
+      output.push('=== VSCOPE DEBUG INFO ===');
+      output.push('');
+      output.push('VSCOPE STATE:');
+      output.push(`  enabled: ${vscope?.enabled}`);
+      output.push(`  initialized: ${vscope?.initialized}`);
+      output.push(`  animationId: ${vscope?.animationId}`);
+      output.push('');
+
+      output.push('GAME INSTANCE:');
+      output.push(`  connected: ${!!vscope?.gameInstance}`);
+      if (vscope?.gameInstance) {
+        output.push(`  has getLineSegments: ${typeof vscope.gameInstance.getLineSegments === 'function'}`);
+        if (typeof vscope.gameInstance.getLineSegments === 'function') {
+          const lines = vscope.gameInstance.getLineSegments();
+          output.push(`  line count: ${lines.length}`);
+        }
       }
-      console.log(`  Terminal quadrant: ${state.scope.targetQuadrant === 0 ? 'full' : state.scope.targetQuadrant}`);
-      console.log(`  Update rate: ${state.scope.updateRate} FPS`);
-      console.log(`  Effects:`);
-      console.log(`    Glow: ${state.field.effects.glow.enabled ? 'on' : 'off'} (${state.field.effects.glow.intensity})`);
-      console.log(`    Bloom: ${state.field.effects.bloom.enabled ? 'on' : 'off'} (${state.field.effects.bloom.intensity})`);
-      console.log(`    Scanlines: ${state.field.effects.scanlines.enabled ? 'on' : 'off'} (${state.field.effects.scanlines.intensity})`);
+      output.push('');
+
+      output.push('VT100 RENDERER:');
+      output.push(`  exists: ${!!vscope?.vt100Renderer}`);
+      if (vscope?.vt100Renderer) {
+        output.push(`  canvas: ${vscope.vt100Renderer.canvas?.id}`);
+        output.push(`  canvas size: ${vscope.vt100Renderer.canvas?.width}x${vscope.vt100Renderer.canvas?.height}`);
+        output.push(`  cols: ${vscope.vt100Renderer.cols}`);
+        output.push(`  rows: ${vscope.vt100Renderer.rows}`);
+      }
+      output.push('');
+
+      if (vscope?.mapper) {
+        const sourceRegion = vscope.mapper.getSourceRegion();
+        const targetRegion = vscope.mapper.getTargetRegion();
+        const transform = vscope.mapper.getTransform();
+
+        output.push('MAPPER - SOURCE REGION (Canvas):');
+        output.push(`  x: ${sourceRegion.x}`);
+        output.push(`  y: ${sourceRegion.y}`);
+        output.push(`  width: ${sourceRegion.width}`);
+        output.push(`  height: ${sourceRegion.height}`);
+        output.push(`  aspect: ${(sourceRegion.width / sourceRegion.height).toFixed(3)}`);
+        output.push('');
+
+        output.push('MAPPER - TARGET REGION (Terminal):');
+        output.push(`  col: ${targetRegion.col}`);
+        output.push(`  row: ${targetRegion.row}`);
+        output.push(`  cols: ${targetRegion.cols}`);
+        output.push(`  rows: ${targetRegion.rows}`);
+        output.push(`  aspect: ${(targetRegion.cols / targetRegion.rows).toFixed(3)}`);
+        output.push('');
+
+        output.push('MAPPER - TRANSFORM:');
+        output.push(`  scale.x: ${transform.scale.x.toFixed(6)}`);
+        output.push(`  scale.y: ${transform.scale.y.toFixed(6)}`);
+        output.push(`  offset.x: ${transform.offset.x.toFixed(3)}`);
+        output.push(`  offset.y: ${transform.offset.y.toFixed(3)}`);
+        output.push('');
+
+        // Test a few points
+        output.push('MAPPER - TEST MAPPINGS:');
+        const testPoints = [
+          { x: 0, y: 0, label: 'Origin' },
+          { x: 960, y: 540, label: 'Center' },
+          { x: 1920, y: 1080, label: 'Bottom-right' }
+        ];
+        testPoints.forEach(pt => {
+          const mapped = vscope.mapper.canvasToTerminal(pt.x, pt.y);
+          output.push(`  ${pt.label} (${pt.x}, ${pt.y}) → (col ${mapped.col}, row ${mapped.row})`);
+        });
+      }
+
+      output.push('');
+      output.push('=== END DEBUG INFO ===');
+
+      // Print to console
+      output.forEach(line => console.log(line));
+
+      // Also return as string for copying
+      return output.join('\n');
+    },
+
+    // Status - returns status data for CLI display
+    status: () => {
+      console.log('[VScope.status] CALLED');
+      const state = store.getState().vscope;
+      console.log('[VScope.status] state:', state);
+      const lines = [];
+
+      lines.push('VScope Status:');
+      lines.push(`  Enabled: ${state.enabled ? 'yes' : 'no'}`);
+      lines.push(`  Context: ${state.context}`);
+      lines.push(`  Active camera: ${state.camera.active}`);
+      lines.push(`  Field mode: ${state.field.mode}`);
+      lines.push(`  Tracking: ${state.track.mode}`);
+      if (state.track.mode === 'entity' && state.track.entityId) {
+        lines.push(`    Entity: ${state.track.entityId}`);
+      } else if (state.track.mode === 'multi-entity' && state.track.entityIds.length > 0) {
+        lines.push(`    Entities: ${state.track.entityIds.join(', ')}`);
+      }
+      lines.push(`  Terminal quadrant: ${state.scope.targetQuadrant === 0 ? 'full' : state.scope.targetQuadrant}`);
+      lines.push(`  Update rate: ${state.scope.updateRate} FPS`);
+      lines.push(`  Effects:`);
+      lines.push(`    Glow: ${state.field.effects.glow.enabled ? 'on' : 'off'} (${state.field.effects.glow.intensity})`);
+      lines.push(`    Bloom: ${state.field.effects.bloom.enabled ? 'on' : 'off'} (${state.field.effects.bloom.intensity})`);
+      lines.push(`    Scanlines: ${state.field.effects.scanlines.enabled ? 'on' : 'off'} (${state.field.effects.scanlines.intensity})`);
+
+      // MAPPING DETAILS
+      if (vscope && vscope.mapper) {
+        lines.push('');
+        lines.push('Mapping Details:');
+
+        const sourceRegion = vscope.mapper.getSourceRegion();
+        lines.push('  Source Region (Canvas):');
+        lines.push(`    Position: (${sourceRegion.x}, ${sourceRegion.y})`);
+        lines.push(`    Size: ${sourceRegion.width} × ${sourceRegion.height}`);
+        lines.push(`    Aspect: ${(sourceRegion.width / sourceRegion.height).toFixed(3)}`);
+
+        const targetRegion = vscope.mapper.getTargetRegion();
+        lines.push('  Target Region (Terminal):');
+        lines.push(`    Position: col ${targetRegion.col}, row ${targetRegion.row}`);
+        lines.push(`    Size: ${targetRegion.cols} cols × ${targetRegion.rows} rows`);
+        lines.push(`    Aspect: ${(targetRegion.cols / targetRegion.rows).toFixed(3)}`);
+
+        const transform = vscope.mapper.getTransform();
+        lines.push('  Transform:');
+        lines.push(`    Scale: x=${transform.scale.x.toFixed(6)}, y=${transform.scale.y.toFixed(6)}`);
+        lines.push(`    Offset: x=${transform.offset.x.toFixed(3)}, y=${transform.offset.y.toFixed(3)}`);
+
+        // Show example mappings
+        lines.push('  Example Mappings:');
+        const testPoints = [
+          { x: sourceRegion.x, y: sourceRegion.y, label: 'Top-left' },
+          { x: sourceRegion.x + sourceRegion.width, y: sourceRegion.y, label: 'Top-right' },
+          { x: sourceRegion.x + sourceRegion.width / 2, y: sourceRegion.y + sourceRegion.height / 2, label: 'Center' },
+          { x: sourceRegion.x, y: sourceRegion.y + sourceRegion.height, label: 'Bottom-left' },
+          { x: sourceRegion.x + sourceRegion.width, y: sourceRegion.y + sourceRegion.height, label: 'Bottom-right' }
+        ];
+
+        testPoints.forEach(pt => {
+          const term = vscope.mapper.canvasToTerminal(pt.x, pt.y);
+          lines.push(`    ${pt.label}: canvas(${pt.x.toFixed(0)}, ${pt.y.toFixed(0)}) → terminal(col ${term.col}, row ${term.row})`);
+        });
+      } else {
+        lines.push('');
+        lines.push('Mapping Details: Not available (VScope not fully initialized)');
+      }
+
+      // Output to CLI - use command processor's cliLog directly
+      // Import it from the global scope where command processor put it
+      const cliLog = window.Vecterm?.CLI?.log;
+
+      if (cliLog) {
+        lines.forEach(line => cliLog(line, 'success'));
+      } else {
+        // Fallback: output to console AND try to find cliLog another way
+        console.warn('[VScope.status] CLI.log not available, using console fallback');
+        console.log('=== VScope Status ===');
+        lines.forEach(line => console.log(line));
+        console.log('======================');
+
+        // Try to output via terminal.js directly
+        import('../cli/terminal.js').then(terminal => {
+          if (terminal.cliLog) {
+            lines.forEach(line => terminal.cliLog(line, 'success'));
+          }
+        }).catch(err => {
+          console.error('Could not import terminal.js:', err);
+        });
+      }
+
+      console.log('[VScope.status] Returning lines:', lines);
+      return lines;
     },
 
     // Connect to running game/field
@@ -518,6 +721,15 @@ function setupGlobalAPI() {
       vscope.setGameInstance(field.instance);
       console.log(`✓ VScope auto-connected to field: ${field.id}`);
       return true;
+    },
+
+    // Direct access to setGameInstance (for game-manager.js)
+    setGameInstance: (instance) => {
+      if (vscope) {
+        vscope.setGameInstance(instance);
+        return true;
+      }
+      return false;
     }
   };
 }

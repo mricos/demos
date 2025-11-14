@@ -162,9 +162,10 @@ export class VscopeMapper {
         const terminalCol = this.targetRegion.col + col;
         const terminalRow = this.targetRegion.row + row;
 
-        // Get corresponding canvas region for this cell
-        const canvasTopLeft = this.terminalToCanvas(col, row);
-        const canvasBottomRight = this.terminalToCanvas(col + 1, row + 1);
+        // CRITICAL FIX: terminalToCanvas expects ABSOLUTE terminal coordinates,
+        // not relative offsets. We need to pass terminalCol/terminalRow, not col/row
+        const canvasTopLeft = this.terminalToCanvas(terminalCol, terminalRow);
+        const canvasBottomRight = this.terminalToCanvas(terminalCol + 1, terminalRow + 1);
 
         yield {
           terminalCol,

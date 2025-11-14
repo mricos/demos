@@ -48,9 +48,10 @@ export const HELP_CATEGORIES = {
       { cmd: 'vt100.status', desc: 'Show console CRT settings' },
       { cmd: 'vt100.scanlines <0-1>', desc: 'Scanline intensity (slider)' },
       { cmd: 'vt100.glow <0-1>', desc: 'Glow intensity (slider)' },
-      { cmd: 'game.vt100.help', desc: 'Game CRT commands' },
-      { cmd: 'game.vt100.status', desc: 'Show game CRT settings' },
-      { cmd: 'game.vt100.toggle', desc: 'Toggle all game effects' }
+      { cmd: 'view.vt100.help', desc: 'View CRT effects commands' },
+      { cmd: 'view.vt100.status', desc: 'Show view CRT settings' },
+      { cmd: 'view.vt100.toggle', desc: 'Toggle all view effects' },
+      { cmd: 'game.vt100.help', desc: '[DEPRECATED] Use view.vt100.*' }
     ]
   },
 
@@ -105,7 +106,11 @@ export const HELP_CATEGORIES = {
     desc: 'State, auth, and utilities',
     commands: [
       { cmd: 'state [path]', desc: 'Show Redux state (JSON)' },
-      { cmd: 'inspect <type> <name>', desc: 'Detailed JSON view' },
+      { cmd: 'inspect context <name>', desc: 'Inspect context details' },
+      { cmd: 'inspect field <name>', desc: 'Inspect field instance' },
+      { cmd: 'inspect entities', desc: 'List all entities with components' },
+      { cmd: 'inspect entity <id>', desc: 'Detailed view of single entity' },
+      { cmd: 'list entities', desc: 'Simple entity list' },
       { cmd: 'login <user> <pass>', desc: 'Authenticate & enable S3' },
       { cmd: 'logout', desc: 'End session' },
       { cmd: 'clear', desc: 'Clear terminal output' },
@@ -190,7 +195,8 @@ export function getCommandsForCategory(categoryName) {
  */
 export const LEGACY_HELP_MAP = {
   'vt100.help': () => showCategoryHelp('vt100'),
-  'game.vt100.help': () => showCategoryHelp('vt100'),
+  'view.vt100.help': () => showCategoryHelp('vt100'),
+  'game.vt100.help': () => showCategoryHelp('vt100'), // Backward compat
   'vecterm.help': () => showCategoryHelp('vecterm'),
   'gamepad.help': () => showCategoryHelp('input'),
   'tines.help': () => showCategoryHelp('tines')

@@ -29,21 +29,33 @@ export class VscopeOverlay {
       charWidth: 10,
       charHeight: 20
     };
+
+    // Track last rendered region for cleanup
+    this.lastRenderedRegion = null;
   }
 
   /**
    * Render overlay
    */
   render(trackedRegion, targetQuadrant) {
-    this.clear();
+    // Save region for cleanup
+    this.lastRenderedRegion = trackedRegion;
+
+    // Note: We don't call clear() here because the game should redraw the canvas
+    // The overlay is drawn on top of the game canvas each frame
 
     if (this.showBorderBox) {
       this.renderBorderBox(trackedRegion);
     }
 
+    // DISABLED: Connection lines are causing game objects to be drawn on canvas
+    // The terminal position calculation is wrong and draws game geometry
+    // in the bottom-right corner of the canvas
+    /*
     if (this.showConnectionLines) {
       this.renderConnectionLines(trackedRegion, targetQuadrant);
     }
+    */
   }
 
   /**
@@ -151,9 +163,23 @@ export class VscopeOverlay {
    * Clear overlay
    */
   clear() {
-    // Overlay is drawn directly on main canvas, so we don't clear
-    // The main canvas is redrawn each frame by the game/field
-    // Our overlay is drawn on top
+
+    // CRITICAL FIX: When VScope is disabled, the game might have already stopped
+    // its render loop, leaving our overlay artifacts (magenta connection lines,
+    // cyan border boxes) visible on the canvas. We need to explicitly clear them.
+
+    if (!this.ctx) {
+      console.warn('[VscopeOverlay] No context available for clearing');
+      return;
+    }
+
+    // Clear the entire canvas - this is safe because:
+    // 1. If the game is still running, it will redraw on the next frame
+    // 2. If the game has stopped, this removes our artifacts
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Reset state
+    this.lastRenderedRegion = null;
   }
 
   /**
