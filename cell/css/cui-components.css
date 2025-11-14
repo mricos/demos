@@ -1181,3 +1181,111 @@ input[type="range"] {
     font-size: 14px;
   }
 }
+
+/* =============================================================================
+   Variable System Styles
+   ============================================================================= */
+
+/* Variable definitions */
+[data-var-def] {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--cui-accent);
+  cursor: help;
+  border-bottom: 1px dotted rgba(74, 163, 255, 0.4);
+}
+
+/* Variable references (auto-updating) */
+.var-ref {
+  font-weight: 500;
+  color: var(--cui-accent);
+  background: rgba(74, 163, 255, 0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
+  transition: all var(--cui-transition-fast);
+}
+
+.var-ref:hover {
+  background: rgba(74, 163, 255, 0.15);
+}
+
+/* LaTeX-rendered variables */
+.var-latex {
+  font-family: 'KaTeX_Math', 'Computer Modern', serif;
+  font-style: italic;
+}
+
+/* Two-way bound variables */
+.var-binding {
+  border: 1px solid rgba(74, 163, 255, 0.3);
+  background: rgba(74, 163, 255, 0.05);
+  transition: all var(--cui-transition-fast);
+}
+
+.var-binding:focus {
+  border-color: var(--cui-accent);
+  background: rgba(74, 163, 255, 0.12);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 163, 255, 0.2);
+}
+
+/* LaTeX rendering styles */
+.latex-rendered {
+  display: inline-block;
+}
+
+.latex-inline {
+  vertical-align: baseline;
+}
+
+.latex-display {
+  display: block;
+  margin: var(--cui-space-md) 0;
+  text-align: center;
+}
+
+/* KaTeX overrides for dark theme */
+.katex {
+  color: var(--cui-text);
+}
+
+.katex .mord {
+  color: var(--cui-text);
+}
+
+.katex .mop {
+  color: var(--cui-accent);
+}
+
+.katex .mrel {
+  color: var(--cui-muted);
+}
+
+/* Variable definition list */
+.var-def-list {
+  display: grid;
+  gap: var(--cui-space-sm);
+  margin: var(--cui-space-md) 0;
+}
+
+.var-def-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--cui-space-md);
+  align-items: baseline;
+  padding: var(--cui-space-sm);
+  background: rgba(14, 20, 28, 0.4);
+  border-radius: var(--cui-radius-sm);
+  border: 1px solid rgba(25, 34, 50, 0.5);
+}
+
+.var-def-symbol {
+  font-weight: 600;
+  color: var(--cui-accent);
+  min-width: 60px;
+}
+
+.var-def-description {
+  color: var(--cui-muted);
+  font-size: 14px;
+}
