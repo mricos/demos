@@ -14,8 +14,9 @@ js/
 ├── audio.js             # Dual cluster synthesis with FM & FX
 ├── scope.js             # Oscilloscope visualization
 ├── canvas.js            # PubSub graph with draggable nodes
-├── gamepad.js           # Input handling & cursor control
-├── mapper.js            # Gamepad→Synth parameter mapping
+├── gamepad.js           # Gamepad input handling & cursor control
+├── midi.js              # MIDI controller integration (Web MIDI API)
+├── mapper.js            # Universal input→Synth parameter mapping
 ├── log.js               # Event logging system
 └── main.js              # Bootstrap & initialization
 ```
@@ -69,11 +70,19 @@ Real-time waveform visualization for left and right channels
 2. Stats & Pressed - Statistics and button states (side by side)
 3. Derivatives • Velocity & Acceleration - Motion analysis **below** realtime data
 
-### Mapper • Gamepad ↔ Synth
-Map gamepad axes and buttons to synth parameters
+### MIDI • Controllers
+Real-time MIDI controller integration via Web MIDI API
+- **Auto-detect** - Connected devices appear automatically
+- **Message Log** - Monitor all incoming MIDI messages
+- **Live Inputs** - See active CC values in real-time
+- **Supports** - Control Change (CC), Notes, Pitch Bend, Aftertouch
+
+### Mapper • Gamepad & MIDI ↔ Synth
+Universal input mapping system for gamepad and MIDI controllers
 - Right-click parameter to learn
-- Move axis or press button to bind
+- Move gamepad axis, MIDI CC, or press button to bind
 - Adjust scale, offset, invert, deadzone
+- Mappings auto-save to localStorage
 
 ### Log • Parsed Snapshot
 Real-time event log with BPM/beat tracking
@@ -81,9 +90,9 @@ Real-time event log with BPM/beat tracking
 ### UI • Design Tokens
 Edit CSS custom properties, persisted to localStorage
 
-## Gamepad Controls
+## Input Controls
 
-### Navigation
+### Gamepad Navigation
 - **Left Stick** - Move cursor
 - **A Button** - Focus nearest control
 - **D-pad Left/Right** - Select graph nodes
@@ -91,10 +100,24 @@ Edit CSS custom properties, persisted to localStorage
 - **LB (Left Bumper)** - Drag selected node
 - **RB (Right Bumper)** - Move selected panel
 
-### Mapping
+### MIDI Controller Usage
+1. **Connect** your MIDI controller (USB or Bluetooth)
+2. **Check** the MIDI panel to verify device detection
+3. **Learn mode** - Right-click any parameter
+4. **Move/press** a MIDI CC, note, or pitch bend
+5. **Done!** - Mapping is created and saved automatically
+
+**Supported MIDI Messages:**
+- **CC (Control Change)** - Continuous parameter control
+- **Notes** - Trigger actions or modulate with velocity
+- **Pitch Bend** - Full 14-bit resolution
+- **Aftertouch** - Channel and polyphonic pressure
+
+### Universal Mapping
 - **Right-click** any parameter to enter learn mode
-- **Move axis or press button** to create binding
+- **Move** gamepad axis, MIDI CC, pitch bend, or **press** button/note
 - Mappings auto-save to localStorage
+- View all mappings in Mapper panel
 
 ## State Persistence
 
@@ -103,13 +126,14 @@ Edit CSS custom properties, persisted to localStorage
 - Panel visibility and display modes
 - Synth parameters (debounced, 500ms)
 - Design tokens (CSS custom properties)
-- Gamepad mappings
+- Gamepad and MIDI mappings
 
 ### Storage Keys
 - `cluster.panels.v1` - Panel states
 - `cluster.params.v1` - Synth parameters
 - `cluster.tokens.v1` - Design tokens
-- `cluster.gpmaps.v3` - Gamepad mappings
+- `cluster.maps.v4` - Input mappings (gamepad & MIDI)
+- `cluster.actions.v2` - Button/note actions
 
 ## Event Bus
 
@@ -129,6 +153,12 @@ CLUSTER.Bus.emit('panel:mode-changed', { panelId, mode });
 - `audio:ready` - Analysers available
 - `panel:mode-changed` - Panel display mode changed
 - `gamepad:series` - Motion data updated
+- `gamepad:axis` - Gamepad axis value changed
+- `gamepad:button` - Gamepad button pressed/released
+- `midi:ready` - MIDI access granted
+- `midi:cc` - MIDI Control Change message
+- `midi:note` - MIDI Note On/Off message
+- `midi:pitchbend` - MIDI Pitch Bend message
 - `ui:param-changed` - Parameter value changed
 
 ## Canvas Graph

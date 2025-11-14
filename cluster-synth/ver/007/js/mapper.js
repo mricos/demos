@@ -177,6 +177,41 @@
       `);
     });
 
+    // Show active MIDI CC controllers
+    const activeMIDICC = [];
+    Object.keys(Mapper.cache).forEach(source => {
+      if (source.startsWith('midi.') && source.includes('.cc')) {
+        const value = Mapper.cache[source];
+        if (value > 0.01) {
+          activeMIDICC.push({ source, value });
+        }
+      }
+    });
+
+    // Show last 6 active MIDI CCs
+    activeMIDICC.slice(-6).forEach(({ source, value }) => {
+      const mappings = Mapper.maps[source];
+      const hasMappings = mappings && mappings.length > 0;
+      const color = hasMappings ? '#eb6f92' : '#5a5f75';
+
+      const mappedParams = hasMappings
+        ? mappings.map(m => m.param).join(', ')
+        : 'unmapped';
+
+      inputs.push(`
+        <div style="background:#1a0e14;border:1px solid #3a1e2a;border-radius:6px;padding:6px">
+          <div style="color:${color};font-weight:bold;margin-bottom:4px;font-size:10px">${source}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <div style="flex:1;height:6px;background:#1a1f2b;border-radius:3px;margin-right:8px;overflow:hidden">
+              <div style="height:100%;width:${value * 100}%;background:${color};transition:width .05s ease"></div>
+            </div>
+            <span style="color:#cbd3ea;font-weight:bold;font-size:11px">${value.toFixed(3)}</span>
+          </div>
+          <div style="color:#6b7089;font-size:9px">→ ${mappedParams}</div>
+        </div>
+      `);
+    });
+
     // Show recently pressed buttons
     const pressedButtons = [];
     Object.keys(Mapper.cache).forEach(source => {
@@ -245,6 +280,40 @@
     // Cache and apply
     Mapper.cache[source] = 1; // UI events are binary
     applyActions(source);
+  }
+
+  function onMIDICC(data) {
+    // Cache the value
+    Mapper.cache[data.source] = data.value;
+    // Apply immediately
+    applyMapping(data.source, data.value);
+    // Update display
+    updateLiveInputDisplay();
+  }
+
+  function onMIDINote(data) {
+    // Cache the value
+    Mapper.cache[data.source] = data.velocity;
+
+    // Apply continuous mappings (note velocity as continuous value)
+    applyMapping(data.source, data.velocity);
+
+    // Apply button actions (only on note on)
+    if (data.type === 'noteon') {
+      applyActions(data.source);
+    }
+
+    // Update display
+    updateLiveInputDisplay();
+  }
+
+  function onMIDIPitchBend(data) {
+    // Cache the value
+    Mapper.cache[data.source] = data.value;
+    // Apply immediately
+    applyMapping(data.source, data.value);
+    // Update display
+    updateLiveInputDisplay();
   }
 
   /* ---------- Public API ---------- */
@@ -504,27 +573,8 @@
       }
     });
 
-    // MIDI events (if available)
-    if (navigator.requestMIDIAccess) {
-      navigator.requestMIDIAccess().then(
-        (midiAccess) => {
-          for (const input of midiAccess.inputs.values()) {
-            input.onmidimessage = (msg) => {
-              const [status, note, velocity] = msg.data;
-              const command = status >> 4;
-              const channel = status & 0x0f;
-
-              if (command === 9 && velocity > 0) { // Note on
-                const source = `midi.note.${note}`;
-                NS.Bus.emit('midi:note', { source, note, velocity, channel });
-                applyActions(source);
-              }
-            };
-          }
-        },
-        () => console.log('MIDI access denied')
-      );
-    }
+    // Note: MIDI handling is now done by midi.js module
+    // The mapper subscribes to MIDI events via the Bus system
   };
 
   Mapper.addUIMapping = function(eventType, target, param, options) {
@@ -542,6 +592,9 @@
     // Subscribe to input events
     NS.Bus.on('gamepad:axis', onGamepadAxis);
     NS.Bus.on('gamepad:button', onGamepadButton);
+    NS.Bus.on('midi:cc', onMIDICC);
+    NS.Bus.on('midi:note', onMIDINote);
+    NS.Bus.on('midi:pitchbend', onMIDIPitchBend);
 
     // Capture UI events
     Mapper.captureUIEvents();

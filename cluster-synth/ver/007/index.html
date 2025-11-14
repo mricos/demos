@@ -18,6 +18,7 @@
     <div class="hud-right">
       <span id="status-audio" class="badge">audio: off</span>
       <span id="status-gp" class="badge">gamepad: none</span>
+      <span id="status-midi" class="badge">midi: none</span>
       <span id="status-fps" class="badge">fps: --</span>
       <span id="status-bpm" class="badge">bpm: 120</span>
     </div>
@@ -33,6 +34,7 @@
     <button class="fab" data-module="control3" title="Control.3">C3</button>
     <button class="fab" data-module="scope" title="Scope">SC</button>
     <button class="fab" data-module="gamepad" title="Gamepad">GP</button>
+    <button class="fab" data-module="midi" title="MIDI">MD</button>
     <button class="fab" data-module="mapper" title="Mapper">MP</button>
     <button class="fab" data-module="rhythm" title="Rhythm">RH</button>
     <button class="fab" data-module="log" title="Log">LG</button>
@@ -203,6 +205,86 @@
       <div class="card">
         <h3>Acceleration Magnitude • m/s²</h3>
         <canvas id="gp-accel" width="800" height="100" class="scope"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-midi" class="panel card" data-module="midi" style="left:24px;top:900px;width:960px;height:720px;">
+    <header class="panel-header">
+      <div class="panel-title">MIDI • Controllers</div>
+      <div class="panel-actions">
+        <label class="row-inline small">
+          <select id="midi-view-mode" style="background:#0a0f1a;border:1px solid #262c40;border-radius:6px;padding:4px;color:#cbd3ea;font-size:11px">
+            <option value="template">Template</option>
+            <option value="meters">CC Meters</option>
+            <option value="log">Message Log</option>
+          </select>
+        </label>
+        <button class="btn-ghost small" id="midi-refresh">Refresh</button>
+        <button class="btn-ghost small" id="midi-clear">Clear Log</button>
+      </div>
+    </header>
+    <div class="panel-body">
+      <h3 style="color:#8bd5ca;margin:0 0 8px;">Connected Devices</h3>
+      <div id="midi-device-list" class="card" style="min-height:60px;margin-bottom:12px">
+        <div class="kbd">Initializing MIDI...</div>
+      </div>
+
+      <div id="midi-profile-suggestion"></div>
+
+      <!-- Template View -->
+      <div id="midi-view-template" class="midi-view">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="color:#8bd5ca;margin:0">Controller Template</h3>
+          <button class="btn-ghost small" id="midi-create-profile">+ New Profile</button>
+        </div>
+
+        <div id="midi-profile-list" class="card" style="margin-bottom:12px"></div>
+        <div id="midi-template-container"></div>
+      </div>
+
+      <!-- CC Meters View -->
+      <div id="midi-view-meters" class="midi-view" style="display:none">
+
+        <h3 style="color:#8bd5ca;margin:8px 0 4px;">CC Controllers • Live Meters</h3>
+        <div class="card" style="background:#0e1a25;border-color:#1e2a40;padding:12px;margin-bottom:8px;">
+          <div id="midi-cc-meters" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font:11px ui-monospace,monospace;color:#9fb2e0;min-height:120px;">
+            <div class="kbd" style="grid-column:1/-1;text-align:center;color:#6b7089;padding:20px">Move a knob or fader to see CC meters appear...</div>
+          </div>
+        </div>
+
+        <h3 style="color:#8bd5ca;margin:16px 0 4px;">Quick Assign</h3>
+        <div class="card" style="background:#1a2540;border-color:#2a3a60;padding:10px;margin-bottom:8px;">
+          <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:8px;">
+            <select id="midi-cc-select" style="background:#0a0f1a;border:1px solid #262c40;border-radius:6px;padding:6px;color:#cbd3ea;font:12px ui-monospace,monospace;">
+              <option value="">-- Select CC --</option>
+            </select>
+            <span style="color:#5a5f75;font-size:18px">→</span>
+            <select id="midi-param-select" style="background:#0a0f1a;border:1px solid #262c40;border-radius:6px;padding:6px;color:#cbd3ea;font:12px ui-monospace,monospace;">
+              <option value="">-- Select Parameter --</option>
+            </select>
+          </div>
+          <button class="btn-ghost small" id="midi-assign" style="width:100%">Create Mapping</button>
+          <div class="kbd" style="margin-top:8px;font-size:10px">Or right-click any parameter and move a CC to learn instantly</div>
+        </div>
+      </div>
+
+      <!-- Log View -->
+      <div id="midi-view-log" class="midi-view" style="display:none">
+        <h3 style="color:#8bd5ca;margin:8px 0 4px;">Message Log</h3>
+        <table class="map-table" aria-label="MIDI Message Log">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Ch</th>
+              <th>Type</th>
+              <th>Data</th>
+            </tr>
+          </thead>
+          <tbody id="midi-log-body">
+            <tr><td colspan="4" class="kbd">No messages yet</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </section>
@@ -381,6 +463,8 @@
   <script src="js/scope.js"></script>
   <script src="js/canvas.js"></script>
   <script src="js/gamepad.js"></script>
+  <script src="js/midi.js"></script>
+  <script src="js/midi-controller.js"></script>
   <script src="js/mapper.js"></script>
   <script src="js/rhythm.js"></script>
   <script src="js/log.js"></script>

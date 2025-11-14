@@ -52,6 +52,8 @@
 
     // Initialize input & mapping
     NS.Gamepad.start();
+    NS.MIDI.init();
+    NS.MIDIController.init();
     NS.Mapper.init();
     NS.Rhythm.init();
     NS.Log.init();

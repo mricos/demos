@@ -23,6 +23,7 @@
     control3: '#panel-control3',
     scope: '#panel-scope',
     gamepad: '#panel-gamepad',
+    midi: '#panel-midi',
     mapper: '#panel-mapper',
     log: '#panel-log',
     ui: '#panel-ui',
@@ -141,7 +142,7 @@
     Canvas.ctx = can.getContext('2d');
 
     // Default nodes & layout
-    const cols = ['control1', 'control2', 'control3', 'scope', 'gamepad', 'mapper', 'log', 'ui', 'pubsub'];
+    const cols = ['control1', 'control2', 'control3', 'scope', 'gamepad', 'midi', 'mapper', 'log', 'ui', 'pubsub'];
     cols.forEach((t, i) => {
       addNode(t, 140 + (i % 5) * 260, 220 + (i >= 5 ? 160 : 0));
     });

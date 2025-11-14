@@ -186,3 +186,34 @@ details[open] summary::before{transform:rotate(90deg)}
 /* Utility */
 .kbd{font:12px ui-monospace,monospace;color:#aab;white-space:pre-wrap;word-break:break-word}
 
+
+/* MIDI Controller Template Styles */
+.midi-template-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:8px;background:#0a0f1a;border:1px solid #1e2a40;border-radius:6px}
+
+.midi-template-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:16px}
+
+.midi-track{background:#0a0f1a;border:1px solid #1e2a40;border-radius:6px;padding:8px}
+.midi-track-header{text-align:center;font-weight:bold;font-size:11px;color:#8bd5ca;margin-bottom:8px}
+
+.midi-control-slot{background:#131820;border:1px solid #262c40;border-radius:4px;padding:8px;text-align:center;font-size:11px;color:#6b7089;cursor:pointer;transition:all .2s;min-height:32px;display:flex;align-items:center;justify-content:center;margin-bottom:4px}
+
+.midi-control-slot:hover{border-color:#7aa2f7;background:#1a2030;color:#cbd3ea}
+
+.midi-control-slot.midi-assigned{border-color:#eb6f92;background:#1a0e14;color:#eb6f92}
+
+.midi-control-slot.midi-learning{border-color:#f6c177;background:#1a1510;color:#f6c177;animation:pulse 1s infinite}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+.midi-button-group{display:grid;grid-template-columns:repeat(2,1fr);gap:4px}
+
+.midi-button{padding:6px;font-size:10px;min-height:28px}
+
+.midi-transport-grid,.midi-global-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px}
+
+.midi-profile-item{display:flex;align-items:center;padding:8px;background:#0a0f1a;border:1px solid #1e2a40;border-radius:6px;margin-bottom:6px;transition:all .2s}
+
+.midi-profile-item:hover{border-color:#7aa2f7;background:#0c111d}
+
+.midi-profile-item.active{border-color:#8bd5ca;background:#0e1a1a}
+
