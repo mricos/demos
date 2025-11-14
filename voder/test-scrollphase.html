@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScrollPhase Quick Test</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 2rem;
+      font-family: system-ui, sans-serif;
+      background: #1a1a2e;
+      color: white;
+      min-height: 300vh;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .test-item {
+      margin: 10rem auto;
+      padding: 2rem;
+      max-width: 600px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .test-item h2 {
+      margin: 0 0 1rem 0;
+    }
+
+    .test-item p {
+      margin: 0;
+      opacity: 0.9;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.3rem 0.8rem;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>ScrollPhase Quick Test</h1>
+  <p style="text-align: center; opacity: 0.7; margin-bottom: 2rem;">
+    Scroll down to see ASDR transitions in action
+  </p>
+
+  <div class="test-item" data-scroll-phase="test1">
+    <h2>Test Item 1</h2>
+    <p>This item should transition through all phases as you scroll.</p>
+    <span class="badge">PHASE: <span id="phase1">-</span></span>
+  </div>
+
+  <div class="test-item" data-scroll-phase="test2">
+    <h2>Test Item 2</h2>
+    <p>Watch the smooth transitions between states.</p>
+    <span class="badge">PHASE: <span id="phase2">-</span></span>
+  </div>
+
+  <div class="test-item" data-scroll-phase="test3">
+    <h2>Test Item 3</h2>
+    <p>GPU-accelerated transforms ensure smooth 60fps.</p>
+    <span class="badge">PHASE: <span id="phase3">-</span></span>
+  </div>
+
+  <div class="test-item" data-scroll-phase="test4">
+    <h2>Test Item 4</h2>
+    <p>Scroll back up to see transitions work in reverse.</p>
+    <span class="badge">PHASE: <span id="phase4">-</span></span>
+  </div>
+
+  <script src="ScrollPhase.js"></script>
+  <script>
+    // Inject CSS
+    ScrollPhase.injectCSS();
+
+    // Create instance with debug enabled
+    const sp = new ScrollPhase({
+      debug: true,
+      onStateChange: (item, prev, curr) => {
+        console.log(`✓ ${item.id}: ${prev} → ${curr}`);
+
+        // Update badge
+        const phaseEl = document.getElementById(`phase${item.id.replace('test', '')}`);
+        if (phaseEl) {
+          phaseEl.textContent = curr.toUpperCase();
+        }
+      }
+    });
+
+    // Register all test items
+    document.querySelectorAll('[data-scroll-phase]').forEach(el => {
+      const id = el.getAttribute('data-scroll-phase');
+      sp.register(id, el);
+      console.log(`✓ Registered: ${id}`);
+    });
+
+    console.log('%c✓ ScrollPhase test initialized', 'color: #0f0; font-weight: bold');
+    console.log(`Registered ${sp.items.size} items`);
+    console.log('Scroll down to see state transitions in console');
+  </script>
+</body>
+</html>

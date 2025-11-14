@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScrollPhase Demo - ASDR Envelope Transitions</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      color: white;
+      line-height: 1.6;
+    }
+
+    .hero {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .hero h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .hero p {
+      font-size: 1.2rem;
+      opacity: 0.9;
+      max-width: 600px;
+    }
+
+    .scroll-hint {
+      position: absolute;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.9rem;
+      opacity: 0.7;
+      animation: bounce 2s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(-10px); }
+    }
+
+    .content-section {
+      min-height: 150vh;
+      padding: 4rem 2rem;
+    }
+
+    .scroll-item {
+      max-width: 800px;
+      margin: 4rem auto;
+      padding: 3rem;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .scroll-item h2 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      color: #ffd700;
+    }
+
+    .scroll-item p {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      opacity: 0.9;
+    }
+
+    .scroll-item .label {
+      display: inline-block;
+      padding: 0.4rem 1rem;
+      background: rgba(255, 215, 0, 0.2);
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      margin-top: 0.5rem;
+    }
+
+    /* Custom envelope demonstration */
+    .custom-envelope {
+      background: rgba(255, 100, 100, 0.1);
+      border-color: rgba(255, 100, 100, 0.3);
+    }
+
+    .custom-envelope h2 {
+      color: #ff6b6b;
+    }
+
+    /* Info panel */
+    .info-panel {
+      position: fixed;
+      bottom: 1rem;
+      left: 1rem;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      max-width: 250px;
+    }
+
+    .info-panel h3 {
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+      color: #ffd700;
+    }
+
+    .info-panel .state-indicator {
+      display: flex;
+      justify-content: space-between;
+      margin: 0.3rem 0;
+      padding: 0.3rem;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    .controls {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
+    .controls button {
+      display: block;
+      width: 100%;
+      padding: 0.5rem 1rem;
+      margin: 0.3rem 0;
+      background: rgba(74, 158, 255, 0.8);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+
+    .controls button:hover {
+      background: rgba(74, 158, 255, 1);
+    }
+
+    .controls label {
+      display: block;
+      margin: 0.8rem 0 0.3rem;
+      font-size: 0.85rem;
+    }
+
+    .controls input[type="range"] {
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <!-- Hero Section -->
+  <div class="hero">
+    <h1>ScrollPhase Demo</h1>
+    <p>
+      Experience ASDR-style envelope transitions as you scroll.
+      Each content block transitions through Attack, Sustain, Decay, and Release phases.
+    </p>
+    <div class="scroll-hint">↓ Scroll down to see the magic ↓</div>
+  </div>
+
+  <!-- Content with ScrollPhase -->
+  <div class="content-section">
+    <div class="scroll-item" data-scroll-phase="item1">
+      <h2>Attack Phase</h2>
+      <p>
+        When this item enters the viewport, it's in the <strong>Attack</strong> phase.
+        It starts small and faded, gradually becoming more visible.
+      </p>
+      <span class="label">ENTERING</span>
+    </div>
+
+    <div class="scroll-item" data-scroll-phase="item2">
+      <h2>Rising Phase</h2>
+      <p>
+        As the item continues into view, it enters the <strong>Rising</strong> phase.
+        The blur clears and opacity increases, preparing for full visibility.
+      </p>
+      <span class="label">RISING</span>
+    </div>
+
+    <div class="scroll-item" data-scroll-phase="item3">
+      <h2>Sustain Phase</h2>
+      <p>
+        At the sweet spot of the viewport, the item is in <strong>Sustain</strong> phase.
+        Full size, full opacity, no blur - perfect readability.
+      </p>
+      <span class="label">FULL</span>
+    </div>
+
+    <div class="scroll-item" data-scroll-phase="item4">
+      <h2>Decay Phase</h2>
+      <p>
+        As you continue scrolling, the item enters the <strong>Decay</strong> phase.
+        It begins to fade and blur slightly, signaling its departure.
+      </p>
+      <span class="label">FADING</span>
+    </div>
+
+    <div class="scroll-item" data-scroll-phase="item5">
+      <h2>Release Phase</h2>
+      <p>
+        Finally, the item enters the <strong>Release</strong> phase as it leaves the viewport.
+        Small, faded, and blurred - gracefully exiting.
+      </p>
+      <span class="label">EXITING</span>
+    </div>
+
+    <div class="scroll-item custom-envelope" data-scroll-phase="item6">
+      <h2>Custom Envelope</h2>
+      <p>
+        This item uses a custom envelope with different transition thresholds.
+        Try adjusting the envelope controls to see how it changes!
+      </p>
+      <span class="label">CUSTOM</span>
+    </div>
+
+    <div class="scroll-item" data-scroll-phase="item7">
+      <h2>Pinning Support</h2>
+      <p>
+        ScrollPhase supports pinning items to the top or bottom of the viewport.
+        As items cross threshold boundaries, they can stick in place.
+      </p>
+      <span class="label">PINNABLE</span>
+    </div>
+
+    <div class="scroll-item" data-scroll-phase="item8">
+      <h2>Smooth Transitions</h2>
+      <p>
+        All transitions are GPU-accelerated using CSS transforms and opacity.
+        This ensures buttery-smooth 60fps animations even with many items.
+      </p>
+      <span class="label">PERFORMANT</span>
+    </div>
+
+    <div class="scroll-item" data-scroll-phase="item9">
+      <h2>Event Callbacks</h2>
+      <p>
+        ScrollPhase fires events on state changes, allowing you to hook into
+        the scroll lifecycle for custom behaviors and analytics.
+      </p>
+      <span class="label">EXTENSIBLE</span>
+    </div>
+
+    <div class="scroll-item" data-scroll-phase="item10">
+      <h2>The End</h2>
+      <p>
+        You've reached the end! Scroll back up to see the transitions in reverse.
+        Notice how the phases work symmetrically in both directions.
+      </p>
+      <span class="label">COMPLETE</span>
+    </div>
+  </div>
+
+  <!-- Info Panel -->
+  <div class="info-panel">
+    <h3>Current States</h3>
+    <div id="state-list"></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <h3>Controls</h3>
+    <button id="toggle-debug">Toggle Debug Panel</button>
+    <button id="reset-envelope">Reset Envelope</button>
+
+    <label>Attack End: <span id="attack-val">0.2</span></label>
+    <input type="range" id="attack" min="0" max="0.4" step="0.05" value="0.2">
+
+    <label>Sustain Start: <span id="sustain-start-val">0.4</span></label>
+    <input type="range" id="sustain-start" min="0.2" max="0.6" step="0.05" value="0.4">
+
+    <label>Sustain End: <span id="sustain-end-val">0.6</span></label>
+    <input type="range" id="sustain-end" min="0.4" max="0.8" step="0.05" value="0.6">
+
+    <label>Decay End: <span id="decay-val">0.8</span></label>
+    <input type="range" id="decay" min="0.6" max="1.0" step="0.05" value="0.8">
+  </div>
+
+  <!-- Load ScrollPhase -->
+  <script src="ScrollPhase.js"></script>
+
+  <script>
+    // Inject default CSS
+    ScrollPhase.injectCSS();
+
+    // Create ScrollPhase instance with debug enabled
+    const scrollPhase = new ScrollPhase({
+      debug: false, // Set to true to see debug panel
+      throttleMs: 16,
+      useIntersectionObserver: true,
+
+      onStateChange: (item, prevState, newState) => {
+        console.log(`[Demo] ${item.id}: ${prevState} → ${newState}`);
+        updateStateList();
+      },
+
+      onPin: (item, position) => {
+        console.log(`[Demo] ${item.id} pinned to ${position}`);
+      },
+
+      onUnpin: (item) => {
+        console.log(`[Demo] ${item.id} unpinned`);
+      }
+    });
+
+    // Register all scroll items
+    document.querySelectorAll('[data-scroll-phase]').forEach(el => {
+      const id = el.getAttribute('data-scroll-phase');
+      scrollPhase.register(id, el);
+    });
+
+    // Register item6 with custom envelope
+    scrollPhase.setEnvelope('item6', {
+      attackEnd: 0.15,
+      sustainStart: 0.35,
+      sustainEnd: 0.65,
+      decayEnd: 0.85
+    });
+
+    // Update state list panel
+    function updateStateList() {
+      const stateList = document.getElementById('state-list');
+      let html = '';
+
+      scrollPhase.items.forEach(item => {
+        const state = scrollPhase.getState(item.id);
+        if (state && state.isVisible) {
+          html += `
+            <div class="state-indicator">
+              <span>${item.id}</span>
+              <span style="color: #ffd700">${state.state}</span>
+            </div>
+          `;
+        }
+      });
+
+      stateList.innerHTML = html || '<div style="opacity: 0.5;">Scroll to see states</div>';
+    }
+
+    // Update state list on scroll
+    let updateTimer;
+    window.addEventListener('scroll', () => {
+      clearTimeout(updateTimer);
+      updateTimer = setTimeout(updateStateList, 100);
+    }, { passive: true });
+
+    // Control handlers
+    document.getElementById('toggle-debug').addEventListener('click', () => {
+      const panel = document.getElementById('scroll-phase-debug');
+      if (panel) {
+        panel.remove();
+        scrollPhase.options.debug = false;
+      } else {
+        scrollPhase.options.debug = true;
+        scrollPhase.injectDebugPanel();
+      }
+    });
+
+    document.getElementById('reset-envelope').addEventListener('click', () => {
+      const defaultEnvelope = {
+        attackEnd: 0.2,
+        sustainStart: 0.4,
+        sustainEnd: 0.6,
+        decayEnd: 0.8
+      };
+
+      scrollPhase.options.envelope = defaultEnvelope;
+      scrollPhase.items.forEach(item => {
+        if (item.id !== 'item6') { // Don't reset custom envelope item
+          scrollPhase.setEnvelope(item.id, defaultEnvelope);
+        }
+      });
+
+      // Reset sliders
+      document.getElementById('attack').value = 0.2;
+      document.getElementById('sustain-start').value = 0.4;
+      document.getElementById('sustain-end').value = 0.6;
+      document.getElementById('decay').value = 0.8;
+
+      updateEnvelopeDisplay();
+      alert('Envelope reset to defaults');
+    });
+
+    // Envelope control handlers
+    function updateEnvelopeDisplay() {
+      document.getElementById('attack-val').textContent =
+        document.getElementById('attack').value;
+      document.getElementById('sustain-start-val').textContent =
+        document.getElementById('sustain-start').value;
+      document.getElementById('sustain-end-val').textContent =
+        document.getElementById('sustain-end').value;
+      document.getElementById('decay-val').textContent =
+        document.getElementById('decay').value;
+    }
+
+    function applyEnvelopeChanges() {
+      const envelope = {
+        attackEnd: parseFloat(document.getElementById('attack').value),
+        sustainStart: parseFloat(document.getElementById('sustain-start').value),
+        sustainEnd: parseFloat(document.getElementById('sustain-end').value),
+        decayEnd: parseFloat(document.getElementById('decay').value)
+      };
+
+      scrollPhase.options.envelope = envelope;
+      scrollPhase.items.forEach(item => {
+        if (item.id !== 'item6') { // Don't change custom envelope item
+          scrollPhase.setEnvelope(item.id, envelope);
+        }
+      });
+    }
+
+    document.getElementById('attack').addEventListener('input', (e) => {
+      updateEnvelopeDisplay();
+      applyEnvelopeChanges();
+    });
+
+    document.getElementById('sustain-start').addEventListener('input', (e) => {
+      updateEnvelopeDisplay();
+      applyEnvelopeChanges();
+    });
+
+    document.getElementById('sustain-end').addEventListener('input', (e) => {
+      updateEnvelopeDisplay();
+      applyEnvelopeChanges();
+    });
+
+    document.getElementById('decay').addEventListener('input', (e) => {
+      updateEnvelopeDisplay();
+      applyEnvelopeChanges();
+    });
+
+    // Initial state update
+    updateStateList();
+
+    // Log initialization
+    console.log('[Demo] ScrollPhase initialized with', scrollPhase.items.size, 'items');
+    console.log('[Demo] Open browser console to see state change logs');
+  </script>
+</body>
+</html>
