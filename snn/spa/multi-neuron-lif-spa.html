@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>LFP Toy Model: Multi-Neuron LIF + Morphology</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0f1116;
+      --fg: #d2d7e0;
+      --muted: #8a93a6;
+      --accent: #4fb0ff;
+      --ok: #38c172;
+      --warn: #ffb11a;
+      --grid: #232735;
+      --panel: #151926;
+    }
+    html,body { height:100%; margin:0; background:var(--bg); color:var(--fg); font: 14px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .app {
+      display:grid; grid-template-rows:auto 1fr; height:100%;
+      grid-template-columns: 1fr; overflow:hidden;
+    }
+    header {
+      display:flex; gap:16px; align-items:center; padding:10px 12px; background:var(--panel); border-bottom:1px solid #1e2230;
+    }
+    header .title { font-weight:700; letter-spacing:.3px; }
+    header .stat { color:var(--muted); }
+    header .spacer { flex:1 1 auto; }
+    header button, header input, header select {
+      background:#0e1220; color:var(--fg); border:1px solid #2a3246; border-radius:8px; padding:6px 10px; outline:none;
+    }
+    header button { cursor:pointer; }
+    header .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    header label { color:var(--muted); }
+    header input[type="range"] { width:160px; height:6px; accent-color: var(--accent); }
+    main {
+      display:grid;
+      grid-template-columns: minmax(280px, 38%) minmax(200px, 32%) 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 0; overflow:hidden;
+    }
+    .pane-field { grid-column: 1; grid-row: 1 / 3; }
+    .pane-circuit { grid-column: 2; grid-row: 1; }
+    .pane-lfp { grid-column: 2; grid-row: 2; }
+    .pane-spec { grid-column: 3; grid-row: 1 / 3; }
+    .pane { position:relative; }
+    canvas { width:100%; height:100%; display:block; background:linear-gradient(0deg, transparent 24%, var(--grid) 25%, var(--grid) 26%, transparent 27%), 
+                                   linear-gradient(90deg, transparent 24%, var(--grid) 25%, var(--grid) 26%, transparent 27%);
+             background-size: 48px 48px; }
+    .legend {
+      position:absolute; bottom:8px; left:8px; background:#0d1220bf; padding:6px 8px; border:1px solid #263149; border-radius:8px; color:var(--muted);
+      backdrop-filter: blur(3px);
+    }
+    .legend .chip { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:middle; }
+    .chip-neuron { background: var(--ok); }
+    .chip-orient { background: var(--accent); }
+    .chip-electrode { background: var(--warn); }
+    .rightHud {
+      position:absolute; right:8px; top:8px; display:flex; flex-direction:column; gap:8px;
+    }
+    .rightHud .card {
+      background:#0d1220bf; border:1px solid #263149; border-radius:10px; padding:8px;
+      backdrop-filter: blur(3px);
+    }
+    .rightHud .row { display:flex; gap:8px; align-items:center; }
+    .rightHud label { color:var(--muted); white-space:nowrap; }
+    .small { font-size:12px; color:var(--muted); }
+    .sparkAxis { position:absolute; bottom:8px; right:8px; color:var(--muted); font-size:12px; }
+    .warn { color:var(--warn); }
+    .circuitLabel, .specLabel {
+      position:absolute; top:8px; left:8px; color:var(--muted); font-size:12px; font-weight:600;
+      background:#0d1220bf; padding:4px 8px; border-radius:6px; backdrop-filter: blur(3px);
+    }
+    .selectedNeuron { color:var(--accent); font-size:11px; }
+    @media (max-width: 1400px) {
+      main {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 50% 25% 25%;
+      }
+      .pane-field { grid-column: 1; grid-row: 1; }
+      .pane-spec { grid-column: 2; grid-row: 1; }
+      .pane-circuit { grid-column: 1; grid-row: 2; }
+      .pane-lfp { grid-column: 1 / 3; grid-row: 3; }
+    }
+    @media (max-width: 980px) {
+      main { grid-template-columns: 1fr; grid-template-rows: 35% 20% 25% 20%; }
+      .pane-field { grid-column: 1; grid-row: 1; }
+      .pane-circuit { grid-column: 1; grid-row: 2; }
+      .pane-lfp { grid-column: 1; grid-row: 3; }
+      .pane-spec { grid-column: 1; grid-row: 4; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title">Local Field Potential — multi-neuron LIF</div>
+    <div class="row">
+      <label>Morphology</label>
+      <select id="morph">
+        <option value="laminar">laminar (aligned)</option>
+        <option value="nuclear">nuclear (random)</option>
+      </select>
+      <label>N</label><input id="nCount" type="range" min="5" max="300" value="80" />
+      <span id="nCountVal" class="stat">80</span>
+      <label>Synchrony</label><input id="sync" type="range" min="0" max="1" step="0.01" value="0.2" />
+      <span id="syncVal" class="stat">0.20</span>
+      <label>Input λ (Hz)</label><input id="rate" type="range" min="1" max="200" value="20" />
+      <span id="rateVal" class="stat">20</span>
+      <label>Speed</label><input id="speed" type="range" min="1" max="10" value="3" />
+      <span id="speedVal" class="stat">3×</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="row">
+      <button id="resetBtn" title="Reset network">reset</button>
+      <button id="runBtn" title="Pause/Run">pause</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="pane pane-field">
+      <canvas id="field"></canvas>
+      <div class="legend">
+        <div><span class="chip chip-neuron"></span>neurons • <span class="chip chip-orient"></span>orientation • <span class="chip chip-electrode"></span>electrode</div>
+        <div class="small">LFP ∝ Σ I<sub>syn,i</sub> g<sub>i</sub>, g<sub>i</sub> = cosθ<sub>i</sub> / r<sub>i</sub></div>
+      </div>
+      <div class="rightHud">
+        <div class="card row"><label>Electrode height</label><input id="zElec" type="range" min="5" max="120" value="40"/><span id="zElecVal" class="stat">40</span></div>
+        <div class="card small">Membrane τ<sub>m</sub>=20 ms, Syn τ<sub>s</sub>=5 ms, V<sub>th</sub>=1, reset=0, refractory 3 ms.</div>
+      </div>
+    </section>
+
+    <section class="pane pane-circuit">
+      <canvas id="circuit"></canvas>
+      <div class="circuitLabel">RC Circuit Model <span id="selNeuron" class="selectedNeuron">— click neuron</span></div>
+    </section>
+
+    <section class="pane pane-lfp">
+      <canvas id="lfp"></canvas>
+      <div class="sparkAxis">LFP (top) & raster (bottom)</div>
+    </section>
+
+    <section class="pane pane-spec">
+      <canvas id="spectrogram"></canvas>
+      <div class="specLabel">Spectrogram (0-100 Hz)</div>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Parameters (SI-ish units, dt in seconds) ----------
+  const prm = {
+    dt: 0.001,          // 1 ms
+    tau_m: 0.020,       // 20 ms
+    tau_s: 0.005,       // 5 ms
+    vRest: 0.0,
+    vReset: 0.0,
+    vTh: 1.0,
+    refrac: 0.003,      // 3 ms
+    wEPSC: 0.25,        // synaptic increment (arbitrary)
+    noise: 0.02,        // white noise std per sqrt(s)
+    elecZ: 40,          // px in canvas units (UI controlled)
+    gamma: 1.0          // 1/r falloff
+  };
+
+  // ---------- DOM ----------
+  const $ = (id) => document.getElementById(id);
+  const ui = {
+    morph: $("morph"),
+    nCount: $("nCount"), nCountVal: $("nCountVal"),
+    sync: $("sync"), syncVal: $("syncVal"),
+    rate: $("rate"), rateVal: $("rateVal"),
+    speed: $("speed"), speedVal: $("speedVal"),
+    runBtn: $("runBtn"), resetBtn: $("resetBtn"),
+    zElec: $("zElec"), zElecVal: $("zElecVal"),
+    field: $("field"), lfp: $("lfp"),
+    circuit: $("circuit"), spectrogram: $("spectrogram"),
+    selNeuron: $("selNeuron")
+  };
+
+  // Hi-DPI canvas helper
+  function fitCanvas(cnv) {
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const rect = cnv.getBoundingClientRect();
+    const w = Math.max(100, rect.width|0), h = Math.max(100, rect.height|0);
+    if (cnv.width !== (w*dpr) || cnv.height !== (h*dpr)) {
+      cnv.width = w*dpr; cnv.height = h*dpr;
+      const ctx = cnv.getContext("2d");
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
+    return cnv.getContext("2d");
+  }
+
+  // ---------- Network state ----------
+  let state = null;
+  let selectedNeuronIdx = 0; // for circuit view
+
+  function makeNetwork(N, morphology) {
+    const fieldCtx = fitCanvas(ui.field);
+    const W = ui.field.getBoundingClientRect().width;
+    const H = ui.field.getBoundingClientRect().height;
+    const margin = 24;
+
+    const neurons = [];
+    const rng = Math.random;
+
+    // geometry
+    const center = {x: W/2, y: H/2};
+    const spread = Math.min(W,H)*0.35;
+
+    for (let i=0;i<N;i++) {
+      let x,y,theta;
+      if (morphology === "laminar") {
+        // columnar stack: x near center, y spread vertically, aligned dipoles (theta ~ 0)
+        x = center.x + (rng()-0.5)*spread*0.10;
+        y = center.y + (i/(N-1)-0.5) * spread*1.4;
+        theta = 0 + (rng()-0.5)*0.1; // almost aligned
+      } else {
+        // nuclear/clustered: 2D scatter around center, random orientation
+        const a = 2*Math.PI*rng();
+        const r = spread * Math.sqrt(rng()) * 0.8;
+        x = center.x + r*Math.cos(a);
+        y = center.y + r*Math.sin(a);
+        theta = (rng()*2*Math.PI) - Math.PI; // uniform
+      }
+      neurons.push({
+        x, y, theta,
+        v: prm.vRest,
+        iSyn: 0.0,
+        refracLeft: 0.0,
+        spike: false,
+        lastSpikeAt: -1,
+        vHist: new Float32Array(200),  // history for circuit view (200 ms)
+        iHist: new Float32Array(200),
+        hIdx: 0
+      });
+    }
+
+    // LFP buffers
+    const traceLen = 2400;              // ~2.4 s at 1 kHz
+    const lfp = new Float32Array(traceLen);
+    let lHead = 0;
+
+    // per-neuron spike ring for raster (keep recent K points)
+    const raster = new Array(N).fill(0).map(()=>[]);
+
+    // Spectrogram state
+    const fftSize = 256;
+    const specCols = 240;  // time bins
+    const specRows = 64;   // frequency bins (0-100 Hz)
+    const specData = new Float32Array(specCols * specRows); // 2D heatmap
+    let specCol = 0;
+    let fftCounter = 0;
+    const fftHop = 10;     // update every 10 ms
+
+    return {
+      N, morphology, neurons, lfp, lHead, raster,
+      fieldW: W, fieldH: H,
+      specData, specCol, specRows, specCols, fftCounter, fftHop, fftSize
+    };
+  }
+
+  function resetNetwork() {
+    state = makeNetwork(+ui.nCount.value, ui.morph.value);
+  }
+
+  // ---------- Inputs (Poisson with synchrony) ----------
+  function stepInputs(dt, λ, synchrony, N) {
+    // global Poisson process with rate λg = synchrony * λ (events delivered to all neurons)
+    // independent processes with rate λi = (1-s) * λ per neuron
+    const pGlobal = 1 - Math.exp(-synchrony * λ * dt);
+    const globalEvent = (Math.random() < pGlobal);
+
+    // per-neuron Bernoulli probabilities
+    const pInd = 1 - Math.exp(-(1 - synchrony) * λ * dt);
+
+    return { globalEvent, pInd };
+  }
+
+  // ---------- One simulation tick ----------
+  function simStep() {
+    const dt = prm.dt;
+    const λ = +ui.rate.value;      // Hz
+    const s = +ui.sync.value;      // 0..1
+    const { globalEvent, pInd } = stepInputs(dt, λ, s, state.N);
+
+    const elec = { x: state.fieldW/2, y: state.fieldH/2 - prm.elecZ }; // electrode above center by elecZ px
+
+    let lfpSample = 0.0;
+
+    for (let i=0;i<state.N;i++) {
+      const n = state.neurons[i];
+
+      // Inputs: global + independent
+      if (globalEvent) n.iSyn += prm.wEPSC;
+      if (Math.random() < pInd) n.iSyn += prm.wEPSC;
+
+      // Synaptic current decay
+      n.iSyn += - (n.iSyn / prm.tau_s) * dt;
+
+      // Refractory handling
+      if (n.refracLeft > 0) {
+        n.refracLeft -= dt;
+        n.v = prm.vReset;
+        n.spike = false;
+      } else {
+        // Membrane update (LIF with additive white noise)
+        const noise = prm.noise * Math.sqrt(dt) * gauss01();
+        const dv = (-(n.v - prm.vRest) / prm.tau_m + n.iSyn) * dt + noise;
+        n.v += dv;
+
+        // Threshold / reset
+        if (n.v >= prm.vTh) {
+          n.v = prm.vReset;
+          n.refracLeft = prm.refrac;
+          n.spike = true;
+          n.lastSpikeAt = performance.now();
+          // record raster tick (cap list)
+          const ticks = state.raster[i];
+          ticks.push(state.lHead);
+          if (ticks.length > 256) ticks.shift();
+        } else {
+          n.spike = false;
+        }
+      }
+
+      // LFP contribution: dipole orientation projection and 1/r falloff to electrode
+      const dx = elec.x - n.x, dy = elec.y - n.y;
+      const r = Math.max(6, Math.hypot(dx,dy)); // avoid singularity
+      const radialAngle = Math.atan2(dy, dx);   // vector from neuron to electrode
+      const orient = n.theta;                    // neuron's axis
+      const cosTheta = Math.cos(orient - radialAngle); // alignment
+      const geom = cosTheta / Math.pow(r, prm.gamma);
+      lfpSample += n.iSyn * geom;
+    }
+
+    // write LFP ring buffer
+    state.lfp[state.lHead] = lfpSample;
+    state.lHead = (state.lHead + 1) % state.lfp.length;
+
+    // Update history for selected neuron (for circuit view)
+    const sel = state.neurons[selectedNeuronIdx];
+    sel.vHist[sel.hIdx] = sel.v;
+    sel.iHist[sel.hIdx] = sel.iSyn;
+    sel.hIdx = (sel.hIdx + 1) % sel.vHist.length;
+
+    // Periodically compute spectrogram
+    state.fftCounter++;
+    if (state.fftCounter >= state.fftHop) {
+      state.fftCounter = 0;
+      computeSpectrum();
+    }
+  }
+
+  // ---------- RNG ----------
+  let spare = null;
+  function gauss01() { // Box-Muller, mean 0, std 1
+    if (spare != null) { const v = spare; spare = null; return v; }
+    let u=0,v=0,s=0;
+    do { u = Math.random()*2-1; v = Math.random()*2-1; s = u*u+v*v; } while (s===0 || s>=1);
+    const m = Math.sqrt(-2*Math.log(s)/s);
+    spare = v*m; return u*m;
+  }
+
+  // ---------- FFT (Cooley-Tukey radix-2) ----------
+  function fft(real, imag) {
+    const N = real.length;
+    if (N <= 1) return;
+
+    // Bit-reversal permutation
+    let j = 0;
+    for (let i = 0; i < N - 1; i++) {
+      if (i < j) {
+        [real[i], real[j]] = [real[j], real[i]];
+        [imag[i], imag[j]] = [imag[j], imag[i]];
+      }
+      let k = N >> 1;
+      while (k <= j) { j -= k; k >>= 1; }
+      j += k;
+    }
+
+    // Danielson-Lanczos
+    for (let len = 2; len <= N; len <<= 1) {
+      const angle = -2 * Math.PI / len;
+      const wlen_r = Math.cos(angle), wlen_i = Math.sin(angle);
+      for (let i = 0; i < N; i += len) {
+        let w_r = 1, w_i = 0;
+        for (let j = 0; j < len / 2; j++) {
+          const u_r = real[i + j], u_i = imag[i + j];
+          const v_r = real[i + j + len/2] * w_r - imag[i + j + len/2] * w_i;
+          const v_i = real[i + j + len/2] * w_i + imag[i + j + len/2] * w_r;
+          real[i + j] = u_r + v_r;
+          imag[i + j] = u_i + v_i;
+          real[i + j + len/2] = u_r - v_r;
+          imag[i + j + len/2] = u_i - v_i;
+          const t_r = w_r;
+          w_r = w_r * wlen_r - w_i * wlen_i;
+          w_i = t_r * wlen_i + w_i * wlen_r;
+        }
+      }
+    }
+  }
+
+  function computeSpectrum() {
+    const N = state.fftSize;
+    const L = state.lfp.length;
+    const head = state.lHead;
+
+    // Extract window centered on current head
+    const real = new Float32Array(N);
+    const imag = new Float32Array(N);
+
+    for (let i = 0; i < N; i++) {
+      const idx = (head - N + i + L) % L;
+      // Hanning window
+      const w = 0.5 * (1 - Math.cos(2 * Math.PI * i / (N - 1)));
+      real[i] = state.lfp[idx] * w;
+      imag[i] = 0;
+    }
+
+    fft(real, imag);
+
+    // Power spectrum (first half, positive frequencies)
+    const freqBinWidth = 1000.0 / N; // sampling at 1 kHz, so Nyquist = 500 Hz
+    const maxFreq = 100; // Hz
+    const numBins = Math.min(state.specRows, Math.floor(maxFreq / freqBinWidth));
+
+    const col = state.specCol;
+    for (let f = 0; f < numBins; f++) {
+      const power = Math.sqrt(real[f] * real[f] + imag[f] * imag[f]);
+      const dB = 20 * Math.log10(Math.max(1e-10, power));
+      state.specData[f * state.specCols + col] = dB;
+    }
+
+    state.specCol = (state.specCol + 1) % state.specCols;
+  }
+
+  // ---------- Rendering ----------
+  function drawField() {
+    const ctx = fitCanvas(ui.field);
+    const W = ui.field.getBoundingClientRect().width;
+    const H = ui.field.getBoundingClientRect().height;
+
+    // clear grid is CSS; we just overlay axes and entities
+    ctx.save();
+    ctx.translate(0,0);
+
+    // electrode
+    ctx.strokeStyle = "#ffb11a"; ctx.fillStyle = "#ffb11a";
+    const ex = W/2, ey = H/2 - prm.elecZ;
+    ctx.beginPath(); ctx.arc(ex, ey, 5, 0, Math.PI*2); ctx.fill();
+
+    // neurons
+    for (let i=0; i<state.neurons.length; i++) {
+      const n = state.neurons[i];
+      const isSelected = (i === selectedNeuronIdx);
+
+      // soma
+      ctx.fillStyle = isSelected ? "#ffb11a" : "#38c172";
+      ctx.beginPath(); ctx.arc(n.x, n.y, isSelected ? 4 : 3, 0, Math.PI*2); ctx.fill();
+
+      // orientation vector (axon/dendrite axis)
+      ctx.strokeStyle = "#4fb0ff"; ctx.lineWidth = 1.25;
+      const L = 14;
+      ctx.beginPath();
+      ctx.moveTo(n.x - Math.cos(n.theta)*L*0.5, n.y - Math.sin(n.theta)*L*0.5);
+      ctx.lineTo(n.x + Math.cos(n.theta)*L*0.5, n.y + Math.sin(n.theta)*L*0.5);
+      ctx.stroke();
+
+      // recent spike flash
+      if (n.spike) {
+        ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(n.x, n.y, 7, 0, Math.PI*2); ctx.stroke();
+      }
+    }
+
+    // center marker
+    ctx.strokeStyle = "#2e3448"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(W/2, H/2, 10, 0, Math.PI*2); ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawLFP() {
+    const ctx = fitCanvas(ui.lfp);
+    const W = ui.lfp.getBoundingClientRect().width;
+    const H = ui.lfp.getBoundingClientRect().height;
+
+    ctx.clearRect(0,0,W,H);
+
+    // top: LFP trace
+    const hTop = Math.floor(H*0.62);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0,0,W,hTop);
+    ctx.clip();
+
+    // axes
+    ctx.strokeStyle = "#242a3c"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, hTop/2); ctx.lineTo(W, hTop/2); ctx.stroke();
+
+    // gather current window of the ring buffer
+    const L = state.lfp.length;
+    const head = state.lHead;
+    const view = new Float32Array(L);
+    for (let i=0;i<L;i++) view[i] = state.lfp[(head+i)%L];
+
+    // auto scale
+    let maxA = 1e-6;
+    for (let i=0;i<L;i++) { const a = Math.abs(view[i]); if (a>maxA) maxA = a; }
+    const scale = (hTop*0.42) / maxA;
+
+    // polyline
+    ctx.strokeStyle = "#4fb0ff"; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let x=0;x<W;x++) {
+      const idx = Math.floor((x/W) * L);
+      const v = view[idx]*scale;
+      const y = (hTop/2) - v;
+      if (x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+
+    // bottom: raster
+    ctx.restore();
+    const y0 = hTop + 2;
+    const rh = H - y0;
+    ctx.fillStyle = "#1b2134";
+    ctx.fillRect(0, y0, W, rh);
+
+    ctx.strokeStyle = "#38c172"; ctx.lineWidth = 1;
+    const N = state.N;
+    for (let i=0;i<N;i++) {
+      const rowY = y0 + (i+0.5)*(rh/N);
+      const ticks = state.raster[i];
+      for (const t of ticks) {
+        // t is buffer index; convert relative to head → x in [0,W)
+        const rel = (t <= state.lHead) ? (state.lHead - t) : (state.lHead + (state.lfp.length - t));
+        const x = W - (rel / state.lfp.length) * W;
+        ctx.beginPath(); ctx.moveTo(x, rowY-3); ctx.lineTo(x, rowY+3); ctx.stroke();
+      }
+    }
+  }
+
+  function drawCircuit() {
+    const ctx = fitCanvas(ui.circuit);
+    const W = ui.circuit.getBoundingClientRect().width;
+    const H = ui.circuit.getBoundingClientRect().height;
+
+    ctx.clearRect(0,0,W,H);
+
+    const n = state.neurons[selectedNeuronIdx];
+    const pad = 12;
+    const schemaH = H * 0.38;
+    const waveH = (H - schemaH - pad*3) / 2;
+
+    // ========== RC Circuit Schematic ==========
+    ctx.save();
+    ctx.translate(0, pad);
+
+    const cx = W/2, cy = schemaH/2;
+    const circR = Math.min(W, schemaH) * 0.18;
+
+    // Background
+    ctx.fillStyle = "#0e1220";
+    ctx.fillRect(0, 0, W, schemaH);
+
+    // Capacitor (membrane)
+    ctx.strokeStyle = "#4fb0ff"; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx - 25, cy - 20);
+    ctx.lineTo(cx - 25, cy + 20);
+    ctx.moveTo(cx - 20, cy - 20);
+    ctx.lineTo(cx - 20, cy + 20);
+    ctx.stroke();
+
+    ctx.fillStyle = "#8a93a6"; ctx.font = "10px monospace";
+    ctx.fillText("C", cx - 22, cy - 28);
+    ctx.fillText("m", cx - 17, cy - 25);
+
+    // Resistor (leak)
+    ctx.strokeStyle = "#38c172"; ctx.lineWidth = 2;
+    const rx = cx + 35, ry = cy;
+    ctx.beginPath();
+    for (let i=0; i<4; i++) {
+      ctx.lineTo(rx - 10 + i*5, ry - 8 + (i%2)*16);
+    }
+    ctx.stroke();
+
+    ctx.fillStyle = "#8a93a6";
+    ctx.fillText("R", rx - 5, ry - 25);
+    ctx.fillText("m", rx, ry - 22);
+
+    // Current source (synaptic)
+    ctx.strokeStyle = "#ffb11a"; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx - 50, cy, 10, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - 50, cy - 6);
+    ctx.lineTo(cx - 50, cy + 6);
+    ctx.moveTo(cx - 53, cy + 3);
+    ctx.lineTo(cx - 50, cy + 6);
+    ctx.lineTo(cx - 47, cy + 3);
+    ctx.stroke();
+
+    ctx.fillStyle = "#8a93a6";
+    ctx.fillText("I", cx - 70, cy + 3);
+    ctx.fillText("syn", cx - 68, cy + 12);
+
+    // Voltage indicator
+    ctx.fillStyle = "#4fb0ff"; ctx.font = "11px monospace";
+    ctx.fillText(`V = ${n.v.toFixed(3)}`, cx - 25, cy + 45);
+    ctx.fillStyle = "#38c172";
+    ctx.fillText(`I = ${n.iSyn.toFixed(3)}`, cx + 10, cy + 45);
+
+    // Wires
+    ctx.strokeStyle = "#2a3246"; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - 40, cy);
+    ctx.lineTo(cx - 25, cy);
+    ctx.moveTo(cx - 20, cy);
+    ctx.lineTo(cx + 25, cy);
+    ctx.lineTo(cx + 25, cy - 15);
+    ctx.moveTo(cx + 25, cy + 15);
+    ctx.lineTo(cx + 25, cy);
+    ctx.stroke();
+
+    ctx.restore();
+
+    // ========== Voltage Trace ==========
+    ctx.save();
+    ctx.translate(0, pad + schemaH + pad);
+    ctx.fillStyle = "#0e1220";
+    ctx.fillRect(0, 0, W, waveH);
+
+    ctx.strokeStyle = "#242a3c"; ctx.lineWidth = 1;
+    const vth = prm.vTh;
+    const yTh = waveH - (vth / 1.2) * waveH * 0.8;
+    ctx.beginPath();
+    ctx.moveTo(0, yTh);
+    ctx.lineTo(W, yTh);
+    ctx.stroke();
+
+    ctx.fillStyle = "#8a93a6"; ctx.font = "9px monospace";
+    ctx.fillText("V_th", 2, yTh - 2);
+
+    // Trace
+    const L = n.vHist.length;
+    ctx.strokeStyle = "#4fb0ff"; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let x=0; x<W; x++) {
+      const idx = (n.hIdx + Math.floor((x/W)*L)) % L;
+      const v = n.vHist[idx];
+      const y = waveH - (v / 1.2) * waveH * 0.8;
+      if (x===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    ctx.restore();
+
+    // ========== Synaptic Current Trace ==========
+    ctx.save();
+    ctx.translate(0, pad + schemaH + pad + waveH + pad);
+    ctx.fillStyle = "#0e1220";
+    ctx.fillRect(0, 0, W, waveH);
+
+    ctx.strokeStyle = "#242a3c"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, waveH/2);
+    ctx.lineTo(W, waveH/2);
+    ctx.stroke();
+
+    // Trace
+    let maxI = 1e-6;
+    for (let i=0; i<L; i++) {
+      const a = Math.abs(n.iHist[i]);
+      if (a > maxI) maxI = a;
+    }
+    const scaleI = (waveH * 0.42) / maxI;
+
+    ctx.strokeStyle = "#38c172"; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let x=0; x<W; x++) {
+      const idx = (n.hIdx + Math.floor((x/W)*L)) % L;
+      const i = n.iHist[idx];
+      const y = waveH/2 - i * scaleI;
+      if (x===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    ctx.fillStyle = "#8a93a6"; ctx.font = "9px monospace";
+    ctx.fillText("I_syn", 2, 10);
+
+    ctx.restore();
+  }
+
+  function drawSpectrogram() {
+    const ctx = fitCanvas(ui.spectrogram);
+    const W = ui.spectrogram.getBoundingClientRect().width;
+    const H = ui.spectrogram.getBoundingClientRect().height;
+
+    ctx.clearRect(0,0,W,H);
+
+    const rows = state.specRows;
+    const cols = state.specCols;
+
+    // Find min/max for color scaling
+    let minDb = 0, maxDb = -100;
+    for (let i=0; i<rows*cols; i++) {
+      const v = state.specData[i];
+      if (v > maxDb) maxDb = v;
+      if (v < minDb) minDb = v;
+    }
+    const range = Math.max(1, maxDb - minDb);
+
+    // Render heatmap
+    const cellW = W / cols;
+    const cellH = H / rows;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const idx = r * cols + ((state.specCol + c) % cols);
+        const val = state.specData[idx];
+        const norm = (val - minDb) / range;
+
+        // Viridis-inspired colormap
+        const h = 240 - norm * 240; // blue to red
+        const s = 70 + norm * 20;
+        const l = 15 + norm * 50;
+        ctx.fillStyle = `hsl(${h}, ${s}%, ${l}%)`;
+
+        const x = c * cellW;
+        const y = H - (r + 1) * cellH; // flip y
+        ctx.fillRect(x, y, Math.ceil(cellW), Math.ceil(cellH));
+      }
+    }
+
+    // Frequency axis labels
+    ctx.fillStyle = "#8a93a6"; ctx.font = "10px monospace";
+    ctx.fillText("0 Hz", 4, H - 4);
+    ctx.fillText("50 Hz", 4, H/2 + 4);
+    ctx.fillText("100 Hz", 4, 12);
+  }
+
+  // ---------- UI wiring ----------
+  function bindUI() {
+    const updText = () => {
+      ui.nCountVal.textContent = ui.nCount.value;
+      ui.syncVal.textContent = (+ui.sync.value).toFixed(2);
+      ui.rateVal.textContent = ui.rate.value;
+      ui.speedVal.textContent = ui.speed.value + "×";
+      ui.zElecVal.textContent = ui.zElec.value;
+    };
+    [ui.nCount, ui.sync, ui.rate, ui.speed, ui.zElec].forEach(el => {
+      el.addEventListener("input", ()=>{ updText(); if (el===ui.nCount) resetNetwork(); if (el===ui.zElec){ prm.elecZ = +ui.zElec.value; }});
+    });
+    ui.morph.addEventListener("change", resetNetwork);
+    ui.resetBtn.addEventListener("click", resetNetwork);
+    ui.runBtn.addEventListener("click", ()=>{
+      running = !running;
+      ui.runBtn.textContent = running ? "pause" : "run";
+    });
+
+    // Click to select neuron
+    ui.field.addEventListener("click", (e) => {
+      const rect = ui.field.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      let closest = 0, minDist = Infinity;
+      for (let i=0; i<state.neurons.length; i++) {
+        const n = state.neurons[i];
+        const d = Math.hypot(n.x - x, n.y - y);
+        if (d < minDist) { minDist = d; closest = i; }
+      }
+      if (minDist < 20) {
+        selectedNeuronIdx = closest;
+        ui.selNeuron.textContent = `— neuron ${selectedNeuronIdx}`;
+      }
+    });
+
+    updText();
+  }
+
+  // ---------- Main loop ----------
+  let running = true;
+  function loop() {
+    const steps = +ui.speed.value; // how many 1ms steps per frame
+    if (running) {
+      for (let k=0;k<steps;k++) simStep();
+      drawField();
+      drawCircuit();
+      drawLFP();
+      drawSpectrogram();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- Resize handling ----------
+  function onResize() {
+    // re-fit canvases and keep geometry, but keep neuron positions
+    fitCanvas(ui.field);
+    fitCanvas(ui.circuit);
+    fitCanvas(ui.lfp);
+    fitCanvas(ui.spectrogram);
+    state.fieldW = ui.field.getBoundingClientRect().width;
+    state.fieldH = ui.field.getBoundingClientRect().height;
+  }
+  window.addEventListener("resize", onResize);
+
+  // ---------- Init ----------
+  bindUI();
+  prm.elecZ = +ui.zElec.value;
+  resetNetwork();
+  onResize();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

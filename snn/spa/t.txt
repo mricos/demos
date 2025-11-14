@@ -1,0 +1,37 @@
+I want to use hearing as and example to show how excitatory and inhibitory    a mechanisms set a bound on the temoral resolution of hearing. for example        
+if two clicks are generated how far in time must thet be separate 
+to hear two versus one. Is there an idealized click for such a 
+thoght experiment?  Here is text to prime our intuition pump 
+and break down a definition of now involving local simultenaity.
+
+```html
+<!-- Add this button inside the Controls <section class="card">, next to the normalize toggle -->
+<button id="snap-cortex" style="
+  font-weight:800; letter-spacing:.02em;
+  padding:10px 14px; border-radius:12px;
+  border:2px solid #334155; background:#0b1324; color:#e2e8f0;
+">SNAP: CORTEX (AMPA + GABA_A)</button>
+
+<script>
+// Place this with the other wiring code after inputs/vals are defined
+function applyPreset_Cortex(){ // AMPA-fast excitation + leak; inhibitory present but not dominant
+  const P = { w:1.0, taus:2, taum:20, tmax:200, normalized:true }; // ms
+  S.w = P.w; S.taus = P.taus; S.taum = P.taum; S.tmax = P.tmax; S.normalized = P.normalized;
+  // reflect into sliders/toggle if present
+  if (inputs.w) inputs.w.value = String(P.w);
+  if (inputs.taus) inputs.taus.value = String(P.taus);
+  if (inputs.taum) inputs.taum.value = String(P.taum);
+  if (inputs.tmax) inputs.tmax.value = String(P.tmax);
+  if (inputs.normalize) inputs.normalize.checked = !!P.normalized;
+  renderEquation(); // keeps τ-coloring correct
+  syncUI();
+  draw();
+}
+document.getElementById('snap-cortex')?.addEventListener('click', applyPreset_Cortex);
+</script>
+```
+
+The membrane time constant ( \tau_m ) is set by leak conductance and capacitance (( \tau_m = R_m C_m )) and typically spans (10!-!30,\mathrm{ms}) in cortical pyramidal cells, giving a single-pole cutoff (f_{c,m}=1/(2\pi\tau_m)\approx 5!-!16,\mathrm{Hz}). Synaptic kinetics introduce a faster constant ( \tau_s ) (neurotransmitter binding/unbinding, channel gating, cleft diffusion, and uptake), with AMPA (1!-!5,\mathrm{ms}) ((f_{c,s}\approx 32!-!160,\mathrm{Hz})), GABA(*A) (5!-!25,\mathrm{ms}) ((\approx 6!-!32,\mathrm{Hz})), NMDA (50!-!200,\mathrm{ms}) ((\approx 0.8!-!3,\mathrm{Hz})), and GABA(*B) (100!-!300,\mathrm{ms}) ((\approx 0.5!-!1.6,\mathrm{Hz})). The difference-of-exponentials kernel (V(t)=w,\frac{\tau_s}{\tau_s-\tau_m}\big(e^{-t/\tau_s}-e^{-t/\tau_m}\big)\mathbf{1}*{t\ge0}) acts as a band-pass-like shaping of synaptic drive: ( \tau_s ) sets the leading edge and high-frequency roll-off, ( \tau_m ) sets the trailing integration and low-frequency attenuation. With the provided “SNAP” values ((\tau_s=2,\mathrm{ms}), (\tau_m=20,\mathrm{ms})), the effective energy concentrates around tens of hertz; the peak lies between (f*{c,s}) and (f_{c,m}) and shifts with the ratio (\tau_m/\tau_s).
+
+Biologically, (\tau_m) reflects membrane area, channel density, and leak reversal driving force; (\tau_s) reflects receptor subtype (AMPA, NMDA, GABA(_A), GABA(_B)), vesicle release statistics, and transporter kinetics. Networks with fast (\tau_s) and moderate (\tau_m) support gamma-band interactions (≈ 30–90 Hz); slower synaptic or modulatory components (NMDA, GABA(_B), adaptation) bias dynamics toward beta/theta bands (≈ 4–30 Hz). In real time, (\tau_s=2,\mathrm{ms}) yields a rapid onset and decay within ≈ 10 ms; (\tau_m=20,\mathrm{ms}) yields voltage integration and return to baseline over ≈ 60 ms. The superposition across synapses establishes a finite integration window on the order of tens to a few hundreds of milliseconds. That window constrains temporal coincidence detection and can be interpreted as a limited simultaneity interval (“now”) imposed by the combined synaptic and membrane time constants.
+

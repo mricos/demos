@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Double-Exponential Impulse Response (Vanilla JS + KaTeX)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <style>
+    :root{
+      --c-taum:#4ea8ff;   /* τ_m */
+      --c-taus:#ffb24a;   /* τ_s */
+      --c-curve:#e0e0e0;
+      --c-grid:#26313f;
+      --c-axis:#8aa1bd;
+      --bg:#0b0e14;
+      --fg:#f1f5f9;
+      --panel:#121722;
+      --accent:#2a3447;
+      --muted:#aab6c5;
+
+      --pop-bg:#141a28;
+      --pop-border:#e2e8f0;
+      --pop-glow:#70e000;
+      --pop-danger:#ff3b3b;
+      --pop-safe:#2dd4bf;
+    }
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    .wrap{max-width:1200px;margin:0 auto;padding:18px 16px 48px;display:grid;gap:16px}
+    .card{background:var(--panel);border:1px solid var(--accent);border-radius:16px;padding:16px}
+    .eq-row{display:flex;align-items:center;justify-content:center;min-height:72px;padding:8px}
+    .katex{font-size:1.65rem}
+    /* only color & enlarge τ’s */
+    .katex .m-taum{color:var(--c-taum); font-weight:800; font-size:1.2em}
+    .katex .m-taus{color:var(--c-taus); font-weight:800; font-size:1.2em}
+    .katex .hl{background:rgba(255,255,255,.08);box-shadow:0 0 0 3px rgba(255,255,255,.14) inset;border-radius:6px}
+
+    /* controls */
+    .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+    .ctrl{display:grid;grid-template-rows:auto auto;gap:6px;padding:12px;border-radius:14px;background:#0f1421;border:1px solid #1e2636}
+    .ctrl label{display:flex;justify-content:space-between;font-weight:800;letter-spacing:.02em}
+    .ctrl small{color:var(--muted);font-size:13px}
+    .ctrl .val{font-variant-numeric:tabular-nums}
+    .ctrl[data-key="taum"] label span{color:var(--c-taum)}
+    .ctrl[data-key="taus"] label span{color:var(--c-taus)}
+    input[type=range]{width:100%}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .toggle{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#0e1320;border:2px solid #20283b;font-weight:800}
+    .toggle label{cursor:pointer}
+
+    /* plot */
+    .plots{display:grid;grid-template-columns:1fr;gap:12px}
+    .canvas-wrap{position:relative;background:#0e1119;border:1px solid #1f2532;border-radius:14px;padding:8px}
+    canvas{width:100%;height:340px;display:block}
+    .legend{position:absolute;top:10px;right:12px;display:flex;gap:12px;background:#0f141fe6;border:2px solid #334155;border-radius:12px;padding:8px 10px;font-weight:800}
+    .lg{display:flex;gap:8px;align-items:center;color:#e2e8f0}
+    .dot{width:12px;height:12px;border-radius:50%}
+    .dot.tm{background:var(--c-taum)}
+    .dot.ts{background:var(--c-taus)}
+    .warn{color:#ffd27a;font-weight:800}
+
+    /* DIAGRAMS */
+    .diagram-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .svg-wrap{position:relative;background:#0e1119;border:1px solid #1f2532;border-radius:14px;padding:8px}
+    .svg-wrap svg{width:100%;height:auto;display:block}
+    /* Titles inside SVG panels are BIG, BOLD, ALL CAPS */
+    .panel-title{font: 900 28px/1 ui-sans-serif,system-ui; fill:#e2e8f0; letter-spacing:.03em}
+    .label-big{font: 900 22px/1 ui-sans-serif,system-ui; fill:#e2e8f0}
+    .label-huge{font: 900 28px/1 ui-sans-serif,system-ui; fill:#e2e8f0}
+    .label-note{font: 800 20px/1 ui-sans-serif,system-ui; fill:#cbd5e1}
+
+    /* CALL-OUT POPUPS */
+    .pop{position:absolute; inset:auto 16px 16px auto; max-width:480px; background:var(--pop-bg);
+         border:3px solid var(--pop-border); border-radius:14px; padding:18px 18px 16px;
+         box-shadow:0 10px 30px rgba(0,0,0,.55), 0 0 0 6px rgba(255,255,255,.06) inset;
+         transform:translateY(10px); opacity:0; pointer-events:none; transition:opacity .15s ease, transform .15s ease}
+    .pop.show{opacity:1; transform:translateY(0); pointer-events:auto}
+    .pop h3{margin:0 0 10px 0; font:900 28px/1.1 ui-sans-serif,system-ui; text-transform:uppercase; letter-spacing:.02em}
+    .pop p{margin:0 0 10px 0; font:800 20px/1.2 ui-sans-serif,system-ui}
+    .pop .good{color:var(--pop-safe)}
+    .pop .bad{color:var(--pop-danger)}
+    .pop .em{color:#f8fafc}
+    .pop .dismiss{margin-top:8px; font-weight:900; border:2px solid #334155; background:#0b1324; color:#e2e8f0; padding:8px 12px; border-radius:10px; cursor:pointer}
+    .pillbar{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 0}
+    .pill{cursor:pointer; font:900 18px/1 ui-sans-serif; text-transform:uppercase; letter-spacing:.02em;
+          padding:10px 12px; border-radius:999px; border:3px solid #475569; background:#0b1324}
+    .pill[data-key="exc"]{border-color:var(--pop-safe)}
+    .pill[data-key="inh"]{border-color:var(--pop-danger)}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <!-- Equation -->
+    <section class="card eq-row">
+      <div id="eq"></div>
+    </section>
+
+    <!-- Controls -->
+    <section class="card">
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div class="row">
+          <div class="toggle">
+            <input id="normalize" type="checkbox" checked />
+            <label for="normalize" title="Normalize using τₛ/(τₛ−τₘ) for e^{-t/τₛ}−e^{-t/τₘ}">
+              NORMALIZATION: τₛ/(τₛ−τₘ)
+            </label>
+          </div>
+          <div id="warn" class="warn" role="status" aria-live="polite"></div>
+        </div>
+        <div class="row"><small>Units: τ in ms, t in ms</small></div>
+      </div>
+      <div class="controls" id="controls">
+        <!-- order: τ_s, τ_m, then w, T -->
+        <div class="ctrl" data-key="taus">
+          <label><span>τₛ</span><span class="val" id="val-taus">5 ms</span></label>
+          <input id="taus" type="range" min="1" max="300" step="1" value="5">
+          <small>Synaptic time constant</small>
+        </div>
+        <div class="ctrl" data-key="taum">
+          <label><span>τₘ</span><span class="val" id="val-taum">20 ms</span></label>
+          <input id="taum" type="range" min="1" max="300" step="1" value="20">
+          <small>Membrane time constant</small>
+        </div>
+        <div class="ctrl" data-key="w">
+          <label><span>w</span><span class="val" id="val-w">1.00</span></label>
+          <input id="w" type="range" min="0" max="5" step="0.01" value="1">
+          <small>Gain</small>
+        </div>
+        <div class="ctrl" data-key="tmax">
+          <label><span>T</span><span class="val" id="val-tmax">200 ms</span></label>
+          <input id="tmax" type="range" min="50" max="1000" step="10" value="200">
+          <small>Plot window</small>
+        </div>
+      </div>
+    </section>
+
+    <!-- BOLD DIAGRAMS WITH CALLOUTS -->
+    <section class="card diagram-grid">
+      <!-- Membrane RC equivalent -->
+      <div class="svg-wrap" id="rc-wrap">
+        <svg viewBox="0 0 700 340" aria-label="Membrane RC equivalent circuit">
+          <rect x="6" y="6" width="688" height="328" fill="none" stroke="#273244" stroke-width="2"/>
+          <text x="24" y="40" class="panel-title">MEMBRANE AS RC (LEAK)</text>
+
+          <!-- input synaptic current -->
+          <circle cx="80" cy="180" r="22" fill="none" stroke="#cbd5e1" stroke-width="4"/>
+          <line x1="80" y1="132" x2="80" y2="160" stroke="#cbd5e1" stroke-width="4"/>
+          <line x1="80" y1="200" x2="80" y2="228" stroke="#cbd5e1" stroke-width="4"/>
+          <polyline points="30,180 58,180" stroke="#cbd5e1" stroke-width="4" fill="none"/>
+          <polyline points="102,180 170,180" stroke="#cbd5e1" stroke-width="4" fill="none"/>
+          <text x="24" y="88" class="label-big">I(t): SYNAPTIC DRIVE</text>
+
+          <!-- node bus -->
+          <circle cx="170" cy="180" r="5" fill="#e2e8f0"/>
+          <polyline points="170,180 330,180" stroke="#e2e8f0" stroke-width="4" fill="none"/>
+
+          <!-- Rm (blue) -->
+          <polyline points="230,180 230,90 360,90 360,180" stroke="#4ea8ff" stroke-width="6" fill="none"/>
+          <text x="238" y="78" class="label-huge" fill="#4ea8ff">Rₘ (LEAK)</text>
+
+          <!-- Cm (orange) -->
+          <polyline points="280,180 280,250" stroke="#ffb24a" stroke-width="6" fill="none"/>
+          <line x1="256" y1="250" x2="304" y2="250" stroke="#ffb24a" stroke-width="6"/>
+          <line x1="256" y1="265" x2="304" y2="265" stroke="#ffb24a" stroke-width="6"/>
+          <polyline points="280,265 280,300" stroke="#ffb24a" stroke-width="6" fill="none"/>
+          <text x="296" y="268" class="label-huge" fill="#ffb24a">Cₘ</text>
+
+          <!-- ground -->
+          <polyline points="360,180 360,250" stroke="#e2e8f0" stroke-width="4"/>
+          <line x1="336" y1="250" x2="384" y2="250" stroke="#e2e8f0" stroke-width="4"/>
+          <line x1="340" y1="262" x2="380" y2="262" stroke="#e2e8f0" stroke-width="4"/>
+          <line x1="344" y1="274" x2="376" y2="274" stroke="#e2e8f0" stroke-width="4"/>
+
+          <!-- V(t) tap -->
+          <polyline points="420,180 600,180" stroke="#e2e8f0" stroke-width="4"/>
+          <circle cx="600" cy="180" r="5" fill="#e2e8f0"/>
+          <text x="420" y="120" class="label-huge">V(t)</text>
+
+          <!-- tau caption -->
+          <text x="420" y="150" class="label-big">τₘ = Rₘ·Cₘ  (MEMBRANE)</text>
+          <text x="420" y="210" class="label-big">τₛ = SYNAPTIC</text>
+
+          <!-- Clickable pills -->
+          <foreignObject x="420" y="235" width="260" height="80">
+            <div xmlns="http://www.w3.org/1999/xhtml" class="pillbar">
+              <div class="pill" data-pop="exc" data-key="exc">EXCITATORY = Na⁺ SOURCE</div>
+              <div class="pill" data-pop="inh" data-key="inh">INHIBITORY = Cl⁻/K⁺ SINK</div>
+            </div>
+          </foreignObject>
+        </svg>
+        <!-- POPUPS (RC context) -->
+        <div class="pop" id="pop-exc">
+          <h3 class="good">EXCITATORY: SODIUM INFLUX → DEPOLARIZE</h3>
+          <p class="em">Na⁺ SOURCE drives <span class="good">upward</span> V(t).</p>
+          <p>Synaptic kernel: <b>τₛ</b> (release/clearance), filtered by <b>τₘ</b> (Rₘ‖Cₘ).</p>
+          <button class="dismiss" data-close="exc">Dismiss</button>
+        </div>
+        <div class="pop" id="pop-inh">
+          <h3 class="bad">INHIBITORY: Cl⁻ / K⁺ EFFLUX → HYPERPOLARIZE</h3>
+          <p class="em">Anion influx or K⁺ efflux acts as a <span class="bad">sink</span> on V(t).</p>
+          <p>Same kernel form; sign depends on reversal potential and conductance.</p>
+          <button class="dismiss" data-close="inh">Dismiss</button>
+        </div>
+      </div>
+
+      <!-- Parallel "axon bundle" sketch (stylized) -->
+      <div class="svg-wrap" id="axon-wrap">
+        <svg viewBox="0 0 700 340" aria-label="Axon bundle to membrane patch">
+          <rect x="6" y="6" width="688" height="328" fill="none" stroke="#273244" stroke-width="2"/>
+          <text x="24" y="40" class="panel-title">AXON BUNDLE → SYNAPSES → MEMBRANE</text>
+
+          <!-- parallel axons -->
+          <g stroke="#9fb3c8" stroke-width="6" fill="none">
+            <path d="M40 90 C140 100, 220 80, 320 100" />
+            <path d="M40 150 C140 160, 220 140, 320 160" />
+            <path d="M40 210 C140 220, 220 200, 320 220" />
+          </g>
+
+          <!-- boutons / terminals -->
+          <g fill="#94a3b8" stroke="#94a3b8" stroke-width="4">
+            <circle cx="320" cy="100" r="10"/><line x1="330" y1="100" x2="360" y2="100"/>
+            <circle cx="320" cy="160" r="10"/><line x1="330" y1="160" x2="360" y2="160"/>
+            <circle cx="320" cy="220" r="10"/><line x1="330" y1="220" x2="360" y2="220"/>
+          </g>
+
+          <!-- membrane patch (postsynaptic) -->
+          <rect x="360" y="70" width="12" height="200" fill="#e2e8f0"/>
+          <text x="380" y="190" class="label-huge">MEMBRANE</text>
+
+          <!-- receptor arrows: left→membrane (green = EXC), (red = INH) -->
+          <g>
+            <path d="M360 100 L440 100" stroke="#2dd4bf" stroke-width="6" marker-end="url(#arrowExc)"/>
+            <path d="M360 160 L440 160" stroke="#ff3b3b" stroke-width="6" marker-end="url(#arrowInh)"/>
+          </g>
+
+          <!-- Labels big & bold -->
+          <text x="452" y="104" class="label-huge" fill="#2dd4bf">EXCITATORY → Na⁺ SOURCE</text>
+          <text x="452" y="166" class="label-huge" fill="#ff3b3b">INHIBITORY → Cl⁻/K⁺ SINK</text>
+          <text x="24" y="300" class="label-note">Multiple axons converge; each bouton produces a kernel with τₛ, then τₘ shapes V(t).</text>
+
+          <!-- arrowheads -->
+          <defs>
+            <marker id="arrowExc" markerWidth="14" markerHeight="14" refX="10" refY="5" orient="auto">
+              <polygon points="0 0, 10 5, 0 10" fill="#2dd4bf"/>
+            </marker>
+            <marker id="arrowInh" markerWidth="14" markerHeight="14" refX="10" refY="5" orient="auto">
+              <polygon points="0 0, 10 5, 0 10" fill="#ff3b3b"/>
+            </marker>
+          </defs>
+        </svg>
+      </div>
+    </section>
+
+    <!-- Plots -->
+    <section class="card plots">
+      <div class="canvas-wrap">
+        <div class="legend">
+          <div class="lg"><span class="dot ts"></span><span>τₛ</span></div>
+          <div class="lg"><span class="dot tm"></span><span>τₘ</span></div>
+        </div>
+        <canvas id="c"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  /* -------- Equation Annotator (refactorable) -------- */
+  class EquationAnnotator{
+    constructor(root){
+      this.root = root;
+      this.map = { taum:()=>root.querySelectorAll('.m-taum'), taus:()=>root.querySelectorAll('.m-taus') };
+    }
+    highlight(k,on){ (this.map[k]?.()||[]).forEach(el=>el.classList.toggle('hl',!!on)); }
+    clear(){ this.root.querySelectorAll('.hl').forEach(el=>el.classList.remove('hl')); }
+  }
+
+  /* -------- State -------- */
+  const S = { w:1.0, taum:20, taus:5, tmax:200, normalized:true };
+
+  /* -------- DOM -------- */
+  const eqEl = document.getElementById('eq');
+  const warnEl = document.getElementById('warn');
+  const c = document.getElementById('c');
+  const ctx = c.getContext('2d', { alpha:false });
+
+  const inputs = {
+    w: document.getElementById('w'),
+    taum: document.getElementById('taum'),
+    taus: document.getElementById('taus'),
+    tmax: document.getElementById('tmax'),
+    normalize: document.getElementById('normalize')
+  };
+  const vals = {
+    w: document.getElementById('val-w'),
+    taum: document.getElementById('val-taum'),
+    taus: document.getElementById('val-taus'),
+    tmax: document.getElementById('val-tmax')
+  };
+
+  /* -------- KaTeX -------- */
+  function eqTex(normalized){
+    // Order: e^{-t/τ_s} − e^{-t/τ_m}; normalization consistent with that order: τ_s/(τ_s − τ_m)
+    const norm = normalized ? String.raw`\ \left[\ \frac{\tau_s}{\tau_s-\tau_m}\ \right]\ ` : '';
+    return String.raw`\displaystyle V(t) \,=\, w \, ${norm}
+      \Big(\,\htmlClass{m-taus}{e^{-t/\tau_s}} \,-\, \htmlClass{m-taum}{e^{-t/\tau_m}}\,\Big)
+      \quad \text{for } t\ge 0`;
+  }
+
+  let annotator = null;
+  function renderEquation(){
+    window.katex.render(eqTex(S.normalized), eqEl, {
+      throwOnError:false, strict:false, displayMode:true,
+      trust:(ctx)=>ctx.command==='\\htmlClass'
+    });
+    annotator = new EquationAnnotator(eqEl);
+    eqEl.querySelectorAll('.m-taum,.m-taus').forEach(span=>{
+      span.addEventListener('mouseenter', ()=>{
+        const key = span.classList.contains('m-taum')?'taum':'taus';
+        document.querySelectorAll(`.ctrl[data-key="${key}"]`).forEach(el=>el.style.outline='3px solid #38bdf8');
+        annotator?.highlight(key,true);
+      });
+      span.addEventListener('mouseleave', ()=>{
+        document.querySelectorAll('.ctrl').forEach(el=>el.style.outline='');
+        annotator?.highlight('taum',false); annotator?.highlight('taus',false);
+      });
+    });
+  }
+
+  /* -------- Model -------- */
+  function impulseResponse(w, taum, taus, t, normalized){
+    if (t < 0) return 0;
+    const e_s = Math.exp(-t/taus);
+    const e_m = Math.exp(-t/taum);
+    let k = 1.0;
+    if(normalized){
+      const d = (taus - taum);
+      k = Math.abs(d) < 1e-6 ? (taus / (d >= 0 ? 1e-6 : -1e-6)) : (taus / d);
+    }
+    return w * k * (e_s - e_m);
+  }
+
+  /* -------- Plotting -------- */
+  function resizeCanvas(){
+    const dpr = Math.min(window.devicePixelRatio||1, 2);
+    const rect = c.getBoundingClientRect();
+    c.width = Math.floor(rect.width * dpr);
+    c.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  function niceStep(m){const p=10**Math.floor(Math.log10(m));const r=m/p;return r<1.5?1*p:r<3.5?2*p:r<7.5?5*p:10*p;}
+  function ticks(a,b){const s=b-a; if(s<=0) return [a]; const st=niceStep(s/6); const stt=Math.ceil(a/st)*st; const out=[]; for(let x=stt;x<=b+1e-9;x+=st) out.push(+x.toFixed(6)); return out;}
+
+  function draw(){
+    resizeCanvas();
+    const W=c.clientWidth,H=c.clientHeight, L=56,R=16,T=20,B=36;
+    const N=Math.max(200,Math.floor(S.tmax*3)), dt=S.tmax/(N-1);
+    const t=new Array(N), v=new Array(N);
+    let vmax=1e-9;
+    for(let i=0;i<N;i++){ t[i]=i*dt; v[i]=impulseResponse(S.w,S.taum,S.taus,t[i],S.normalized); vmax=Math.max(vmax,Math.abs(v[i])); }
+    // symmetric around 0
+    const yMax=(vmax||1)*1.1, yMin=-yMax;
+    const x2px=x=>L+(x/S.tmax)*(W-L-R), y2px=y=>T+(1-(y-yMin)/(yMax-yMin))*(H-T-B);
+
+    ctx.clearRect(0,0,W,H);
+    // grid
+    ctx.lineWidth=1; ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--c-grid');
+    ctx.beginPath();
+    ticks(0,S.tmax).forEach(tt=>{const x=x2px(tt);ctx.moveTo(x,T);ctx.lineTo(x,H-B);});
+    ticks(yMin,yMax).forEach(vv=>{const y=y2px(vv);ctx.moveTo(L,y);ctx.lineTo(W-R,y);});
+    ctx.stroke();
+    // axes
+    ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--c-axis'); ctx.lineWidth=1.5;
+    ctx.beginPath(); const y0=y2px(0); ctx.moveTo(L,y0); ctx.lineTo(W-R,y0); const x0=x2px(0); ctx.moveTo(x0,T); ctx.lineTo(x0,H-B); ctx.stroke();
+    // labels
+    ctx.fillStyle='#e5e7eb'; ctx.font='bold 14px ui-sans-serif'; ctx.textAlign='right'; ctx.textBaseline='top'; ctx.fillText('t (ms)', W-R, H-24);
+    ctx.save(); ctx.translate(20, T+10); ctx.rotate(-Math.PI/2); ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText('V(t)',0,0); ctx.restore();
+    // markers τ’s
+    ctx.setLineDash([6,6]); ctx.lineWidth=1.25;
+    ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--c-taum'); ctx.beginPath(); const x_tm=x2px(S.taum); ctx.moveTo(x_tm,T); ctx.lineTo(x_tm,H-B); ctx.stroke();
+    ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--c-taus'); ctx.beginPath(); const x_ts=x2px(S.taus); ctx.moveTo(x_ts,T); ctx.lineTo(x_ts,H-B); ctx.stroke();
+    ctx.setLineDash([]);
+    // curve
+    ctx.lineWidth=2.2; ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--c-curve');
+    ctx.beginPath(); for(let i=0;i<N;i++){ const x=x2px(t[i]), y=y2px(v[i]); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); } ctx.stroke();
+  }
+
+  /* -------- Wiring -------- */
+  function syncUI(){
+    vals.w.textContent = S.w.toFixed(2);
+    vals.taum.textContent = `${S.taum} ms`;
+    vals.taus.textContent = `${S.taus} ms`;
+    vals.tmax.textContent = `${S.tmax} ms`;
+    const eps=Math.abs(S.taum-S.taus);
+    warnEl.textContent = (eps<1e-3 && S.normalized) ? 'τₘ ≈ τₛ → normalization ill-conditioned' : '';
+  }
+  function attachControlEvents(){
+    [['w','float'],['taum','int'],['taus','int'],['tmax','int']].forEach(([k,mode])=>{
+      const el=inputs[k], container=el.closest('.ctrl');
+      el.addEventListener('input',()=>{ S[k]=mode==='float'?parseFloat(el.value):Math.round(parseFloat(el.value)); syncUI(); draw(); });
+      if(k==='taum'||k==='taus'){
+        container.addEventListener('mouseenter',()=>annotator?.highlight(k,true));
+        container.addEventListener('mouseleave',()=>annotator?.highlight(k,false));
+      }
+    });
+    inputs.normalize.addEventListener('change',()=>{ S.normalized=!!inputs.normalize.checked; renderEquation(); draw(); });
+    window.addEventListener('resize', draw, {passive:true});
+  }
+
+  /* -------- Callouts -------- */
+  function showPop(id){ document.getElementById(`pop-${id}`)?.classList.add('show'); }
+  function hidePop(id){ document.getElementById(`pop-${id}`)?.classList.remove('show'); }
+  function wireCallouts(){
+    document.querySelectorAll('[data-pop]').forEach(el=>{
+      el.addEventListener('click', ()=> showPop(el.dataset.pop));
+    });
+    document.querySelectorAll('.dismiss').forEach(btn=>{
+      btn.addEventListener('click', ()=> hidePop(btn.dataset.close));
+    });
+    // auto-pop once on load
+    setTimeout(()=>{ showPop('exc'); showPop('inh'); }, 150);
+  }
+
+  /* -------- Init -------- */
+  function init(){
+    renderEquation();
+    attachControlEvents();
+    syncUI();
+    draw();
+    wireCallouts();
+  }
+  function startWhenReady(){
+    if (window.katex?.render){ init(); return; }
+    let tries=0; const iv=setInterval(()=>{ if(window.katex?.render){ clearInterval(iv); init(); } else if(++tries>200){ clearInterval(iv); eqEl.textContent = eqTex(S.normalized); } },25);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startWhenReady); else startWhenReady();
+  </script>
+</body>
+</html>

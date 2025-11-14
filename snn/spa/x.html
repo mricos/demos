@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>LFP Toy Model: Multi-Neuron LIF + Fixed Probe + PSD/Spectrogram + RC inset</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{--bg:#0f1116;--fg:#d2d7e0;--mut:#8a93a6;--acc:#4fb0ff;--ok:#38c172;--warn:#ffb11a;--grid:#232735;--panel:#151926}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .app{display:grid;grid-template-rows:auto 1fr;height:100%;overflow:hidden}
+    header{display:flex;gap:16px;align-items:center;padding:10px 12px;background:var(--panel);border-bottom:1px solid #1e2230}
+    .title{font-weight:700;letter-spacing:.3px}
+    .spacer{flex:1 1 auto}
+    header .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    header label{color:var(--mut)}
+    header input,header select,header button{background:#0e1220;color:var(--fg);border:1px solid #2a3246;border-radius:8px;padding:6px 10px}
+    header button{cursor:pointer}
+    header input[type="range"]{width:150px;height:6px;accent-color:var(--acc)}
+    .stat{color:var(--mut)}
+    main{display:grid;grid-template-columns:minmax(280px,40%) 1fr;gap:0;overflow:hidden}
+    .pane{position:relative}
+    .gridR{display:grid;grid-template-rows:0.36fr 0.24fr 0.40fr;height:100%}
+    canvas{width:100%;height:100%;display:block;background:
+      linear-gradient(0deg,transparent 24%,var(--grid) 25%,var(--grid) 26%,transparent 27%),
+      linear-gradient(90deg,transparent 24%,var(--grid) 25%,var(--grid) 26%,transparent 27%);
+      background-size:48px 48px}
+    .legend{position:absolute;bottom:8px;left:8px;background:#0d1220bf;padding:6px 8px;border:1px solid #263149;border-radius:8px;color:var(--mut);backdrop-filter:blur(3px)}
+    .chip{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+    .chip-neuron{background:var(--ok)} .chip-orient{background:var(--acc)} .chip-electrode{background:var(--warn)}
+    .rightHud{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:8px}
+    .card{background:#0d1220bf;border:1px solid #263149;border-radius:10px;padding:8px;backdrop-filter:blur(3px)}
+    .small{font-size:12px;color:var(--mut)}
+    .axisNote{position:absolute;bottom:6px;right:8px;color:var(--mut);font-size:12px}
+
+    /* FAB + Docs */
+    .fab{position:fixed;right:16px;bottom:16px;width:56px;height:56px;border-radius:50%;background:var(--acc);color:#071018;border:none;box-shadow:0 6px 18px rgba(0,0,0,.4);font-weight:700;cursor:pointer}
+    .doc{position:fixed;right:0;top:0;height:100%;width:min(560px,92vw);background:#0b0f1dbf;border-left:1px solid #27324d;backdrop-filter:blur(6px);transform:translateX(105%);transition:transform .2s ease-out;overflow:auto}
+    .doc.open{transform:translateX(0)}
+    .doc .hdr{position:sticky;top:0;background:#0d1220;border-bottom:1px solid #1e2230;padding:10px 12px;display:flex;gap:8px}
+    .doc .close{margin-left:auto;background:#0e1220;border:1px solid #2a3246;color:var(--fg);border-radius:8px;padding:6px 10px;cursor:pointer}
+    .doc .content{padding:12px 16px}
+    .doc h3{margin:12px 0 6px 0}
+    .doc code{background:#0e1220;padding:1px 4px;border:1px solid #2a3246;border-radius:4px}
+    .kbd{display:inline-block;padding:1px 6px;border:1px solid #2a3246;border-radius:6px;background:#0e1220}
+
+    /* RC card: schematic + EPSP side-by-side with annotations */
+    .rcWrap{position:absolute;left:8px;top:8px;width:min(520px,48%);height:180px}
+    .rcWrap .card{width:100%;height:100%;padding:6px;display:flex;flex-direction:column;gap:6px}
+    .rcRow{display:grid;grid-template-columns:200px 1fr;gap:8px;align-items:stretch}
+    .rcRow .note{font-size:11px;color:var(--mut)}
+    @media (max-width:980px){main{grid-template-columns:1fr;grid-template-rows:55% 45%}.rcWrap{position:static;width:100%;height:200px}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title">Local Field Potential — multi-neuron LIF</div>
+    <div class="row">
+      <label>Morphology</label><select id="morph"><option value="laminar">laminar (aligned)</option><option value="nuclear">nuclear (random)</option></select>
+      <label>N</label><input id="nCount" type="range" min="5" max="300" value="80"/><span id="nCountVal" class="stat">80</span>
+      <label>Synchrony</label><input id="sync" type="range" min="0" max="1" step="0.01" value="0.2"/><span id="syncVal" class="stat">0.20</span>
+      <label>Input λ (Hz)</label><input id="rate" type="range" min="1" max="200" value="20"/><span id="rateVal" class="stat">20</span>
+      <label>Speed</label><input id="speed" type="range" min="1" max="10" value="3"/><span id="speedVal" class="stat">3×</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="row">
+      <button id="resetBtn">reset</button>
+      <button id="runBtn">pause</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Geometry pane (left) -->
+    <section class="pane" id="leftPane">
+      <canvas id="field"></canvas>
+
+      <!-- RC schematic + EPSP -->
+      <div class="rcWrap">
+        <div class="card">
+          <div class="rcRow">
+            <!-- Schematic (SVG) -->
+            <svg id="schem" viewBox="0 0 240 150" preserveAspectRatio="xMidYMid meet" style="width:100%;height:150px;background:#0e1220;border:1px solid #2a3246;border-radius:6px">
+              <!-- node -->
+              <circle cx="120" cy="28" r="3" fill="#e6edf7"/>
+              <text x="128" y="32" font-size="10" fill="#8a93a6">V_m</text>
+              <!-- current source (left) -->
+              <circle cx="60" cy="64" r="16" stroke="#e6edf7" fill="none"/>
+              <line x1="60" y1="52" x2="60" y2="76" stroke="#e6edf7"/>
+              <polygon points="60,44 56,52 64,52" fill="#e6edf7"/>
+              <line x1="60" y1="48" x2="60" y2="28" stroke="#e6edf7"/>
+              <line x1="60" y1="80" x2="60" y2="130" stroke="#e6edf7"/>
+              <text x="24" y="66" font-size="10" fill="#8a93a6">I_syn</text>
+              <!-- resistor branch -->
+              <rect x="112" y="44" width="16" height="36" fill="none" stroke="#e6edf7"/>
+              <text x="132" y="64" font-size="10" fill="#8a93a6">R_m</text>
+              <!-- capacitor branch -->
+              <line x1="160" y1="48" x2="160" y2="70" stroke="#e6edf7" />
+              <line x1="160" y1="72" x2="160" y2="94" stroke="#e6edf7" />
+              <line x1="150" y1="70" x2="170" y2="70" stroke="#e6edf7" />
+              <line x1="150" y1="72" x2="170" y2="72" stroke="#e6edf7" />
+              <text x="172" y="72" font-size="10" fill="#8a93a6">C_m</text>
+              <!-- top bus to node -->
+              <line x1="60" y1="28" x2="120" y2="28" stroke="#e6edf7"/>
+              <line x1="120" y1="28" x2="160" y2="48" stroke="#e6edf7"/>
+              <line x1="120" y1="28" x2="120" y2="44" stroke="#e6edf7"/>
+              <!-- bottom bus to ground -->
+              <line x1="60" y1="130" x2="200" y2="130" stroke="#e6edf7"/>
+              <!-- grounds -->
+              <line x1="118" y1="96" x2="118" y2="130" stroke="#e6edf7"/>
+              <line x1="160" y1="94" x2="160" y2="130" stroke="#e6edf7"/>
+              <line x1="200" y1="130" x2="190" y2="130" stroke="#e6edf7"/>
+              <line x1="200" y1="130" x2="200" y2="126" stroke="#e6edf7"/>
+              <line x1="194" y1="126" x2="206" y2="126" stroke="#e6edf7"/>
+              <line x1="196" y1="122" x2="204" y2="122" stroke="#e6edf7"/>
+              <text x="24" y="140" font-size="10" fill="#8a93a6">τ_m = R_m·C_m</text>
+            </svg>
+
+            <!-- EPSP plot -->
+            <canvas id="circuit" style="width:100%;height:150px;background:#0e1220;border:1px solid #2a3246;border-radius:6px"></canvas>
+          </div>
+          <div class="note">Parallel R_m||C_m driven by I_syn. EPSP: A·(e^{-t/τ_m} − e^{-t/τ_s}). Analytic (blue) vs numeric (green).</div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <div><span class="chip chip-neuron"></span>neurons • <span class="chip chip-orient"></span>orientation • <span class="chip chip-electrode"></span>electrode</div>
+        <div class="small">LFP ∝ Σ I_syn,i · g_i, with g_i = cos(θ_i−φ_i)/r_i</div>
+      </div>
+      <div class="rightHud">
+        <div class="card"><label>Electrode height</label> <input id="zElec" type="range" min="5" max="120" value="40"/> <span id="zElecVal" class="stat">40</span></div>
+        <div class="card small">τ_m=20 ms; τ_s=5 ms; V_th=1; reset=0; refractory=3 ms.</div>
+      </div>
+    </section>
+
+    <!-- Signal analysis pane (right) -->
+    <section class="pane">
+      <div class="gridR">
+        <canvas id="lfp"></canvas>
+        <canvas id="psd"></canvas>
+        <canvas id="spec"></canvas>
+      </div>
+      <div class="axisNote">Top: LFP & raster • Middle: PSD 0–200 Hz (dB, fixed scale) • Bottom: spectrogram (Hann 256, hop 64, −60..0 dB)</div>
+    </section>
+  </main>
+</div>
+
+<!-- FAB documentation -->
+<button class="fab" id="fabDoc" title="Documentation">doc</button>
+<aside class="doc" id="docPanel" aria-hidden="true">
+  <div class="hdr">
+    <strong>Documentation</strong>
+    <button class="close" id="docClose">close</button>
+  </div>
+  <div class="content">
+    <h3>Model</h3>
+    <div>dV/dt = −(V−V_rest)/τ_m + I_syn + σξ(t); threshold/reset with refractory.</div>
+    <div>dI_syn/dt = −I_syn/τ_s + w·∑δ(t−t_k).</div>
+    <h3>Geometry → LFP</h3>
+    <div>LFP(t)=Σ I_syn,i(t)·g_i, g_i=cos(θ_i−φ_i)/r_i.</div>
+    <h3>Frequency view</h3>
+    <ul>
+      <li>PSD: Hann N=512, fixed dB scale [−60,0], 0–200 Hz.</li>
+      <li>Spectrogram: STFT Hann N=256, hop=64, dB [−60,0].</li>
+    </ul>
+    <h3>RC approximation</h3>
+    <div>Membrane ≈ R_m∥C_m driven by I_syn. EPSP kernel A·(e^{-t/τ_m}−e^{-t/τ_s}).</div>
+    <h3>Biophysics (Na⁺ / K⁺)</h3>
+    <ul>
+      <li>Upstroke: voltage-gated Na⁺ channels increase g_Na → depolarizing inward current.</li>
+      <li>Downstroke/AHP: delayed rectifier K⁺ channels increase g_K → outward current, repolarization.</li>
+      <li>Synaptic EPSPs: AMPA/NMDA increase Na⁺ (and some K⁺ via NMDA); IPSPs commonly increase Cl⁻/K⁺ conductance.</li>
+      <li>LIF abstracts these channel kinetics into an effective input current I_syn and a leak (R_m,C_m); spikes are threshold/reset, not Hodgkin–Huxley dynamics.</li>
+    </ul>
+  </div>
+</aside>
+
+<script>
+(function(){
+  "use strict";
+  const $ = id=>document.getElementById(id);
+  const ui={morph:$("morph"),nCount:$("nCount"),nCountVal:$("nCountVal"),sync:$("sync"),syncVal:$("syncVal"),
+            rate:$("rate"),rateVal:$("rateVal"),speed:$("speed"),speedVal:$("speedVal"),
+            runBtn:$("runBtn"),resetBtn:$("resetBtn"),zElec:$("zElec"),zElecVal:$("zElecVal"),
+            field:$("field"),lfp:$("lfp"),psd:$("psd"),spec:$("spec"),
+            fab:$("fabDoc"),doc:$("docPanel"),docClose:$("docClose"),circuit:$("circuit")};
+
+  // Params
+  const prm={dt:0.001,tau_m:0.020,tau_s:0.005,vRest:0.0,vReset:0.0,vTh:1.0,refrac:0.003,wEPSC:0.25,noise:0.02,elecZ:40,gamma:1.0};
+  const fs = 1/prm.dt;  // 1000 Hz
+  let state=null,running=true,spare=null,frameCount=0;
+
+  // Canvas util
+  function fitCanvas(c){const dpr=Math.max(1,window.devicePixelRatio||1);const r=c.getBoundingClientRect();const w=Math.max(100,r.width|0),h=Math.max(100,r.height|0);
+    if(c.width!==w*dpr||c.height!==h*dpr){c.width=w*dpr;c.height=h*dpr;const ctx=c.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);}return c.getContext("2d");}
+  function hann(N){const w=new Float32Array(N);for(let n=0;n<N;n++)w[n]=0.5*(1-Math.cos(2*Math.PI*n/(N-1)));return w;}
+  function gauss01(){if(spare!=null){const v=spare;spare=null;return v;}let u=0,v=0,s=0;do{u=Math.random()*2-1;v=Math.random()*2-1;s=u*u+v*v;}while(s===0||s>=1);const m=Math.sqrt(-2*Math.log(s)/s);spare=v*m;return u*m;}
+
+  // Network
+  function makeNetwork(N,morph){
+    fitCanvas(ui.field);
+    const W=ui.field.getBoundingClientRect().width,H=ui.field.getBoundingClientRect().height;
+    const center={x:W/2,y:H/2},spread=Math.min(W,H)*0.35,neurons=[];
+    for(let i=0;i<N;i++){
+      let x,y,theta;
+      if(morph==="laminar"){x=center.x+(Math.random()-.5)*spread*.10;y=center.y+(i/(N-1)-.5)*spread*1.4;theta=(Math.random()-.5)*0.1;}
+      else{const a=2*Math.PI*Math.random();const r=spread*Math.sqrt(Math.random())*.8;x=center.x+r*Math.cos(a);y=center.y+r*Math.sin(a);theta=Math.random()*2*Math.PI-Math.PI;}
+      neurons.push({x,y,theta,v:prm.vRest,iSyn:0,refracLeft:0,spike:false,lastSpikeAt:-1});
+    }
+    // anchor probe at initial center; only slider moves it (no layout drift)
+    const anchor={cx:center.x, cy:center.y};
+    return {N,morphology:morph,neurons,lfp:new Float32Array(4096),lHead:0,raster:new Array(N).fill(0).map(()=>[]),
+            fieldW:W,fieldH:H,anchor};
+  }
+  function resetNetwork(){state=makeNetwork(+ui.nCount.value,ui.morph.value);}
+
+  function stepInputs(dt,lam,s){const pG=1-Math.exp(-s*lam*dt);const pI=1-Math.exp(-(1-s)*lam*dt);return {g:(Math.random()<pG),pI};}
+
+  function simStep(){
+    const dt=prm.dt,lam=+ui.rate.value,s=+ui.sync.value;const {g,pI}=stepInputs(dt,lam,s,state.N);
+    const elec={x:state.anchor.cx,y:state.anchor.cy - prm.elecZ}; // fixed anchor
+    let l=0;
+    for(let i=0;i<state.N;i++){
+      const n=state.neurons[i];
+      if(g) n.iSyn+=prm.wEPSC; if(Math.random()<pI) n.iSyn+=prm.wEPSC;
+      n.iSyn+=-(n.iSyn/prm.tau_s)*dt;
+      if(n.refracLeft>0){n.refracLeft-=dt;n.v=prm.vReset;n.spike=false;}
+      else{
+        const dv=(-(n.v-prm.vRest)/prm.tau_m+n.iSyn)*dt+prm.noise*Math.sqrt(dt)*gauss01();
+        n.v+=dv;
+        if(n.v>=prm.vTh){n.v=prm.vReset;n.refracLeft=prm.refrac;n.spike=true;const ticks=state.raster[i];ticks.push(state.lHead);if(ticks.length>256)ticks.shift();} else n.spike=false;
+      }
+      const dx=elec.x-n.x,dy=elec.y-n.y;const r=Math.max(6,Math.hypot(dx,dy));const phi=Math.atan2(dy,dx);
+      const geom=Math.cos(n.theta-phi)/Math.pow(r,prm.gamma); l+=n.iSyn*geom;
+    }
+    state.lfp[state.lHead]=l; state.lHead=(state.lHead+1)%state.lfp.length;
+  }
+
+  // Draw geometry
+  function drawField(){
+    const ctx=fitCanvas(ui.field);
+    const ex=state.anchor.cx, ey=state.anchor.cy - prm.elecZ;
+    // electrode
+    ctx.strokeStyle="#ffb11a";ctx.fillStyle="#ffb11a";ctx.beginPath();ctx.arc(ex,ey,5,0,2*Math.PI);ctx.fill();
+    // neurons
+    for(const n of state.neurons){
+      ctx.fillStyle="#38c172";ctx.beginPath();ctx.arc(n.x,n.y,3,0,2*Math.PI);ctx.fill();
+      ctx.strokeStyle="#4fb0ff";ctx.lineWidth=1.25;const L=14;ctx.beginPath();
+      ctx.moveTo(n.x-Math.cos(n.theta)*L*.5,n.y-Math.sin(n.theta)*L*.5);
+      ctx.lineTo(n.x+Math.cos(n.theta)*L*.5,n.y+Math.sin(n.theta)*L*.5);ctx.stroke();
+      if(n.spike){ctx.strokeStyle="#ffffff";ctx.lineWidth=2;ctx.beginPath();ctx.arc(n.x,n.y,7,0,2*Math.PI);ctx.stroke();}
+    }
+  }
+
+  // Time series + raster
+  function drawLFP(){
+    const ctx=fitCanvas(ui.lfp);const W=ui.lfp.getBoundingClientRect().width,H=ui.lfp.getBoundingClientRect().height;
+    ctx.clearRect(0,0,W,H);const hTop=Math.floor(H*.62);
+    ctx.save();ctx.beginPath();ctx.rect(0,0,W,hTop);ctx.clip();
+    ctx.strokeStyle="#242a3c";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,hTop/2);ctx.lineTo(W,hTop/2);ctx.stroke();
+    const L=state.lfp.length,head=state.lHead,view=new Float32Array(L);for(let i=0;i<L;i++) view[i]=state.lfp[(head+i)%L];
+    let maxA=1e-6;for(let i=0;i<L;i++){const a=Math.abs(view[i]);if(a>maxA)maxA=a;}const scale=(hTop*.42)/maxA;
+    ctx.strokeStyle="#4fb0ff";ctx.lineWidth=1.5;ctx.beginPath();
+    for(let x=0;x<W;x++){const idx=Math.floor((x/W)*L);const y=hTop/2 - view[idx]*scale; if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);} ctx.stroke();
+    ctx.restore();
+    const y0=hTop+2,rh=H-y0;ctx.fillStyle="#1b2134";ctx.fillRect(0,y0,W,rh);
+    ctx.strokeStyle="#38c172";ctx.lineWidth=1;const N=state.N;
+    for(let i=0;i<N;i++){const rowY=y0+(i+.5)*(rh/N);const ticks=state.raster[i];
+      for(const t of ticks){const rel=(t<=state.lHead)?(state.lHead-t):(state.lHead+(state.lfp.length-t));const x=W-(rel/state.lfp.length)*W;ctx.beginPath();ctx.moveTo(x,rowY-3);ctx.lineTo(x,rowY+3);ctx.stroke();}}
+  }
+
+  // PSD (fixed dB range to avoid “off-page” scaling)
+  const winPSD=hann(512);
+  function lastSlice(L){const out=new Float32Array(L);let p=state.lHead-L;if(p<0)p+=state.lfp.length;for(let i=0;i<L;i++)out[i]=state.lfp[(p+i)%state.lfp.length];return out;}
+  function dftMag(x,kMax){const N=x.length,out=new Float32Array(kMax+1);for(let k=0;k<=kMax;k++){let re=0,im=0;const ang=-2*Math.PI*k/N;
+    for(let n=0;n<N;n++){const w=x[n]*winPSD[n];const a=ang*n;re+=w*Math.cos(a);im+=w*Math.sin(a);}out[k]=Math.hypot(re,im)/N;}return out;}
+  function drawPSD(){
+    const ctx=fitCanvas(ui.psd);const W=ui.psd.getBoundingClientRect().width,H=ui.psd.getBoundingClientRect().height;
+    ctx.clearRect(0,0,W,H);
+    const x=lastSlice(512),binHz=fs/x.length,kMax=Math.floor(200/binHz);const mags=dftMag(x,kMax);
+    const lo=-60,hi=0;
+    ctx.strokeStyle="#8891a8";ctx.lineWidth=1; // 0 dB line
+    const y0=H - ((0-lo)/(hi-lo))*H;ctx.beginPath();ctx.moveTo(0,y0);ctx.lineTo(W,y0);ctx.stroke();
+    ctx.strokeStyle="#e1e6f0";ctx.lineWidth=1.5;ctx.beginPath();
+    for(let i=0;i<mags.length;i++){
+      const f=i*binHz;const xf=(f/200)*W;
+      const dB=20*Math.log10(mags[i]+1e-8);const y=H - ((Math.max(lo,Math.min(hi,dB))-lo)/(hi-lo))*H;
+      if(i===0)ctx.moveTo(xf,y);else ctx.lineTo(xf,y);
+    }
+    ctx.stroke();
+  }
+
+  // Spectrogram (fixed −60..0 dB)
+  const Nw=256,Hop=64,winSTFT=hann(Nw),specCache={cols:[],maxCols:120,kMax:Math.floor(200/(fs/Nw))};
+  function stftColumn(offsetEnd){
+    const seg=new Float32Array(Nw);let start=state.lHead-offsetEnd-Nw;while(start<0)start+=state.lfp.length;
+    for(let n=0;n<Nw;n++)seg[n]=state.lfp[(start+n)%state.lfp.length]*winSTFT[n];
+    const out=new Float32Array(specCache.kMax+1);
+    for(let k=0;k<=specCache.kMax;k++){let re=0,im=0;const ang=-2*Math.PI*k/Nw;
+      for(let n=0;n<Nw;n++){const a=ang*n;const w=seg[n];re+=w*Math.cos(a);im+=w*Math.sin(a);}const mag=Math.hypot(re,im)/Nw;out[k]=20*Math.log10(mag+1e-8);}
+    return out;
+  }
+  function updateSpectrogram(){specCache.cols.push(stftColumn(0));if(specCache.cols.length>specCache.maxCols)specCache.cols.shift();}
+  function colormap(z){const x=Math.min(1,Math.max(0,z));const r=Math.min(255,Math.max(0,255*(x>0.66?(x-0.66)/0.34:0)));const g=Math.min(255,Math.max(0,255*(x>0.33?(x-0.33)/0.67:0)));const b=Math.min(255,Math.max(0,255*(1-x)));return `rgb(${r|0},${g|0},${b|0})`;}
+  function drawSpec(){
+    const ctx=fitCanvas(ui.spec);const W=ui.spec.getBoundingClientRect().width,H=ui.spec.getBoundingClientRect().height;
+    ctx.clearRect(0,0,W,H);const cols=specCache.cols;if(cols.length===0)return;
+    const lo=-60,hi=0,nbins=cols[0].length,cw=W/cols.length,ch=H/nbins;
+    for(let t=0;t<cols.length;t++){const col=cols[t];for(let k=0;k<nbins;k++){const v=Math.min(hi,Math.max(lo,col[k]));const z=(v-lo)/(hi-lo);
+      ctx.fillStyle=colormap(z);ctx.fillRect(t*cw,H-(k+1)*ch,Math.ceil(cw)+1,Math.ceil(ch)+1);}}
+  }
+
+  // RC EPSP analytic vs numeric
+  function drawCircuit(){
+    const ctx=fitCanvas(ui.circuit);const W=ui.circuit.getBoundingClientRect().width,H=ui.circuit.getBoundingClientRect().height;
+    ctx.clearRect(0,0,W,H);
+    const T=0.30,dt=prm.dt,steps=Math.floor(T/dt);
+    const A=prm.wEPSC*(prm.tau_m/(prm.tau_m-prm.tau_s));
+    const va=new Float32Array(steps);for(let i=0;i<steps;i++){const t=i*dt;va[i]=A*(Math.exp(-t/prm.tau_m)-Math.exp(-t/prm.tau_s));}
+    let v=0,iSyn=prm.wEPSC;const vn=new Float32Array(steps);
+    for(let k=0;k<steps;k++){iSyn+=-(iSyn/prm.tau_s)*dt;const dv=(-(v)/prm.tau_m+iSyn)*dt;v+=dv;vn[k]=v;}
+    let maxA=1e-9;for(let k=0;k<steps;k++){maxA=Math.max(maxA,Math.abs(va[k]),Math.abs(vn[k]));}
+    const S=(H*0.42)/maxA;const yBase=H*0.74;
+    ctx.strokeStyle="#242a3c";ctx.beginPath();ctx.moveTo(0,yBase);ctx.lineTo(W,yBase);ctx.stroke();
+    ctx.fillStyle="#8a93a6";ctx.font="10px ui-monospace";ctx.fillText("0 ms",6,H-6);ctx.textAlign="right";ctx.fillText("300 ms",W-6,H-6);ctx.textAlign="left";
+    ctx.strokeStyle="#4fb0ff";ctx.lineWidth=1.5;ctx.beginPath();
+    for(let x=0;x<W;x++){const k=Math.floor((x/W)*steps);const y=yBase-va[k]*S;if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();
+    ctx.strokeStyle="#38c172";ctx.lineWidth=1.2;ctx.beginPath();
+    for(let x=0;x<W;x++){const k=Math.floor((x/W)*steps);const y=yBase-vn[k]*S;if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();
+  }
+
+  // UI
+  function updText(){ui.nCountVal.textContent=ui.nCount.value;ui.syncVal.textContent=(+ui.sync.value).toFixed(2);ui.rateVal.textContent=ui.rate.value;ui.speedVal.textContent=ui.speed.value+"×";ui.zElecVal.textContent=ui.zElec.value;}
+  [ui.nCount,ui.sync,ui.rate,ui.speed,ui.zElec].forEach(el=>el.addEventListener("input",()=>{updText();if(el===ui.nCount)resetNetwork();if(el===ui.zElec)prm.elecZ=+ui.zElec.value;}));
+  ui.morph.addEventListener("change",resetNetwork);
+  ui.resetBtn.addEventListener("click",resetNetwork);
+  ui.runBtn.addEventListener("click",()=>{running=!running;ui.runBtn.textContent=running?"pause":"run";});
+  function onResize(){fitCanvas(ui.field);fitCanvas(ui.lfp);fitCanvas(ui.psd);fitCanvas(ui.spec);fitCanvas(ui.circuit);state.fieldW=ui.field.getBoundingClientRect().width;state.fieldH=ui.field.getBoundingClientRect().height;}
+  window.addEventListener("resize",onResize);
+  function openDoc(b){ui.doc.classList.toggle("open",b);ui.doc.setAttribute("aria-hidden",b?"false":"true");}
+  ui.fab.addEventListener("click",()=>openDoc(!ui.doc.classList.contains("open"))); ui.docClose.addEventListener("click",()=>openDoc(false));
+  document.addEventListener("keydown",e=>{if(e.key==="Escape")openDoc(false);});
+
+  // Main
+  function loop(){
+    const steps=+ui.speed.value;
+    if(running){for(let k=0;k<steps;k++) simStep(); drawField(); drawLFP(); drawPSD(); if((frameCount&7)===0) updateSpectrogram(); drawSpec(); drawCircuit();}
+    frameCount++; requestAnimationFrame(loop);
+  }
+
+  prm.elecZ=+ui.zElec.value; updText(); resetNetwork(); onResize(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
