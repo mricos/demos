@@ -6,8 +6,8 @@
 <title>SIR Model — Cell UI Demo</title>
 
 <!-- Cell UI Framework CSS -->
-<link rel="stylesheet" href="../cui/css/cui-base.css">
-<link rel="stylesheet" href="../cui/css/cui-components.css">
+<link rel="stylesheet" href="cui/css/cui-base.css">
+<link rel="stylesheet" href="cui/css/cui-components.css">
 
 <!-- Demo-specific CSS -->
 <link rel="stylesheet" href="sir.css">
@@ -21,6 +21,12 @@
       <span class="pill"><span class="sir-i">I</span>=<b id="iVal">0</b></span>
       <span class="pill"><span class="sir-r">R</span>=<b id="rVal">0</b></span>
       <span class="pill"><span class="r-number">R₀</span>≈<b id="r0Val">0.00</b></span>
+      <span class="pill"><span class="r-number">Rₜ</span>≈<b id="rtVal">0.00</b></span>
+      <span class="legend">
+        <span><span class="swatch" style="background:#4aa3ff"></span><span class="sir-s">S</span></span>
+        <span><span class="swatch" style="background:#ff6b6b"></span><span class="sir-i">I</span></span>
+        <span><span class="swatch" style="background:#29d398"></span><span class="sir-r">R</span></span>
+      </span>
     </div>
   </header>
 
@@ -29,12 +35,20 @@
       <h3>Agent Field</h3>
       <div class="canvas-wrap">
         <canvas id="field"></canvas>
+        <div class="overlay-note">2D random walk. Infection on contact within r. Recovery is Poisson with rate γ.</div>
       </div>
     </section>
     <section class="card">
-      <h3>Time Series</h3>
-      <div class="canvas-wrap">
+      <h3 style="display:flex; gap:8px; align-items:center;">
+        <button class="chart-tab active" id="timeSeriesTab">Time Series</button>
+        <button class="chart-tab" id="experimentsTab">Experiments</button>
+      </h3>
+      <div id="timeSeriesView" class="canvas-wrap">
         <canvas id="chart"></canvas>
+        <div class="axis-label">time (s)</div>
+      </div>
+      <div id="experimentsView" style="display:none; height:calc(100% - 42px); overflow-y:auto; padding:12px;">
+        <div id="experimentsList" style="display:grid; gap:8px;"></div>
       </div>
     </section>
   </div>
@@ -42,18 +56,15 @@
 
 <!-- FABs -->
 <div class="fab-row">
+  <button class="fab doc" id="docFab" title="Documentation">?</button>
   <button class="fab sim" id="fab" title="Simulation Controls">⚙</button>
 </div>
 
 <!-- Right controls drawer -->
 <div class="drawer" id="drawer" aria-label="Controls">
-  <div class="drawer-header">
-    <h3>Controls</h3>
-    <button class="close-btn" id="closeDrawer">×</button>
-  </div>
-
-  <div class="drawer-controls">
-    <div class="control-section">
+  <!-- Controls for active tab -->
+  <div class="drawer-controls" style="border-radius:16px 16px 0 0">
+    <div class="control-section active" id="sirControls">
       <div class="row">
         <label>Population N</label>
         <input id="N" type="range" min="50" max="1500" step="10" value="400" />
@@ -89,26 +100,68 @@
         <input id="noise" type="range" min="0" max="60" step="2" value="0" />
         <div class="val" id="noise_val">0%</div>
       </div>
+      <div class="row">
+        <label>Target <span class="r-number">R₀</span></label>
+        <input id="r0Target" type="range" min="0" max="5.0" step="0.1" value="0" />
+        <div class="val" id="r0Target_val">computed</div>
+      </div>
+      <div class="row">
+        <label>Chart horizon (s)</label>
+        <input id="horizon" type="range" min="20" max="240" step="10" value="120" />
+        <div class="val" id="horizon_val">120</div>
+      </div>
     </div>
   </div>
 
-  <div class="drawer-actions">
-    <button class="btn primary" id="startBtn">Start</button>
-    <button class="btn" id="pauseBtn">Pause</button>
-    <button class="btn" id="resetBtn">Reset</button>
+  <!-- Presets section -->
+  <div class="presets-section">
+    <div class="preset-tabs">
+      <button class="preset-tab" id="initTab" data-preset-type="init">Init</button>
+      <button class="preset-tab" id="cliTab" data-preset-type="cli">Cli</button>
+    </div>
+    <div class="preset-content" id="initContent">
+      <div class="button-grid" id="initGrid">
+        <button class="grid-btn selected" data-pattern="random">Random</button>
+        <button class="grid-btn" data-pattern="cluster">Cluster</button>
+        <button class="grid-btn" data-pattern="line">H-Line</button>
+        <button class="grid-btn" data-pattern="vertical">V-Line</button>
+        <button class="grid-btn" data-pattern="grid">Grid</button>
+        <button class="grid-btn" data-pattern="corners">Corners</button>
+      </div>
+    </div>
+    <div class="preset-content" id="cliContent">
+      <input type="text" id="cliInput" placeholder="Type 'help' for commands" style="width:100%; padding:8px; margin-bottom:8px; background:#0a0f16; border:1px solid #223044; border-radius:6px; color:var(--text); font-family:monospace; font-size:13px;">
+      <div id="cliOutput" style="max-height:140px; overflow-y:auto; background:#0a0f16; border:1px solid #1a2636; border-radius:6px; padding:8px; font-family:monospace; font-size:12px; line-height:1.4; color:var(--muted);"></div>
+    </div>
+    <div class="drawer-actions">
+      <button class="btn primary" id="resetBtn">Reset</button>
+      <button class="btn" id="pauseBtn">Pause</button>
+    </div>
   </div>
 </div>
 
+<!-- Documentation panel (loaded dynamically) -->
+<div id="docPanelContainer"></div>
+
 <!-- Cell UI Framework Core -->
-<script src="../cui/core/cui-core.js"></script>
-<script src="../cui/core/cui-tokens.js"></script>
-<script src="../cui/core/cui-lifecycle.js"></script>
+<script src="cui/core/cui-core.js"></script>
+<script src="cui/core/cui-tokens.js"></script>
+<script src="cui/core/cui-lifecycle.js"></script>
 
 <!-- Redux-lite State Management -->
-<script src="../cui/utils/cui-redux-lite.js"></script>
+<script src="cui/utils/cui-redux-lite.js"></script>
 
 <!-- CUI Components -->
-<script src="../cui/components/cui-fab.js"></script>
+<script src="cui/components/cui-fab.js"></script>
+<script src="cui/components/cui-tabs.js"></script>
+<script src="cui/components/cui-docpanel-enhanced.js"></script>
+
+<!-- CUI Variable System -->
+<script src="cui/components/cui-variables.js"></script>
+
+<!-- CUI Plugins -->
+<script src="cui/plugins/cui-cli.js"></script>
+<script src="cui/plugins/cui-experiments.js"></script>
 
 <!-- SIR Demo Logic -->
 <script src="sir.js"></script>
@@ -117,6 +170,125 @@
   CUI.ready(function() {
     CUI.log('Initializing SIR Demo with Cell UI...');
     CUI.Tokens.inject();
+
+    // Setup preset tab switching
+    const initTab = document.getElementById('initTab');
+    const cliTab = document.getElementById('cliTab');
+    const initContent = document.getElementById('initContent');
+    const cliContent = document.getElementById('cliContent');
+
+    function switchPresetTab(tab) {
+      if (tab === 'init') {
+        initTab.classList.add('active');
+        cliTab.classList.remove('active');
+        initContent.style.display = 'block';
+        cliContent.style.display = 'none';
+      } else {
+        initTab.classList.remove('active');
+        cliTab.classList.add('active');
+        initContent.style.display = 'none';
+        cliContent.style.display = 'block';
+      }
+    }
+
+    initTab.addEventListener('click', () => switchPresetTab('init'));
+    cliTab.addEventListener('click', () => switchPresetTab('cli'));
+
+    // Default to init tab
+    switchPresetTab('init');
+
+    // Load documentation dynamically
+    let docPanel = null;
+    async function loadDocs() {
+      try {
+        const response = await fetch('sir-docs.html');
+        const html = await response.text();
+        const container = document.getElementById('docPanelContainer');
+        container.innerHTML = html;
+
+        // Now that docs are loaded, set up references
+        docPanel = document.getElementById('docPanel');
+        if (docPanel) {
+          setupDocsTabs();
+          initializeVariables();
+
+          // Setup Documentation FAB now that panel exists
+          CUI.FAB.create({
+            id: 'docFab',
+            type: 'doc',
+            drawerId: 'docPanel'
+          });
+
+          CUI.log('Documentation loaded successfully');
+        }
+      } catch (err) {
+        CUI.error('Failed to load docs:', err);
+      }
+    }
+
+    // Initialize variable system
+    function initializeVariables() {
+      // Define variables that will be tracked
+      CUI.Variables.define('S', { value: 0, format: (v) => Math.round(v) });
+      CUI.Variables.define('I', { value: 0, format: (v) => Math.round(v) });
+      CUI.Variables.define('R', { value: 0, format: (v) => Math.round(v) });
+      CUI.Variables.define('R0', { value: 0, format: (v) => v.toFixed(2) });
+      CUI.Variables.define('Rt', { value: 0, format: (v) => v.toFixed(2) });
+
+      // Bind all variable references in the documentation
+      CUI.Variables.bindAll();
+
+      CUI.log('Variables initialized and bound');
+    }
+
+    // Documentation tabs setup
+    function setupDocsTabs() {
+      const mainTabs = [
+        {btn: document.getElementById('tabBtnModel'), sec: document.getElementById('tabModel'), hasSubtabs: false},
+        {btn: document.getElementById('tabBtnNumerics'), sec: null, hasSubtabs: true, subtabsId: 'numericsSubtabs'},
+        {btn: document.getElementById('tabBtnPatterns'), sec: document.getElementById('tabPatterns'), hasSubtabs: false},
+        {btn: document.getElementById('tabBtnExamples'), sec: document.getElementById('tabExamples'), hasSubtabs: false},
+        {btn: document.getElementById('tabBtnParams'), sec: document.getElementById('tabParams'), hasSubtabs: false},
+        {btn: document.getElementById('tabBtnConfig'), sec: document.getElementById('tabConfig'), hasSubtabs: false},
+      ];
+      const numericsSubtabs = [
+        {btn: document.getElementById('tabBtnNumThreshold'), sec: document.getElementById('tabNumThreshold')},
+        {btn: document.getElementById('tabBtnNumR0Control'), sec: document.getElementById('tabNumR0Control')},
+      ];
+      const numericsSubtabsContainer = document.getElementById('numericsSubtabs');
+      const allSections = [...mainTabs.filter(t => t.sec).map(t => t.sec), ...numericsSubtabs.map(t => t.sec)];
+
+      // Main tab click handlers
+      for (const t of mainTabs){
+        t.btn.addEventListener('click', () => {
+          for (const x of mainTabs) x.btn.setAttribute('aria-selected', x===t ? 'true' : 'false');
+          numericsSubtabsContainer.classList.remove('active');
+          if (t.hasSubtabs){
+            numericsSubtabsContainer.classList.add('active');
+            allSections.forEach(s => s.hidden = true);
+            numericsSubtabs[0].sec.hidden = false;
+            numericsSubtabs.forEach((st, i) => st.btn.setAttribute('aria-selected', i===0 ? 'true' : 'false'));
+          } else {
+            allSections.forEach(s => s.hidden = true);
+            if (t.sec) t.sec.hidden = false;
+          }
+        });
+      }
+
+      // Numerics subtab click handlers
+      for (const st of numericsSubtabs){
+        st.btn.addEventListener('click', () => {
+          for (const x of numericsSubtabs) x.btn.setAttribute('aria-selected', x===st ? 'true' : 'false');
+          allSections.forEach(s => s.hidden = true);
+          st.sec.hidden = false;
+        });
+      }
+    }
+
+    // Load docs on startup (FAB will be created after docs load)
+    loadDocs();
+
+    // Initialize SIR app
     SIRApp.init();
   });
 </script>
