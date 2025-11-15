@@ -17,10 +17,11 @@ import { loadState } from './actions.js';
 const visualizationHooks = {
   currentDelay: 1000,
   actionHistory: [],
-  animationEnabled: false, // Off by default, toggle to see state flow visualization
+  animationEnabled: false, // ALWAYS OFF by default - must be explicitly enabled
 
   async visualizeStep(stepId, action) {
-    // Skip animation if disabled
+    // IMPORTANT: Skip animation if disabled (performance)
+    // This prevents throttling of Redux actions during gameplay
     if (!this.animationEnabled) {
       return;
     }
@@ -36,7 +37,7 @@ const visualizationHooks = {
       step.classList.add('active');
     }
 
-    // Wait for the configured delay
+    // Wait for the configured delay (only when animation is enabled)
     if (action.type !== '@@INIT') {
       await new Promise(resolve => setTimeout(resolve, this.currentDelay / 4));
     }

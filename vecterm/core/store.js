@@ -22,8 +22,12 @@ export function createStore(reducer, enhancer, hooks = {}) {
   const getState = () => state;
 
   const dispatch = async (action) => {
-    // Visual feedback hooks (optional)
-    if (hooks.visualizeStep) {
+    // IMPORTANT: Only run visualization if animation is explicitly enabled
+    // This prevents performance degradation during gameplay
+    const shouldVisualize = hooks.visualizeStep && hooks.animationEnabled;
+
+    // Visual feedback hooks (only when animation enabled)
+    if (shouldVisualize) {
       // Step 1 - Action Dispatched
       await hooks.visualizeStep('step-action', action);
 
@@ -33,7 +37,7 @@ export function createStore(reducer, enhancer, hooks = {}) {
 
     state = reducer(state, action);
 
-    if (hooks.visualizeStep) {
+    if (shouldVisualize) {
       // Step 3 - Store Updated
       await hooks.visualizeStep('step-store', action);
 
@@ -43,7 +47,7 @@ export function createStore(reducer, enhancer, hooks = {}) {
 
     listeners.forEach(listener => listener());
 
-    // Log action to history (optional hook)
+    // ALWAYS log actions to history, even when visualization is off
     if (hooks.logAction) {
       hooks.logAction(action);
     }

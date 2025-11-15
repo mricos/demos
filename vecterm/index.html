@@ -33,14 +33,362 @@
 
     <!-- Right: Quick Actions -->
     <div id="top-bar-right">
-      <button id="toggle-auth" class="top-bar-btn">Toggle Login</button>
-      <button id="toggle-settings" class="top-bar-btn" title="Settings">
-        <span class="btn-icon">⚙</span>
+      <button id="canvas-settings-btn" class="canvas-control-btn" title="System Settings">
+        <svg class="gear-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+        </svg>
       </button>
     </div>
   </div>
 
   <canvas id="main-canvas" width="1920" height="1080"></canvas>
+
+  <!-- Left Sidebar -->
+  <aside id="left-sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">[ VECTERM ]</span>
+      <button id="left-sidebar-toggle" class="sidebar-toggle-btn">◀</button>
+    </div>
+
+    <!-- GAME Section -->
+    <div class="sidebar-section">
+      <h3 class="section-title" data-section="game">Game</h3>
+      <div class="section-content" id="game-content">
+
+        <!-- Play Field -->
+        <div class="subsection">
+          <h4 class="subsection-title collapsible" data-subsection="playfield">Play Field ▼</h4>
+          <div class="subsection-content" id="subsection-playfield">
+            <div class="info-group">
+              <span class="info-label">Active Game:</span>
+              <span class="info-value" id="active-game">None</span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">Canvas:</span>
+              <span class="info-value" id="canvas-size">1920×1080</span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">Viewport:</span>
+              <span class="info-value" id="viewport-info">Full</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Multiplayer -->
+        <div class="subsection">
+          <h4 class="subsection-title collapsible" data-subsection="multiplayer">Multiplayer ▼</h4>
+          <div class="subsection-content" id="subsection-multiplayer">
+            <div class="info-group">
+              <span class="info-label">Players:</span>
+              <span class="info-value" id="player-count">0/4</span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">Lobby:</span>
+              <span class="info-value" id="lobby-id">None</span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">Host:</span>
+              <span class="info-value" id="host-name">-</span>
+            </div>
+            <div class="control-group">
+              <button id="invite-players" class="config-btn" disabled>Invite Friends</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Camera (3D) - MOVED from System Settings -->
+        <div class="subsection">
+          <h4 class="subsection-title collapsible" data-subsection="camera">Camera (3D) ▼</h4>
+          <div class="subsection-content" id="subsection-camera">
+            <div class="settings-group">
+              <label for="game-camera-fov">Field of View:</label>
+              <input type="range" id="game-camera-fov" min="30" max="120" step="5" value="60">
+              <span id="game-fov-value">60°</span>
+            </div>
+            <div class="control-group">
+              <button id="game-camera-reset" class="config-btn">Reset Camera</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Game VT100 Effects -->
+        <div class="subsection">
+          <h4 class="subsection-title collapsible" data-subsection="game-vt100">VT100 Effects ▼</h4>
+          <div class="subsection-content" id="subsection-game-vt100">
+            <div class="info-group">
+              <span class="info-label">Namespace:</span>
+              <span class="info-value mono">game.vt100.*</span>
+            </div>
+            <div class="settings-group">
+              <label for="game-glow">Phosphor Glow:</label>
+              <input type="range" id="game-glow" min="0" max="2" step="0.05" value="0.5">
+              <span id="game-glow-value">0.50</span>
+            </div>
+            <div class="settings-group">
+              <label for="game-scanlines">Scanlines:</label>
+              <input type="range" id="game-scanlines" min="0" max="1" step="0.01" value="0.2">
+              <span id="game-scanlines-value">0.20</span>
+            </div>
+            <div class="settings-group">
+              <label for="game-wave">Raster Wave:</label>
+              <input type="range" id="game-wave" min="0" max="30" step="0.5" value="3">
+              <span id="game-wave-value">3px</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- VECTERM Status Section -->
+    <div class="sidebar-section">
+      <h3 class="section-title" data-section="vecterm">Vecterm</h3>
+      <div class="section-content" id="vecterm-content">
+
+        <!-- Mode & Context -->
+        <div class="subsection">
+          <h4 class="subsection-title collapsible" data-subsection="status">Status ▼</h4>
+          <div class="subsection-content" id="subsection-status">
+            <div class="info-group">
+              <span class="info-label">Mode:</span>
+              <span class="info-value mono" id="vecterm-mode">vecterm&gt;</span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">Context:</span>
+              <span class="info-value" id="vecterm-context">Terminal</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Info -->
+        <div class="subsection">
+          <h4 class="subsection-title collapsible" data-subsection="user">User ▼</h4>
+          <div class="subsection-content" id="subsection-user">
+            <div class="info-group">
+              <span class="info-label">Username:</span>
+              <span class="info-value" id="username">Guest</span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">Tier:</span>
+              <span class="info-value tier-badge" id="user-tier">
+                <span class="tier-icon">⭐</span>
+                <span class="tier-name">Free</span>
+              </span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">Credits:</span>
+              <span class="info-value" id="user-credits">0</span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">Rank:</span>
+              <span class="info-value" id="user-rank">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Game Statistics -->
+        <div class="subsection">
+          <h4 class="subsection-title collapsible" data-subsection="game-stats">Game Statistics ▼</h4>
+          <div class="subsection-content" id="subsection-game-stats">
+            <div class="info-group">
+              <span class="info-label">Games Played:</span>
+              <span class="info-value" id="games-played">0</span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">Win/Loss:</span>
+              <span class="info-value" id="win-loss">0/0</span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">Total Score:</span>
+              <span class="info-value" id="total-score">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- REPL Configuration -->
+        <div class="subsection">
+          <h4 class="subsection-title collapsible" data-subsection="repl">REPL Config ▼</h4>
+          <div class="subsection-content" id="subsection-repl">
+            <div class="info-group">
+              <span class="info-label">Namespace:</span>
+              <span class="info-value mono" id="repl-namespace">vecterm.*</span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">History:</span>
+              <span class="info-value" id="cmd-history">0 commands</span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">Aliases:</span>
+              <span class="info-value" id="alias-count">0 active</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Session Info -->
+        <div class="subsection">
+          <h4 class="subsection-title collapsible" data-subsection="session">Session ▼</h4>
+          <div class="subsection-content" id="subsection-session">
+            <div class="info-group">
+              <span class="info-label">Uptime:</span>
+              <span class="info-value mono" id="session-uptime">00:00:00</span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">Commands:</span>
+              <span class="info-value" id="session-commands">0</span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">Games:</span>
+              <span class="info-value" id="session-games">0</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SYSTEM SETTINGS Section -->
+    <div class="sidebar-section">
+      <h3 class="section-title" data-section="system">System Settings</h3>
+      <div class="section-content" id="system-content">
+
+        <!-- Grid System -->
+        <div class="subsection">
+          <h4 class="subsection-title collapsible" data-subsection="grid">Grid System ▼</h4>
+          <div class="subsection-content" id="subsection-grid">
+            <div class="settings-group">
+              <label for="left-grid-type">Grid Type:</label>
+              <select id="left-grid-type" class="settings-select">
+                <option value="none">None</option>
+                <option value="square">Square</option>
+                <option value="character">Character (80×24)</option>
+              </select>
+            </div>
+            <div class="settings-group">
+              <label>
+                <input type="checkbox" id="left-grid-visible">
+                Show Grid Overlay
+              </label>
+            </div>
+            <div class="settings-group">
+              <label>
+                <input type="checkbox" id="left-grid-snap">
+                Snap to Grid
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Terminal VT100 Effects -->
+        <div class="subsection">
+          <h4 class="subsection-title collapsible" data-subsection="terminal-vt100">Terminal VT100 ▼</h4>
+          <div class="subsection-content" id="subsection-terminal-vt100">
+            <div class="info-group">
+              <span class="info-label">Namespace:</span>
+              <span class="info-value mono">vecterm.vt100.*</span>
+            </div>
+            <div class="settings-group">
+              <label for="terminal-glow">Phosphor Glow:</label>
+              <input type="range" id="terminal-glow" min="0" max="2" step="0.05" value="0.3">
+              <span id="terminal-glow-value">0.30</span>
+            </div>
+            <div class="settings-group">
+              <label for="terminal-scanlines">Scanlines:</label>
+              <input type="range" id="terminal-scanlines" min="0" max="1" step="0.01" value="0.15">
+              <span id="terminal-scanlines-value">0.15</span>
+            </div>
+            <div class="settings-group">
+              <label for="terminal-wave">Raster Wave:</label>
+              <input type="range" id="terminal-wave" min="0" max="30" step="0.5" value="2">
+              <span id="terminal-wave-value">2px</span>
+            </div>
+            <div class="control-group">
+              <button id="open-all-vt100" class="config-btn">All VT100 Settings...</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Input Devices (Gamepad + Controller consolidated) -->
+        <div class="subsection">
+          <h4 class="subsection-title collapsible" data-subsection="input">Input Devices ▼</h4>
+          <div class="subsection-content" id="subsection-input">
+            <div class="info-group">
+              <div id="left-gamepad-status" class="gamepad-status disconnected">
+                No gamepad connected
+              </div>
+            </div>
+            <div class="settings-group">
+              <label>
+                <input type="checkbox" id="left-gamepad-enabled" checked>
+                Enable Gamepad Input
+              </label>
+            </div>
+            <div class="settings-group">
+              <label for="left-gamepad-preset">Controller Type:</label>
+              <select id="left-gamepad-preset" class="settings-select">
+                <option value="xbox">Xbox Controller</option>
+                <option value="playstation">PlayStation Controller</option>
+                <option value="generic">Generic Controller</option>
+              </select>
+            </div>
+            <div class="settings-group">
+              <small class="settings-help">
+                Controls camera in 3D mode and entities in game mode. Use 'gamepad.status' for details.
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <!-- UI Controls -->
+        <div class="subsection">
+          <h4 class="subsection-title collapsible" data-subsection="ui-controls">UI Controls ▼</h4>
+          <div class="subsection-content" id="subsection-ui-controls">
+            <div class="control-group">
+              <button id="left-toggle-right-sidebar" class="config-btn">Toggle Monitor Sidebar</button>
+            </div>
+            <div class="control-group">
+              <button id="left-toggle-quick-settings" class="config-btn">Toggle Quick Settings</button>
+            </div>
+            <div class="settings-group">
+              <label>
+                <input type="checkbox" id="show-developer-tools">
+                Show Developer Tools
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- localStorage Viewer -->
+        <div class="subsection">
+          <h4 class="subsection-title collapsible" data-subsection="localstorage">localStorage Viewer ▼</h4>
+          <div class="subsection-content" id="subsection-localstorage">
+            <div class="control-group">
+              <button id="refresh-storage" class="config-btn">Refresh</button>
+              <button id="clear-storage" class="config-btn">Clear All</button>
+              <button id="export-storage" class="config-btn">Export</button>
+            </div>
+            <div id="storage-display" class="storage-viewer"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- DEVELOPER Section (hidden by default) -->
+    <div class="sidebar-section developer-section hidden" id="developer-section">
+      <h3 class="section-title" data-section="developer">Developer</h3>
+      <div class="section-content" id="developer-content">
+        <div class="info-group">
+          <span class="info-label">Status:</span>
+          <span class="info-value">See Monitor Sidebar →</span>
+        </div>
+        <div class="control-group">
+          <button id="open-monitor" class="config-btn">Open Monitor</button>
+          <button id="open-theme-tokens" class="config-btn">Theme Tokens</button>
+        </div>
+      </div>
+    </div>
+
+  </aside>
 
   <!-- Right Sidebar -->
   <aside id="right-sidebar">
@@ -52,39 +400,295 @@
     <div class="sidebar-section">
       <h3 class="section-title" data-section="transitions">State Flow</h3>
       <div class="section-content" id="transitions-content">
+
+        <!-- Tab Navigation -->
+        <div style="display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid #333;">
+          <button class="state-flow-tab active" data-tab="flow" style="flex: 1; padding: 6px; background: none; border: none; color: #4fc3f7; cursor: pointer; font-size: 10px; border-bottom: 2px solid #4fc3f7;">Flow</button>
+          <button class="state-flow-tab" data-tab="ecs" style="flex: 1; padding: 6px; background: none; border: none; color: #666; cursor: pointer; font-size: 10px; border-bottom: 2px solid transparent;">ECS</button>
+          <button class="state-flow-tab" data-tab="canvas" style="flex: 1; padding: 6px; background: none; border: none; color: #666; cursor: pointer; font-size: 10px; border-bottom: 2px solid transparent;">Canvas</button>
+          <button class="state-flow-tab" data-tab="storage" style="flex: 1; padding: 6px; background: none; border: none; color: #666; cursor: pointer; font-size: 10px; border-bottom: 2px solid transparent;">Storage</button>
+        </div>
+
+        <!-- Flow Tab -->
+        <div class="state-flow-tab-content active" data-tab-content="flow">
+          <div class="control-group" style="margin-bottom: 16px; padding: 12px; background: rgba(79, 195, 247, 0.05); border-radius: 4px;">
+            <p style="font-size: 11px; color: #ddd; margin: 0 0 8px 0; line-height: 1.5;">
+              <strong>How Redux Powers Vecterm Playground</strong>
+            </p>
+            <p style="font-size: 10px; color: #999; margin: 0 0 12px 0; line-height: 1.5;">
+              All state flows through a single Redux store. When you play Quadrapong, each paddle movement dispatches an UPDATE_ENTITY action.
+              The ECS systems execute every frame, calling <code>ecs.addComponent()</code> which dispatches actions to Redux.
+              Subscribers (like canvas renderers) react to state changes.
+            </p>
+
+            <button id="test-flow-animation" class="config-btn" style="margin-bottom: 8px; width: 100%; font-size: 11px;">
+              ▶ Dispatch Action
+            </button>
+
+            <label for="animation-toggle" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 10px; color: #888;">
+              <input type="checkbox" id="animation-toggle">
+              <span>Slow motion (250ms/step)</span>
+            </label>
+          </div>
+
+        <!-- State Flow Diagram -->
         <div class="flow-diagram">
+          <!-- Step 1: Action Dispatched -->
           <div class="flow-step" id="step-action">
             <div class="step-number">1</div>
             <div class="step-content">
               <strong>Action Dispatched</strong>
-              <p>User triggers an action</p>
+              <p style="font-size: 10px; margin: 4px 0 2px 0;">Sources dispatch actions to Redux store:</p>
+              <ul style="font-size: 9px; margin: 4px 0; padding-left: 16px; line-height: 1.4; color: #999;">
+                <li><strong>UI:</strong> button.addEventListener('click', () => store.dispatch(Actions.login()))</li>
+                <li><strong>ECS:</strong> ecs.addComponent() → store.dispatch({type: 'UPDATE_ENTITY'})</li>
+                <li><strong>CLI:</strong> command handler → store.dispatch(Actions.setMode('game'))</li>
+              </ul>
             </div>
           </div>
+
           <div class="flow-arrow">↓</div>
+
+          <!-- Step 2: Reducer Processes -->
           <div class="flow-step" id="step-reducer">
             <div class="step-number">2</div>
             <div class="step-content">
               <strong>Reducer Processes</strong>
-              <p>Pure function updates state</p>
+              <p style="font-size: 10px; margin: 4px 0 2px 0;">rootReducer() switches on action.type (100+ cases, 1879 lines):</p>
+              <ul style="font-size: 9px; margin: 4px 0; padding-left: 16px; line-height: 1.4; color: #999;">
+                <li><strong>UPDATE_ENTITY:</strong> maps over entities[], spreads new component data</li>
+                <li><strong>TOGGLE_SIDEBAR:</strong> spreads {...state, uiState: {...state.uiState, sidebarCollapsed: !collapsed}}</li>
+                <li><strong>MIDI_CONTROL_CHANGE:</strong> routes to midiReducer(), merges MIDI state slice</li>
+              </ul>
+              <p style="font-size: 9px; margin: 4px 0 0 0; color: #666;">Returns completely new state object (never mutates)</p>
             </div>
           </div>
+
           <div class="flow-arrow">↓</div>
+
+          <!-- Step 3: Store Updated -->
           <div class="flow-step" id="step-store">
             <div class="step-number">3</div>
             <div class="step-content">
               <strong>Store Updated</strong>
-              <p>New state is saved</p>
+              <p style="font-size: 10px; margin: 4px 0;">State saved, localStorageMiddleware persists UI preferences</p>
             </div>
           </div>
+
           <div class="flow-arrow">↓</div>
+
+          <!-- Step 4: UI Re-renders -->
           <div class="flow-step" id="step-render">
             <div class="step-number">4</div>
             <div class="step-content">
-              <strong>UI Re-renders</strong>
-              <p>Components update with new state</p>
+              <strong>Subscribers Notified</strong>
+              <p style="font-size: 10px; margin: 4px 0;">ReduxCanvas.render() draws entities, UI updates from new state</p>
             </div>
           </div>
         </div>
+        </div>
+        <!-- End Flow Tab -->
+
+        <!-- ECS Tab -->
+        <div class="state-flow-tab-content" data-tab-content="ecs" style="display: none;">
+          <p style="font-size: 11px; color: #ddd; margin: 0 0 8px 0; line-height: 1.5;">
+            <strong>Entity Component System Architecture</strong>
+          </p>
+          <p style="font-size: 10px; color: #999; margin: 0 0 12px 0; line-height: 1.5;">
+            Vecterm uses ECS for game logic. Entities are data containers, Components hold data, Systems contain behavior.
+            All ECS data lives in Redux state, making it serializable, inspectable, and time-travel debuggable.
+          </p>
+
+          <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; margin-bottom: 12px;">
+            <p style="font-size: 10px; color: #4fc3f7; margin: 0 0 6px 0;"><strong>Entities:</strong></p>
+            <code style="font-size: 9px; color: #999;">
+{id: 'paddle1', position: {x,y}, velocity: {vx,vy}, tags: ['player']}
+            </code>
+            <p style="font-size: 9px; color: #666; margin: 4px 0 0 0;">Plain JS objects with components attached</p>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; margin-bottom: 12px;">
+            <p style="font-size: 10px; color: #00ff88; margin: 0 0 6px 0;"><strong>Components:</strong></p>
+            <code style="font-size: 9px; color: #999;">
+Position(x, y)<br>
+Velocity(vx, vy)<br>
+Render(color, width, height)
+            </code>
+            <p style="font-size: 9px; color: #666; margin: 4px 0 0 0;">Pure data, no behavior</p>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; margin-bottom: 12px;">
+            <p style="font-size: 10px; color: #ffa726; margin: 0 0 6px 0;"><strong>Systems:</strong></p>
+            <code style="font-size: 9px; color: #999;">
+Movement.execute(ecs, dt) {<br>
+&nbsp;&nbsp;ecs.query('position','velocity').forEach(e => {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;e.position.x += e.velocity.vx;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;ecs.addComponent(e.id, 'position', ...);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;// ↑ dispatches UPDATE_ENTITY to Redux<br>
+&nbsp;&nbsp;});<br>
+}
+            </code>
+            <p style="font-size: 9px; color: #666; margin: 4px 0 0 0;">Query entities, update components, dispatch to Redux</p>
+          </div>
+
+          <!-- Mini ECS Demo Canvas -->
+          <div style="background: #000; border: 1px solid #333; border-radius: 4px; margin-bottom: 12px; position: relative;">
+            <canvas id="ecs-demo-canvas" width="400" height="250" style="display: block; width: 100%; height: auto;"></canvas>
+            <div style="position: absolute; top: 4px; left: 4px; font-size: 9px; color: #666;">ECS Demo Canvas</div>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; margin-bottom: 12px;">
+            <p style="font-size: 10px; color: #ffa726; margin: 0 0 8px 0;"><strong>Not Systems (One-shot Actions):</strong></p>
+            <div style="display: flex; gap: 4px; margin-bottom: 6px;">
+              <button id="spawn-demo-cube" class="config-btn" style="flex: 1; font-size: 10px;">
+                ▶ Spawn
+              </button>
+              <button id="stack-cubes" class="config-btn" style="flex: 1; font-size: 10px;">
+                ⬇ Stack
+              </button>
+              <button id="expand-cubes" class="config-btn" style="flex: 1; font-size: 10px;">
+                ⬆ Expand
+              </button>
+            </div>
+            <ul style="font-size: 9px; margin: 0; padding-left: 16px; line-height: 1.4; color: #999;">
+              <li><strong>Spawn:</strong> Entity factory - creates entity with Position + Render components</li>
+              <li><strong>Stack:</strong> Batch transform - sets all positions to center</li>
+              <li><strong>Expand:</strong> Position restore - spreads entities in circle pattern</li>
+            </ul>
+            <p style="font-size: 9px; color: #666; margin: 6px 0 0 0;">These are UI actions, not systems. Systems run every frame in a loop.</p>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px;">
+            <p style="font-size: 10px; color: #00ff88; margin: 0 0 6px 0;"><strong>Real Systems (Per-frame):</strong></p>
+            <ul style="font-size: 9px; margin: 0; padding-left: 16px; line-height: 1.4; color: #999;">
+              <li><strong>Movement:</strong> queries position+velocity, updates x/y every frame</li>
+              <li><strong>Collision:</strong> queries position+collider, detects overlaps</li>
+              <li><strong>Renderer:</strong> subscribes to Redux, draws all entities with position+render</li>
+            </ul>
+            <p style="font-size: 9px; color: #666; margin: 6px 0 0 0;">Systems execute automatically in the game loop, buttons are manual triggers.</p>
+          </div>
+        </div>
+        <!-- End ECS Tab -->
+
+        <!-- Canvas Tab -->
+        <div class="state-flow-tab-content" data-tab-content="canvas" style="display: none;">
+          <p style="font-size: 11px; color: #ddd; margin: 0 0 8px 0; line-height: 1.5;">
+            <strong>ReduxCanvas Rendering Pipeline</strong>
+          </p>
+          <p style="font-size: 10px; color: #999; margin: 0 0 12px 0; line-height: 1.5;">
+            ReduxCanvas doesn't exist as a single class. Instead, we have multiple renderers that subscribe to Redux state:
+            <strong>canvas-renderer.js</strong> (2D), <strong>Vecterm.js</strong> (3D), <strong>pixel-vector-renderer.js</strong>.
+          </p>
+
+          <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; margin-bottom: 12px;">
+            <p style="font-size: 10px; color: #4fc3f7; margin: 0 0 6px 0;"><strong>Renderer Pattern:</strong></p>
+            <code style="font-size: 9px; color: #999;">
+// ui/renderer.js<br>
+function createRenderer(store, hooks) {<br>
+&nbsp;&nbsp;return function render() {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;const state = store.getState();<br>
+&nbsp;&nbsp;&nbsp;&nbsp;renderScene(ctx, canvas, state);<br>
+&nbsp;&nbsp;};<br>
+}<br>
+<br>
+// Subscribe to all state changes<br>
+store.subscribe(render);
+            </code>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; margin-bottom: 12px;">
+            <p style="font-size: 10px; color: #00ff88; margin: 0 0 6px 0;"><strong>canvas-renderer.js (2D):</strong></p>
+            <ul style="font-size: 9px; margin: 4px 0; padding-left: 16px; line-height: 1.4; color: #999;">
+              <li>Reads state.entities[] and state.vecterm.entities</li>
+              <li>Draws each entity based on its components</li>
+              <li>Applies grid snapping if enabled</li>
+            </ul>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; margin-bottom: 12px;">
+            <p style="font-size: 10px; color: #ffa726; margin: 0 0 6px 0;"><strong>Vecterm.js (3D):</strong></p>
+            <ul style="font-size: 9px; margin: 4px 0; padding-left: 16px; line-height: 1.4; color: #999;">
+              <li>3D wireframe renderer with camera</li>
+              <li>Reads state.vecterm.entities for meshes</li>
+              <li>Projects 3D → 2D and draws vector lines</li>
+            </ul>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px;">
+            <p style="font-size: 10px; color: #ab47bc; margin: 0 0 6px 0;"><strong>pixel-vector-renderer.js:</strong></p>
+            <ul style="font-size: 9px; margin: 4px 0; padding-left: 16px; line-height: 1.4; color: #999;">
+              <li>Rasterizes vector graphics to pixel art</li>
+              <li>Grid-aligned rendering</li>
+              <li>Retro aesthetic for vector games</li>
+            </ul>
+          </div>
+        </div>
+        <!-- End Canvas Tab -->
+
+        <!-- Storage Tab -->
+        <div class="state-flow-tab-content" data-tab-content="storage" style="display: none;">
+          <p style="font-size: 11px; color: #ddd; margin: 0 0 8px 0; line-height: 1.5;">
+            <strong>localStorage Structure</strong>
+          </p>
+          <p style="font-size: 10px; color: #999; margin: 0 0 12px 0; line-height: 1.5;">
+            localStorageMiddleware runs after every action (except @@INIT and @@LOAD_STATE).
+            It saves a subset of Redux state to persist UI preferences across sessions.
+          </p>
+
+          <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; margin-bottom: 12px;">
+            <p style="font-size: 10px; color: #4fc3f7; margin: 0 0 6px 0;"><strong>Key: 'redux-demo-ui-state'</strong></p>
+            <code style="font-size: 9px; color: #999; white-space: pre; display: block;">
+{
+  "sidebarCollapsed": false,
+  "sectionsCollapsed": {
+    "state": false,
+    "history": true,
+    "theme": false
+  },
+  "subsectionsCollapsed": {
+    "colors": false,
+    "typography": true
+  }
+}
+            </code>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; margin-bottom: 12px;">
+            <p style="font-size: 10px; color: #00ff88; margin: 0 0 6px 0;"><strong>Middleware Code:</strong></p>
+            <code style="font-size: 9px; color: #999;">
+// core/middleware.js:14-19<br>
+const uiState = {<br>
+&nbsp;&nbsp;sidebarCollapsed: state.uiState?.sidebarCollapsed,<br>
+&nbsp;&nbsp;sectionsCollapsed: state.uiState?.sectionsCollapsed,<br>
+&nbsp;&nbsp;subsectionsCollapsed: state.uiState?.subsectionsCollapsed<br>
+};<br>
+localStorage.setItem('redux-demo-ui-state', JSON.stringify(uiState));
+            </code>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; margin-bottom: 12px;">
+            <p style="font-size: 10px; color: #ffa726; margin: 0 0 6px 0;"><strong>Why Not Full State?</strong></p>
+            <ul style="font-size: 9px; margin: 4px 0; padding-left: 16px; line-height: 1.4; color: #999;">
+              <li><strong>Size:</strong> Full state with entities/MIDI/game instances would be huge</li>
+              <li><strong>Privacy:</strong> Game state shouldn't persist between sessions</li>
+              <li><strong>Performance:</strong> Only save what matters (UI preferences)</li>
+              <li><strong>Freshness:</strong> Game state should start fresh each session</li>
+            </ul>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px;">
+            <p style="font-size: 10px; color: #ab47bc; margin: 0 0 6px 0;"><strong>Namespaces:</strong></p>
+            <ul style="font-size: 9px; margin: 4px 0; padding-left: 16px; line-height: 1.4; color: #999;">
+              <li><strong>state.namespaces.demo</strong> - Main playfield entities</li>
+              <li><strong>state.namespaces.reduxCanvasDemo</strong> - ECS demo canvas (isolated)</li>
+              <li>Each namespace has its own entities[], layers[], activeLayerId</li>
+              <li>Actions can specify namespace: dispatch({type: 'ADD_ENTITY', namespace: 'reduxCanvasDemo'})</li>
+              <li>Prevents the demo canvas from polluting the main playfield state</li>
+            </ul>
+          </div>
+        </div>
+        <!-- End Storage Tab -->
+
       </div>
     </div>
 
@@ -125,20 +729,6 @@
     <div class="sidebar-section">
       <h3 class="section-title" data-section="config">Config</h3>
       <div class="section-content" id="config-content">
-        <div class="control-group">
-          <label for="animation-toggle">
-            <input type="checkbox" id="animation-toggle">
-            Enable State Flow Animation
-          </label>
-          <p style="font-size: 11px; color: #666; margin: 4px 0;">⚠️ Animation OFF by default (improves performance). Toggle to see Redux state flow visualization.</p>
-        </div>
-
-        <div class="control-group">
-          <label for="delay">Animation Delay:</label>
-          <input type="range" id="delay" min="0" max="3000" value="1000" step="100">
-          <span id="delay-value">1000ms</span>
-        </div>
-
         <div class="control-group">
           <label>State Management:</label>
           <div class="config-buttons">
@@ -330,38 +920,15 @@
   <!-- Settings Panel (initially hidden) -->
   <div id="settings-panel" class="hidden">
     <div class="panel-header">
-      <span class="panel-title">[ QUICK SETTINGS ]</span>
+      <span class="panel-title">[ SYSTEM SETTINGS ]</span>
       <button id="settings-close" class="minimize-btn">×</button>
     </div>
     <div class="settings-content">
-      <!-- Grid Settings -->
-      <div class="settings-section">
-        <h4 class="settings-title">Grid System</h4>
-        <div class="settings-group">
-          <label for="grid-type-select">Grid Type:</label>
-          <select id="grid-type-select" class="settings-select">
-            <option value="none">None</option>
-            <option value="square">Square Grid</option>
-            <option value="character">Character Grid (80×24)</option>
-          </select>
-        </div>
-        <div class="settings-group">
-          <label>
-            <input type="checkbox" id="grid-visible-checkbox">
-            Show Grid Overlay
-          </label>
-        </div>
-        <div class="settings-group">
-          <label>
-            <input type="checkbox" id="grid-snap-checkbox">
-            Snap to Grid
-          </label>
-        </div>
-      </div>
 
-      <!-- Rendering Settings -->
+      <!-- VT100 Terminal Effects -->
       <div class="settings-section">
-        <h4 class="settings-title">VT100 Effects</h4>
+        <h4 class="settings-title collapsible" data-settings-section="vt100">Terminal VT100 Effects ▼</h4>
+        <div class="settings-section-content collapsed" id="settings-vt100">
         <div class="settings-group">
           <label for="glow-intensity">Phosphor Glow:</label>
           <input type="range" id="glow-intensity" min="0" max="2" step="0.05" value="0.3">
@@ -383,9 +950,39 @@
           <span id="wave-value">2px</span>
         </div>
         <div class="settings-group">
+          <label for="wave-speed">Wave Speed:</label>
+          <input type="range" id="wave-speed" min="1" max="10" step="0.5" value="3">
+          <span id="wavespeed-value">3s</span>
+        </div>
+        <div class="settings-group">
+          <label for="wave-opacity">Wave Opacity:</label>
+          <input type="range" id="wave-opacity" min="0" max="1" step="0.05" value="0.6">
+          <span id="waveopacity-value">0.60</span>
+        </div>
+        <div class="settings-group">
           <label for="border-glow">Border Glow:</label>
           <input type="range" id="border-glow" min="0" max="2" step="0.05" value="0.4">
           <span id="border-glow-value">0.40</span>
+        </div>
+        <div class="settings-group">
+          <label for="glow-pulse-speed">Glow Pulse Speed:</label>
+          <input type="range" id="glow-pulse-speed" min="1" max="10" step="0.5" value="2">
+          <span id="glowspeed-value">2s</span>
+        </div>
+        <div class="settings-group">
+          <label for="border-width">Border Width:</label>
+          <input type="range" id="border-width" min="0" max="5" step="0.5" value="1">
+          <span id="borderwidth-value">1px</span>
+        </div>
+        <div class="settings-group">
+          <label for="poweron-speed">Power-On Speed:</label>
+          <input type="range" id="poweron-speed" min="0.2" max="3" step="0.1" value="0.8">
+          <span id="poweronspeed-value">0.8s</span>
+        </div>
+        <div class="settings-group">
+          <label for="poweroff-speed">Power-Off Speed:</label>
+          <input type="range" id="poweroff-speed" min="0.2" max="3" step="0.1" value="0.6">
+          <span id="poweroffspeed-value">0.6s</span>
         </div>
         <div class="settings-group">
           <label>
@@ -399,24 +996,13 @@
             Hidden Line Removal
           </label>
         </div>
-      </div>
-
-      <!-- Camera Settings (for 3D mode) -->
-      <div class="settings-section" id="camera-settings">
-        <h4 class="settings-title">Camera (3D)</h4>
-        <div class="settings-group">
-          <label for="camera-fov">Field of View:</label>
-          <input type="range" id="camera-fov" min="30" max="120" step="5" value="60">
-          <span id="fov-value">60°</span>
-        </div>
-        <div class="settings-group">
-          <button id="camera-reset-btn" class="settings-btn">Reset Camera</button>
         </div>
       </div>
 
       <!-- Gamepad Settings -->
       <div class="settings-section" id="gamepad-settings">
-        <h4 class="settings-title">Gamepad Input</h4>
+        <h4 class="settings-title collapsible" data-settings-section="gamepad">Gamepad Input ▼</h4>
+        <div class="settings-section-content" id="settings-gamepad">
         <div class="settings-group">
           <div id="gamepad-status" class="gamepad-status disconnected">
             No gamepad connected
@@ -442,13 +1028,104 @@
             Use CLI command 'gamepad.status' for details.
           </small>
         </div>
+        </div>
       </div>
 
-      <!-- UI Controls -->
-      <div class="settings-section" id="ui-controls">
-        <h4 class="settings-title">UI Controls</h4>
-        <div class="settings-group">
-          <button id="settings-toggle-sidebar" class="settings-btn">Toggle Sidebar</button>
+      <!-- UI Panel Toggles -->
+      <div class="settings-section" id="ui-panel-toggles">
+        <h4 class="settings-title collapsible" data-settings-section="ui">Panel Visibility ▼</h4>
+        <div class="settings-section-content" id="settings-ui">
+          <div class="panel-toggles-compact">
+            <button id="toggle-top-bar" class="toggle-btn toggle-active" data-panel="top-bar" title="Top Bar (HUD)">T</button>
+            <button id="toggle-right-sidebar" class="toggle-btn toggle-active" data-panel="right-sidebar" title="Right Sidebar (Monitor)">R</button>
+            <button id="toggle-footer" class="toggle-btn toggle-active" data-panel="footer" title="Bottom Footer">B</button>
+            <button id="toggle-left-sidebar" class="toggle-btn toggle-active" data-panel="left-sidebar" title="Left Sidebar (Vecterm)">L</button>
+            <!-- CLI panel and Game FAB controlled by their respective FAB buttons -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Design Token Editor -->
+      <div class="settings-section" id="design-tokens-section">
+        <h4 class="settings-title collapsible" data-settings-section="design">Design Tokens ▼</h4>
+        <div class="settings-section-content" id="settings-design">
+
+          <!-- Color Tokens -->
+          <div class="token-group">
+            <h5 class="token-group-title">Colors</h5>
+            <div class="token-control">
+              <label for="token-primary-color">Primary (Cyan)</label>
+              <input type="color" id="token-primary-color" value="#4fc3f7">
+              <input type="text" id="token-primary-hex" class="hex-input" value="#4fc3f7" readonly>
+            </div>
+            <div class="token-control">
+              <label for="token-game-color">Game Mode (Orange)</label>
+              <input type="color" id="token-game-color" value="#ffa726">
+              <input type="text" id="token-game-hex" class="hex-input" value="#ffa726" readonly>
+            </div>
+            <div class="token-control">
+              <label for="token-success-color">Success (Green)</label>
+              <input type="color" id="token-success-color" value="#00ff88">
+              <input type="text" id="token-success-hex" class="hex-input" value="#00ff88" readonly>
+            </div>
+          </div>
+
+          <!-- Glow Effects -->
+          <div class="token-group">
+            <h5 class="token-group-title">Glow Intensity</h5>
+            <div class="token-control">
+              <label for="token-glow-buttons">Buttons</label>
+              <input type="range" id="token-glow-buttons" min="0" max="30" value="10" step="1">
+              <span class="token-value">10px</span>
+            </div>
+            <div class="token-control">
+              <label for="token-glow-panels">Panels</label>
+              <input type="range" id="token-glow-panels" min="0" max="40" value="15" step="1">
+              <span class="token-value">15px</span>
+            </div>
+            <div class="token-control">
+              <label for="token-glow-fab">FAB Buttons</label>
+              <input type="range" id="token-glow-fab" min="0" max="50" value="12" step="1">
+              <span class="token-value">12px</span>
+            </div>
+          </div>
+
+          <!-- Animation Feel -->
+          <div class="token-group">
+            <h5 class="token-group-title">Button Feel</h5>
+            <div class="token-control">
+              <label for="token-transition-speed">Transition Speed</label>
+              <input type="range" id="token-transition-speed" min="100" max="800" value="300" step="50">
+              <span class="token-value">300ms</span>
+            </div>
+            <div class="token-control">
+              <label for="token-hover-scale">Hover Scale</label>
+              <input type="range" id="token-hover-scale" min="1.0" max="1.2" value="1.05" step="0.01">
+              <span class="token-value">1.05</span>
+            </div>
+            <div class="token-control">
+              <label for="token-border-radius">Border Radius</label>
+              <input type="range" id="token-border-radius" min="0" max="16" value="4" step="1">
+              <span class="token-value">4px</span>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="token-actions">
+            <button id="token-apply" class="config-btn">Apply Changes</button>
+            <button id="token-reset" class="config-btn">Reset to Default</button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- User Authentication -->
+      <div class="settings-section" id="user-auth-section">
+        <h4 class="settings-title collapsible" data-settings-section="auth">User Authentication ▼</h4>
+        <div class="settings-section-content" id="settings-auth">
+          <div class="control-group">
+            <button id="toggle-auth" class="config-btn">Toggle Login</button>
+          </div>
         </div>
       </div>
     </div>
@@ -514,6 +1191,240 @@
     </svg>
   </button>
 
+  <!-- Game FAB - Integrated Mode + Context Display -->
+  <button id="game-fab" class="fab game-fab" title="Toggle Game Panel">
+    <div class="game-fab-content">
+      <div class="game-fab-mode">
+        <span class="fab-label">MODE:</span>
+        <span id="game-mode-value" class="fab-mode-value mode-idle">IDLE</span>
+      </div>
+      <div class="game-fab-divider"></div>
+      <div class="game-fab-game">
+        <span id="game-context-value" class="fab-game-value">No Game</span>
+      </div>
+      <svg class="game-fab-icon" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+        <!-- Small arcade button icon -->
+        <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="10" cy="10" r="5" fill="none" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+      </svg>
+    </div>
+  </button>
+
+  <!-- Game Panel (hidden by default) -->
+  <div id="game-panel" class="hidden">
+    <div class="game-panel-header">
+      <span class="panel-title" id="game-panel-title">[ GAME SELECT ]</span>
+      <button id="game-panel-close" class="minimize-btn">×</button>
+    </div>
+
+    <!-- Tab Navigation (hidden when no game active) -->
+    <div class="game-tabs hidden" id="game-tabs">
+      <button class="game-tab active" data-tab="cli">CLI</button>
+      <button class="game-tab" data-tab="entities">Entities</button>
+      <button class="game-tab" data-tab="components">Components</button>
+      <button class="game-tab" data-tab="systems">Systems</button>
+      <button class="game-tab" data-tab="tines">Tines</button>
+    </div>
+
+    <div class="game-panel-content">
+
+      <!-- Game Selection View (shown when no game active) -->
+      <div class="game-view" id="game-select-view">
+        <div class="game-list" id="game-list">
+          <div class="game-item" data-game="quadrapong">
+            <div class="game-icon">🎮</div>
+            <div class="game-info">
+              <h4 class="game-title">Quadrapong</h4>
+              <p class="game-desc">4-player pong battle</p>
+            </div>
+            <button class="game-start-btn" data-game="quadrapong">PLAY</button>
+          </div>
+          <div class="game-item" data-game="shapemaker">
+            <div class="game-icon">⬣</div>
+            <div class="game-info">
+              <h4 class="game-title">Shapemaker</h4>
+              <p class="game-desc">Element creator & inspector</p>
+            </div>
+            <button class="game-start-btn" data-game="shapemaker">PLAY</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quadrapong Game Views (shown when quadrapong active) -->
+      <div class="game-view hidden" id="quadrapong-view">
+
+        <!-- CLI Tab -->
+        <div class="game-tab-content active" data-tab-content="cli">
+          <div class="game-terminal">
+          <div class="game-terminal-output" id="quadrapong-output">
+            <div class="game-terminal-line">
+              <span class="game-prompt">quadrapong&gt;</span>
+              <span class="game-text">Welcome to Quadrapong</span>
+            </div>
+            <div class="game-terminal-line">
+              <span class="game-prompt">quadrapong&gt;</span>
+              <span class="game-text-dim">P1:<span id="quadrapong-score-p1">0</span> P2:<span id="quadrapong-score-p2">0</span> P3:<span id="quadrapong-score-p3">0</span> P4:<span id="quadrapong-score-p4">0</span></span>
+            </div>
+          </div>
+          <div class="game-terminal-input-container">
+            <span class="game-prompt">quadrapong&gt;</span>
+            <input
+              type="text"
+              id="quadrapong-input"
+              class="game-terminal-input"
+              placeholder="pause | reset | tines.play <pattern> | stop"
+            />
+          </div>
+          <div class="game-terminal-help">
+            <span class="game-help-cmd">pause</span>
+            <span class="game-help-cmd">reset</span>
+            <span class="game-help-cmd">tines.play &lt;pattern&gt;</span>
+            <span class="game-help-cmd">stop</span>
+          </div>
+          </div>
+        </div>
+
+        <!-- Entities Tab -->
+        <div class="game-tab-content" data-tab-content="entities">
+          <div class="ecs-view">
+            <div class="ecs-list" id="quadrapong-entities-list"></div>
+          </div>
+        </div>
+
+        <!-- Components Tab -->
+        <div class="game-tab-content" data-tab-content="components">
+          <div class="ecs-view">
+            <div class="ecs-list" id="quadrapong-components-list"></div>
+          </div>
+        </div>
+
+        <!-- Systems Tab -->
+        <div class="game-tab-content" data-tab-content="systems">
+          <div class="ecs-view">
+            <div class="ecs-list" id="quadrapong-systems-list"></div>
+          </div>
+        </div>
+
+        <!-- Tines Tab -->
+        <div class="game-tab-content" data-tab-content="tines">
+          <div class="tines-view">
+            <div class="tines-section">
+              <h4 class="tines-title">Sound Library</h4>
+              <div class="tines-sounds" id="quadrapong-sounds">
+                <div class="tines-sound-item">
+                  <input type="text" class="tines-sound-name" placeholder="hit1" value="hit1" />
+                  <input type="text" class="tines-sound-pattern" placeholder="note('c4').s('triangle')" value="note('c4').s('triangle')" />
+                  <button class="tines-sound-test">▶</button>
+                  <button class="tines-sound-save">Save</button>
+                </div>
+              </div>
+              <button class="tines-sound-add" id="quadrapong-add-sound">+ Add Sound</button>
+            </div>
+            <div class="tines-section">
+              <h4 class="tines-title">Event Triggers</h4>
+              <div class="tines-triggers">
+                <div class="tines-trigger-item">
+                  <span class="tines-trigger-event" data-event="ball_hit">ball_hit</span>
+                  <select class="tines-trigger-sound">
+                    <option value="">No sound</option>
+                    <option value="hit1">hit1</option>
+                  </select>
+                </div>
+                <div class="tines-trigger-item">
+                  <span class="tines-trigger-event" data-event="paddle_hit">paddle_hit</span>
+                  <select class="tines-trigger-sound">
+                    <option value="">No sound</option>
+                    <option value="hit1">hit1</option>
+                  </select>
+                </div>
+                <div class="tines-trigger-item">
+                  <span class="tines-trigger-event" data-event="score">score</span>
+                  <select class="tines-trigger-sound">
+                    <option value="">No sound</option>
+                    <option value="hit1">hit1</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Shapemaker Game Views (shown when shapemaker active) -->
+      <div class="game-view hidden" id="shapemaker-view">
+
+        <!-- CLI Tab -->
+        <div class="game-tab-content active" data-tab-content="cli">
+        <div class="game-terminal">
+          <div class="game-terminal-output" id="shapemaker-output">
+            <div class="game-terminal-line">
+              <span class="game-prompt">shape&gt;</span>
+              <span class="game-text">Shapemaker - Element Creator</span>
+            </div>
+            <div class="game-terminal-line">
+              <span class="game-prompt">shape&gt;</span>
+              <span class="game-text-dim">Entities: <span id="shapemaker-entity-count">0</span></span>
+            </div>
+          </div>
+          <div class="game-terminal-input-container">
+            <span class="game-prompt">shape&gt;</span>
+            <input
+              type="text"
+              id="shapemaker-input"
+              class="game-terminal-input"
+              placeholder="create <type> | inspect <id> | delete <id>"
+            />
+          </div>
+          <div class="game-terminal-help">
+            <span class="game-help-cmd">create circle</span>
+            <span class="game-help-cmd">create rect</span>
+            <span class="game-help-cmd">inspect &lt;id&gt;</span>
+            <span class="game-help-cmd">list</span>
+          </div>
+          </div>
+        </div>
+
+        <!-- Entities Tab -->
+        <div class="game-tab-content" data-tab-content="entities">
+          <div class="ecs-view">
+            <div class="ecs-list" id="shapemaker-entities-list"></div>
+          </div>
+        </div>
+
+        <!-- Components Tab -->
+        <div class="game-tab-content" data-tab-content="components">
+          <div class="ecs-view">
+            <div class="ecs-list" id="shapemaker-components-list"></div>
+          </div>
+        </div>
+
+        <!-- Systems Tab -->
+        <div class="game-tab-content" data-tab-content="systems">
+          <div class="ecs-view">
+            <div class="ecs-list" id="shapemaker-systems-list"></div>
+          </div>
+        </div>
+
+        <!-- Tines Tab -->
+        <div class="game-tab-content" data-tab-content="tines">
+          <div class="tines-view">
+            <div class="tines-section">
+              <h4 class="tines-title">Sound Library</h4>
+              <div class="tines-sounds" id="shapemaker-sounds"></div>
+              <button class="tines-sound-add" id="shapemaker-add-sound">+ Add Sound</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Template for future games -->
+      <!-- Add more game-specific views here with id="[gamename]-view" -->
+
+    </div>
+  </div>
+
   <div id="footer">
     <div class="footer-section">
       <span class="footer-label">VECTERM PLAYGROUND</span>
@@ -540,7 +1451,13 @@
   <script src="VectermCanvas.js"></script>
   <script src="InputSystem.js"></script>
   <script src="ReduxCanvas.js"></script>
+  <!-- <script src="ui/pixel-vector-renderer.js"></script> -->
   <script src="Quadrapong.js"></script>
+
+  <!-- ECS System -->
+  <script src="core/ecs.js"></script>
+  <script src="core/components.js"></script>
+  <script src="core/systems.js"></script>
 
   <!-- Main application as ES6 module -->
   <script type="module" src="app.js"></script>

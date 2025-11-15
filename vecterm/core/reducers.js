@@ -148,6 +148,13 @@ export const initialState = {
         { id: 'layer-2', name: 'UI', visible: true, locked: false, zIndex: 2 }
       ],
       activeLayerId: 'layer-1'
+    },
+    reduxCanvasDemo: {
+      entities: [],
+      layers: [
+        { id: 'layer-1', name: 'Demo Entities', visible: true, locked: false, zIndex: 1 }
+      ],
+      activeLayerId: 'layer-1'
     }
   },
 
@@ -327,6 +334,22 @@ export const initialState = {
       startTime: null,
       frameCount: 0
     }
+  },
+
+  // Global view mode (2D vs 3D rendering)
+  viewMode: '2d',  // '2d' | '3d'
+
+  // Parameter Connection Tracking
+  // Tracks which entity parameters are connected to UI sliders, quick menus, and MIDI
+  parameterConnections: {
+    // Example:
+    // 'entity:cube1:rotationSpeed': {
+    //   entityId: 'cube1',
+    //   parameter: 'rotationSpeed',
+    //   cliSlider: { visible: true, position: { x: 100, y: 100 } },
+    //   quickMenu: 2,  // Which quick menu (1 or 2)
+    //   midiCC: { device: 'Launch Control', cc: 16 }
+    // }
   }
 };
 
@@ -350,7 +373,26 @@ export function rootReducer(state = initialState, action) {
       };
 
     // Entity actions
-    case ActionTypes.ADD_ENTITY:
+    case ActionTypes.ADD_ENTITY: {
+      // Check if action specifies a namespace
+      if (action.namespace && state.namespaces[action.namespace]) {
+        const ns = state.namespaces[action.namespace];
+        return {
+          ...state,
+          namespaces: {
+            ...state.namespaces,
+            [action.namespace]: {
+              ...ns,
+              entities: [...ns.entities, {
+                id: `entity-${nextEntityId++}`,
+                layerId: ns.activeLayerId,
+                ...action.payload
+              }]
+            }
+          }
+        };
+      }
+      // Default: add to top-level entities
       return {
         ...state,
         entities: [...state.entities, {
@@ -359,8 +401,28 @@ export function rootReducer(state = initialState, action) {
           ...action.payload
         }]
       };
+    }
 
-    case ActionTypes.UPDATE_ENTITY:
+    case ActionTypes.UPDATE_ENTITY: {
+      // Check if action specifies a namespace
+      if (action.namespace && state.namespaces[action.namespace]) {
+        const ns = state.namespaces[action.namespace];
+        return {
+          ...state,
+          namespaces: {
+            ...state.namespaces,
+            [action.namespace]: {
+              ...ns,
+              entities: ns.entities.map(e =>
+                e.id === action.payload.id
+                  ? { ...e, ...action.payload.updates }
+                  : e
+              )
+            }
+          }
+        };
+      }
+      // Default: update top-level entities
       return {
         ...state,
         entities: state.entities.map(e =>
@@ -369,6 +431,7 @@ export function rootReducer(state = initialState, action) {
             : e
         )
       };
+    }
 
     case ActionTypes.DELETE_ENTITY:
       return {
@@ -1767,6 +1830,95 @@ export function rootReducer(state = initialState, action) {
         ...state,
         vscope: vscopeReducer(state.vscope, action)
       };
+
+    // View Mode actions
+    case ActionTypes.SET_VIEW_MODE:
+      return {
+        ...state,
+        viewMode: action.payload  // '2d' | '3d'
+      };
+
+    case ActionTypes.TOGGLE_VIEW_MODE:
+      return {
+        ...state,
+        viewMode: state.viewMode === '2d' ? '3d' : '2d'
+      };
+
+    // Parameter Connection actions
+    case ActionTypes.CONNECT_PARAMETER: {
+      const { connectionId, entityId, parameter, connectionType, connectionData } = action.payload;
+      const existingConnection = state.parameterConnections[connectionId] || {
+        entityId,
+        parameter
+      };
+
+      return {
+        ...state,
+        parameterConnections: {
+          ...state.parameterConnections,
+          [connectionId]: {
+            ...existingConnection,
+            [connectionType]: connectionData
+          }
+        }
+      };
+    }
+
+    case ActionTypes.DISCONNECT_PARAMETER: {
+      const { connectionId, connectionType } = action.payload;
+
+      if (!state.parameterConnections[connectionId]) return state;
+
+      if (connectionType) {
+        // Disconnect specific type (cliSlider, quickMenu, or midiCC)
+        const { [connectionType]: removed, ...remainingConnection } = state.parameterConnections[connectionId];
+
+        // If no connections remain, remove the entire entry
+        const hasConnections = Object.keys(remainingConnection).some(
+          key => key !== 'entityId' && key !== 'parameter' && remainingConnection[key]
+        );
+
+        if (!hasConnections) {
+          const { [connectionId]: removedEntry, ...remainingConnections } = state.parameterConnections;
+          return {
+            ...state,
+            parameterConnections: remainingConnections
+          };
+        }
+
+        return {
+          ...state,
+          parameterConnections: {
+            ...state.parameterConnections,
+            [connectionId]: remainingConnection
+          }
+        };
+      } else {
+        // Remove entire connection
+        const { [connectionId]: removed, ...remainingConnections } = state.parameterConnections;
+        return {
+          ...state,
+          parameterConnections: remainingConnections
+        };
+      }
+    }
+
+    case ActionTypes.UPDATE_PARAMETER_CONNECTION: {
+      const { connectionId, updates } = action.payload;
+
+      if (!state.parameterConnections[connectionId]) return state;
+
+      return {
+        ...state,
+        parameterConnections: {
+          ...state.parameterConnections,
+          [connectionId]: {
+            ...state.parameterConnections[connectionId],
+            ...updates
+          }
+        }
+      };
+    }
 
     default:
       return state;

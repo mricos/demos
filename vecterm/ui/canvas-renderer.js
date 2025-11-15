@@ -107,14 +107,7 @@ function renderScene(ctx, canvas, state) {
     });
   });
 
-  // Draw active tool indicator
-  ctx.font = '14px monospace';
-  ctx.fillStyle = '#4fc3f7';
-  ctx.textAlign = 'left';
-  ctx.fillText(`Tool: ${state.activeTool.toUpperCase()}`, 20, 30);
-  const activeLayer = layers.find(l => l.id === namespace.activeLayerId);
-  ctx.fillText(`Layer: ${activeLayer?.name || 'N/A'}`, 20, 50);
-  ctx.fillText(`Entities: ${entities.length}`, 20, 70);
+  // Tool, layer, and entity info now displayed in top bar HUD
 }
 
 export { drawGrid, drawEntity, renderScene };
