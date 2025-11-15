@@ -3,7 +3,11 @@
  *
  * Updates VT100 effects without logging to the console.
  * Used by slider controls to provide real-time feedback without spamming the CLI output.
+ *
+ * Now integrates with modules/vt100-effects.js for centralized effect management.
  */
+
+import { vt100Effects } from '../modules/vt100-effects.js';
 
 /**
  * Silently update console VT100 scanlines
@@ -377,14 +381,14 @@ function update(command, value, isMidiValue = false) {
   parameterValues.set(command, finalValue);
 
   const handlers = {
-    'vt100.scanlines': () => updateConsoleScanlines(finalValue),
-    'vt100.scanspeed': () => updateConsoleScanspeed(finalValue),
-    'vt100.wave': () => updateConsoleWave(finalValue),
-    'vt100.wavespeed': () => updateConsoleWavespeed(finalValue),
-    'vt100.glow': () => updateConsoleGlow(finalValue),
-    'vt100.glowspeed': () => updateConsoleGlowspeed(finalValue),
-    'vt100.border': () => updateConsoleBorder(finalValue),
-    'vt100.borderwidth': () => updateConsoleBorderwidth(finalValue),
+    'vt100.scanlines': () => vt100Effects.setEffect('scanlines', finalValue, true),
+    'vt100.scanspeed': () => vt100Effects.setEffect('scanspeed', finalValue, true),
+    'vt100.wave': () => vt100Effects.setEffect('wave', finalValue, true),
+    'vt100.wavespeed': () => vt100Effects.setEffect('wavespeed', finalValue, true),
+    'vt100.glow': () => vt100Effects.setEffect('glow', finalValue, true),
+    'vt100.glowspeed': () => vt100Effects.setEffect('glowspeed', finalValue, true),
+    'vt100.border': () => vt100Effects.setEffect('border', finalValue, true),
+    'vt100.borderwidth': () => vt100Effects.setEffect('borderwidth', finalValue, true),
     'game.vt100.wave': () => updateGameVT100('wave', finalValue),
     'game.vt100.drift': () => updateGameVT100('drift', finalValue),
     'game.vt100.jitter': () => updateGameVT100('jitter', finalValue),

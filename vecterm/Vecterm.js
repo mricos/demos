@@ -211,8 +211,12 @@ class Vecterm {
     camera.aspect = this.width / this.height;
 
     // Clear canvas
-    this.ctx.fillStyle = this.config.backgroundColor;
-    this.ctx.fillRect(0, 0, this.width, this.height);
+    if (this.config.backgroundColor === 'transparent') {
+      this.ctx.clearRect(0, 0, this.width, this.height);
+    } else {
+      this.ctx.fillStyle = this.config.backgroundColor;
+      this.ctx.fillRect(0, 0, this.width, this.height);
+    }
 
     // Get camera matrices
     const viewMatrix = camera.getViewMatrix();
@@ -358,7 +362,7 @@ class Vecterm {
     return (p1.z + p2.z) / 2;
   }
 
-  // Draw all lines
+  // Draw all lines with multi-pass phosphor glow
   _drawLines(lines) {
     const ctx = this.ctx;
 
@@ -366,20 +370,43 @@ class Vecterm {
       ctx.strokeStyle = line.color;
       ctx.lineWidth = this.config.lineWidth;
 
-      // Draw with glow effect
+      // Multi-pass glow simulates CRT phosphor bloom
+      // Three layers: outer halo, middle glow, bright core
       if (this.config.glowIntensity > 0) {
-        ctx.shadowBlur = 10 * this.config.glowIntensity;
+        const intensity = this.config.glowIntensity;
+
+        // Pass 1: Outer halo (wide, faint)
+        ctx.shadowBlur = 30 * intensity;
         ctx.shadowColor = line.color;
+        ctx.globalAlpha = 0.4 * intensity;
+        ctx.beginPath();
+        ctx.moveTo(line.p1.x, line.p1.y);
+        ctx.lineTo(line.p2.x, line.p2.y);
+        ctx.stroke();
+
+        // Pass 2: Middle glow (medium blur)
+        ctx.shadowBlur = 15 * intensity;
+        ctx.globalAlpha = 0.6 * intensity;
+        ctx.beginPath();
+        ctx.moveTo(line.p1.x, line.p1.y);
+        ctx.lineTo(line.p2.x, line.p2.y);
+        ctx.stroke();
+
+        // Pass 3: Core glow (tight blur, full opacity)
+        ctx.shadowBlur = 5 * intensity;
+        ctx.globalAlpha = 1.0;
       }
 
+      // Final pass: Solid line (no blur)
       ctx.beginPath();
       ctx.moveTo(line.p1.x, line.p1.y);
       ctx.lineTo(line.p2.x, line.p2.y);
       ctx.stroke();
     });
 
-    // Reset shadow
+    // Reset canvas state
     ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1.0;
   }
 
   // Calculate grid intersections for all line segments
@@ -441,28 +468,63 @@ class Vecterm {
     }
   }
 
-  // Apply VT100 phosphor effects
+  // Apply VT100 post-processing effects (scanlines, aberration, glitches)
   _applyEffects() {
     const ctx = this.ctx;
 
-    // Scanlines
+    // 1. Animated scanlines with flickering variation
     if (this.config.scanlineIntensity > 0) {
-      ctx.globalAlpha = this.config.scanlineIntensity;
       ctx.fillStyle = '#000000';
-
       const offset = (this.time * 100 / this.config.scanlineSpeed) % 2;
+
       for (let y = offset; y < this.height; y += 2) {
+        // Sine wave creates breathing/flickering effect
+        const variation = Math.sin(y * 0.1 + this.time) * 0.2 + 0.8;
+        ctx.globalAlpha = this.config.scanlineIntensity * variation;
         ctx.fillRect(0, y, this.width, 1);
       }
 
       ctx.globalAlpha = 1.0;
     }
+
+    // 2. Chromatic aberration (RGB channel separation)
+    // Simulates color fringing from CRT electron beam misalignment
+    if (this.config.glowIntensity > 0.5) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+
+      const shift = Math.floor(this.config.glowIntensity * 2);
+
+      // Red channel shift right, blue channel shift left
+      ctx.globalAlpha = 0.15;
+      ctx.drawImage(this.canvas, shift, 0);    // Red
+      ctx.drawImage(this.canvas, -shift, 0);   // Blue
+
+      ctx.restore();
+    }
+
+    // 3. Random horizontal glitch (signal interference)
+    // 1% chance per frame when heavily overdriven
+    if (Math.random() < 0.01 && this.config.glowIntensity > 1) {
+      const glitchY = Math.random() * this.height;
+      const glitchHeight = 5 + Math.random() * 20;
+      const glitchShift = (Math.random() - 0.5) * 10 * this.config.glowIntensity;
+
+      ctx.save();
+      const sliceData = ctx.getImageData(0, glitchY, this.width, glitchHeight);
+      ctx.putImageData(sliceData, glitchShift, glitchY);
+      ctx.restore();
+    }
   }
 
   // Clear canvas
   clear() {
-    this.ctx.fillStyle = this.config.backgroundColor;
-    this.ctx.fillRect(0, 0, this.width, this.height);
+    if (this.config.backgroundColor === 'transparent') {
+      this.ctx.clearRect(0, 0, this.width, this.height);
+    } else {
+      this.ctx.fillStyle = this.config.backgroundColor;
+      this.ctx.fillRect(0, 0, this.width, this.height);
+    }
   }
 
   // Get current grid-aware line segments

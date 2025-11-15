@@ -6,6 +6,7 @@
  */
 
 import * as Actions from '../core/actions.js';
+import { vt100Effects } from '../modules/vt100-effects.js';
 
 /**
  * Initialize all event handlers
@@ -352,7 +353,7 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
   if (glowIntensity && glowValue) {
     glowIntensity.addEventListener('input', (e) => {
       const value = parseFloat(e.target.value);
-      glowValue.textContent = value.toFixed(1);
+      vt100Effects.setEffect('glow', value);
       store.dispatch(Actions.vectermSetConfig({ glowIntensity: value }));
     });
   }
@@ -363,8 +364,32 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
   if (scanlineIntensity && scanlineValue) {
     scanlineIntensity.addEventListener('input', (e) => {
       const value = parseFloat(e.target.value);
-      scanlineValue.textContent = value.toFixed(2);
+      vt100Effects.setEffect('scanlines', value);
       store.dispatch(Actions.vectermSetConfig({ scanlineIntensity: value }));
+    });
+  }
+
+  // Settings Panel - Scanline Speed
+  const scanlineSpeed = document.getElementById('scanline-speed');
+  if (scanlineSpeed) {
+    scanlineSpeed.addEventListener('input', (e) => {
+      vt100Effects.setEffect('scanspeed', parseFloat(e.target.value));
+    });
+  }
+
+  // Settings Panel - Wave Amplitude
+  const waveAmplitude = document.getElementById('wave-amplitude');
+  if (waveAmplitude) {
+    waveAmplitude.addEventListener('input', (e) => {
+      vt100Effects.setEffect('wave', parseFloat(e.target.value));
+    });
+  }
+
+  // Settings Panel - Border Glow
+  const borderGlow = document.getElementById('border-glow');
+  if (borderGlow) {
+    borderGlow.addEventListener('input', (e) => {
+      vt100Effects.setEffect('border', parseFloat(e.target.value));
     });
   }
 

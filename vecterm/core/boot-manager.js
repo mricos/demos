@@ -215,9 +215,12 @@ export class BootManager {
     }, { timeout: 5000, critical: true });
 
     // 3.7: Delay Control (for visualization)
+    const visualizationHooks = this.systems.visualizationHooks;
     this.systems.delayControl = {
-      get currentDelay() { return this.systems.visualizationHooks.currentDelay; },
-      set currentDelay(val) { this.systems.visualizationHooks.currentDelay = val; }
+      get currentDelay() { return visualizationHooks.currentDelay; },
+      set currentDelay(val) { visualizationHooks.currentDelay = val; },
+      get animationEnabled() { return visualizationHooks.animationEnabled; },
+      set animationEnabled(val) { visualizationHooks.animationEnabled = val; }
     };
   }
 

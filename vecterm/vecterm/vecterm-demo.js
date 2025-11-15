@@ -16,13 +16,18 @@ let vectermAnimationId = null;
  */
 function initVectermPreview() {
   const vectermCanvas = document.getElementById('cli-vecterm');
-  if (!vectermCanvas || typeof Vecterm === 'undefined') {
-    console.warn('Vecterm canvas not found or Vecterm not loaded');
+  if (!vectermCanvas) {
+    console.warn('❌ Vecterm canvas not found (id: cli-vecterm)');
+    return;
+  }
+  if (typeof Vecterm === 'undefined') {
+    console.warn('❌ Vecterm class not loaded');
     return;
   }
 
-  // Create Vecterm renderer
+  // Create Vecterm renderer with transparent background
   vectermPreview = new Vecterm(vectermCanvas);
+  vectermPreview.config.backgroundColor = 'transparent';
 
   // Subscribe to Redux state changes
   store.subscribe(() => {
@@ -64,6 +69,7 @@ function renderVectermState() {
 
   const state = store.getState();
   const vectermState = state.vecterm;
+  if (!vectermState) return;
 
   // Build camera object
   const camera = new VectermMath.Camera(
@@ -109,7 +115,9 @@ function renderVectermState() {
   });
 
   // Render scene
-  vectermPreview.render(meshes, camera, 0.016);
+  if (meshes.length > 0) {
+    vectermPreview.render(meshes, camera, 0.016);
+  }
 }
 
 /**
@@ -118,6 +126,11 @@ function renderVectermState() {
 function startVectermDemo() {
   if (!vectermPreview) {
     initVectermPreview();
+  }
+
+  if (!vectermPreview) {
+    console.error('❌ Vecterm preview failed to initialize');
+    return;
   }
 
   // Add spinning cube to Redux state
@@ -162,8 +175,13 @@ function startVectermDemo() {
     vectermAnimationId = requestAnimationFrame(animate);
   }
 
-  animate();
-  console.log('▶️  Vecterm demo started');
+  // Wait for Redux to process the entity addition, then start animation loop
+  setTimeout(() => {
+    const state = store.getState();
+    if (state.vecterm?.entities?.['demo-cube']) {
+      animate();
+    }
+  }, 0);
 }
 
 /**

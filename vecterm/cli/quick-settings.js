@@ -6,6 +6,7 @@
  */
 
 import { getLifecycleManager } from './slider-lifecycle.js';
+import { VT100_EFFECTS, QUICK_SETTINGS_DEFAULTS, getEffectConfig } from '../config/vt100-config.js';
 
 /**
  * QuickSettings - Manages the Quick Settings panel
@@ -28,10 +29,49 @@ export class QuickSettings {
     this.panel = this.createPanel();
     document.body.appendChild(this.panel);
 
-    // Load saved settings
+    // Load saved settings or populate defaults
     this.loadFromStorage();
 
     this.initialized = true;
+  }
+
+  /**
+   * Initialize with default VT100 effects
+   */
+  initializeDefaults() {
+    // Create lifecycle manager instances for default effects
+    const lifecycleManager = getLifecycleManager();
+
+    QUICK_SETTINGS_DEFAULTS.forEach(effectId => {
+      const config = getEffectConfig(effectId);
+      if (!config) return;
+
+      const command = `vt100.${effectId}`;
+
+      // Check if slider already exists
+      const existingSlider = lifecycleManager.getSlider(command);
+      if (existingSlider) {
+        this.addSlider(command, existingSlider);
+      } else {
+        // Create a minimal slider instance for Quick Settings
+        const sliderInstance = {
+          command,
+          config: {
+            min: config.min,
+            max: config.max,
+            step: config.step,
+            default: config.default,
+            unit: config.unit
+          },
+          colors: {
+            primary: 'token-orange',
+            accent: 'token-orange-accent'
+          },
+          value: config.default
+        };
+        this.addSlider(command, sliderInstance);
+      }
+    });
   }
 
   /**

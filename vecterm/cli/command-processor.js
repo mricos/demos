@@ -9,6 +9,8 @@ import * as Actions from '../core/actions.js';
 import { cliLog, cliLogJson } from './terminal.js';
 import { showHelp, showCategoryHelp, LEGACY_HELP_MAP } from './help-system.js';
 import { multiplayerCommands } from '../multiplayer.js';
+import { vt100Effects } from '../modules/vt100-effects.js';
+import { VT100_EFFECTS, getEffectConfig, formatEffectValue } from '../config/vt100-config.js';
 
 /**
  * Create command processor with dependencies injected
@@ -1436,8 +1438,13 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
         cliLog('ERROR: VScope system not initialized', 'error');
       }
 
+    } else if (cmd === 'vt100') {
+      // Unified VT100 effects (top-level command)
+      handleVT100Command(cmdPath[1], args);
+
     } else if (cmd === 'console' && cmdPath[1] === 'vt100') {
-      handleConsoleVT100Command(cmdPath[2], args);
+      // Legacy: redirect to unified vt100
+      handleVT100Command(cmdPath[2], args);
 
     } else if (cmd === 'view' && cmdPath[1] === 'vt100') {
       handleViewVT100Command(cmdPath[2], args, store);
@@ -1502,13 +1509,71 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
 }
 
 /**
- * Handle console VT100 commands
+ * Handle unified VT100 effects commands
+ * Controls both CLI terminal and vecterm canvas
+ * Now data-driven from config/vt100-config.js
+ */
+function handleVT100Command(action, args) {
+  if (!action || action === 'help') {
+    cliLog('=== VT100 CRT Effects ===', 'success');
+
+    // Generate help from config
+    VT100_EFFECTS.forEach(effect => {
+      const range = effect.unit === ''
+        ? `<${effect.min}-${effect.max}>`
+        : `<${effect.min}-${effect.max}${effect.unit}>`;
+      const defaultStr = formatEffectValue(effect.id, effect.default);
+      cliLog(`  vt100.${effect.id} ${range} - ${effect.description} (default: ${defaultStr})`);
+    });
+
+    cliLog('  vt100.status - Show current effect values');
+    cliLog('  vt100.reset - Reset all effects to defaults');
+    cliLog('');
+    cliLog('Effects apply to both terminal and 3D graphics', 'info');
+  } else if (action === 'status') {
+    const effects = vt100Effects.getAllEffects();
+    cliLog('=== VT100 Effects Status ===', 'success');
+
+    // Generate status from config
+    VT100_EFFECTS.forEach(effect => {
+      const value = effects[effect.id];
+      const formatted = formatEffectValue(effect.id, value);
+      cliLog(`  ${effect.label}: ${formatted}`);
+    });
+  } else if (action === 'reset') {
+    vt100Effects.reset();
+    cliLog('✓ VT100 effects reset to defaults', 'success');
+  } else {
+    // Generic effect handler - check if action matches an effect ID
+    const config = getEffectConfig(action);
+    if (config) {
+      if (args.length === 0) {
+        // Show current value
+        const current = vt100Effects.getEffect(action);
+        const formatted = formatEffectValue(action, current);
+        cliLog(`Current ${config.label.toLowerCase()}: ${formatted}`, 'info');
+      } else {
+        // Set new value
+        const value = parseFloat(args[0]);
+        vt100Effects.setEffect(action, value);
+        const formatted = formatEffectValue(action, value);
+        cliLog(`✓ ${config.label}: ${formatted}`, 'success');
+      }
+    } else {
+      cliLog('Unknown vt100 command. Try "vt100.help"', 'error');
+    }
+  }
+}
+
+/**
+ * Handle console VT100 commands (DEPRECATED - use handleVT100Command)
  */
 function handleConsoleVT100Command(action, args) {
   const cliPanel = document.getElementById('cli-panel');
 
   if (!action || action === 'help') {
-    cliLog('=== Console VT100 Commands ===', 'success');
+    cliLog('=== Console VT100 Commands (DEPRECATED) ===', 'warning');
+    cliLog('Use "vt100.*" commands instead', 'info');
     cliLog('  vt100.scanlines <intensity> - Scanline darkness (0-1, default: 0.15)');
     cliLog('  vt100.scanspeed <seconds> - Scanline scroll speed (default: 8)');
     cliLog('  vt100.wave <amplitude> - Raster wave pixels (default: 2)');

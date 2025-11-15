@@ -130,7 +130,7 @@
             <input type="checkbox" id="animation-toggle">
             Enable State Flow Animation
           </label>
-          <p style="font-size: 11px; color: #666; margin: 4px 0;">Toggle to see Redux state flow visualization (slower)</p>
+          <p style="font-size: 11px; color: #666; margin: 4px 0;">⚠️ Animation OFF by default (improves performance). Toggle to see Redux state flow visualization.</p>
         </div>
 
         <div class="control-group">
@@ -364,13 +364,28 @@
         <h4 class="settings-title">VT100 Effects</h4>
         <div class="settings-group">
           <label for="glow-intensity">Phosphor Glow:</label>
-          <input type="range" id="glow-intensity" min="0" max="1" step="0.1" value="0.3">
-          <span id="glow-value">0.3</span>
+          <input type="range" id="glow-intensity" min="0" max="2" step="0.05" value="0.3">
+          <span id="glow-value">0.30</span>
         </div>
         <div class="settings-group">
           <label for="scanline-intensity">Scanlines:</label>
-          <input type="range" id="scanline-intensity" min="0" max="1" step="0.05" value="0.15">
+          <input type="range" id="scanline-intensity" min="0" max="1" step="0.01" value="0.15">
           <span id="scanline-value">0.15</span>
+        </div>
+        <div class="settings-group">
+          <label for="scanline-speed">Scan Speed:</label>
+          <input type="range" id="scanline-speed" min="0.5" max="30" step="0.5" value="8">
+          <span id="scanspeed-value">8s</span>
+        </div>
+        <div class="settings-group">
+          <label for="wave-amplitude">Raster Wave:</label>
+          <input type="range" id="wave-amplitude" min="0" max="30" step="0.5" value="2">
+          <span id="wave-value">2px</span>
+        </div>
+        <div class="settings-group">
+          <label for="border-glow">Border Glow:</label>
+          <input type="range" id="border-glow" min="0" max="2" step="0.05" value="0.4">
+          <span id="border-glow-value">0.40</span>
         </div>
         <div class="settings-group">
           <label>
@@ -449,9 +464,11 @@
       <span></span>
       <span></span>
     </button>
-    <!-- VT100 Canvas for vector rendering (VScope) -->
+    <!-- Vecterm preview canvas for demos (spinning cube, etc) - integrated into terminal scene -->
+    <canvas id="cli-vecterm" width="800" height="800" style="position: absolute; top: 60px; right: 20px; width: 300px; height: 300px; pointer-events: none; z-index: 5; mix-blend-mode: screen; background: none; opacity: 0.95;"></canvas>
+    <!-- VT100 Canvas for vector rendering (VScope) - IN FRONT of text -->
     <canvas id="vt100-canvas" style="position: absolute; top: 40px; left: 0; width: 100%; height: calc(100% - 100px); pointer-events: none; z-index: 10;"></canvas>
-    <!-- Terminal output scrollable area -->
+    <!-- Terminal output scrollable area - z-index: 1 (in front of vecterm, behind vt100) -->
     <div id="cli-output"></div>
     <!-- Absolute positioned input at bottom -->
     <div class="vt100-input">

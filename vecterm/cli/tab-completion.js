@@ -4,6 +4,8 @@
  * Handles tab completion for commands and arguments.
  * Context-aware: adjusts completions based on CLI prompt state.
  * Includes interactive slider controls for continuous variables.
+ *
+ * Now uses centralized VT100 config from config/vt100-config.js
  */
 
 import { cliLog, cliLogHtml } from './terminal.js';
@@ -12,6 +14,13 @@ import { getLifecycleManager } from './slider-lifecycle.js';
 import { initGestureHandler, getGestureHandler } from './slider-gestures.js';
 import { startMidiLearn } from './slider-midi-capture.js';
 import { initQuickSettings, getQuickSettings } from './quick-settings.js';
+import { createTabCompletionConfig, getAllEffectIds } from '../config/vt100-config.js';
+
+// Generate VT100 commands from config
+const VT100_COMMANDS = ['vt100.help', 'vt100.status', 'vt100.reset'];
+getAllEffectIds().forEach(effectId => {
+  VT100_COMMANDS.push(`vt100.${effectId}`);
+});
 
 // Top-level commands for tab completion (global context)
 const TOP_LEVEL_COMMANDS = [
@@ -20,10 +29,7 @@ const TOP_LEVEL_COMMANDS = [
   'vecterm.demo', 'vecterm.stop', 'vecterm.spawn', 'vecterm.list', 'vecterm.delete',
   'vecterm.camera.orbit', 'vecterm.camera.zoom', 'vecterm.camera.reset',
   'vecterm.grid.type', 'vecterm.grid.toggle', 'vecterm.grid.status',
-  'vt100.help', 'vt100.status', 'vt100.scanlines',
-  'vt100.scanspeed', 'vt100.wave', 'vt100.wavespeed',
-  'vt100.glow', 'vt100.glowspeed', 'vt100.border',
-  'vt100.borderwidth', 'vt100.reset',
+  ...VT100_COMMANDS,
   // View VT100 effects (new namespace)
   'view.vt100.help', 'view.vt100.status', 'view.vt100.wave', 'view.vt100.drift',
   'view.vt100.jitter', 'view.vt100.scanlines', 'view.vt100.bloom',
@@ -51,15 +57,9 @@ Object.keys(HELP_CATEGORIES).forEach(cat => {
 });
 
 // Continuous variable command metadata for slider controls
+// VT100 commands now generated from centralized config
 const CONTINUOUS_COMMANDS = {
-  'vt100.scanlines': { min: 0, max: 1, step: 0.05, default: 0.15, unit: '' },
-  'vt100.scanspeed': { min: 1, max: 20, step: 0.5, default: 8, unit: 's' },
-  'vt100.wave': { min: 0, max: 10, step: 0.5, default: 2, unit: 'px' },
-  'vt100.wavespeed': { min: 1, max: 10, step: 0.5, default: 3, unit: 's' },
-  'vt100.glow': { min: 0, max: 1, step: 0.05, default: 0.4, unit: '' },
-  'vt100.glowspeed': { min: 1, max: 10, step: 0.5, default: 2, unit: 's' },
-  'vt100.border': { min: 0, max: 1, step: 0.05, default: 1, unit: '' },
-  'vt100.borderwidth': { min: 0, max: 5, step: 0.5, default: 1, unit: 'px' },
+  ...createTabCompletionConfig(),
   // View VT100 slider configs
   'view.vt100.wave': { min: 0, max: 10, step: 0.5, default: 2, unit: 'px' },
   'view.vt100.drift': { min: 0, max: 5, step: 0.1, default: 1, unit: 'px' },

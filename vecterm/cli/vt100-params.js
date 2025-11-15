@@ -3,18 +3,67 @@
  *
  * Hamburger menu-triggered overlay for adjusting VT100 effects in real-time
  * Managed by Vecterm, positioned center screen when visible
+ *
+ * Now data-driven from config/vt100-config.js
  */
+
+import { VT100_MENU_EFFECTS, getEffectConfig, formatEffectValue } from '../config/vt100-config.js';
+import { vt100Effects } from '../modules/vt100-effects.js';
 
 let paramsVisible = false; // Start hidden
 
 /**
  * Initialize VT100 parameter controls
+ * Dynamically generates controls from VT100_MENU_EFFECTS config
  */
 function initVT100Params() {
   const paramsPanel = document.getElementById('vt100-params');
   const hamburger = document.getElementById('vt100-menu-toggle');
 
   if (!paramsPanel) return;
+
+  // Clear existing content and rebuild from config
+  paramsPanel.innerHTML = '';
+
+  // Generate controls for each effect in VT100_MENU_EFFECTS
+  VT100_MENU_EFFECTS.forEach(effectId => {
+    const config = getEffectConfig(effectId);
+    if (!config) return;
+
+    const paramRow = document.createElement('div');
+    paramRow.className = 'param-row';
+
+    // Label
+    const label = document.createElement('label');
+    label.textContent = config.label.toUpperCase();
+    label.title = config.description;
+
+    // Slider
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.id = `param-${effectId}`;
+    slider.min = config.min;
+    slider.max = config.max;
+    slider.step = config.step;
+    slider.value = config.default;
+
+    // Value display
+    const valueSpan = document.createElement('span');
+    valueSpan.className = 'param-val';
+    valueSpan.textContent = formatEffectValue(effectId, config.default);
+
+    // Event listener
+    slider.addEventListener('input', (e) => {
+      const value = parseFloat(e.target.value);
+      vt100Effects.setEffect(effectId, value);
+      valueSpan.textContent = formatEffectValue(effectId, value);
+    });
+
+    paramRow.appendChild(label);
+    paramRow.appendChild(slider);
+    paramRow.appendChild(valueSpan);
+    paramsPanel.appendChild(paramRow);
+  });
 
   // Start hidden
   paramsPanel.classList.add('hidden');
@@ -33,36 +82,6 @@ function initVT100Params() {
       hideParams();
     }
   });
-
-  // Scanline intensity slider
-  const scanlineSlider = document.getElementById('param-scanline');
-  if (scanlineSlider) {
-    scanlineSlider.addEventListener('input', (e) => {
-      const value = e.target.value / 100;
-      document.documentElement.style.setProperty('--vt100-scanline-intensity', value);
-      updateParamValue('param-scanline', value.toFixed(2));
-    });
-  }
-
-  // Glow intensity slider
-  const glowSlider = document.getElementById('param-glow');
-  if (glowSlider) {
-    glowSlider.addEventListener('input', (e) => {
-      const value = e.target.value / 100;
-      document.documentElement.style.setProperty('--vt100-glow-intensity', value);
-      updateParamValue('param-glow', value.toFixed(2));
-    });
-  }
-
-  // Wave amplitude slider
-  const waveSlider = document.getElementById('param-wave');
-  if (waveSlider) {
-    waveSlider.addEventListener('input', (e) => {
-      const value = e.target.value;
-      document.documentElement.style.setProperty('--vt100-wave-amplitude', value + 'px');
-      updateParamValue('param-wave', value + 'px');
-    });
-  }
 }
 
 /**
@@ -105,19 +124,6 @@ function hideParams() {
 
   if (hamburger) {
     hamburger.classList.remove('active');
-  }
-}
-
-/**
- * Update parameter value display
- */
-function updateParamValue(sliderId, value) {
-  const slider = document.getElementById(sliderId);
-  if (!slider) return;
-
-  const valueSpan = slider.parentElement.querySelector('.param-val');
-  if (valueSpan) {
-    valueSpan.textContent = value;
   }
 }
 
