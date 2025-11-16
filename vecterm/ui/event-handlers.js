@@ -9,7 +9,6 @@ import * as Actions from '../core/actions.js';
 import { vt100Effects } from '../modules/vt100-effects.js';
 import { designTokenEditor } from './components/design-token-editor.js';
 import { Shapemaker } from '../games/shapemaker.js';
-import { QuadrapongController } from '../games/quadrapong-controller.js';
 
 /**
  * Initialize all event handlers
@@ -507,7 +506,6 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
 
   // Game Controllers
   const shapemakerGame = new Shapemaker(store);
-  const quadrapongController = new QuadrapongController(store);
 
   // Game FAB: Toggle Game Panel
   const gameFab = document.getElementById('game-fab');
@@ -570,9 +568,31 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
       quadrapongInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           const command = quadrapongInput.value.trim();
-          if (command) {
-            quadrapongController.processCommand(command);
+          if (command && window.quadrapongGameInstance) {
+            // Add to shared history
+            if (window.cliHistory) {
+              window.cliHistory.add(command);
+            }
+            window.quadrapongGameInstance.processCommand(command);
             quadrapongInput.value = '';
+          }
+        } else if (e.key === 'ArrowUp') {
+          // Navigate up in shared history
+          e.preventDefault();
+          if (window.cliHistory) {
+            const historyEntry = window.cliHistory.navigateUp(quadrapongInput.value);
+            if (historyEntry !== undefined) {
+              quadrapongInput.value = historyEntry;
+            }
+          }
+        } else if (e.key === 'ArrowDown') {
+          // Navigate down in shared history
+          e.preventDefault();
+          if (window.cliHistory) {
+            const historyEntry = window.cliHistory.navigateDown();
+            if (historyEntry !== undefined) {
+              quadrapongInput.value = historyEntry;
+            }
           }
         }
       });
@@ -652,18 +672,14 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
 
   // Helper: Switch tabs within game view
   function switchGameTab(gameId, tabName) {
-    console.log('[TAB SYSTEM] switchGameTab called:', gameId, tabName);
-
     // Get the parent view for this game
     const gameView = document.getElementById(`${gameId}-view`);
     if (!gameView) {
-      console.warn('[TAB SYSTEM] Game view not found:', `${gameId}-view`);
       return;
     }
 
     // Update tab buttons
     const tabButtons = document.querySelectorAll('.game-tab');
-    console.log('[TAB SYSTEM] Updating', tabButtons.length, 'tab buttons');
     tabButtons.forEach(btn => {
       if (btn.dataset.tab === tabName) {
         btn.classList.add('active');
@@ -674,12 +690,10 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
 
     // Update tab content
     const tabContents = gameView.querySelectorAll('.game-tab-content');
-    console.log('[TAB SYSTEM] Found', tabContents.length, 'tab contents in', gameId);
     tabContents.forEach(content => {
       const contentTab = content.dataset.tabContent;
       if (contentTab === tabName) {
         content.classList.add('active');
-        console.log('[TAB SYSTEM] Activated tab:', contentTab);
       } else {
         content.classList.remove('active');
       }
@@ -693,14 +707,11 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
 
   // Tab switching handlers
   const tabButtons = document.querySelectorAll('.game-tab');
-  console.log('[TAB SYSTEM] Found', tabButtons.length, 'tab buttons');
   tabButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const tabName = btn.dataset.tab;
       const state = store.getState();
       const activeGame = state.games?.activeGame;
-
-      console.log('[TAB SYSTEM] Tab clicked:', tabName, 'Active game:', activeGame);
 
       if (activeGame) {
         switchGameTab(activeGame, tabName);
@@ -826,20 +837,53 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
   setupTinesSoundLibrary('quadrapong');
   setupTinesSoundLibrary('shapemaker');
 
-  // ECS View Population
-  function updateECSViews(gameId) {
-    // Get ECS instance from game controller
-    let ecsGame = null;
-    if (gameId === 'quadrapong' && quadrapongController.getECS) {
-      ecsGame = quadrapongController.getECS();
+  // Periodic ECS view and score updates (10 FPS for responsive UI)
+  setInterval(() => {
+    const state = store.getState();
+    const activeGame = state.games?.activeGame;
+
+    // Update scores in CLI tab
+    if (activeGame === 'quadrapong' && window.quadrapongGameInstance) {
+      const scores = window.quadrapongGameInstance.getScores();
+      const p1Score = document.getElementById('quadrapong-score-p1');
+      const p2Score = document.getElementById('quadrapong-score-p2');
+      const p3Score = document.getElementById('quadrapong-score-p3');
+      const p4Score = document.getElementById('quadrapong-score-p4');
+
+      if (p1Score) p1Score.textContent = scores.p1;
+      if (p2Score) p2Score.textContent = scores.p2;
+      if (p3Score) p3Score.textContent = scores.p3;
+      if (p4Score) p4Score.textContent = scores.p4;
     }
 
-    if (!ecsGame) return;
+    // Only update ECS tabs if game panel is visible and game is active
+    const gamePanel = document.getElementById('game-panel');
+    if (activeGame && gamePanel && !gamePanel.classList.contains('hidden')) {
+      // Check which tab is active and update accordingly
+      const activeTab = document.querySelector('.game-tab.active');
+      if (activeTab) {
+        const tabName = activeTab.dataset.tab;
+        if (['entities', 'components', 'systems'].includes(tabName)) {
+          updateECSViews(activeGame);
+        }
+      }
+    }
+  }, 100); // 100ms = 10 FPS
+
+  // ECS View Population
+  function updateECSViews(gameId) {
+    // Get game instance
+    let gameInstance = null;
+    if (gameId === 'quadrapong' && window.quadrapongGameInstance) {
+      gameInstance = window.quadrapongGameInstance;
+    }
+
+    if (!gameInstance) return;
 
     // Update Entities tab
     const entitiesContainer = document.querySelector(`#${gameId}-view [data-tab-content="entities"] .ecs-list`);
     if (entitiesContainer) {
-      const entities = ecsGame.getAllEntities();
+      const entities = gameInstance.getAllEntities();
       entitiesContainer.innerHTML = '';
 
       entities.forEach(entity => {
@@ -861,7 +905,7 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
     // Update Components tab
     const componentsContainer = document.querySelector(`#${gameId}-view [data-tab-content="components"] .ecs-list`);
     if (componentsContainer) {
-      const componentMap = ecsGame.getEntitiesByComponent();
+      const componentMap = gameInstance.getEntitiesByComponent();
       componentsContainer.innerHTML = '';
 
       Object.keys(componentMap).sort().forEach(componentName => {
@@ -881,7 +925,7 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
     // Update Systems tab
     const systemsContainer = document.querySelector(`#${gameId}-view [data-tab-content="systems"] .ecs-list`);
     if (systemsContainer) {
-      const systems = ecsGame.getSystems();
+      const systems = gameInstance.getSystems();
       systemsContainer.innerHTML = '';
 
       systems.forEach(system => {
@@ -900,15 +944,20 @@ function initializeEventHandlers(store, delayControl, savedUIState, cliLog) {
 
   // Subscribe to Redux store to update game panel when game state changes
   if (store) {
+    let lastActiveGame = null;
+
     store.subscribe(() => {
       const state = store.getState();
       const activeGame = state.games?.activeGame;
 
-      // Update game view based on active game
-      if (activeGame) {
-        showGameView(activeGame);
-      } else {
-        showGameView(null);
+      // Only update game view if active game actually changed
+      if (activeGame !== lastActiveGame) {
+        if (activeGame) {
+          showGameView(activeGame);
+        } else {
+          showGameView(null);
+        }
+        lastActiveGame = activeGame;
       }
 
       // Update Quadrapong scores if in game

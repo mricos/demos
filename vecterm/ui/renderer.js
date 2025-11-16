@@ -44,7 +44,53 @@ function createRenderer(store, visualizationHooks) {
     const contextValue = document.getElementById('context-value');
     if (contextValue && state.uiState) {
       const context = state.uiState.cliLabel || state.uiState.cliContext || 'vecterm';
-      contextValue.textContent = context;
+      const activeGame = state.games?.activeGame;
+
+      // Show game context with state if game is active
+      if (activeGame && context === activeGame) {
+        if (activeGame === 'shapemaker') {
+          const entityCount = state.entities ? state.entities.length : 0;
+          contextValue.textContent = `${context} [${entityCount} entities]`;
+        } else if (activeGame === 'quadrapong' && state.games?.quadrapong?.scores) {
+          const scores = state.games.quadrapong.scores;
+          const scoreText = `${scores.p1 || 0}:${scores.p2 || 0}:${scores.p3 || 0}:${scores.p4 || 0}`;
+          contextValue.textContent = `${context} [${scoreText}]`;
+        } else {
+          contextValue.textContent = context;
+        }
+      } else {
+        contextValue.textContent = context;
+      }
+    }
+
+    // Update game mode display (bottom-right)
+    const gameModeValue = document.getElementById('game-mode-value');
+    if (gameModeValue && state.uiState) {
+      const mode = state.uiState.mode || 'idle';
+      gameModeValue.textContent = mode.toUpperCase();
+      gameModeValue.className = `mode-${mode}`;
+    }
+
+    // Update game context display
+    const gameContextValue = document.getElementById('game-context-value');
+    if (gameContextValue) {
+      // Get active game from state
+      const activeGame = state.games?.activeGame;
+      if (activeGame) {
+        // Show game-specific state
+        if (activeGame === 'shapemaker') {
+          const entityCount = state.entities ? state.entities.length : 0;
+          gameContextValue.textContent = `${activeGame} (${entityCount})`;
+        } else if (activeGame === 'quadrapong' && state.games?.quadrapong?.scores) {
+          const scores = state.games.quadrapong.scores;
+          const total = (scores.p1 || 0) + (scores.p2 || 0) + (scores.p3 || 0) + (scores.p4 || 0);
+          gameContextValue.textContent = `${activeGame} [${total}]`;
+        } else {
+          gameContextValue.textContent = activeGame;
+        }
+      } else {
+        gameContextValue.textContent = 'No Game';
+      }
     }
 
     // Update entity counter (2D entities + 3D vecterm entities)

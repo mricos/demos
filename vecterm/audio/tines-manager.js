@@ -42,9 +42,10 @@ export function createTinesManager(store) {
         // synth, drums will be added later
       };
 
-      // Initialize visual player
-      visualPlayer = createVisualPlayer();
-      visualPlayer.setClock(clock);
+      // Visual player DISABLED - using Strudel-style inline sliders instead
+      // Inline sliders are created via CLI commands (tines.volume, tines.bpm, etc.)
+      // visualPlayer = null;
+      console.log('[tines-manager] Visual player disabled - using inline CLI sliders (Strudel-style)');
 
       // Dispatch init action
       store.dispatch({ type: ActionTypes.AUDIO_INIT });

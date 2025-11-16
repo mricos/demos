@@ -46,6 +46,9 @@ const visualizationHooks = {
   logAction(action) {
     if (action.type === '@@INIT') return;
 
+    // Skip logging if action is marked as silent (e.g., ECS sync)
+    if (action.meta && action.meta.silent) return;
+
     const entry = {
       type: action.type,
       payload: action.payload,

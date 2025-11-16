@@ -12,7 +12,8 @@ import { VT100_EFFECTS, QUICK_SETTINGS_DEFAULTS, getEffectConfig } from '../conf
  * QuickSettings - Manages the Quick Settings panel
  */
 export class QuickSettings {
-  constructor() {
+  constructor(store = null) {
+    this.store = store || window.store; // Use global store if not provided
     this.panel = null;
     this.sliders = new Map(); // Map<command, miniSlider>
     this.visible = false;
@@ -142,6 +143,24 @@ export class QuickSettings {
     const content = document.getElementById('quick-settings-content');
     content.appendChild(miniSlider.element);
 
+    // Dispatch Redux action to track connection
+    if (this.store) {
+      this.store.dispatch({
+        type: 'CONNECT_PARAMETER',
+        payload: {
+          connectionId: `slider:${command}`,
+          entityId: command.split('.')[0], // e.g., 'vt100' from 'vt100.glow'
+          parameter: command.split('.').slice(1).join('.'), // e.g., 'glow'
+          connectionType: 'quickMenu',
+          connectionData: 1  // Quick Menu number (always 1 for now)
+        }
+      });
+
+      // Update connection indicator in CLI slider
+      const lifecycleManager = getLifecycleManager();
+      lifecycleManager.updateConnectionIndicator(command);
+    }
+
     // Save to storage
     this.saveToStorage();
 
@@ -256,6 +275,21 @@ export class QuickSettings {
     // Remove from DOM
     miniSlider.element.remove();
     this.sliders.delete(command);
+
+    // Dispatch Redux action to disconnect parameter
+    if (this.store) {
+      this.store.dispatch({
+        type: 'DISCONNECT_PARAMETER',
+        payload: {
+          connectionId: `slider:${command}`,
+          connectionType: 'quickMenu'
+        }
+      });
+
+      // Update connection indicator in CLI slider
+      const lifecycleManager = getLifecycleManager();
+      lifecycleManager.updateConnectionIndicator(command);
+    }
 
     // Save to storage
     this.saveToStorage();

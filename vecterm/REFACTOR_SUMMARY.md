@@ -1,136 +1,128 @@
-# Refactor Summary: window.PJA → window.Vecterm
-
-## Overview
-
-Successfully refactored the global namespace from `window.PJA` (Pixeljam Arcade) to `window.Vecterm` to better align with the project name.
+# Quadrapong Refactor Summary
 
 ## What Changed
 
-### Global Namespace
-- **Before**: `window.PJA.Tines`, `window.PJA.MIDI`
-- **After**: `window.Vecterm.Tines`, `window.Vecterm.MIDI`
+Successfully refactored Quadrapong from a monolithic implementation to a clean IIFE pattern using shared core ECS modules.
 
-### Files Modified
+## Files Created
 
-**Core Audio:**
-- `audio/tines-manager.js` - Updated global API creation
+### `/games/QuadrapongGame.js` (NEW)
+- Clean IIFE pattern (self-contained, no build step)
+- Uses core ECS system (`window.ECS`, `window.Components`, `window.Systems`)
+- ~460 lines (vs 750 in old version)
+- Includes:
+  - Game class with full lifecycle (initialize, start, stop, pause, reset)
+  - Rendering system
+  - Inspection API for game panel tabs
+  - Command processing for terminal interface
+  - Public API: `QuadrapongGame.create(store, canvas)`
 
-**MIDI Module:**
-- `modules/midi/index.js` - Updated global API creation
-- `modules/midi/midi-controller.js` - Updated Tines references
-- `modules/midi/midi-transport.js` - Updated Tines references
+## Files Modified
 
-**CLI:**
-- `cli/vt100-silent-updater.js` - Updated namespace references
-- `cli/prompt-manager.js` - Updated ModuleLoader reference
+### `/games/game-manager.js`
+- Changed `Quadrapong.create()` → `QuadrapongGame.create()`
+- Removed QuadrapongController ECS initialization (no longer needed)
+- Simplified to single game instance: `window.quadrapongGameInstance`
 
-**UI:**
-- `ui/event-handlers.js` - Updated MIDI button handlers
+### `/ui/event-handlers.js`
+- Removed `QuadrapongController` import and instance
+- Updated ECS view population to use `window.quadrapongGameInstance`
+- Updated terminal input to call `gameInstance.processCommand()`
+- Added score updates from `gameInstance.getScores()` in periodic loop
 
-**Documentation:**
-- `docs/PJA_NAMESPACE.md` → `docs/VECTERM_NAMESPACE.md`
-- `MIDI_TESTING_GUIDE.md` - Updated all examples
+### `/index.html`
+- Moved ECS scripts before game scripts
+- Changed `<script src="Quadrapong.js">` → `<script src="games/QuadrapongGame.js">`
 
-## API Changes
+## Files Archived
 
-### Before
-```javascript
-// Tines
-window.PJA.Tines.drone("C2 ~ G2 ~")
-window.PJA.Tines.bpm(140)
-window.PJA.Tines.status()
+Moved to `/archive/`:
+- `Quadrapong.js` (old monolithic IIFE)
+- `games/quadrapong-controller.js` (unused ES6 module approach)
+- `games/quadrapong-ecs.js` (duplicate ECS implementation)
 
-// MIDI
-window.PJA.MIDI.status()
-window.PJA.MIDI.map('1k', 'tines.volume.drone')
-window.PJA.MIDI.showVisual()
+See `ARCHIVE.md` for detailed rationale.
+
+## Architecture Benefits
+
+### Before (Monolithic)
+```
+Quadrapong.js (750 lines)
+├── VT100 class
+├── ECS class
+├── Components object
+├── Systems object
+└── Game class
 ```
 
-### After
-```javascript
-// Tines
-window.Vecterm.Tines.drone("C2 ~ G2 ~")
-window.Vecterm.Tines.bpm(140)
-window.Vecterm.Tines.status()
+### After (Modular)
+```
+core/
+├── ecs.js (shared ECS engine)
+├── components.js (shared component library)
+└── systems.js (shared system library)
 
-// MIDI
-window.Vecterm.MIDI.status()
-window.Vecterm.MIDI.map('1k', 'tines.volume.drone')
-window.Vecterm.MIDI.showVisual()
+games/
+└── QuadrapongGame.js (game-specific logic only)
+    ├── Uses window.ECS
+    ├── Uses window.Components
+    └── Uses window.Systems
 ```
 
-## Shorter Aliases (Optional)
+## Game Panel Integration
 
-For convenience in the console:
+The game instance now provides complete inspection API:
+
 ```javascript
-// You can create shortcuts
-const Tines = window.Vecterm.Tines;
-const MIDI = window.Vecterm.MIDI;
+const game = window.quadrapongGameInstance;
 
-// Then use:
-Tines.drone("C2 ~ G2 ~")
-MIDI.showVisual()
+// ECS inspection
+game.getAllEntities()           // For Entities tab
+game.getEntitiesByComponent()   // For Components tab
+game.getSystems()               // For Systems tab
+game.getScores()                // For score display
+
+// Control
+game.processCommand('pause')    // Terminal commands
+game.reset()                    // Direct control
+game.togglePause()
 ```
 
-## Testing
+## Future Games
 
-After refactor, verify:
+This pattern makes it easy to add new games:
 
-1. **Check namespace exists:**
-   ```javascript
-   Object.keys(window.Vecterm)
-   // Should return: ['Tines', 'MIDI']
-   ```
-
-2. **Test Tines:**
-   ```javascript
-   Vecterm.Tines.status()
-   Vecterm.Tines.drone("C2 ~ G2 ~")
-   ```
-
-3. **Test MIDI:**
-   ```javascript
-   Vecterm.MIDI.status()
-   Vecterm.MIDI.showVisual()
-   ```
-
-4. **Check console logs:**
-   - Should see: `[tines] Global API created at window.Vecterm.Tines`
-   - Should NOT see any `window.PJA` references
-
-## Backwards Compatibility
-
-Currently **NO backwards compatibility** - all references to `window.PJA` have been removed.
-
-If needed, you can add a compatibility shim:
 ```javascript
-// In app.js or boot-manager.js
-window.PJA = window.Vecterm; // Legacy alias
+const MyGame = (() => {
+  class Game {
+    constructor(store, canvas) {
+      this.ecs = new window.ECS(store);
+      // Use window.Components, window.Systems
+    }
+    initialize() { /* setup entities */ }
+    start() { /* game loop */ }
+    // ... inspection API
+  }
+  return { create: (store, canvas) => new Game(store, canvas) };
+})();
 ```
 
-## Files NOT Changed
+Just add to `index.html`:
+```html
+<script src="games/MyGame.js"></script>
+```
 
-These files were left as-is (no PJA references):
-- All Redux core files
-- Game files
-- VT100 renderer
-- Most CLI files
+## Why IIFE + Core Modules?
 
-## Benefits
-
-1. **Clarity**: `window.Vecterm` clearly indicates this is the vecterm API
-2. **Consistency**: Namespace matches project name
-3. **Discovery**: Easier to find in documentation
-4. **Branding**: Better alignment with vecterm identity
-
-## Next Steps
-
-Consider adding to `window.Vecterm`:
-- `Vecterm.ModuleLoader` - Dynamic module system
-- `Vecterm.Graphics` - 3D vector terminal
-- `Vecterm.Network` - Multiplayer (VTMP)
-- `Vecterm.Input` - Unified input system
+✅ **No build step** - runs directly in browser
+✅ **Shared ECS** - one implementation for all games
+✅ **Self-contained games** - IIFE pattern for encapsulation
+✅ **Simple to understand** - clear public API
+✅ **Easy debugging** - everything in global scope when needed
 
 ---
 
-*Refactored: 2025-01-11*
+**Refactored:** 2025-01-15
+**Lines removed:** ~800 (duplicate code)
+**Files archived:** 3
+**New architecture:** IIFE + Core Modules

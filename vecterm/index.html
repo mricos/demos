@@ -1444,6 +1444,9 @@ localStorage.setItem('redux-demo-ui-state', JSON.stringify(uiState));
     </div>
   </div>
 
+  <!-- PeerJS for P2P multiplayer (zero-setup WebRTC) -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
   <!-- Non-module dependencies (to be refactored later) -->
   <script src="VectermMath.js"></script>
   <script src="vecterm/grid-utils.js"></script>
@@ -1452,12 +1455,15 @@ localStorage.setItem('redux-demo-ui-state', JSON.stringify(uiState));
   <script src="InputSystem.js"></script>
   <script src="ReduxCanvas.js"></script>
   <!-- <script src="ui/pixel-vector-renderer.js"></script> -->
-  <script src="Quadrapong.js"></script>
 
-  <!-- ECS System -->
-  <script src="core/ecs.js"></script>
-  <script src="core/components.js"></script>
-  <script src="core/systems.js"></script>
+  <!-- ECS System (must load before games) -->
+  <script src="core/ecs.js?v=2"></script>
+  <script src="core/components.js?v=2"></script>
+  <script src="core/systems.js?v=2"></script>
+  <script src="core/camera.js?v=4"></script>
+
+  <!-- Games -->
+  <script src="games/QuadrapongGame.js?v=3"></script>
 
   <!-- Main application as ES6 module -->
   <script type="module" src="app.js"></script>

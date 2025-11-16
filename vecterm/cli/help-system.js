@@ -101,6 +101,21 @@ export const HELP_CATEGORIES = {
     ]
   },
 
+  games: {
+    name: 'games',
+    desc: 'Game commands & parameters',
+    commands: [
+      { cmd: 'quadrapong', desc: 'Start Quadrapong (4-player pong)' },
+      { cmd: 'controls', desc: 'Show current paddle controls' },
+      { cmd: 'controls.player1 <side>', desc: 'Assign paddle to Player 1 (left/right/top/bottom)' },
+      { cmd: 'controls.ai <side>', desc: 'Return paddle to AI' },
+      { cmd: 'reset', desc: 'Reset game state (when game active)' },
+      { cmd: 'pause', desc: 'Pause game' },
+      { cmd: 'resume', desc: 'Resume game' },
+      { cmd: '<game>.<param> <value>', desc: 'Set game parameter (tab-complete enabled)' }
+    ]
+  },
+
   system: {
     name: 'system',
     desc: 'State, auth, and utilities',
@@ -111,6 +126,8 @@ export const HELP_CATEGORIES = {
       { cmd: 'inspect entities', desc: 'List all entities with components' },
       { cmd: 'inspect entity <id>', desc: 'Detailed view of single entity' },
       { cmd: 'list entities', desc: 'Simple entity list' },
+      { cmd: 'perf', desc: 'Show performance status' },
+      { cmd: 'perf.fix', desc: 'Force disable Redux animation' },
       { cmd: 'login <user> <pass>', desc: 'Authenticate & enable S3' },
       { cmd: 'logout', desc: 'End session' },
       { cmd: 'clear', desc: 'Clear terminal output' },

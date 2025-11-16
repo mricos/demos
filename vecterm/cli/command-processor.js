@@ -34,7 +34,7 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
     return tinesManagerOrGetter;
   };
 
-  return function processCLICommand(command) {
+  return async function processCLICommand(command) {
     const tinesManager = getTinesManager();
     const trimmed = command.trim();
     const parts = trimmed.split(' ');
@@ -232,6 +232,47 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
         cliLog('Redux State:', 'success');
         cliLogJson(state, { collapsedDepth: 2 });
       }
+
+    } else if (cmd === 'perf') {
+      // Performance debug command
+      const hooks = store.visualizationHooks;
+      if (!hooks) {
+        cliLog('No visualization hooks available', 'error');
+        return;
+      }
+
+      cliLog('=== PERFORMANCE STATUS ===', 'success');
+      cliLog('');
+      cliLog(`Animation Enabled: ${hooks.animationEnabled ? 'YES (SLOW!)' : 'NO (FAST)'}`,
+        hooks.animationEnabled ? 'error' : 'success');
+      cliLog(`Current Delay: ${hooks.currentDelay}ms`, 'info');
+      cliLog('');
+
+      if (hooks.animationEnabled) {
+        cliLog('⚠️  WARNING: Redux animation is ENABLED', 'error');
+        cliLog('This adds ~250ms delay to EVERY action!', 'error');
+        cliLog('Games will run at 1 FPS instead of 60 FPS', 'error');
+        cliLog('', 'info');
+        cliLog('To fix:', 'info');
+        cliLog('  1. Open System Settings (⚙️  icon)', 'info');
+        cliLog('  2. Uncheck "Enable State Flow Animation"', 'info');
+        cliLog('  3. Or run: perf.fix', 'info');
+      } else {
+        cliLog('✓ Performance optimized for gameplay', 'success');
+      }
+
+    } else if (cmd === 'perf' && cmdPath[1] === 'fix') {
+      // Force disable animation
+      const hooks = store.visualizationHooks;
+      if (!hooks) {
+        cliLog('No visualization hooks available', 'error');
+        return;
+      }
+
+      hooks.animationEnabled = false;
+      cliLog('✓ Redux animation DISABLED', 'success');
+      cliLog('✓ Performance restored to 60 FPS', 'success');
+      cliLog('✓ Games will run smoothly now', 'success');
 
     } else if (cmd === 'spawn' && parts.length >= 4) {
       const type = parts[1];
@@ -586,6 +627,27 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
       stopVectermDemo();
       cliLog('Vecterm demo stopped', 'success');
 
+    // View Mode command - toggle between 2D and 3D rendering
+    } else if (cmd === 'viewmode') {
+      const state = store.getState();
+      const mode = args[0];
+
+      if (!mode) {
+        // No argument - show current mode
+        cliLog(`Current view mode: ${state.viewMode}`, 'info');
+        cliLog('Usage: viewmode [2d|3d|toggle]', 'info');
+      } else if (mode === 'toggle') {
+        store.dispatch({ type: 'TOGGLE_VIEW_MODE' });
+        const newMode = store.getState().viewMode;
+        cliLog(`View mode toggled to: ${newMode}`, 'success');
+      } else if (mode === '2d' || mode === '3d') {
+        store.dispatch({ type: 'SET_VIEW_MODE', payload: mode });
+        cliLog(`View mode set to: ${mode}`, 'success');
+      } else {
+        cliLog(`Invalid view mode: ${mode}`, 'error');
+        cliLog('Usage: viewmode [2d|3d|toggle]', 'error');
+      }
+
     // Vecterm entity commands
     } else if (cmd === 'vecterm' && cmdPath[1] === 'spawn' && args.length >= 2) {
       const meshType = args[0]; // cube, sphere, box
@@ -882,6 +944,65 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
         cliLog('No gamepad detected. Connect a gamepad and press any button.', 'error');
       }
 
+    } else if (cmd === 'controls') {
+      // Controls commands for game control mappings (e.g., Quadrapong)
+      const state = store.getState();
+      const gameId = state.games?.activeGame || state.games?.previewGame;
+
+      if (!gameId || !state.games.instances[gameId]) {
+        cliLog('No game running. Use "play <game>" first.', 'error');
+        return;
+      }
+
+      const game = state.games.instances[gameId]?.instance;
+
+      if (!game || typeof game.getControlMappings !== 'function') {
+        cliLog('Active game does not support control mapping commands', 'error');
+        return;
+      }
+
+      // Get subcmd from cmdPath (controls.player1, controls.ai, etc)
+      const subcmd = cmdPath[1];
+
+      if (!subcmd) {
+        // Show current mappings
+        const mappings = game.getControlMappings();
+        cliLog('=== GAME CONTROLS ===', 'success');
+        cliLog('');
+        Object.keys(mappings).forEach(side => {
+          const map = mappings[side];
+          const status = map.player ? `Player ${map.player}` : 'AI';
+          const keys = `${map.up.toUpperCase()}/${map.down.toUpperCase()}`;
+          cliLog(`  ${side.toUpperCase()} (${keys}): ${status}`, 'info');
+        });
+        cliLog('');
+        cliLog('Commands:', 'info');
+        cliLog('  controls.player1 <side> - Assign paddle to Player 1', 'info');
+        cliLog('  controls.ai <side> - Return paddle to AI', 'info');
+        cliLog('  Sides: left, right, top, bottom', 'info');
+      } else if (subcmd === 'player1' && args.length === 1) {
+        const side = args[0].toLowerCase();
+        if (typeof game.assignPaddleToPlayer === 'function') {
+          game.assignPaddleToPlayer(side, 1);
+          cliLog(`${side.toUpperCase()} paddle assigned to Player 1`, 'success');
+        } else {
+          cliLog('Game does not support paddle assignment', 'error');
+        }
+      } else if (subcmd === 'ai' && args.length === 1) {
+        const side = args[0].toLowerCase();
+        if (typeof game.returnPaddleToAI === 'function') {
+          game.returnPaddleToAI(side);
+          cliLog(`${side.toUpperCase()} paddle returned to AI`, 'success');
+        } else {
+          cliLog('Game does not support paddle assignment', 'error');
+        }
+      } else {
+        cliLog('Usage:', 'error');
+        cliLog('  controls - Show current mappings', 'info');
+        cliLog('  controls.player1 <side> - Assign to Player 1', 'info');
+        cliLog('  controls.ai <side> - Return to AI', 'info');
+      }
+
     } else if (cmd === 'tines' && cmdPath[1] === 'status') {
       if (!tinesManager) {
         cliLog('ERROR: Tines audio engine not initialized', 'error');
@@ -999,10 +1120,11 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
         }
       }
 
-    } else if (cmd === 'tines' && cmdPath[1] === 'bpm' && args.length === 1) {
+    } else if (cmd === 'tines' && cmdPath[1] === 'bpm') {
       if (!tinesManager) {
         cliLog('ERROR: Tines audio engine not initialized', 'error');
-      } else {
+      } else if (args.length === 1) {
+        // Set value directly
         const bpm = parseFloat(args[0]);
         if (isNaN(bpm) || bpm < 20 || bpm > 300) {
           cliLog('ERROR: BPM must be between 20 and 300', 'error');
@@ -1010,12 +1132,29 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
           tinesManager.setBPM(bpm);
           cliLog(`BPM set to ${bpm}`, 'success');
         }
+      } else {
+        // Create interactive slider (Strudel-style!)
+        const { getLifecycleManager } = await import('../cli/slider-lifecycle.js');
+        const lifecycleManager = getLifecycleManager();
+        const outputContainer = document.getElementById('cli-output');
+
+        const currentBPM = tinesManager.clock?.bpm || 120;
+        lifecycleManager.createSlider('tines.bpm', {
+          min: 20,
+          max: 300,
+          step: 1,
+          default: currentBPM,
+          unit: ' BPM'
+        }, outputContainer);
+
+        cliLog('Interactive BPM slider created', 'success');
       }
 
-    } else if (cmd === 'tines' && cmdPath[1] === 'volume' && args.length === 1) {
+    } else if (cmd === 'tines' && cmdPath[1] === 'volume') {
       if (!tinesManager) {
         cliLog('ERROR: Tines audio engine not initialized', 'error');
-      } else {
+      } else if (args.length === 1) {
+        // Set value directly
         const volume = parseFloat(args[0]);
         if (isNaN(volume) || volume < 0 || volume > 1) {
           cliLog('ERROR: Volume must be between 0 and 1', 'error');
@@ -1023,6 +1162,22 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
           tinesManager.setMasterVolume(volume);
           cliLog(`Master volume set to ${volume.toFixed(2)}`, 'success');
         }
+      } else {
+        // Create interactive slider (Strudel-style!)
+        const { getLifecycleManager } = await import('../cli/slider-lifecycle.js');
+        const lifecycleManager = getLifecycleManager();
+        const outputContainer = document.getElementById('cli-output');
+
+        const currentVolume = tinesManager.engine?.config?.masterVolume || 0.3;
+        lifecycleManager.createSlider('tines.volume', {
+          min: 0,
+          max: 1,
+          step: 0.01,
+          default: currentVolume,
+          unit: ''
+        }, outputContainer);
+
+        cliLog('Interactive volume slider created', 'success');
       }
 
     } else if (cmd === 'tines' && cmdPath[1] === 'channel' && args.length === 2) {
@@ -1082,24 +1237,32 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
       }
 
     } else if (cmd === 'tines' && cmdPath[1] === 'help') {
-      cliLog('Tines Audio Engine Commands:', 'success');
+      cliLog('Tines Audio Engine Commands (Strudel-style!):', 'success');
+      cliLog('', 'info');
+      cliLog('Interactive Sliders (no args = create slider):', 'success');
+      cliLog('  tines.bpm                 - Create BPM slider (swipe-right for quick menu!)', 'info');
+      cliLog('  tines.bpm 140             - Set BPM directly', 'info');
+      cliLog('  tines.volume              - Create volume slider', 'info');
+      cliLog('  tines.volume 0.5          - Set volume directly', 'info');
+      cliLog('', 'info');
+      cliLog('Playback:', 'success');
       cliLog('  tines.status              - Show engine status', 'info');
       cliLog('  tines.drone <pattern>     - Play drone pattern (e.g., "C2" or "C2 ~ G2 ~")', 'info');
       cliLog('  tines.bells <pattern>     - Play bells pattern (e.g., "C4 E4 G4")', 'info');
       cliLog('  tines.stop [channel]      - Stop all or specific channel', 'info');
-      cliLog('  tines.bpm <bpm>           - Set BPM (20-300)', 'info');
-      cliLog('  tines.volume <vol>        - Set master volume (0-1)', 'info');
+      cliLog('  tines.start/pause/resume  - Control clock', 'info');
+      cliLog('', 'info');
+      cliLog('Mixing:', 'success');
       cliLog('  tines.channel <ch> <vol>  - Set channel volume', 'info');
       cliLog('  tines.mute <channel>      - Mute channel', 'info');
       cliLog('  tines.unmute <channel>    - Unmute channel', 'info');
       cliLog('  tines.pan <ch> <val>      - Set channel pan (-1 left, 0 center, 1 right)', 'info');
+      cliLog('', 'info');
+      cliLog('Advanced:', 'success');
       cliLog('  tines.set <name> <value>  - Set variable', 'info');
       cliLog('  tines.get <name>          - Get variable value', 'info');
       cliLog('  tines.vars                - List all variables', 'info');
       cliLog('  tines.preset <name>       - Set bells preset (classic, bright, soft, glass, gong)', 'info');
-      cliLog('  tines.start               - Start clock', 'info');
-      cliLog('  tines.pause               - Pause clock', 'info');
-      cliLog('  tines.resume              - Resume clock', 'info');
       cliLog('', 'info');
       cliLog('Pattern Syntax (Strudel-inspired):', 'success');
       cliLog('  "C4 E4 G4"        - Play notes in sequence', 'info');
@@ -1467,6 +1630,119 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
         cliLog('Invalid credentials.', 'error');
       }
 
+    } else if (cmd === 'ui' && cmdPath[1] === 'toggle' && args.length >= 1) {
+      // UI panel toggle: ui.toggle <panel>
+      const panel = args[0];
+      const panelMap = {
+        'top': 'top-bar',
+        'topbar': 'top-bar',
+        'left': 'left-sidebar',
+        'right': 'right-sidebar',
+        'bottom': 'footer',
+        'footer': 'footer',
+        'cli': 'cli-panel',
+        'terminal': 'cli-panel'
+      };
+
+      const panelId = panelMap[panel] || panel;
+      const panelElement = document.getElementById(panelId);
+      const buttonId = `toggle-${panelId}`;
+      const button = document.getElementById(buttonId);
+
+      if (panelElement) {
+        const isVisible = !panelElement.classList.contains('hidden');
+        if (isVisible) {
+          panelElement.classList.add('hidden');
+          if (button) button.classList.remove('toggle-active');
+          localStorage.setItem(`vecterm-panel-${panelId}`, 'hidden');
+          cliLog(`Panel hidden: ${panelId}`, 'success');
+        } else {
+          panelElement.classList.remove('hidden');
+          if (button) button.classList.add('toggle-active');
+          localStorage.setItem(`vecterm-panel-${panelId}`, 'visible');
+          cliLog(`Panel shown: ${panelId}`, 'success');
+        }
+      } else {
+        cliLog(`ERROR: Panel not found: ${panel}`, 'error');
+        cliLog('Valid panels: top, left, right, bottom, cli', 'info');
+      }
+
+    } else if (cmd === 'ui' && cmdPath[1] === 'show' && args.length >= 1) {
+      // UI panel show: ui.show <panel>
+      const panel = args[0];
+      const panelMap = {
+        'top': 'top-bar',
+        'topbar': 'top-bar',
+        'left': 'left-sidebar',
+        'right': 'right-sidebar',
+        'bottom': 'footer',
+        'footer': 'footer',
+        'cli': 'cli-panel',
+        'terminal': 'cli-panel'
+      };
+
+      const panelId = panelMap[panel] || panel;
+      const panelElement = document.getElementById(panelId);
+      const buttonId = `toggle-${panelId}`;
+      const button = document.getElementById(buttonId);
+
+      if (panelElement) {
+        panelElement.classList.remove('hidden');
+        if (button) button.classList.add('toggle-active');
+        localStorage.setItem(`vecterm-panel-${panelId}`, 'visible');
+        cliLog(`Panel shown: ${panelId}`, 'success');
+      } else {
+        cliLog(`ERROR: Panel not found: ${panel}`, 'error');
+      }
+
+    } else if (cmd === 'ui' && cmdPath[1] === 'hide' && args.length >= 1) {
+      // UI panel hide: ui.hide <panel>
+      const panel = args[0];
+      const panelMap = {
+        'top': 'top-bar',
+        'topbar': 'top-bar',
+        'left': 'left-sidebar',
+        'right': 'right-sidebar',
+        'bottom': 'footer',
+        'footer': 'footer',
+        'cli': 'cli-panel',
+        'terminal': 'cli-panel'
+      };
+
+      const panelId = panelMap[panel] || panel;
+      const panelElement = document.getElementById(panelId);
+      const buttonId = `toggle-${panelId}`;
+      const button = document.getElementById(buttonId);
+
+      if (panelElement) {
+        panelElement.classList.add('hidden');
+        if (button) button.classList.remove('toggle-active');
+        localStorage.setItem(`vecterm-panel-${panelId}`, 'hidden');
+        cliLog(`Panel hidden: ${panelId}`, 'success');
+      } else {
+        cliLog(`ERROR: Panel not found: ${panel}`, 'error');
+      }
+
+    } else if (cmd === 'ui' && cmdPath[1] === 'help') {
+      cliLog('UI Panel Commands:', 'success');
+      cliLog('  ui.toggle <panel>    - Toggle panel visibility', 'info');
+      cliLog('  ui.show <panel>      - Show panel', 'info');
+      cliLog('  ui.hide <panel>      - Hide panel', 'info');
+      cliLog('', 'info');
+      cliLog('Available panels:', 'success');
+      cliLog('  top, topbar          - Top bar (HUD)', 'info');
+      cliLog('  left                 - Left sidebar (Vecterm)', 'info');
+      cliLog('  right                - Right sidebar (Monitor)', 'info');
+      cliLog('  bottom, footer       - Bottom footer', 'info');
+      cliLog('  cli, terminal        - CLI terminal', 'info');
+      cliLog('', 'info');
+      cliLog('Keyboard shortcuts:', 'success');
+      cliLog('  Ctrl+T               - Toggle top bar', 'info');
+      cliLog('  Ctrl+L               - Toggle left sidebar', 'info');
+      cliLog('  Ctrl+R               - Toggle right sidebar', 'info');
+      cliLog('  Ctrl+B               - Toggle footer', 'info');
+      cliLog('  ` (backtick)         - Toggle CLI terminal', 'info');
+
     } else if (cmd === 'logout') {
       // Logout
       const state = store.getState();
@@ -1491,18 +1767,86 @@ function createCommandProcessor(store, vectermControls, gameControls, tinesManag
     } else if (trimmed === '') {
       // Empty command, do nothing
     } else {
-      // Try to evaluate as JavaScript expression
-      try {
-        const result = eval(trimmed);
-        if (result !== undefined) {
-          if (typeof result === 'object') {
-            cliLogJson(result);
-          } else {
-            cliLog(String(result), 'success');
+      // Check if command is a game ID shortcut
+      const state = store.getState();
+      const gameId = trimmed.toLowerCase();
+
+      if (state.games.registry[gameId]) {
+        // Auto-execute load + play sequence
+        const game = state.games.registry[gameId];
+
+        // If context already exists, just play it
+        if (state.contexts[gameId]) {
+          cliLog(`Context already loaded: ${gameId}`, 'info');
+
+          // Check if field already exists
+          const existingField = Object.values(state.fields.instances).find(f => f.contextId === gameId);
+          if (existingField) {
+            cliLog(`Game already running: ${existingField.id}`, 'info');
+            return;
+          }
+
+          // Play the context
+          const nextNum = state.fields.nextInstanceNumber[gameId] || 1;
+          const fieldId = `${gameId}-${String(nextNum).padStart(3, '0')}`;
+          const mode = '3d';
+
+          store.dispatch(Actions.createField(fieldId, gameId, gameId, fieldId));
+          store.dispatch(Actions.setActiveGame(gameId));
+          store.dispatch(Actions.setMode('game'));
+          startGamePlay(gameId, mode);
+
+          const gameInstance = store.getState().games.instances[gameId];
+          store.dispatch(Actions.updateField(fieldId, { instance: gameInstance, mode }));
+
+          cliLog(`Playing ${game.name}...`, 'success');
+        } else {
+          // Load context first, then play
+          store.dispatch(Actions.createContext(gameId, gameId, null));
+          cliLog(`Context created: contexts.${gameId}`, 'success');
+
+          // Create field and play
+          const nextNum = state.fields.nextInstanceNumber[gameId] || 1;
+          const fieldId = `${gameId}-${String(nextNum).padStart(3, '0')}`;
+          const mode = '3d';
+
+          store.dispatch(Actions.createField(fieldId, gameId, gameId, fieldId));
+          store.dispatch(Actions.setActiveGame(gameId));
+          store.dispatch(Actions.setMode('game'));
+          startGamePlay(gameId, mode);
+
+          const gameInstance = store.getState().games.instances[gameId];
+          store.dispatch(Actions.updateField(fieldId, { instance: gameInstance, mode }));
+
+          cliLog(`Playing ${game.name}...`, 'success');
+        }
+      } else {
+        // Check if there's an active game that can handle the command
+        const state = store.getState();
+        const gameId = state.games?.activeGame || state.games?.previewGame;
+        const gameInstance = gameId ? state.games.instances[gameId]?.instance : null;
+
+        // Game-specific commands: reset, pause, resume, etc.
+        if (gameInstance && typeof gameInstance.handleCommand === 'function') {
+          const handled = gameInstance.handleCommand(cmd, args);
+          if (handled) {
+            return; // Command was handled by game
           }
         }
-      } catch (error) {
-        cliLog(`Unknown command: ${trimmed}. Type 'help' for available commands.`, 'error');
+
+        // Try to evaluate as JavaScript expression
+        try {
+          const result = eval(trimmed);
+          if (result !== undefined) {
+            if (typeof result === 'object') {
+              cliLogJson(result);
+            } else {
+              cliLog(String(result), 'success');
+            }
+          }
+        } catch (error) {
+          cliLog(`Unknown command: ${trimmed}. Type 'help' for available commands.`, 'error');
+        }
       }
     }
   };

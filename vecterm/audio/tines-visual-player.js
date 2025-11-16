@@ -11,6 +11,8 @@ export class TinesVisualPlayer {
     this.clock = null;
     this.currentStep = 0;
     this.animationFrame = null;
+    this.isCollapsed = false;
+    this.isDismissed = false;
   }
 
   /**
@@ -26,14 +28,17 @@ export class TinesVisualPlayer {
         container.id = this.containerId;
         container.className = 'tines-visual-player';
 
-        // Find a good place to insert it
-        const cliOutput = document.querySelector('.cli-output');
-        if (cliOutput && cliOutput.parentNode) {
-          cliOutput.parentNode.insertBefore(container, cliOutput);
-        } else if (document.body) {
-          document.body.appendChild(container);
+        // ALWAYS insert inside #cli-panel, before #cli-output
+        // This keeps tines player OUT of the play field
+        const cliOutput = document.getElementById('cli-output');
+        const cliPanel = document.getElementById('cli-panel');
+
+        if (cliOutput && cliPanel) {
+          // Insert before cli-output, inside cli-panel
+          cliPanel.insertBefore(container, cliOutput);
+          console.log('[tines-visual-player] Inserted into CLI panel');
         } else {
-          console.warn('[tines-visual-player] Cannot find place to insert, will retry later');
+          console.warn('[tines-visual-player] CLI panel not ready, will retry later');
           this.container = null;
           return;
         }
@@ -61,88 +66,148 @@ export class TinesVisualPlayer {
     style.textContent = `
       .tines-visual-player {
         font-family: 'Courier New', monospace;
-        background: #0a0a0a;
-        border: 1px solid #00ff00;
-        border-radius: 4px;
-        padding: 16px;
-        margin: 16px 0;
-        max-height: 300px;
+        background: rgba(0, 0, 0, 0.85);
+        border-bottom: 1px solid rgba(79, 195, 247, 0.3);
+        padding: 8px 20px;
+        margin: 0;
+        max-height: 150px;
         overflow-y: auto;
+        position: sticky;
+        top: 40px;
+        z-index: 5;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        transition: transform 0.3s ease, opacity 0.3s ease;
+      }
+
+      .tines-visual-player.collapsed {
+        max-height: 32px;
+        overflow: hidden;
+      }
+
+      .tines-visual-player.collapsed .tines-pattern-row,
+      .tines-visual-player.collapsed .tines-no-patterns {
+        display: none;
+      }
+
+      .tines-visual-player.dismissed {
+        transform: translateX(-100%);
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .tines-toggle-btn {
+        background: none;
+        border: none;
+        color: #4fc3f7;
+        cursor: pointer;
+        padding: 4px 8px;
+        font-size: 0.9em;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+      }
+
+      .tines-toggle-btn:hover {
+        opacity: 1;
+      }
+
+      .tines-dismiss-btn {
+        background: none;
+        border: none;
+        color: #ff4444;
+        cursor: pointer;
+        padding: 4px 8px;
+        font-size: 0.9em;
+        opacity: 0.5;
+        transition: opacity 0.2s;
+        margin-left: 8px;
+      }
+
+      .tines-dismiss-btn:hover {
+        opacity: 1;
       }
 
       .tines-player-header {
-        color: #00ff00;
+        color: #4fc3f7;
         font-weight: bold;
-        margin-bottom: 12px;
+        font-size: 0.85em;
+        margin-bottom: 6px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        text-shadow: 0 0 3px rgba(79, 195, 247, 0.3);
       }
 
       .tines-player-clock {
-        font-size: 0.9em;
-        opacity: 0.8;
+        font-size: 0.85em;
+        opacity: 0.7;
       }
 
       .tines-pattern-row {
-        margin: 8px 0;
-        padding: 8px;
-        background: #111;
-        border-left: 3px solid #333;
+        margin: 4px 0;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.3);
+        border-left: 2px solid #333;
         border-radius: 2px;
       }
 
       .tines-pattern-row.active {
-        border-left-color: #00ff00;
-        background: #1a1a1a;
+        border-left-color: #4fc3f7;
+        background: rgba(79, 195, 247, 0.08);
       }
 
       .tines-pattern-label {
-        color: #00ff00;
-        font-size: 0.85em;
-        margin-bottom: 4px;
+        color: #4fc3f7;
+        font-size: 0.75em;
+        margin-bottom: 3px;
         opacity: 0.7;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
 
       .tines-pattern-events {
         display: flex;
         flex-wrap: wrap;
-        gap: 4px;
+        gap: 3px;
       }
 
       .tines-event {
-        padding: 4px 8px;
-        background: #222;
+        padding: 2px 6px;
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(79, 195, 247, 0.2);
         border-radius: 2px;
         color: #888;
-        font-size: 0.9em;
-        min-width: 32px;
+        font-size: 0.8em;
+        min-width: 24px;
         text-align: center;
         transition: all 0.1s ease;
       }
 
       .tines-event.rest {
         color: #444;
+        border-color: transparent;
       }
 
       .tines-event.active {
-        background: #00ff00;
+        background: #4fc3f7;
         color: #000;
         font-weight: bold;
-        transform: scale(1.1);
-        box-shadow: 0 0 8px #00ff00;
+        transform: scale(1.05);
+        box-shadow: 0 0 8px rgba(79, 195, 247, 0.8);
+        border-color: #4fc3f7;
       }
 
       .tines-event.played {
-        color: #00ff00;
-        opacity: 0.5;
+        color: #4fc3f7;
+        opacity: 0.4;
+        border-color: rgba(79, 195, 247, 0.2);
       }
 
       .tines-no-patterns {
         color: #666;
         font-style: italic;
         text-align: center;
-        padding: 20px;
+        padding: 8px;
+        font-size: 0.85em;
       }
 
       .tines-controls {
@@ -152,9 +217,9 @@ export class TinesVisualPlayer {
       }
 
       .tines-btn {
-        background: #222;
-        color: #00ff00;
-        border: 1px solid #00ff00;
+        background: rgba(0, 0, 0, 0.5);
+        color: #4fc3f7;
+        border: 1px solid #4fc3f7;
         padding: 4px 12px;
         border-radius: 2px;
         cursor: pointer;
@@ -164,8 +229,8 @@ export class TinesVisualPlayer {
       }
 
       .tines-btn:hover {
-        background: #00ff00;
-        color: #000;
+        background: rgba(79, 195, 247, 0.2);
+        box-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
       }
 
       .tines-btn:active {
@@ -173,7 +238,7 @@ export class TinesVisualPlayer {
       }
 
       .tines-btn.active {
-        background: #00ff00;
+        background: #4fc3f7;
         color: #000;
       }
     `;
@@ -239,6 +304,34 @@ export class TinesVisualPlayer {
   }
 
   /**
+   * Toggle collapsed state
+   */
+  toggleCollapsed() {
+    this.isCollapsed = !this.isCollapsed;
+    if (this.isCollapsed) {
+      this.container.classList.add('collapsed');
+    } else {
+      this.container.classList.remove('collapsed');
+    }
+  }
+
+  /**
+   * Dismiss (hide) the player
+   */
+  dismiss() {
+    this.isDismissed = true;
+    this.container.classList.add('dismissed');
+  }
+
+  /**
+   * Show the player again
+   */
+  show() {
+    this.isDismissed = false;
+    this.container.classList.remove('dismissed');
+  }
+
+  /**
    * Render the visual player
    */
   render() {
@@ -260,12 +353,30 @@ export class TinesVisualPlayer {
           .join('')
       : '<div class="tines-no-patterns">No patterns playing</div>';
 
+    const toggleIcon = this.isCollapsed ? '▼' : '▲';
+
     this.container.innerHTML = `
       <div class="tines-player-header">
         ${clockInfo}
+        <div>
+          <button class="tines-toggle-btn" title="Collapse/Expand">${toggleIcon}</button>
+          <button class="tines-dismiss-btn" title="Hide player">✕</button>
+        </div>
       </div>
       ${patternsHTML}
     `;
+
+    // Add event listeners to buttons
+    const toggleBtn = this.container.querySelector('.tines-toggle-btn');
+    const dismissBtn = this.container.querySelector('.tines-dismiss-btn');
+
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => this.toggleCollapsed());
+    }
+
+    if (dismissBtn) {
+      dismissBtn.addEventListener('click', () => this.dismiss());
+    }
   }
 
   /**

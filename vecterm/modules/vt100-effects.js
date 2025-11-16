@@ -134,7 +134,13 @@ class VT100Effects {
       'scanlines': { slider: 'scanline-intensity', display: 'scanline-value', format: v => v.toFixed(2) },
       'scanspeed': { slider: 'scanline-speed', display: 'scanspeed-value', format: v => `${v}s` },
       'wave': { slider: 'wave-amplitude', display: 'wave-value', format: v => `${v}px` },
-      'border': { slider: 'border-glow', display: 'border-glow-value', format: v => v.toFixed(2) }
+      'wavespeed': { slider: 'wave-speed', display: 'wavespeed-value', format: v => `${v}s` },
+      'waveopacity': { slider: 'wave-opacity', display: 'waveopacity-value', format: v => v.toFixed(2) },
+      'border': { slider: 'border-glow', display: 'border-glow-value', format: v => v.toFixed(2) },
+      'glowspeed': { slider: 'glow-pulse-speed', display: 'glowspeed-value', format: v => `${v}s` },
+      'borderwidth': { slider: 'border-width', display: 'borderwidth-value', format: v => `${v}px` },
+      'poweronspeed': { slider: 'poweron-speed', display: 'poweronspeed-value', format: v => `${v.toFixed(1)}s` },
+      'poweroffspeed': { slider: 'poweroff-speed', display: 'poweroffspeed-value', format: v => `${v.toFixed(1)}s` }
     };
 
     const mapping = controlMap[name];

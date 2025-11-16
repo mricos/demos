@@ -91,13 +91,35 @@ let bootManager;
     cliLog('Multiplayer system ready. Type "connect <name>" to join.', 'info');
 
     // ==========================================
-    // MAIN ANIMATION LOOP (for gamepad polling)
+    // MAIN ANIMATION LOOP (for gamepad polling + FPS)
     // ==========================================
 
-    function animationLoop() {
+    // Global FPS tracking
+    let frameCount = 0;
+    let lastFpsUpdate = performance.now();
+    let lastFrameTime = performance.now();
+
+    function animationLoop(currentTime) {
+      // Calculate delta time
+      const deltaTime = (currentTime - lastFrameTime) / 1000;
+      lastFrameTime = currentTime;
+
       // Poll gamepad state
       if (gamepadSystem) {
         gamepadSystem.poll();
+      }
+
+      // Update FPS counter (once per second)
+      frameCount++;
+      const timeSinceUpdate = currentTime - lastFpsUpdate;
+      if (timeSinceUpdate >= 1000) {
+        const fps = Math.round((frameCount * 1000) / timeSinceUpdate);
+        const fpsCounter = document.getElementById('fps-counter');
+        if (fpsCounter) {
+          fpsCounter.textContent = fps;
+        }
+        frameCount = 0;
+        lastFpsUpdate = currentTime;
       }
 
       // Continue loop
@@ -105,7 +127,7 @@ let bootManager;
     }
 
     // Start animation loop
-    animationLoop();
+    animationLoop(performance.now());
 
     console.log('✨ Vecterm ready!');
 

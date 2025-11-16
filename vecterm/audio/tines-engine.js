@@ -6,7 +6,7 @@
 export class TinesEngine {
   constructor(config = {}) {
     this.config = {
-      masterVolume: config.masterVolume || 0.7,
+      masterVolume: config.masterVolume || 0.3,  // Reduced from 0.7 to 0.3 - was too loud
       maxVoices: config.maxVoices || 16,
       ...config
     };
@@ -110,18 +110,33 @@ export class TinesEngine {
   }
 
   /**
-   * Set master volume (0.0 - 1.0)
+   * Convert linear volume (0-1) to logarithmic gain for better human perception
+   * Based on equal-power crossfade curve
+   */
+  linearToLog(linear) {
+    // Clamp input
+    const clamped = Math.max(0, Math.min(1, linear));
+
+    // Logarithmic mapping: gain = linear^2
+    // This provides better perceived volume control
+    // 0.0 → 0.0, 0.5 → 0.25, 1.0 → 1.0
+    return clamped * clamped;
+  }
+
+  /**
+   * Set master volume (0.0 - 1.0) with logarithmic mapping
    */
   setMasterVolume(volume) {
     if (!this.masterGain) return;
 
     const clampedVolume = Math.max(0, Math.min(1, volume));
-    this.masterGain.gain.setValueAtTime(clampedVolume, this.now());
-    this.config.masterVolume = clampedVolume;
+    const logVolume = this.linearToLog(clampedVolume);
+    this.masterGain.gain.setValueAtTime(logVolume, this.now());
+    this.config.masterVolume = clampedVolume; // Store linear value
   }
 
   /**
-   * Set channel volume (0.0 - 1.0)
+   * Set channel volume (0.0 - 1.0) with logarithmic mapping
    */
   setChannelVolume(channelName, volume) {
     const channel = this.channels[channelName];
@@ -131,8 +146,9 @@ export class TinesEngine {
     }
 
     const clampedVolume = Math.max(0, Math.min(1, volume));
-    channel.gain.gain.setValueAtTime(clampedVolume, this.now());
-    channel.volume = clampedVolume;
+    const logVolume = this.linearToLog(clampedVolume);
+    channel.gain.gain.setValueAtTime(logVolume, this.now());
+    channel.volume = clampedVolume; // Store linear value
   }
 
   /**

@@ -111,6 +111,19 @@ function updateConsoleWavespeed(speed) {
 }
 
 /**
+ * Silently update console VT100 wave opacity
+ *
+ * @param {number} opacity - Wave opacity (0-1)
+ */
+function updateConsoleWaveopacity(opacity) {
+  const cliPanel = document.getElementById('cli-panel');
+  if (!cliPanel) return;
+
+  cliPanel.style.setProperty('--vt100-wave-opacity', opacity);
+  cliPanel.offsetHeight; // Force reflow
+}
+
+/**
  * Silently update console VT100 glow intensity
  *
  * @param {number} intensity - Glow intensity (0-1)
@@ -169,15 +182,18 @@ function updateConsoleGlowspeed(speed) {
 /**
  * Silently update console VT100 border intensity
  *
- * @param {number} intensity - Border intensity (0-1)
+ * @param {number} intensity - Border intensity (0-2)
  */
 function updateConsoleBorder(intensity) {
   const cliPanel = document.getElementById('cli-panel');
   if (!cliPanel) return;
 
   // Update border color with alpha channel
+  // Note: intensity can go up to 2, so we clamp it for alpha
   const r = 79, g = 195, b = 247; // #4fc3f7
-  cliPanel.style.border = `1px solid rgba(${r}, ${g}, ${b}, ${intensity})`;
+  const alpha = Math.min(intensity, 1); // Clamp to valid alpha range
+  const currentWidth = getComputedStyle(cliPanel).getPropertyValue('--vt100-border-width').trim();
+  cliPanel.style.border = `${currentWidth} solid rgba(${r}, ${g}, ${b}, ${alpha})`;
   cliPanel.offsetHeight; // Force reflow
 }
 
@@ -190,7 +206,7 @@ function updateConsoleBorderwidth(width) {
   const cliPanel = document.getElementById('cli-panel');
   if (!cliPanel) return;
 
-  cliPanel.style.borderWidth = `${width}px`;
+  cliPanel.style.setProperty('--vt100-border-width', `${width}px`);
   cliPanel.offsetHeight; // Force reflow
 }
 
@@ -314,16 +330,13 @@ function notifyParameterChange(command, value) {
 
 /**
  * Parameter metadata for proper value scaling and rounding
+ * VT100 parameters now use centralized config
  */
+import { createTabCompletionConfig } from '../config/vt100-config.js';
+
+const vt100Metadata = createTabCompletionConfig();
 const parameterMetadata = {
-  'vt100.scanlines': { min: 0, max: 1, step: 0.05 },
-  'vt100.scanspeed': { min: 1, max: 20, step: 0.5 },
-  'vt100.wave': { min: 0, max: 10, step: 0.5 },
-  'vt100.wavespeed': { min: 1, max: 10, step: 0.5 },
-  'vt100.glow': { min: 0, max: 1, step: 0.05 },
-  'vt100.glowspeed': { min: 1, max: 10, step: 0.5 },
-  'vt100.border': { min: 0, max: 1, step: 0.05 },
-  'vt100.borderwidth': { min: 0, max: 5, step: 0.5 },
+  ...vt100Metadata,
   'tines.bpm': { min: 20, max: 300, step: 1 },
   'tines.volume': { min: 0, max: 1, step: 0.01 },
   'tines.pan.drone': { min: -1, max: 1, step: 0.05 },
@@ -385,6 +398,7 @@ function update(command, value, isMidiValue = false) {
     'vt100.scanspeed': () => vt100Effects.setEffect('scanspeed', finalValue, true),
     'vt100.wave': () => vt100Effects.setEffect('wave', finalValue, true),
     'vt100.wavespeed': () => vt100Effects.setEffect('wavespeed', finalValue, true),
+    'vt100.waveopacity': () => vt100Effects.setEffect('waveopacity', finalValue, true),
     'vt100.glow': () => vt100Effects.setEffect('glow', finalValue, true),
     'vt100.glowspeed': () => vt100Effects.setEffect('glowspeed', finalValue, true),
     'vt100.border': () => vt100Effects.setEffect('border', finalValue, true),
@@ -435,6 +449,7 @@ function initVT100API() {
     updateConsoleScanspeed,
     updateConsoleWave,
     updateConsoleWavespeed,
+    updateConsoleWaveopacity,
     updateConsoleGlow,
     updateConsoleGlowspeed,
     updateConsoleBorder,
@@ -465,6 +480,7 @@ export {
   updateConsoleScanspeed,
   updateConsoleWave,
   updateConsoleWavespeed,
+  updateConsoleWaveopacity,
   updateConsoleGlow,
   updateConsoleGlowspeed,
   updateConsoleBorder,

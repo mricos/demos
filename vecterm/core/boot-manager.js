@@ -282,7 +282,7 @@ export class BootManager {
 
     // 4.2: Event Handlers (depends on: store, delayControl, savedUIState, cliLog)
     await this.initializeSystem('eventHandlers', async () => {
-      const { initializeEventHandlers, initializeUptimeCounter } = await import('../ui/event-handlers.js');
+      const { initializeEventHandlers, initializeUptimeCounter, initializeLeftSidebar } = await import('../ui/event-handlers.js');
       const { cliLog } = await import('../cli/terminal.js');
       initializeEventHandlers(
         this.store,
@@ -291,20 +291,35 @@ export class BootManager {
         cliLog
       );
       initializeUptimeCounter();
+      initializeLeftSidebar(this.store, cliLog);
     }, { timeout: 5000, critical: true });
 
     // 4.3: CLI (depends on: processCLICommand, terminal setup)
-    const { initializeCLI, cliLog, setupCliInput } = await import('../cli/terminal.js');
+    const { initializeCLI, cliLog, setupCliInput, registerOutputSync } = await import('../cli/terminal.js');
     initializeCLI();
     await setupCliInput(this.systems.processCLICommand, this.store);
 
-    // Expose CLI log function to global API
+    // Expose CLI functions to global API
     if (!window.Vecterm.CLI) {
       window.Vecterm.CLI = {};
     }
     console.log('[BOOT] Setting CLI.log, cliLog is:', cliLog);
     window.Vecterm.CLI.log = cliLog;
     console.log('[BOOT] CLI.log set to:', window.Vecterm.CLI.log);
+
+    // Expose processCLICommand globally for game panels
+    window.processCLICommand = this.systems.processCLICommand;
+
+    // Expose registerOutputSync for game panels to sync CLI output
+    window.registerOutputSync = registerOutputSync;
+
+    // Expose command history functions for shared history across terminals
+    const { addToHistory, navigateUp, navigateDown } = await import('../cli/history.js');
+    window.cliHistory = {
+      add: addToHistory,
+      navigateUp,
+      navigateDown
+    };
 
     // Initialize VT100 terminal renderer (for VScope)
     const { VT100Renderer } = await import('../cli/vt100-renderer.js');
@@ -359,21 +374,100 @@ export class BootManager {
         this.actionHistory.unshift(entry);
         if (this.actionHistory.length > 20) this.actionHistory.pop();
 
-        this.updateActionHistoryUI();
-        this.updateHUD();
+        // PERFORMANCE: Throttle UI updates during gameplay
+        // Only update UI for non-gameplay actions or at most 10 times per second
+        const isGameplayAction = action.type && (
+          action.type.startsWith('UPDATE_ENTITY') ||
+          action.type.startsWith('MOVE_ENTITY') ||
+          action.type.startsWith('game/') ||
+          action.type === 'UPDATE_ENTITIES' ||
+          action.type === 'BATCH_UPDATE_ENTITIES' ||
+          action.type === 'ECS_SYNC' ||
+          action.type === 'ECS_UPDATE'
+        );
+
+        if (!isGameplayAction) {
+          // Always update UI for non-gameplay actions
+          this.updateActionHistoryUI();
+          this.updateHUD();
+        } else {
+          // Throttle gameplay action UI updates to 10 FPS max
+          const now = Date.now();
+          if (!this.lastUIUpdate || now - this.lastUIUpdate > 100) {
+            this.lastUIUpdate = now;
+            this.updateActionHistoryUI();
+            this.updateHUD();
+          }
+        }
+      },
+
+      // Safe JSON stringifier that handles circular references
+      safeStringify(obj, maxDepth = 3) {
+        const seen = new WeakSet();
+
+        const replacer = (key, value, depth = 0) => {
+          // Skip circular references
+          if (typeof value === 'object' && value !== null) {
+            if (seen.has(value)) {
+              return '[Circular]';
+            }
+            seen.add(value);
+          }
+
+          // Skip deep nested objects
+          if (depth > maxDepth) {
+            return '[Deep Object]';
+          }
+
+          // Skip function references
+          if (typeof value === 'function') {
+            return '[Function]';
+          }
+
+          // Skip game instance objects (too large and circular)
+          if (key === 'instance' && value && typeof value === 'object') {
+            return '[Game Instance]';
+          }
+
+          // Recursively process objects
+          if (typeof value === 'object' && value !== null) {
+            if (Array.isArray(value)) {
+              return value.map((v, i) => replacer(i, v, depth + 1));
+            }
+            const result = {};
+            for (const k in value) {
+              result[k] = replacer(k, value[k], depth + 1);
+            }
+            return result;
+          }
+
+          return value;
+        };
+
+        try {
+          return JSON.stringify(replacer('', obj, 0), null, 2);
+        } catch (e) {
+          return '[Serialization Error]';
+        }
       },
 
       updateActionHistoryUI() {
         const historyDiv = document.getElementById('action-history');
         if (!historyDiv) return;
 
-        historyDiv.innerHTML = this.actionHistory.map((entry, index) => `
-          <div class="action-entry ${index === 0 ? 'new' : ''}">
-            <div class="action-type">${entry.type}</div>
-            ${entry.payload !== undefined ? `<div class="action-payload">payload: ${JSON.stringify(entry.payload)}</div>` : ''}
-            <div class="action-time">${entry.timestamp}</div>
-          </div>
-        `).join('');
+        historyDiv.innerHTML = this.actionHistory.map((entry, index) => {
+          const payloadStr = entry.payload !== undefined
+            ? this.safeStringify(entry.payload, 2)
+            : '';
+
+          return `
+            <div class="action-entry ${index === 0 ? 'new' : ''}">
+              <div class="action-type">${entry.type}</div>
+              ${payloadStr ? `<div class="action-payload">payload: ${payloadStr}</div>` : ''}
+              <div class="action-time">${entry.timestamp}</div>
+            </div>
+          `;
+        }).join('');
       },
 
       updateStateDisplay(store) {
@@ -381,7 +475,7 @@ export class BootManager {
         const display = document.getElementById('state-display');
         if (!display) return;
 
-        const json = JSON.stringify(state, null, 2);
+        const json = this.safeStringify(state, 3);
         const colorized = json
           .replace(/(".*?"):/g, '<span class="json-key">$1</span>:')
           .replace(/: (".*?")/g, ': <span class="json-string">$1</span>')

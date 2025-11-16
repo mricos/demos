@@ -65,7 +65,7 @@ function createGameManager(store) {
     cliOutput.scrollTop = cliOutput.scrollHeight;
 
     if (gameId === 'quadrapong') {
-      const gameInstance = Quadrapong.create(store, gameCanvas);
+      const gameInstance = QuadrapongGame.create(store, gameCanvas);
       gameInstance.initialize().start();
 
       store.dispatch(Actions.updateGameInstance(gameId, {
@@ -160,7 +160,7 @@ function createGameManager(store) {
     const canvas = document.getElementById('main-canvas');
 
     if (gameId === 'quadrapong') {
-      const gameInstance = Quadrapong.create(store, canvas, mode);
+      const gameInstance = QuadrapongGame.create(store, canvas);
       gameInstance.initialize().start();
 
       store.dispatch(Actions.updateGameInstance(gameId, {
@@ -168,6 +168,16 @@ function createGameManager(store) {
         mode: 'play',
         canvas: canvas
       }));
+
+      // Update CLI prompt to show game context
+      store.dispatch(Actions.setCliPromptState({
+        mode: 'game',
+        gameId: gameId,
+        gameName: 'quadrapong'
+      }));
+
+      // Make game instance globally accessible for tab displays
+      window.quadrapongGameInstance = gameInstance;
 
       // Connect VScope to game instance for vectorscope visualization
       if (window.Vecterm && window.Vecterm.VScope) {
@@ -222,10 +232,61 @@ function createGameManager(store) {
       }
     }
 
+    // Clean up game instance reference
+    if (gameId === 'quadrapong') {
+      window.quadrapongGameInstance = null;
+    }
+
     store.dispatch(Actions.updateGameInstance(gameId, null));
+
+    // Reset CLI prompt back to vecterm
+    store.dispatch(Actions.setCliPromptState({
+      mode: 'toplevel',
+      username: null,
+      contextId: null,
+      fieldId: null,
+      fieldState: null,
+      gameId: null,
+      gameName: null
+    }));
+  }
+
+  /**
+   * Load a game (makes it available but doesn't start it)
+   * This is the new unified loading mechanism
+   */
+  function loadGame(gameId) {
+    const state = store.getState();
+    const game = state.games.registry[gameId];
+
+    if (!game) {
+      cliLog(`Game not found: ${gameId}`, 'error');
+      return false;
+    }
+
+    // Mark game as loaded in registry
+    store.dispatch(Actions.loadGame(gameId, gameId));
+
+    // Set as active game
+    store.dispatch(Actions.setActiveGame(gameId));
+
+    cliLog(`Loaded: ${game.name}`, 'success');
+    cliLog(`Description: ${game.description}`, 'info');
+    cliLog(`Type "preview ${gameId}" or "play ${gameId}" to start`, 'info');
+
+    // If game has parameters, show them
+    if (gameId === 'spinning-cube') {
+      cliLog('Available parameters:', 'info');
+      cliLog('  • rotationSpeed (0-5)', 'info');
+      cliLog('  • size (0.5-3)', 'info');
+      cliLog('Use CLI sliders to control parameters', 'info');
+    }
+
+    return true;
   }
 
   return {
+    loadGame,
     startGamePreview,
     startGamePlay,
     stopGame

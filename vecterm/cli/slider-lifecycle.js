@@ -300,6 +300,68 @@ export class SliderLifecycleManager {
   }
 
   /**
+   * Unmark slider as removed from Quick Settings
+   */
+  unmarkAsQuickSetting(sliderId) {
+    const slider = this.sliders.get(sliderId);
+    if (!slider) return;
+
+    slider.inQuickSettings = false;
+
+    const qsIndicator = slider.element.querySelector('.cli-slider-qs-indicator');
+    if (qsIndicator) {
+      qsIndicator.style.display = 'none';
+    }
+  }
+
+  /**
+   * Update connection indicator based on Redux state
+   * Should be called when parameter connections change
+   */
+  updateConnectionIndicator(sliderId) {
+    const slider = this.sliders.get(sliderId);
+    if (!slider) return;
+
+    // Get Redux state
+    const store = window.store;
+    if (!store) return;
+
+    const state = store.getState();
+    const connectionId = `slider:${slider.command}`;
+    const connection = state.parameterConnections?.[connectionId];
+
+    // Check if slider has any active connections
+    const hasQuickMenu = connection && connection.quickMenu;
+    const hasMidiCC = connection && connection.midiCC;
+
+    // Update Quick Settings indicator
+    const qsIndicator = slider.element.querySelector('.cli-slider-qs-indicator');
+    if (qsIndicator) {
+      if (hasQuickMenu) {
+        qsIndicator.style.display = 'inline-block';
+        qsIndicator.title = 'In Quick Settings';
+      } else {
+        qsIndicator.style.display = 'none';
+      }
+    }
+
+    // Update MIDI indicator
+    const midiIndicator = slider.element.querySelector('.cli-slider-midi-indicator');
+    if (midiIndicator) {
+      if (hasMidiCC) {
+        midiIndicator.style.display = 'inline-block';
+        midiIndicator.title = `MIDI CC ${hasMidiCC.cc}`;
+      } else {
+        midiIndicator.style.display = 'none';
+      }
+    }
+
+    // Update internal state
+    slider.inQuickSettings = hasQuickMenu;
+    slider.midiMapped = hasMidiCC;
+  }
+
+  /**
    * Get slider by ID
    */
   getSlider(sliderId) {

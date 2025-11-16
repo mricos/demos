@@ -8,6 +8,26 @@ import { createJsonViewer } from './json-renderer.js';
 
 let actionCount = 0;
 
+// Output sync callbacks for game panels
+const outputSyncCallbacks = [];
+
+/**
+ * Register a callback to receive CLI output
+ * Useful for game panels that want to mirror CLI output
+ *
+ * @param {Function} callback - Function(message, type) to call on each log
+ * @returns {Function} Unregister function
+ */
+function registerOutputSync(callback) {
+  outputSyncCallbacks.push(callback);
+  return () => {
+    const index = outputSyncCallbacks.indexOf(callback);
+    if (index > -1) {
+      outputSyncCallbacks.splice(index, 1);
+    }
+  };
+}
+
 /**
  * Log a message to the CLI output
  *
@@ -23,6 +43,15 @@ function cliLog(message, type = '') {
   line.textContent = message;
   output.appendChild(line);
   output.scrollTop = output.scrollHeight;
+
+  // Notify any registered sync callbacks (e.g., game panels)
+  outputSyncCallbacks.forEach(cb => {
+    try {
+      cb(message, type);
+    } catch (err) {
+      console.error('Output sync callback error:', err);
+    }
+  });
 }
 
 /**
@@ -108,12 +137,15 @@ function updateCliPrompt(state) {
   const promptEl = document.getElementById('cli-prompt');
   if (!promptEl) return;
 
-  const { mode, username, contextId, fieldId, fieldState } = state.cliPrompt;
+  const { mode, username, contextId, fieldId, fieldState, gameId, gameName } = state.cliPrompt;
 
   let promptText = 'vecterm';
 
   // Build prompt based on mode and state
-  if (mode === 'context' && contextId) {
+  if (mode === 'game' && gameName) {
+    // Game mode: gameName>
+    promptText = gameName;
+  } else if (mode === 'context' && contextId) {
     // Context edit mode: vecterm[ctx:name]>
     if (username) {
       promptText = `vecterm[${username}:ctx:${contextId}]`;
@@ -227,4 +259,4 @@ async function setupCliInput(processCLICommand, store) {
   });
 }
 
-export { cliLog, cliLogHtml, cliLogJson, updateHUD, initializeCLI, updateCliPrompt, setupCliInput };
+export { cliLog, cliLogHtml, cliLogJson, updateHUD, initializeCLI, updateCliPrompt, setupCliInput, registerOutputSync };

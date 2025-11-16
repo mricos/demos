@@ -86,6 +86,18 @@ export const VT100_EFFECTS = [
     category: 'animation'
   },
   {
+    id: 'waveopacity',
+    label: 'Wave Opacity',
+    min: 0,
+    max: 1,
+    step: 0.05,
+    default: 0.6,
+    unit: '',
+    description: 'Raster wave overlay opacity intensity',
+    cssVar: '--vt100-wave-opacity',
+    category: 'visual'
+  },
+  {
     id: 'border',
     label: 'Border Glow',
     min: 0,
@@ -120,6 +132,30 @@ export const VT100_EFFECTS = [
     description: 'Terminal border width',
     cssVar: '--vt100-border-width',
     category: 'visual'
+  },
+  {
+    id: 'poweronspeed',
+    label: 'Power-On Speed',
+    min: 0.2,
+    max: 3,
+    step: 0.1,
+    default: 0.8,
+    unit: 's',
+    description: 'CRT power-on animation duration',
+    cssVar: '--vt100-poweron-duration',
+    category: 'animation'
+  },
+  {
+    id: 'poweroffspeed',
+    label: 'Power-Off Speed',
+    min: 0.2,
+    max: 3,
+    step: 0.1,
+    default: 0.6,
+    unit: 's',
+    description: 'CRT power-off animation duration',
+    cssVar: '--vt100-poweroff-duration',
+    category: 'animation'
   }
 ];
 

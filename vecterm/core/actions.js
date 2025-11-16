@@ -82,6 +82,15 @@ export const VECTERM_TOGGLE_GRID_VISIBLE = 'VECTERM_TOGGLE_GRID_VISIBLE';
 export const VECTERM_SET_CHARACTER_GRID = 'VECTERM_SET_CHARACTER_GRID';
 export const VECTERM_SET_SQUARE_GRID = 'VECTERM_SET_SQUARE_GRID';
 
+// View Mode actions (2D vs 3D rendering)
+export const SET_VIEW_MODE = 'SET_VIEW_MODE';
+export const TOGGLE_VIEW_MODE = 'TOGGLE_VIEW_MODE';
+
+// Parameter Connection actions
+export const CONNECT_PARAMETER = 'CONNECT_PARAMETER';
+export const DISCONNECT_PARAMETER = 'DISCONNECT_PARAMETER';
+export const UPDATE_PARAMETER_CONNECTION = 'UPDATE_PARAMETER_CONNECTION';
+
 // Context Management actions (3-tier: games → contexts → fields)
 export const CREATE_CONTEXT = 'CREATE_CONTEXT';
 export const UPDATE_CONTEXT = 'UPDATE_CONTEXT';

@@ -176,13 +176,20 @@ export class MIDIController {
   handleControlChange(ccNumber, value) {
     const controlId = this.ccToControlMap[ccNumber];
 
+    // Check for parameter connections (entity parameters)
+    this.applyParameterConnections(ccNumber, value);
+
     if (!controlId) {
       // Unknown CC, check if in MIDI learn mode
       if (this.isInLearnMode()) {
         this.completeMIDILearn(ccNumber);
       }
-      // Debug output for unmapped CC
-      if (window.Vecterm?.CLI?.log) {
+      // Debug output for unmapped CC (only if not connected to parameters)
+      const state = this.store.getState();
+      const hasParameterConnection = Object.values(state.parameterConnections || {}).some(
+        conn => conn.midiCC && conn.midiCC.cc === ccNumber
+      );
+      if (!hasParameterConnection && window.Vecterm?.CLI?.log) {
         window.Vecterm.CLI.log(`MIDI CC ${ccNumber}: ${value}`);
       }
       return;
@@ -209,6 +216,57 @@ export class MIDIController {
 
     // Note: VT100 controller now uses direct Web MIDI API
     // (same as tab-completion sliders) to avoid Redux animation delays
+  }
+
+  /**
+   * Apply parameter connections (entity parameters controlled by MIDI CC)
+   */
+  applyParameterConnections(ccNumber, midiValue) {
+    const state = this.store.getState();
+    const connections = state.parameterConnections || {};
+
+    // Find all connections with this MIDI CC
+    Object.entries(connections).forEach(([connectionId, connection]) => {
+      if (connection.midiCC && connection.midiCC.cc === ccNumber) {
+        const { entityId, parameter } = connection;
+
+        // Get active game instance
+        const activeGame = window.activeGame;
+        if (!activeGame || !activeGame.ecs) {
+          console.warn(`[MIDI] No active game for parameter: ${entityId}.${parameter}`);
+          return;
+        }
+
+        // Get entity from ECS
+        const entity = activeGame.ecs.getEntityById(entityId);
+        if (!entity || !entity.parameterSet) {
+          console.warn(`[MIDI] Entity not found or has no parameters: ${entityId}`);
+          return;
+        }
+
+        // Get parameter config
+        const paramConfig = entity.parameterSet.parameters[parameter];
+        if (!paramConfig) {
+          console.warn(`[MIDI] Parameter not found: ${entityId}.${parameter}`);
+          return;
+        }
+
+        // Map MIDI value (0-127) to parameter range
+        const normalizedValue = midiValue / 127;
+        const mappedValue = paramConfig.min + (paramConfig.max - paramConfig.min) * normalizedValue;
+
+        // Update parameter value
+        paramConfig.value = mappedValue;
+        activeGame.ecs.addComponent(entityId, 'parameterSet', entity.parameterSet);
+
+        // Log to CLI
+        if (window.Vecterm?.CLI?.log) {
+          window.Vecterm.CLI.log(
+            `MIDI CC ${ccNumber} → ${entityId}.${parameter} = ${mappedValue.toFixed(2)}`
+          );
+        }
+      }
+    });
   }
 
   /**
