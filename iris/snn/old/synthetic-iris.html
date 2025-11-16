@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Synthetic Iris Data Visualization</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: auto;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      background: var(--panel);
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+      flex-wrap: wrap;
+    }
+    .controls button {
+      padding: 6px 12px;
+      background: var(--accent1);
+      border: 1px solid var(--grid);
+      border-radius: 4px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .controls button:hover {
+      background: var(--accent2);
+    }
+    .controls label {
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .viz-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .plot-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .plot-title {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+    }
+    canvas {
+      width: 100%;
+      height: 220px;
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+      background: var(--panel);
+      cursor: pointer;
+    }
+    .info {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 10px;
+      background: var(--panel);
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+      text-align: center;
+    }
+    .legend {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      font-size: 11px;
+      padding: 8px;
+      background: var(--panel);
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .matrix-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .matrix-panel {
+      background: var(--panel);
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+      padding: 12px;
+    }
+    .matrix-title {
+      font-size: 12px;
+      color: var(--accent2);
+      margin-bottom: 8px;
+      text-align: center;
+      font-weight: 600;
+    }
+    .corr-matrix {
+      display: grid;
+      grid-template-columns: auto repeat(4, 1fr);
+      gap: 2px;
+      font-size: 10px;
+    }
+    .corr-cell {
+      padding: 6px;
+      text-align: center;
+      border-radius: 3px;
+      transition: all 0.3s ease;
+    }
+    .corr-header {
+      font-weight: 600;
+      color: var(--muted);
+      background: transparent;
+    }
+    .corr-value {
+      font-family: monospace;
+      color: var(--text);
+      border: 1px solid var(--grid);
+    }
+    .gmm-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .gmm-class {
+      background: var(--bg);
+      border: 1px solid var(--grid);
+      border-radius: 4px;
+      padding: 8px;
+    }
+    .gmm-class-header {
+      font-size: 10px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .gmm-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+      font-size: 9px;
+      font-family: monospace;
+    }
+    .gmm-stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 4px;
+      background: var(--panel);
+      border-radius: 2px;
+    }
+    .stat-label {
+      color: var(--muted);
+    }
+    .stat-value {
+      color: var(--accent2);
+    }
+  </style>
+</head>
+<body>
+  <div class="info">
+    <strong>Synthetic Iris Dataset — GMM Analysis</strong> (Interactive Gaussian Mixture Model Visualization)
+  </div>
+
+  <div class="controls">
+    <button id="btnRegenerate">Regenerate Data</button>
+    <label>
+      Samples/Class:
+      <select id="samplesPerClass">
+        <option value="25">25</option>
+        <option value="50" selected>50</option>
+        <option value="100">100</option>
+      </select>
+    </label>
+    <label>
+      <input type="checkbox" id="showEllipses" checked>
+      Show ellipses
+    </label>
+    <label>
+      Spread multiplier:
+      <input type="range" id="spreadSlider" min="0.5" max="3" step="0.1" value="1">
+      <span id="spreadValue">1.0</span>
+    </label>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #ff6b6b;"></div>
+      <span>Setosa</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #4ecdc4;"></div>
+      <span>Versicolor</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #ffe66d;"></div>
+      <span>Virginica</span>
+    </div>
+  </div>
+
+  <div class="viz-container">
+    <div class="plot-wrapper">
+      <div class="plot-title">Sepal Length vs Sepal Width</div>
+      <canvas id="canvas1"></canvas>
+    </div>
+    <div class="plot-wrapper">
+      <div class="plot-title">Petal Length vs Petal Width</div>
+      <canvas id="canvas2"></canvas>
+    </div>
+    <div class="plot-wrapper">
+      <div class="plot-title">Sepal Length vs Petal Length</div>
+      <canvas id="canvas3"></canvas>
+    </div>
+    <div class="plot-wrapper">
+      <div class="plot-title">Sepal Width vs Petal Width</div>
+      <canvas id="canvas4"></canvas>
+    </div>
+  </div>
+
+  <div class="matrix-section">
+    <div class="matrix-panel">
+      <div class="matrix-title">Cross-Correlation Matrix</div>
+      <div id="corrMatrix" class="corr-matrix"></div>
+    </div>
+    <div class="matrix-panel">
+      <div class="matrix-title">Gaussian Mixture Model Parameters</div>
+      <div id="gmmParams" class="gmm-container"></div>
+    </div>
+  </div>
+
+<script>
+  // Gaussian RNG (Box-Muller transform)
+  let _gaussSpare = null;
+  function gaussianRandom() {
+    if (_gaussSpare !== null) {
+      const v = _gaussSpare;
+      _gaussSpare = null;
+      return v;
+    }
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    const mag = Math.sqrt(-2.0 * Math.log(u));
+    const z0 = mag * Math.cos(2 * Math.PI * v);
+    const z1 = mag * Math.sin(2 * Math.PI * v);
+    _gaussSpare = z1;
+    return z0;
+  }
+
+  // GMM Configuration
+  const gmmConfig = {
+    centers: [
+      [5.0, 3.4, 1.5, 0.2], // setosa
+      [6.0, 2.8, 4.5, 1.3], // versicolor
+      [6.7, 3.1, 5.5, 2.1]  // virginica
+    ],
+    baseSpreads: [
+      [0.2, 0.2, 0.2, 0.05],
+      [0.4, 0.3, 0.4, 0.2],
+      [0.5, 0.3, 0.6, 0.25]
+    ],
+    spreads: [
+      [0.2, 0.2, 0.2, 0.05],
+      [0.4, 0.3, 0.4, 0.2],
+      [0.5, 0.3, 0.6, 0.25]
+    ],
+    nPerClass: 50,
+    spreadMultiplier: 1.0
+  };
+
+  // Update spreads based on multiplier
+  function updateSpreads() {
+    for (let c = 0; c < 3; c++) {
+      for (let d = 0; d < 4; d++) {
+        gmmConfig.spreads[c][d] = gmmConfig.baseSpreads[c][d] * gmmConfig.spreadMultiplier;
+      }
+    }
+  }
+
+  // Generate synthetic Iris data using GMM
+  function generateData() {
+    const data = [];
+    for (let c = 0; c < 3; c++) {
+      for (let n = 0; n < gmmConfig.nPerClass; n++) {
+        const point = [];
+        for (let d = 0; d < 4; d++) {
+          const val = gmmConfig.centers[c][d] + gmmConfig.spreads[c][d] * gaussianRandom();
+          point.push(val);
+        }
+        data.push({ features: point, class: c });
+      }
+    }
+    return data;
+  }
+
+  // Compute correlation matrix
+  function computeCorrelationMatrix(data) {
+    const n = data.length;
+    const dims = 4;
+
+    // Compute means
+    const means = new Array(dims).fill(0);
+    for (const d of data) {
+      for (let i = 0; i < dims; i++) {
+        means[i] += d.features[i];
+      }
+    }
+    for (let i = 0; i < dims; i++) {
+      means[i] /= n;
+    }
+
+    // Compute covariance matrix
+    const cov = Array(dims).fill(0).map(() => Array(dims).fill(0));
+    for (const d of data) {
+      for (let i = 0; i < dims; i++) {
+        for (let j = 0; j < dims; j++) {
+          cov[i][j] += (d.features[i] - means[i]) * (d.features[j] - means[j]);
+        }
+      }
+    }
+
+    // Normalize to correlation
+    const corr = Array(dims).fill(0).map(() => Array(dims).fill(0));
+    for (let i = 0; i < dims; i++) {
+      for (let j = 0; j < dims; j++) {
+        const stdI = Math.sqrt(cov[i][i] / n);
+        const stdJ = Math.sqrt(cov[j][j] / n);
+        corr[i][j] = cov[i][j] / (n * stdI * stdJ);
+      }
+    }
+
+    return corr;
+  }
+
+  // Render correlation matrix with color-coded cells
+  function renderCorrelationMatrix(data) {
+    const corr = computeCorrelationMatrix(data);
+    const labels = ['SepL', 'SepW', 'PetL', 'PetW'];
+    const container = document.getElementById('corrMatrix');
+    container.innerHTML = '';
+
+    // Header row
+    const emptyCell = document.createElement('div');
+    emptyCell.className = 'corr-cell corr-header';
+    container.appendChild(emptyCell);
+
+    for (const label of labels) {
+      const cell = document.createElement('div');
+      cell.className = 'corr-cell corr-header';
+      cell.textContent = label;
+      container.appendChild(cell);
+    }
+
+    // Data rows
+    for (let i = 0; i < 4; i++) {
+      const rowLabel = document.createElement('div');
+      rowLabel.className = 'corr-cell corr-header';
+      rowLabel.textContent = labels[i];
+      container.appendChild(rowLabel);
+
+      for (let j = 0; j < 4; j++) {
+        const cell = document.createElement('div');
+        cell.className = 'corr-cell corr-value';
+        const val = corr[i][j];
+        cell.textContent = val.toFixed(2);
+
+        // Color coding based on correlation strength
+        const absVal = Math.abs(val);
+        const hue = val > 0 ? 210 : 0; // blue for positive, red for negative
+        const alpha = absVal * 0.7;
+        cell.style.background = `hsla(${hue}, 80%, 55%, ${alpha})`;
+
+        container.appendChild(cell);
+      }
+    }
+  }
+
+  // Render GMM parameters
+  function renderGMMParams() {
+    const container = document.getElementById('gmmParams');
+    const classNames = ['Setosa', 'Versicolor', 'Virginica'];
+    const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d'];
+    const featureNames = ['Sepal L', 'Sepal W', 'Petal L', 'Petal W'];
+
+    container.innerHTML = '';
+
+    for (let c = 0; c < 3; c++) {
+      const classDiv = document.createElement('div');
+      classDiv.className = 'gmm-class';
+
+      const header = document.createElement('div');
+      header.className = 'gmm-class-header';
+      const dot = document.createElement('div');
+      dot.className = 'legend-dot';
+      dot.style.background = colors[c];
+      header.appendChild(dot);
+      header.appendChild(document.createTextNode(classNames[c]));
+      classDiv.appendChild(header);
+
+      const statsGrid = document.createElement('div');
+      statsGrid.className = 'gmm-stats';
+
+      for (let d = 0; d < 4; d++) {
+        const stat = document.createElement('div');
+        stat.className = 'gmm-stat';
+
+        const label = document.createElement('span');
+        label.className = 'stat-label';
+        label.textContent = featureNames[d] + ':';
+
+        const value = document.createElement('span');
+        value.className = 'stat-value';
+        value.textContent = `μ=${gmmConfig.centers[c][d].toFixed(2)} σ=${gmmConfig.spreads[c][d].toFixed(2)}`;
+
+        stat.appendChild(label);
+        stat.appendChild(value);
+        statsGrid.appendChild(stat);
+      }
+
+      classDiv.appendChild(statsGrid);
+      container.appendChild(classDiv);
+    }
+  }
+
+  // Compute 2D covariance matrix for a specific class and dimensions
+  function compute2DCovMatrix(data, classIdx, dimX, dimY) {
+    const classData = data.filter(d => d.class === classIdx);
+    const n = classData.length;
+    if (n === 0) return { covXX: 1, covYY: 1, covXY: 0 };
+
+    // Compute means
+    let meanX = 0, meanY = 0;
+    for (const d of classData) {
+      meanX += d.features[dimX];
+      meanY += d.features[dimY];
+    }
+    meanX /= n;
+    meanY /= n;
+
+    // Compute covariance
+    let covXX = 0, covYY = 0, covXY = 0;
+    for (const d of classData) {
+      const dx = d.features[dimX] - meanX;
+      const dy = d.features[dimY] - meanY;
+      covXX += dx * dx;
+      covYY += dy * dy;
+      covXY += dx * dy;
+    }
+    covXX /= n;
+    covYY /= n;
+    covXY /= n;
+
+    return { covXX, covYY, covXY, meanX, meanY };
+  }
+
+  // Draw rotated Gaussian ellipse using eigenvalue decomposition
+  function drawEllipse(ctx, centerX, centerY, covXX, covYY, covXY, w, h, pad, minX, maxX, minY, maxY, color, alpha = 0.2, nstd = 2) {
+    ctx.save();
+
+    // Transform center to canvas coordinates
+    const cx = pad + ((centerX - minX) / (maxX - minX)) * (w - 2 * pad);
+    const cy = h - pad - ((centerY - minY) / (maxY - minY)) * (h - 2 * pad);
+
+    // Eigenvalue decomposition for 2x2 covariance matrix
+    // λ = (a+d)/2 ± sqrt(((a-d)/2)^2 + bc)
+    const a = covXX, b = covXY, c = covXY, d = covYY;
+    const trace = a + d;
+    const det = a * d - b * c;
+    const discriminant = Math.sqrt(Math.max(0, trace * trace / 4 - det));
+
+    const lambda1 = trace / 2 + discriminant;
+    const lambda2 = trace / 2 - discriminant;
+
+    // Eigenvector for lambda1
+    let angle = 0;
+    if (Math.abs(b) > 1e-10) {
+      angle = Math.atan2(lambda1 - a, b);
+    } else if (a >= d) {
+      angle = 0;
+    } else {
+      angle = Math.PI / 2;
+    }
+
+    // Ellipse radii (nstd standard deviations)
+    const rx = nstd * Math.sqrt(Math.max(0, lambda1)) * (w - 2 * pad) / (maxX - minX);
+    const ry = nstd * Math.sqrt(Math.max(0, lambda2)) * (h - 2 * pad) / (maxY - minY);
+
+    ctx.translate(cx, cy);
+    ctx.rotate(-angle); // Negative because canvas Y is inverted
+
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+
+    // Fill with transparent color
+    ctx.fillStyle = color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
+    ctx.fill();
+
+    // Stroke with more opaque color
+    ctx.strokeStyle = color + Math.floor((alpha * 2) * 255).toString(16).padStart(2, '0');
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Draw scatter plot
+  function drawScatter(canvas, data, dimX, dimY) {
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+
+    ctx.scale(dpr, dpr);
+
+    const w = rect.width;
+    const h = rect.height;
+
+    // Clear
+    ctx.fillStyle = '#1b1f27';
+    ctx.fillRect(0, 0, w, h);
+
+    const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d'];
+    const pad = 35;
+
+    // Get data ranges
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    for (const d of data) {
+      if (d.features[dimX] < minX) minX = d.features[dimX];
+      if (d.features[dimX] > maxX) maxX = d.features[dimX];
+      if (d.features[dimY] < minY) minY = d.features[dimY];
+      if (d.features[dimY] > maxY) maxY = d.features[dimY];
+    }
+
+    // Add padding to ranges
+    const rangeX = maxX - minX;
+    const rangeY = maxY - minY;
+    minX -= rangeX * 0.1;
+    maxX += rangeX * 0.1;
+    minY -= rangeY * 0.1;
+    maxY += rangeY * 0.1;
+
+    // Draw grid
+    ctx.strokeStyle = '#30363d';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 4; i++) {
+      const x = pad + (i / 4) * (w - 2 * pad);
+      const y = h - pad - (i / 4) * (h - 2 * pad);
+      ctx.beginPath();
+      ctx.moveTo(x, pad);
+      ctx.lineTo(x, h - pad);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(pad, y);
+      ctx.lineTo(w - pad, y);
+      ctx.stroke();
+    }
+
+    // Draw axes
+    ctx.strokeStyle = '#4b5563';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(pad, h - pad);
+    ctx.lineTo(w - pad, h - pad);
+    ctx.moveTo(pad, pad);
+    ctx.lineTo(pad, h - pad);
+    ctx.stroke();
+
+    // Draw Gaussian ellipses if enabled
+    if (showEllipses) {
+      for (let c = 0; c < 3; c++) {
+        const cov = compute2DCovMatrix(data, c, dimX, dimY);
+        drawEllipse(ctx, cov.meanX, cov.meanY, cov.covXX, cov.covYY, cov.covXY,
+                    w, h, pad, minX, maxX, minY, maxY, colors[c], 0.15, 2);
+      }
+    }
+
+    // Draw points
+    for (const d of data) {
+      const x = pad + ((d.features[dimX] - minX) / (maxX - minX)) * (w - 2 * pad);
+      const y = h - pad - ((d.features[dimY] - minY) / (maxY - minY)) * (h - 2 * pad);
+
+      ctx.fillStyle = colors[d.class];
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Add subtle stroke
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+
+    // Axis labels
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText(minX.toFixed(1), pad - 5, h - pad + 15);
+    ctx.textAlign = 'right';
+    ctx.fillText(maxX.toFixed(1), w - pad + 5, h - pad + 15);
+
+    ctx.textAlign = 'right';
+    ctx.fillText(minY.toFixed(1), pad - 5, h - pad + 5);
+    ctx.fillText(maxY.toFixed(1), pad - 5, pad + 5);
+  }
+
+  // Initialize
+  let currentData = generateData();
+  const labels = ['Sepal L', 'Sepal W', 'Petal L', 'Petal W'];
+
+  const canvases = [
+    document.getElementById('canvas1'),
+    document.getElementById('canvas2'),
+    document.getElementById('canvas3'),
+    document.getElementById('canvas4')
+  ];
+
+  const projections = [
+    [0, 1], // Sepal L vs W
+    [2, 3], // Petal L vs W
+    [0, 2], // Sepal L vs Petal L
+    [1, 3]  // Sepal W vs Petal W
+  ];
+
+  let showEllipses = true;
+
+  // Draw all visualizations
+  function drawAll(data) {
+    projections.forEach((proj, i) => {
+      drawScatter(canvases[i], data, proj[0], proj[1]);
+    });
+    renderCorrelationMatrix(data);
+    renderGMMParams();
+  }
+
+  // Full regenerate
+  function regenerateAll() {
+    currentData = generateData();
+    drawAll(currentData);
+  }
+
+  // Initial draw
+  drawAll(currentData);
+
+  // Event listeners
+  document.getElementById('btnRegenerate').addEventListener('click', regenerateAll);
+
+  document.getElementById('samplesPerClass').addEventListener('change', e => {
+    gmmConfig.nPerClass = parseInt(e.target.value);
+    regenerateAll();
+  });
+
+  document.getElementById('showEllipses').addEventListener('change', e => {
+    showEllipses = e.target.checked;
+    drawAll(currentData);
+  });
+
+  document.getElementById('spreadSlider').addEventListener('input', e => {
+    gmmConfig.spreadMultiplier = parseFloat(e.target.value);
+    document.getElementById('spreadValue').textContent = gmmConfig.spreadMultiplier.toFixed(1);
+    updateSpreads();
+    regenerateAll();
+  });
+
+  // Regenerate on canvas click
+  canvases.forEach(c => {
+    c.addEventListener('click', regenerateAll);
+  });
+
+  // Redraw on resize
+  window.addEventListener('resize', () => {
+    drawAll(currentData);
+  });
+</script>
+</body>
+</html>

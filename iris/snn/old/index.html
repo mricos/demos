@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Iris SNN Pedagogy Demo</title>
+  <style>
+    :root {
+      --bg: #101317;
+      --panel: #1b1f27;
+      --accent: #58a6ff;
+      --accent2: #f78166;
+      --grid: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Mono", monospace;
+      background: var(--bg);
+      color: var(--text);
+    }
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--grid);
+      background: #0d1117;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    header .sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    #main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 260px 1.2fr 1fr;
+      gap: 8px;
+      padding: 8px;
+      min-height: 0;
+    }
+    .panel {
+      background: var(--panel);
+      border-radius: 6px;
+      border: 1px solid var(--grid);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .panel h2 {
+      margin: 0 0 6px 0;
+      font-size: 13px;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      padding-bottom: 4px;
+    }
+    .controls-group {
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .controls-group label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    button {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--grid);
+      background: #161b22;
+      color: var(--text);
+      cursor: pointer;
+      margin: 2px 2px 2px 0;
+    }
+    button:hover {
+      background: #1f2933;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    input[type="checkbox"] { cursor: pointer; }
+
+    #stats {
+      font-size: 12px;
+      line-height: 1.4;
+      margin-top: 4px;
+      padding: 4px;
+      background: #11151d;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+
+    /* Network layout */
+    #networkPanel {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      justify-content: space-around;
+      align-items: stretch;
+      padding-bottom: 12px;
+    }
+    .layer {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 2px;
+      flex: 0 0 auto;
+    }
+    .layer-title {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .neuron {
+      position: relative;
+      width: 44px;
+      height: 80px;
+      border-radius: 4px;
+      border: 1px solid var(--grid);
+      background: #0d1117;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .neuron-fill {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 0%;
+      background: linear-gradient(180deg, rgba(88,166,255,0.9), rgba(88,166,255,0.1));
+      transition: height 0.25s ease, background 0.25s ease;
+    }
+    .neuron-label {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      right: 2px;
+      font-size: 9px;
+      color: var(--muted);
+      text-align: left;
+      pointer-events: none;
+    }
+    .neuron-level {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      font-size: 9px;
+      color: var(--muted);
+      background: rgba(0,0,0,0.4);
+      padding: 1px 3px;
+      border-radius: 2px;
+    }
+    .connection {
+      position: absolute;
+      border-top: 1px solid rgba(80,80,80,0.6);
+      transform-origin: left center;
+      pointer-events: none;
+      transition: border-top-width 0.25s ease, border-top-color 0.25s ease;
+    }
+
+    /* Metrics panel */
+    #lossCanvas {
+      width: 100%;
+      height: 160px;
+      border-radius: 4px;
+      border: 1px solid var(--grid);
+      background: #0d1117;
+    }
+    .metrics-section-title {
+      font-size: 11px;
+      color: var(--muted);
+      margin: 6px 0 2px;
+    }
+    #confusionContainer {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+      font-size: 11px;
+    }
+    .conf-panel {
+      flex: 1;
+      min-width: 0;
+    }
+    table.confusion {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    table.confusion th,
+    table.confusion td {
+      border: 1px solid var(--grid);
+      padding: 2px 3px;
+      text-align: center;
+      font-size: 10px;
+    }
+    table.confusion th {
+      background: #11151d;
+      font-weight: 500;
+    }
+    table.confusion td.diag {
+      background: rgba(80, 184, 60, 0.3);
+    }
+    table.confusion td.off {
+      background: rgba(184, 60, 60, 0.15);
+    }
+
+    /* Sample / spot check */
+    #samplePanel {
+      font-size: 11px;
+      margin-top: 8px;
+      padding: 4px;
+      background: #11151d;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+    #sampleInfo {
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    .prob-bars {
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .prob-row {
+      display: grid;
+      grid-template-columns: 70px 1fr 38px;
+      align-items: center;
+      gap: 4px;
+    }
+    .prob-label {
+      text-align: right;
+      color: var(--muted);
+    }
+    .prob-bar-track {
+      height: 10px;
+      background: #0d1117;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--grid);
+    }
+    .prob-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), #3fb950);
+      transition: width 0.25s ease;
+    }
+    .prob-val {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Scroll for narrow windows */
+    @media (max-width: 1100px) {
+      #main {
+        grid-template-columns: 1fr;
+        grid-auto-rows: minmax(0, auto);
+      }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div>
+      <h1>Iris Rate-coded SNN Demo</h1>
+      <div class="sub">4 → hidden → 3 network, 16 quantized firing-rate levels, synthetic Iris-like clusters</div>
+    </div>
+    <div class="sub">Pedagogical view: loss, confusion matrices, random vs trained, spot check</div>
+  </header>
+
+  <div id="main">
+    <!-- Controls -->
+    <div class="panel" id="controlsPanel">
+      <h2>Controls</h2>
+      <div class="controls-group">
+        <button id="btnInit">Reset weights</button>
+        <button id="btnTrainToggle">Start training</button>
+        <button id="btnStep">Single step</button>
+      </div>
+      <div class="controls-group">
+        <label>
+          <input type="checkbox" id="slowMode" checked>
+          Slow mode (visual, 1 step / tick)
+        </label>
+        <label>
+          Learning rate:
+          <select id="lrSelect">
+            <option value="0.02">0.02</option>
+            <option value="0.05" selected>0.05</option>
+            <option value="0.1">0.10</option>
+          </select>
+        </label>
+        <label>
+          Batch size:
+          <select id="batchSelect">
+            <option value="8">8</option>
+            <option value="16" selected>16</option>
+            <option value="32">32</option>
+          </select>
+        </label>
+      </div>
+      <div class="controls-group">
+        <div style="font-size:11px;color:var(--muted);">
+          This demo uses a small synthetic Iris-like dataset (3 Gaussian clusters in ℝ⁴) for clarity.
+          Swap the generator with real Iris data if desired.
+        </div>
+      </div>
+      <div id="stats"></div>
+
+      <div id="samplePanel">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div>Spot check sample</div>
+          <button id="btnNextSample">Next sample</button>
+        </div>
+        <div id="sampleInfo"></div>
+        <div class="prob-bars" id="sampleProbs"></div>
+      </div>
+    </div>
+
+    <!-- Network -->
+    <div class="panel">
+      <h2>Rate-coded SNN view</h2>
+      <div id="networkPanel"></div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="panel">
+      <h2>Training metrics</h2>
+      <div class="metrics-section-title">Loss curve (cross-entropy)</div>
+      <canvas id="lossCanvas" width="400" height="180"></canvas>
+
+      <div class="metrics-section-title">Confusion matrices (3 classes)</div>
+      <div id="confusionContainer">
+        <div class="conf-panel">
+          <div style="font-size:11px;margin-bottom:2px;">Random baseline (uniform guess)</div>
+          <table id="confRandom" class="confusion"></table>
+        </div>
+        <div class="conf-panel">
+          <div style="font-size:11px;margin-bottom:2px;">Current model</div>
+          <table id="confModel" class="confusion"></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ----- configuration -----
+  const NUM_INPUT = 4;
+  const NUM_HIDDEN = 6;
+  const NUM_OUTPUT = 3;
+  const RATE_LEVELS = 16;
+  const MAX_LOSS_POINTS = 500;
+
+  let LEARNING_RATE = 0.05;
+  let BATCH_SIZE = 16;
+
+  // network parameters
+  let W1, b1, W2, b2;
+
+  // dataset: {raw:[4], x:[4] normalized, y:0..2}
+  let dataset = [];
+  let featureMin = new Array(NUM_INPUT).fill(Infinity);
+  let featureMax = new Array(NUM_INPUT).fill(-Infinity);
+
+  // visualization state
+  const neuronLayers = { input: [], hidden: [], output: [] };
+  const connections = []; // {div, matrix, src, dst}
+  let lossHistory = [];
+  let stepCount = 0;
+  let trainingTimer = null;
+  let isTraining = false;
+  let randomConfusion = null;
+  let currentSampleIndex = 0;
+
+  // Gaussian RNG for synthetic clusters
+  let _gaussSpare = null;
+  function gaussianRandom() {
+    if (_gaussSpare !== null) {
+      const v = _gaussSpare;
+      _gaussSpare = null;
+      return v;
+    }
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    const mag = Math.sqrt(-2.0 * Math.log(u));
+    const z0 = mag * Math.cos(2 * Math.PI * v);
+    const z1 = mag * Math.sin(2 * Math.PI * v);
+    _gaussSpare = z1;
+    return z0;
+  }
+
+  function generateSyntheticIris() {
+    // Approximate class centers and spreads in original Iris ranges
+    const centers = [
+      [5.0, 3.4, 1.5, 0.2], // setosa
+      [6.0, 2.8, 4.5, 1.3], // versicolor
+      [6.7, 3.1, 5.5, 2.1]  // virginica
+    ];
+    const spreads = [
+      [0.2, 0.2, 0.2, 0.05],
+      [0.4, 0.3, 0.4, 0.2],
+      [0.5, 0.3, 0.6, 0.25]
+    ];
+    const nPerClass = 50;
+    const data = [];
+    featureMin.fill(Infinity);
+    featureMax.fill(-Infinity);
+    for (let c = 0; c < NUM_OUTPUT; c++) {
+      for (let n = 0; n < nPerClass; n++) {
+        const raw = [];
+        for (let d = 0; d < NUM_INPUT; d++) {
+          const val = centers[c][d] + spreads[c][d] * gaussianRandom();
+          raw.push(val);
+          if (val < featureMin[d]) featureMin[d] = val;
+          if (val > featureMax[d]) featureMax[d] = val;
+        }
+        data.push({ raw, y: c });
+      }
+    }
+    // z-score normalization for training
+    const mean = new Array(NUM_INPUT).fill(0);
+    const std = new Array(NUM_INPUT).fill(0);
+    const N = data.length;
+    for (const s of data) {
+      for (let d = 0; d < NUM_INPUT; d++) {
+        mean[d] += s.raw[d];
+      }
+    }
+    for (let d = 0; d < NUM_INPUT; d++) {
+      mean[d] /= N;
+    }
+    for (const s of data) {
+      for (let d = 0; d < NUM_INPUT; d++) {
+        const diff = s.raw[d] - mean[d];
+        std[d] += diff * diff;
+      }
+    }
+    for (let d = 0; d < NUM_INPUT; d++) {
+      std[d] = Math.sqrt(std[d] / N) || 1.0;
+    }
+    for (const s of data) {
+      const x = new Array(NUM_INPUT);
+      for (let d = 0; d < NUM_INPUT; d++) {
+        x[d] = (s.raw[d] - mean[d]) / std[d];
+      }
+      s.x = x;
+    }
+    return data;
+  }
+
+  // ----- network math -----
+  function initNetwork() {
+    W1 = new Array(NUM_HIDDEN);
+    b1 = new Array(NUM_HIDDEN);
+    W2 = new Array(NUM_OUTPUT);
+    b2 = new Array(NUM_OUTPUT);
+    for (let j = 0; j < NUM_HIDDEN; j++) {
+      W1[j] = new Array(NUM_INPUT);
+      for (let i = 0; i < NUM_INPUT; i++) {
+        W1[j][i] = (Math.random() - 0.5) * 0.5;
+      }
+      b1[j] = 0;
+    }
+    for (let k = 0; k < NUM_OUTPUT; k++) {
+      W2[k] = new Array(NUM_HIDDEN);
+      for (let j = 0; j < NUM_HIDDEN; j++) {
+        W2[k][j] = (Math.random() - 0.5) * 0.5;
+      }
+      b2[k] = 0;
+    }
+    lossHistory = [];
+    stepCount = 0;
+  }
+
+  function sigmoid(x) {
+    return 1 / (1 + Math.exp(-x));
+  }
+  function softmax(logits) {
+    let maxLogit = -Infinity;
+    for (let i = 0; i < logits.length; i++) {
+      if (logits[i] > maxLogit) maxLogit = logits[i];
+    }
+    const exps = new Array(logits.length);
+    let sum = 0;
+    for (let i = 0; i < logits.length; i++) {
+      const e = Math.exp(logits[i] - maxLogit);
+      exps[i] = e;
+      sum += e;
+    }
+    const probs = new Array(logits.length);
+    for (let i = 0; i < logits.length; i++) {
+      probs[i] = exps[i] / sum;
+    }
+    return probs;
+  }
+  function forwardSingle(x) {
+    const z1 = new Array(NUM_HIDDEN);
+    const h = new Array(NUM_HIDDEN);
+    for (let j = 0; j < NUM_HIDDEN; j++) {
+      let sum = b1[j];
+      for (let i = 0; i < NUM_INPUT; i++) {
+        sum += W1[j][i] * x[i];
+      }
+      z1[j] = sum;
+      h[j] = sigmoid(sum);
+    }
+    const z2 = new Array(NUM_OUTPUT);
+    for (let k = 0; k < NUM_OUTPUT; k++) {
+      let sum = b2[k];
+      for (let j = 0; j < NUM_HIDDEN; j++) {
+        sum += W2[k][j] * h[j];
+      }
+      z2[k] = sum;
+    }
+    const probs = softmax(z2);
+    return { z1, h, z2, probs };
+  }
+  function argmax(arr) {
+    let best = 0;
+    let bestVal = arr[0];
+    for (let i = 1; i < arr.length; i++) {
+      if (arr[i] > bestVal) {
+        bestVal = arr[i];
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  function trainStep() {
+    if (!dataset || dataset.length === 0) return;
+    const batchSize = BATCH_SIZE;
+    const n = dataset.length;
+    const z1Batch = new Array(batchSize);
+    const hBatch = new Array(batchSize);
+    const z2Batch = new Array(batchSize);
+    const pBatch = new Array(batchSize);
+    const yBatch = new Array(batchSize);
+    const xBatch = new Array(batchSize);
+
+    // sample batch
+    for (let s = 0; s < batchSize; s++) {
+      const idx = Math.floor(Math.random() * n);
+      const sample = dataset[idx];
+      xBatch[s] = sample.x.slice();
+      yBatch[s] = sample.y;
+    }
+
+    // forward
+    let loss = 0;
+    for (let s = 0; s < batchSize; s++) {
+      const x = xBatch[s];
+      const { z1, h, z2, probs } = forwardSingle(x);
+      z1Batch[s] = z1;
+      hBatch[s] = h;
+      z2Batch[s] = z2;
+      pBatch[s] = probs;
+      loss += -Math.log(probs[yBatch[s]] + 1e-9);
+    }
+    loss /= batchSize;
+
+    // backward
+    const dW2 = new Array(NUM_OUTPUT);
+    const db2 = new Array(NUM_OUTPUT).fill(0);
+    const dW1 = new Array(NUM_HIDDEN);
+    const db1 = new Array(NUM_HIDDEN).fill(0);
+    for (let k = 0; k < NUM_OUTPUT; k++) {
+      dW2[k] = new Array(NUM_HIDDEN).fill(0);
+    }
+    for (let j = 0; j < NUM_HIDDEN; j++) {
+      dW1[j] = new Array(NUM_INPUT).fill(0);
+    }
+
+    for (let s = 0; s < batchSize; s++) {
+      const probs = pBatch[s];
+      const h = hBatch[s];
+      const x = xBatch[s];
+      const y = yBatch[s];
+
+      const dZ2 = new Array(NUM_OUTPUT);
+      for (let k = 0; k < NUM_OUTPUT; k++) {
+        dZ2[k] = probs[k] - (k === y ? 1 : 0);
+      }
+      // output layer grads
+      for (let k = 0; k < NUM_OUTPUT; k++) {
+        db2[k] += dZ2[k];
+        for (let j = 0; j < NUM_HIDDEN; j++) {
+          dW2[k][j] += dZ2[k] * h[j];
+        }
+      }
+      // hidden layer
+      const dH = new Array(NUM_HIDDEN).fill(0);
+      for (let j = 0; j < NUM_HIDDEN; j++) {
+        let sum = 0;
+        for (let k = 0; k < NUM_OUTPUT; k++) {
+          sum += dZ2[k] * W2[k][j];
+        }
+        dH[j] = sum;
+      }
+      for (let j = 0; j < NUM_HIDDEN; j++) {
+        const sig = h[j];
+        const dZ1 = dH[j] * sig * (1 - sig);
+        db1[j] += dZ1;
+        for (let i = 0; i < NUM_INPUT; i++) {
+          dW1[j][i] += dZ1 * x[i];
+        }
+      }
+    }
+
+    const scale = LEARNING_RATE / batchSize;
+    for (let k = 0; k < NUM_OUTPUT; k++) {
+      b2[k] -= scale * db2[k];
+      for (let j = 0; j < NUM_HIDDEN; j++) {
+        W2[k][j] -= scale * dW2[k][j];
+      }
+    }
+    for (let j = 0; j < NUM_HIDDEN; j++) {
+      b1[j] -= scale * db1[j];
+      for (let i = 0; i < NUM_INPUT; i++) {
+        W1[j][i] -= scale * dW1[j][i];
+      }
+    }
+
+    if (lossHistory.length >= MAX_LOSS_POINTS) lossHistory.shift();
+    lossHistory.push({ step: stepCount, loss });
+    stepCount++;
+  }
+
+  // ----- visualization helpers -----
+  function createNeuron(labelText, layerKey) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'neuron';
+    const fill = document.createElement('div');
+    fill.className = 'neuron-fill';
+    const label = document.createElement('div');
+    label.className = 'neuron-label';
+    label.textContent = labelText;
+    const level = document.createElement('div');
+    level.className = 'neuron-level';
+    level.textContent = '0/15';
+    wrapper.appendChild(fill);
+    wrapper.appendChild(label);
+    wrapper.appendChild(level);
+    neuronLayers[layerKey].push({ wrapper, fill, level });
+    return wrapper;
+  }
+
+  function buildNetworkDiagram() {
+    const panel = document.getElementById('networkPanel');
+    panel.innerHTML = '';
+    neuronLayers.input.length = 0;
+    neuronLayers.hidden.length = 0;
+    neuronLayers.output.length = 0;
+    connections.length = 0;
+
+    const inputLayer = document.createElement('div');
+    inputLayer.className = 'layer';
+    const hiddenLayer = document.createElement('div');
+    hiddenLayer.className = 'layer';
+    const outputLayer = document.createElement('div');
+    outputLayer.className = 'layer';
+
+    const inTitle = document.createElement('div');
+    inTitle.className = 'layer-title';
+    inTitle.textContent = 'Inputs (features)';
+    inputLayer.appendChild(inTitle);
+    const hTitle = document.createElement('div');
+    hTitle.className = 'layer-title';
+    hTitle.textContent = 'Hidden (rate neurons)';
+    hiddenLayer.appendChild(hTitle);
+    const outTitle = document.createElement('div');
+    outTitle.className = 'layer-title';
+    outTitle.textContent = 'Outputs (classes)';
+    outputLayer.appendChild(outTitle);
+
+    const inputLabels = ['Sepal L', 'Sepal W', 'Petal L', 'Petal W'];
+    for (let i = 0; i < NUM_INPUT; i++) {
+      inputLayer.appendChild(createNeuron(inputLabels[i], 'input'));
+    }
+    for (let j = 0; j < NUM_HIDDEN; j++) {
+      hiddenLayer.appendChild(createNeuron('H' + (j + 1), 'hidden'));
+    }
+    const classLabels = ['Setosa', 'Versicolor', 'Virginica'];
+    for (let k = 0; k < NUM_OUTPUT; k++) {
+      outputLayer.appendChild(createNeuron(classLabels[k], 'output'));
+    }
+
+    panel.appendChild(inputLayer);
+    panel.appendChild(hiddenLayer);
+    panel.appendChild(outputLayer);
+
+    // connections as offset divs with single borders
+    requestAnimationFrame(() => {
+      layoutConnections(panel);
+      updateConnectionStyles();
+      updateNetworkVisualization();
+    });
+  }
+
+  function layoutConnections(panel) {
+    const panelRect = panel.getBoundingClientRect();
+    function connect(layerFrom, layerTo, matrixName) {
+      for (let dst = 0; dst < layerTo.length; dst++) {
+        const dstElem = layerTo[dst].wrapper;
+        const dr = dstElem.getBoundingClientRect();
+        const y2 = dr.top + dr.height / 2 - panelRect.top;
+        const x2 = dr.left - panelRect.left;
+        for (let src = 0; src < layerFrom.length; src++) {
+          const srcElem = layerFrom[src].wrapper;
+          const sr = srcElem.getBoundingClientRect();
+          const y1 = sr.top + sr.height / 2 - panelRect.top;
+          const x1 = sr.right - panelRect.left;
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+          const len = Math.sqrt(dx * dx + dy * dy);
+          const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+          const line = document.createElement('div');
+          line.className = 'connection';
+          line.style.left = x1 + 'px';
+          line.style.top = y1 + 'px';
+          line.style.width = len + 'px';
+          line.style.transform = 'rotate(' + angle + 'deg)';
+          panel.appendChild(line);
+          connections.push({ div: line, matrix: matrixName, src, dst });
+        }
+      }
+    }
+    connect(neuronLayers.input, neuronLayers.hidden, 'W1');
+    connect(neuronLayers.hidden, neuronLayers.output, 'W2');
+  }
+
+  function activationToRateLevel(v) {
+    const vClamped = Math.max(0, Math.min(1, v));
+    const level = Math.round(vClamped * (RATE_LEVELS - 1));
+    const frac = level / (RATE_LEVELS - 1);
+    return { level, frac };
+  }
+
+  function updateNetworkVisualization() {
+    if (!dataset || dataset.length === 0) return;
+    const sample = dataset[Math.floor(Math.random() * dataset.length)];
+    const res = forwardSingle(sample.x);
+
+    // inputs: normalize raw features into [0,1] by min/max
+    for (let d = 0; d < NUM_INPUT; d++) {
+      const n = neuronLayers.input[d];
+      const min = featureMin[d];
+      const max = featureMax[d];
+      const v = (sample.raw[d] - min) / (max - min || 1);
+      const { level, frac } = activationToRateLevel(v);
+      n.fill.style.height = (frac * 100).toFixed(1) + '%';
+      n.fill.style.background =
+        'linear-gradient(180deg, rgba(88,166,255,0.9), rgba(88,166,255,0.1))';
+      n.level.textContent = level + '/' + (RATE_LEVELS - 1);
+    }
+    // hidden
+    for (let j = 0; j < NUM_HIDDEN; j++) {
+      const n = neuronLayers.hidden[j];
+      const v = res.h[j]; // already in (0,1)
+      const { level, frac } = activationToRateLevel(v);
+      const hue = 210 - frac * 150; // blue→green
+      n.fill.style.height = (frac * 100).toFixed(1) + '%';
+      n.fill.style.background =
+        'linear-gradient(180deg, hsla(' + hue + ',80%,55%,0.9), hsla(' + hue + ',80%,35%,0.15))';
+      n.level.textContent = level + '/' + (RATE_LEVELS - 1);
+    }
+    // outputs: probabilities
+    for (let k = 0; k < NUM_OUTPUT; k++) {
+      const n = neuronLayers.output[k];
+      const v = res.probs[k];
+      const { level, frac } = activationToRateLevel(v);
+      const hue = 40 + frac * 40; // orange→yellow
+      n.fill.style.height = (frac * 100).toFixed(1) + '%';
+      n.fill.style.background =
+        'linear-gradient(180deg, hsla(' + hue + ',80%,55%,0.9), hsla(' + hue + ',80%,35%,0.15))';
+      n.level.textContent = level + '/' + (RATE_LEVELS - 1);
+    }
+  }
+
+  function updateConnectionStyles() {
+    if (!connections.length) return;
+    // compute max |weight| for scaling
+    let maxAbs = 0;
+    for (let j = 0; j < NUM_HIDDEN; j++) {
+      for (let i = 0; i < NUM_INPUT; i++) {
+        const w = W1[j][i];
+        const a = Math.abs(w);
+        if (a > maxAbs) maxAbs = a;
+      }
+    }
+    for (let k = 0; k < NUM_OUTPUT; k++) {
+      for (let j = 0; j < NUM_HIDDEN; j++) {
+        const w = W2[k][j];
+        const a = Math.abs(w);
+        if (a > maxAbs) maxAbs = a;
+      }
+    }
+    if (maxAbs < 1e-6) maxAbs = 1e-6;
+    for (const conn of connections) {
+      let w;
+      if (conn.matrix === 'W1') {
+        w = W1[conn.dst][conn.src];
+      } else {
+        w = W2[conn.dst][conn.src];
+      }
+      const strength = Math.min(1, Math.abs(w) / maxAbs);
+      const width = 0.6 + 4.0 * strength;
+      const sign = w >= 0 ? 1 : -1;
+      const hue = sign > 0 ? 200 : 20; // blue vs red
+      const alpha = 0.15 + 0.75 * strength;
+      conn.div.style.borderTopWidth = width.toFixed(2) + 'px';
+      conn.div.style.borderTopColor =
+        'hsla(' + hue + ',80%,55%,' + alpha.toFixed(2) + ')';
+    }
+  }
+
+  function drawLossCurve() {
+    const canvas = document.getElementById('lossCanvas');
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const left = 32, right = w - 10;
+    const top = 10, bottom = h - 20;
+
+    // axes
+    ctx.strokeStyle = '#4b5563';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(left, top);
+    ctx.lineTo(left, bottom);
+    ctx.lineTo(right, bottom);
+    ctx.stroke();
+
+    if (lossHistory.length < 2) return;
+
+    let minL = Infinity, maxL = -Infinity;
+    for (const p of lossHistory) {
+      if (p.loss < minL) minL = p.loss;
+      if (p.loss > maxL) maxL = p.loss;
+    }
+    if (!isFinite(minL) || !isFinite(maxL)) return;
+    if (minL === maxL) maxL = minL + 1;
+
+    ctx.strokeStyle = '#2ea043';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let i = 0; i < lossHistory.length; i++) {
+      const p = lossHistory[i];
+      const tx = i / Math.max(1, lossHistory.length - 1);
+      const x = left + (right - left) * tx;
+      const ty = (p.loss - minL) / (maxL - minL);
+      const y = bottom - (bottom - top) * ty;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  function computeConfusion(useModel) {
+    const M = [
+      [0,0,0],
+      [0,0,0],
+      [0,0,0]
+    ];
+    if (!dataset || dataset.length === 0) return M;
+    for (const s of dataset) {
+      let pred;
+      if (useModel) {
+        const { probs } = forwardSingle(s.x);
+        pred = argmax(probs);
+      } else {
+        pred = Math.floor(Math.random() * NUM_OUTPUT);
+      }
+      M[s.y][pred] += 1;
+    }
+    return M;
+  }
+
+  function updateConfusionTables() {
+    if (!randomConfusion) {
+      randomConfusion = computeConfusion(false);
+    }
+    const modelConf = computeConfusion(true);
+    renderConfusionTable(randomConfusion, 'confRandom');
+    renderConfusionTable(modelConf, 'confModel');
+  }
+
+  function labelForClass(c) {
+    return ['Setosa', 'Versicolor', 'Virginica'][c] || String(c);
+  }
+
+  function renderConfusionTable(M, elementId) {
+    const el = document.getElementById(elementId);
+    const total = M.flat().reduce((a,b) => a + b, 0) || 1;
+    const correct = M[0][0] + M[1][1] + M[2][2];
+    const acc = correct / total;
+
+    let html = '<tr><th>True \\ Pred</th>';
+    for (let p = 0; p < NUM_OUTPUT; p++) {
+      html += '<th>' + p + '</th>';
+    }
+    html += '</tr>';
+    for (let t = 0; t < NUM_OUTPUT; t++) {
+      html += '<tr><th>' + labelForClass(t) + '</th>';
+      for (let p = 0; p < NUM_OUTPUT; p++) {
+        const cls = t === p ? 'diag' : (M[t][p] ? 'off' : '');
+        html += '<td class="' + cls + '">' + M[t][p] + '</td>';
+      }
+      html += '</tr>';
+    }
+    html += '<tr><th colspan="' + (NUM_OUTPUT + 1) + '">Accuracy: ' +
+      acc.toFixed(3) + '</th></tr>';
+    el.innerHTML = html;
+  }
+
+  function updateStats() {
+    const statsEl = document.getElementById('stats');
+    const modelConf = computeConfusion(true);
+    const total = modelConf.flat().reduce((a,b) => a + b, 0) || 1;
+    const correct = modelConf[0][0] + modelConf[1][1] + modelConf[2][2];
+    const acc = correct / total;
+    const randomAcc = 1 / NUM_OUTPUT;
+    const oddsRatio = acc / randomAcc;
+    const lastLoss = lossHistory.length ? lossHistory[lossHistory.length - 1].loss : NaN;
+
+    statsEl.innerHTML =
+      'Steps: ' + stepCount +
+      '<br>Last loss: ' + (isFinite(lastLoss) ? lastLoss.toFixed(4) : 'n/a') +
+      '<br>Accuracy: ' + acc.toFixed(3) +
+      ' (random baseline ' + randomAcc.toFixed(3) + ')' +
+      '<br>Accuracy / random: ' + oddsRatio.toFixed(2) +
+      '<br>Learning rate: ' + LEARNING_RATE.toFixed(3) +
+      ' · Batch: ' + BATCH_SIZE;
+  }
+
+  function updateSampleView() {
+    const infoEl = document.getElementById('sampleInfo');
+    const probsEl = document.getElementById('sampleProbs');
+    if (!dataset || dataset.length === 0) {
+      infoEl.textContent = 'No data.';
+      probsEl.innerHTML = '';
+      return;
+    }
+    const idx = currentSampleIndex % dataset.length;
+    const s = dataset[idx];
+    const { probs } = forwardSingle(s.x);
+    const pred = argmax(probs);
+
+    const f = s.raw.map(v => v.toFixed(2));
+    infoEl.innerHTML =
+      'Index: ' + idx +
+      '<br>True class: ' + labelForClass(s.y) +
+      '<br>Features: [ ' + f.join(', ') + ' ]';
+
+    const lines = [];
+    for (let k = 0; k < NUM_OUTPUT; k++) {
+      const p = probs[k];
+      lines.push({
+        label: labelForClass(k),
+        p,
+        isPred: k === pred,
+        isTrue: k === s.y
+      });
+    }
+    probsEl.innerHTML = '';
+    for (const row of lines) {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'prob-row';
+      const labelEl = document.createElement('div');
+      labelEl.className = 'prob-label';
+      labelEl.textContent =
+        (row.isTrue ? '★ ' : '') + row.label;
+      const track = document.createElement('div');
+      track.className = 'prob-bar-track';
+      const fill = document.createElement('div');
+      fill.className = 'prob-bar-fill';
+      fill.style.width = (row.p * 100).toFixed(1) + '%';
+      if (row.isPred) {
+        fill.style.background = 'linear-gradient(90deg,#58a6ff,#3fb950)';
+      }
+      track.appendChild(fill);
+      const valEl = document.createElement('div');
+      valEl.className = 'prob-val';
+      valEl.textContent = row.p.toFixed(3);
+      rowEl.appendChild(labelEl);
+      rowEl.appendChild(track);
+      rowEl.appendChild(valEl);
+      probsEl.appendChild(rowEl);
+    }
+  }
+
+  function updateAllVisuals() {
+    updateConnectionStyles();
+    updateNetworkVisualization();
+    drawLossCurve();
+    updateConfusionTables();
+    updateStats();
+    updateSampleView();
+  }
+
+  // ----- training control -----
+  function startTraining() {
+    if (isTraining) return;
+    isTraining = true;
+    document.getElementById('btnTrainToggle').textContent = 'Stop training';
+    const slow = document.getElementById('slowMode').checked;
+    const delay = slow ? 400 : 60;
+    const stepsPerTick = slow ? 1 : 10;
+    trainingTimer = setInterval(() => {
+      for (let i = 0; i < stepsPerTick; i++) {
+        trainStep();
+      }
+      updateAllVisuals();
+    }, delay);
+  }
+
+  function stopTraining() {
+    if (!isTraining) return;
+    isTraining = false;
+    document.getElementById('btnTrainToggle').textContent = 'Start training';
+    if (trainingTimer) {
+      clearInterval(trainingTimer);
+      trainingTimer = null;
+    }
+  }
+
+  // ----- initialization -----
+  function initApp() {
+    dataset = generateSyntheticIris();
+    randomConfusion = computeConfusion(false);
+    initNetwork();
+    buildNetworkDiagram();
+    drawLossCurve();
+    updateConfusionTables();
+    updateStats();
+    setupSampleProbsSkeleton();
+    updateSampleView();
+
+    document.getElementById('btnInit').addEventListener('click', () => {
+      stopTraining();
+      initNetwork();
+      lossHistory = [];
+      stepCount = 0;
+      randomConfusion = computeConfusion(false);
+      drawLossCurve();
+      updateConfusionTables();
+      updateAllVisuals();
+    });
+
+    document.getElementById('btnTrainToggle').addEventListener('click', () => {
+      if (isTraining) stopTraining();
+      else startTraining();
+    });
+
+    document.getElementById('btnStep').addEventListener('click', () => {
+      stopTraining();
+      trainStep();
+      updateAllVisuals();
+    });
+
+    document.getElementById('lrSelect').addEventListener('change', e => {
+      LEARNING_RATE = parseFloat(e.target.value);
+      updateStats();
+    });
+
+    document.getElementById('batchSelect').addEventListener('change', e => {
+      BATCH_SIZE = parseInt(e.target.value, 10);
+      updateStats();
+    });
+
+    document.getElementById('btnNextSample').addEventListener('click', () => {
+      currentSampleIndex = (currentSampleIndex + 1) % dataset.length;
+      updateSampleView();
+    });
+
+    window.addEventListener('resize', () => {
+      buildNetworkDiagram();
+    });
+  }
+
+  function setupSampleProbsSkeleton() {
+    const container = document.getElementById('sampleProbs');
+    container.innerHTML = '';
+    for (let k = 0; k < NUM_OUTPUT; k++) {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'prob-row';
+      const labelEl = document.createElement('div');
+      labelEl.className = 'prob-label';
+      labelEl.textContent = labelForClass(k);
+      const track = document.createElement('div');
+      track.className = 'prob-bar-track';
+      const fill = document.createElement('div');
+      fill.className = 'prob-bar-fill';
+      track.appendChild(fill);
+      const valEl = document.createElement('div');
+      valEl.className = 'prob-val';
+      valEl.textContent = '0.000';
+      rowEl.appendChild(labelEl);
+      rowEl.appendChild(track);
+      rowEl.appendChild(valEl);
+      container.appendChild(rowEl);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', initApp);
+</script>
+</body>
+</html>

@@ -1,0 +1,1865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Synthetic Iris Data Visualization</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: auto;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+      background: transparent;
+      border: 1px solid var(--grid);
+      border-radius: 4px;
+      flex-wrap: wrap;
+    }
+    .controls button {
+      padding: 4px 10px;
+      background: var(--panel);
+      border: 1px solid var(--grid);
+      border-radius: 3px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .controls button:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .controls label {
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 500;
+    }
+    .controls select {
+      font-size: 10px;
+      padding: 2px 4px;
+    }
+    .controls input[type="range"] {
+      width: 80px;
+      -webkit-appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+    .controls input[type="range"]::-webkit-slider-track {
+      background: var(--grid);
+      height: 4px;
+      border-radius: 2px;
+    }
+    .controls input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      background: var(--accent);
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-top: -4px;
+    }
+    .controls input[type="range"]::-moz-range-track {
+      background: var(--grid);
+      height: 4px;
+      border-radius: 2px;
+    }
+    .controls input[type="range"]::-moz-range-thumb {
+      background: var(--accent);
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: none;
+    }
+    .controls #spreadValue {
+      min-width: 28px;
+      font-weight: 600;
+    }
+    .controls input[type="checkbox"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border: 1px solid var(--grid);
+      background: var(--bg);
+      border-radius: 2px;
+      cursor: pointer;
+      position: relative;
+    }
+    .controls input[type="checkbox"]:checked {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .controls input[type="checkbox"]:checked::after {
+      content: '✓';
+      position: absolute;
+      color: var(--bg);
+      font-size: 11px;
+      font-weight: bold;
+      top: -1px;
+      left: 2px;
+    }
+    .viz-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .plot-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .plot-title {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+    }
+    canvas {
+      width: 100%;
+      height: 220px;
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+      background: var(--panel);
+      cursor: pointer;
+    }
+    .info {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 8px;
+      background: transparent;
+      border: 1px solid var(--grid);
+      border-radius: 4px;
+      text-align: center;
+    }
+    .legend {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      font-size: 10px;
+      padding: 6px;
+      background: transparent;
+      border: 1px solid var(--grid);
+      border-radius: 4px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .flower-icon {
+      position: relative;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .flower-icon .petal {
+      position: absolute;
+      background: currentColor;
+      border-radius: 50%;
+    }
+    .flower-icon .center {
+      position: absolute;
+      background: #ffd700;
+      border-radius: 50%;
+      width: 5px;
+      height: 5px;
+      z-index: 2;
+    }
+    .matrix-section {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 1024px) {
+      .matrix-section {
+        grid-template-columns: 1fr;
+      }
+    }
+    .matrix-panel {
+      background: var(--panel);
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+      padding: 12px;
+    }
+    .matrix-title {
+      font-size: 12px;
+      color: var(--accent2);
+      margin-bottom: 8px;
+      text-align: center;
+      font-weight: 600;
+    }
+    .corr-matrix {
+      display: grid;
+      grid-template-columns: auto repeat(4, 1fr);
+      gap: 2px;
+      font-size: 10px;
+      background: #0d1117;
+      border-radius: 6px;
+      padding: 8px;
+    }
+    .corr-cell {
+      padding: 8px;
+      text-align: center;
+      border-radius: 3px;
+      transition: all 0.2s ease;
+    }
+    .corr-header {
+      font-weight: 600;
+      color: var(--muted);
+      background: #1b1f27;
+      border: 1px solid var(--grid);
+    }
+    .corr-value {
+      font-family: monospace;
+      color: var(--text);
+      border: 1px solid var(--grid);
+      cursor: ns-resize;
+      user-select: none;
+      position: relative;
+    }
+    .corr-value:hover {
+      transform: scale(1.05);
+      box-shadow: 0 2px 8px rgba(88, 166, 255, 0.3);
+      border-color: var(--accent);
+    }
+    .corr-value.adjusting {
+      background: rgba(88, 166, 255, 0.2);
+      border-color: var(--accent2);
+    }
+    .corr-value::after {
+      content: '↕';
+      position: absolute;
+      right: 2px;
+      top: 2px;
+      font-size: 8px;
+      opacity: 0;
+      transition: opacity 0.2s;
+      color: var(--accent2);
+    }
+    .corr-value:hover::after {
+      opacity: 0.7;
+    }
+    .corr-value.adjusting::after {
+      opacity: 1;
+      animation: pulse 0.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: translateY(-1px); }
+      50% { transform: translateY(1px); }
+    }
+    .gmm-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .gmm-feature-panel {
+      background: var(--bg);
+      border: 1px solid var(--grid);
+      border-radius: 4px;
+      padding: 8px;
+    }
+    .gmm-feature-header {
+      font-size: 10px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--accent2);
+      text-align: center;
+    }
+    .gmm-curve-canvas {
+      width: 100%;
+      height: 80px;
+      display: block;
+      border-radius: 3px;
+      background: #0d1117;
+    }
+    .gmm-legend {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 4px;
+      font-size: 9px;
+      gap: 4px;
+    }
+    .gmm-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .gmm-legend-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    .equation-panel {
+      background: var(--panel);
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+      padding: 16px;
+      margin-top: 16px;
+      position: relative;
+    }
+    .equation-panel.compact .margin-note {
+      display: none;
+    }
+    .equation-panel.compact .equation {
+      min-height: auto;
+    }
+    .equation-panel.compact .contribution-analysis {
+      display: none;
+    }
+    .margin-note {
+      position: absolute;
+      right: -220px;
+      width: 200px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      background: rgba(88, 166, 255, 0.1);
+      border-left: 4px solid var(--accent);
+      padding: 10px;
+      border-radius: 4px;
+      line-height: 1.5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    }
+    @media (max-width: 1400px) {
+      .margin-note {
+        position: static;
+        width: 100%;
+        margin: 8px 0;
+      }
+    }
+    .equation-title {
+      font-size: 16px;
+      color: var(--accent2);
+      margin-bottom: 12px;
+      text-align: center;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    }
+    .equation {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding: 24px;
+      background: #0d1117;
+      border-radius: 6px;
+      font-family: 'Times New Roman', serif;
+      font-size: 20px;
+      min-height: 80px;
+    }
+    .equation > div {
+      margin: 4px 0;
+    }
+    .eq-element {
+      display: inline-flex;
+      align-items: center;
+      color: var(--text);
+      position: relative;
+    }
+    .eq-matrix {
+      display: inline-grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      padding: 8px 12px;
+      border-left: 3px solid var(--accent);
+      border-right: 3px solid var(--accent);
+      font-size: 12px;
+      font-family: monospace;
+      background: rgba(88, 166, 255, 0.05);
+      border-radius: 4px;
+    }
+    .eq-matrix-small {
+      font-size: 8px;
+      gap: 3px;
+      padding: 4px 6px;
+      border-left: 2px solid var(--accent);
+      border-right: 2px solid var(--accent);
+    }
+    .eq-matrix-small .eq-matrix-cell {
+      min-width: 24px;
+      font-size: 8px;
+      padding: 1px;
+    }
+    .eq-matrix-cell {
+      min-width: 36px;
+      text-align: center;
+      transition: all 0.3s ease;
+      padding: 2px;
+      border-radius: 2px;
+    }
+    .eq-matrix-cell:hover {
+      color: var(--accent2);
+      transform: scale(1.3);
+      background: rgba(247, 129, 102, 0.1);
+    }
+    .contribution-analysis {
+      background: #11151d;
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+      padding: 12px;
+      margin: 12px 0;
+      font-size: 11px;
+    }
+    .contribution-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 5px 0;
+      padding: 4px;
+    }
+    .contribution-label {
+      min-width: 70px;
+      font-weight: 700;
+      color: var(--accent2);
+      font-size: 11px;
+    }
+    .contribution-bar {
+      flex: 1;
+      height: 16px;
+      background: #0d1117;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid var(--grid);
+    }
+    .contribution-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width 0.3s ease;
+    }
+    .contribution-value {
+      min-width: 95px;
+      text-align: right;
+      font-family: monospace;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 10px;
+    }
+    .eq-fraction {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 16px;
+      margin: 0 8px;
+    }
+    .eq-numerator {
+      border-bottom: 2px solid var(--text);
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+    }
+    .eq-denominator {
+      padding-top: 6px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .eq-exp {
+      font-size: 24px;
+      color: var(--accent2);
+      font-weight: 600;
+    }
+    .eq-superscript {
+      font-size: 14px;
+      vertical-align: super;
+      color: var(--accent);
+    }
+    .eq-subscript {
+      font-size: 10px;
+      vertical-align: sub;
+      color: var(--muted);
+    }
+    .eq-sqrt {
+      position: relative;
+      padding: 6px 10px 6px 16px;
+    }
+    .eq-sqrt::before {
+      content: '√';
+      position: absolute;
+      left: 0;
+      font-size: 24px;
+      color: var(--accent);
+    }
+    .eq-sqrt::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 16px;
+      right: 0;
+      height: 1px;
+      background: var(--accent);
+    }
+    .eq-parentheses {
+      font-size: 30px;
+      color: var(--accent);
+    }
+    .var-sigma {
+      color: #58a6ff;
+      font-weight: 700;
+    }
+    .var-mu {
+      color: #f78166;
+      font-weight: 700;
+    }
+    .var-x {
+      color: #3fb950;
+      font-weight: 700;
+    }
+    .var-r {
+      color: #bc8cff;
+      font-weight: 700;
+    }
+    .eq-element .var-sigma,
+    .eq-element .var-mu,
+    .eq-element .var-x {
+      font-size: 24px;
+    }
+
+    /* Global scrollbar styling for WebKit browsers (Chrome, Safari, Edge) */
+    ::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--grid);
+      border-radius: 6px;
+      border: 2px solid var(--bg);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--muted);
+    }
+    ::-webkit-scrollbar-corner {
+      background: var(--bg);
+    }
+
+    /* Firefox scrollbar styling */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--grid) var(--bg);
+    }
+  </style>
+</head>
+<body>
+  <div class="info">
+    <strong>Synthetic Iris Dataset — GMM Analysis</strong> (Interactive Gaussian Mixture Model Visualization)
+    <span id="corrModeIndicator" style="margin-left: 12px; font-size: 10px; color: var(--accent2); display: none;">
+      ⚡ Using Custom Correlation Matrix
+    </span>
+  </div>
+
+  <div class="controls">
+    <button id="btnRegenerate">Regenerate Data</button>
+    <span style="color: var(--grid);">|</span>
+    <label>
+      Samples/Class:
+      <select id="samplesPerClass">
+        <option value="25">25</option>
+        <option value="50" selected>50</option>
+        <option value="100">100</option>
+      </select>
+    </label>
+    <span style="color: var(--grid);">|</span>
+    <label>
+      <input type="checkbox" id="showEllipses" checked>
+      Show ellipses
+    </label>
+    <span style="color: var(--grid);">|</span>
+    <label>
+      Spread:
+      <input type="range" id="spreadSlider" min="0.5" max="3" step="0.1" value="1">
+      <span id="spreadValue">1.0</span>
+    </label>
+    <span style="color: var(--grid);">|</span>
+    <label>
+      Separation:
+      <input type="range" id="separationSlider" min="0.3" max="2.0" step="0.1" value="1">
+      <span id="separationValue">1.0</span>
+    </label>
+  </div>
+
+  <div class="legend" id="flowerLegend">
+    <div class="legend-item">
+      <div class="flower-icon" id="flower-0" style="color: #ff6b6b;">
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="center"></div>
+      </div>
+      <span>Setosa</span>
+    </div>
+    <div class="legend-item">
+      <div class="flower-icon" id="flower-1" style="color: #4ecdc4;">
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="center"></div>
+      </div>
+      <span>Versicolor</span>
+    </div>
+    <div class="legend-item">
+      <div class="flower-icon" id="flower-2" style="color: #ffe66d;">
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="center"></div>
+      </div>
+      <span>Virginica</span>
+    </div>
+  </div>
+
+  <div class="viz-container">
+    <div class="plot-wrapper">
+      <div class="plot-title">Sepal Length vs Sepal Width</div>
+      <canvas id="canvas1"></canvas>
+    </div>
+    <div class="plot-wrapper">
+      <div class="plot-title">Petal Length vs Petal Width</div>
+      <canvas id="canvas2"></canvas>
+    </div>
+    <div class="plot-wrapper">
+      <div class="plot-title">Sepal Length vs Petal Length</div>
+      <canvas id="canvas3"></canvas>
+    </div>
+    <div class="plot-wrapper">
+      <div class="plot-title">Sepal Width vs Petal Width</div>
+      <canvas id="canvas4"></canvas>
+    </div>
+  </div>
+
+  <div class="matrix-section">
+    <div class="matrix-panel">
+      <div class="matrix-title">
+        Cross-Correlation Matrix (Drag ↕ to Adjust Values)
+        <button id="btnResetCorr" style="float: right; font-size: 9px; padding: 2px 6px; margin-top: -2px;">Reset</button>
+      </div>
+      <div id="corrMatrix" class="corr-matrix"></div>
+
+      <div style="margin: 12px 0 0 0; padding: 10px; background: rgba(88, 166, 255, 0.05); border-radius: 6px; border-left: 3px solid var(--accent);">
+        <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px; color: var(--accent);">Interactive Examples - Click to Set Correlation Matrix:</div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <button id="btnWeakCorr" style="padding: 5px 10px; font-size: 10px; font-weight: 600;">Weak</button>
+          <button id="btnStrongCorr" style="padding: 5px 10px; font-size: 10px; font-weight: 600;">Strong</button>
+          <button id="btnUncorrelated" style="padding: 5px 10px; font-size: 10px; font-weight: 600;">Uncorrelated</button>
+          <button id="btnTight" style="padding: 5px 10px; font-size: 10px; font-weight: 600;">Tight</button>
+          <button id="btnSingular" style="padding: 5px 10px; font-size: 10px; font-weight: 600;">Singular</button>
+        </div>
+      </div>
+    </div>
+    <div class="matrix-panel">
+      <div class="matrix-title">Gaussian Mixture Model Parameters</div>
+      <div id="gmmParams" class="gmm-container"></div>
+    </div>
+  </div>
+
+  <div class="equation-panel compact" id="equationPanel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <div class="equation-title" style="margin: 0;">Multivariate Gaussian as Matrix Exponential</div>
+      <button id="btnToggleEquation" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">Explain</button>
+    </div>
+    <div id="gmmEquation" class="equation"></div>
+  </div>
+
+<script>
+  // Gaussian RNG (Box-Muller transform)
+  let _gaussSpare = null;
+  function gaussianRandom() {
+    if (_gaussSpare !== null) {
+      const v = _gaussSpare;
+      _gaussSpare = null;
+      return v;
+    }
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    const mag = Math.sqrt(-2.0 * Math.log(u));
+    const z0 = mag * Math.cos(2 * Math.PI * v);
+    const z1 = mag * Math.sin(2 * Math.PI * v);
+    _gaussSpare = z1;
+    return z0;
+  }
+
+  // GMM Configuration
+  const gmmConfig = {
+    centers: [
+      [5.0, 3.4, 1.5, 0.2], // setosa
+      [6.0, 2.8, 4.5, 1.3], // versicolor
+      [6.7, 3.1, 5.5, 2.1]  // virginica
+    ],
+    baseSpreads: [
+      [0.2, 0.2, 0.2, 0.05],
+      [0.4, 0.3, 0.4, 0.2],
+      [0.5, 0.3, 0.6, 0.25]
+    ],
+    spreads: [
+      [0.2, 0.2, 0.2, 0.05],
+      [0.4, 0.3, 0.4, 0.2],
+      [0.5, 0.3, 0.6, 0.25]
+    ],
+    nPerClass: 50,
+    spreadMultiplier: 1.0,
+    separationMultiplier: 1.0
+  };
+
+  // Update spreads based on multiplier
+  function updateSpreads() {
+    for (let c = 0; c < 3; c++) {
+      for (let d = 0; d < 4; d++) {
+        gmmConfig.spreads[c][d] = gmmConfig.baseSpreads[c][d] * gmmConfig.spreadMultiplier;
+      }
+    }
+  }
+
+  // Cholesky decomposition for generating correlated data
+  function choleskyDecomposition(matrix) {
+    const n = matrix.length;
+    const L = Array(n).fill(0).map(() => Array(n).fill(0));
+
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j <= i; j++) {
+        let sum = 0;
+        for (let k = 0; k < j; k++) {
+          sum += L[i][k] * L[j][k];
+        }
+        if (i === j) {
+          const val = matrix[i][i] - sum;
+          L[i][j] = val > 0 ? Math.sqrt(val) : 0.01; // Safeguard
+        } else {
+          L[i][j] = (matrix[i][j] - sum) / (L[j][j] || 0.01);
+        }
+      }
+    }
+    return L;
+  }
+
+  // Generate correlated samples using Cholesky decomposition
+  function generateCorrelatedSamples(n, corrMatrix) {
+    const L = choleskyDecomposition(corrMatrix);
+    const samples = [];
+
+    for (let i = 0; i < n; i++) {
+      const z = [gaussianRandom(), gaussianRandom(), gaussianRandom(), gaussianRandom()];
+      const x = [0, 0, 0, 0];
+
+      // Matrix multiplication: x = L * z
+      for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 4; col++) {
+          x[row] += L[row][col] * z[col];
+        }
+      }
+      samples.push(x);
+    }
+    return samples;
+  }
+
+  // Generate synthetic Iris data using GMM
+  function generateData(customCorrMatrix = null) {
+    const data = [];
+
+    // Calculate global mean across all class centers for separation scaling
+    const globalMean = [0, 0, 0, 0];
+    for (let d = 0; d < 4; d++) {
+      globalMean[d] = (gmmConfig.centers[0][d] + gmmConfig.centers[1][d] + gmmConfig.centers[2][d]) / 3;
+    }
+
+    for (let c = 0; c < 3; c++) {
+      let classSamples;
+
+      if (customCorrMatrix) {
+        // Generate correlated samples
+        classSamples = generateCorrelatedSamples(gmmConfig.nPerClass, customCorrMatrix);
+      } else {
+        // Generate independent samples
+        classSamples = [];
+        for (let n = 0; n < gmmConfig.nPerClass; n++) {
+          classSamples.push([
+            gaussianRandom(),
+            gaussianRandom(),
+            gaussianRandom(),
+            gaussianRandom()
+          ]);
+        }
+      }
+
+      // Scale and shift to match GMM parameters
+      for (const sample of classSamples) {
+        const point = [];
+        for (let d = 0; d < 4; d++) {
+          // Apply separation scaling: move centers toward/away from global mean
+          const scaledCenter = globalMean[d] + (gmmConfig.centers[c][d] - globalMean[d]) * gmmConfig.separationMultiplier;
+          const val = scaledCenter + gmmConfig.spreads[c][d] * sample[d];
+          point.push(val);
+        }
+        data.push({ features: point, class: c });
+      }
+    }
+    return data;
+  }
+
+  // Compute correlation matrix
+  function computeCorrelationMatrix(data) {
+    const n = data.length;
+    const dims = 4;
+
+    // Compute means
+    const means = new Array(dims).fill(0);
+    for (const d of data) {
+      for (let i = 0; i < dims; i++) {
+        means[i] += d.features[i];
+      }
+    }
+    for (let i = 0; i < dims; i++) {
+      means[i] /= n;
+    }
+
+    // Compute covariance matrix
+    const cov = Array(dims).fill(0).map(() => Array(dims).fill(0));
+    for (const d of data) {
+      for (let i = 0; i < dims; i++) {
+        for (let j = 0; j < dims; j++) {
+          cov[i][j] += (d.features[i] - means[i]) * (d.features[j] - means[j]);
+        }
+      }
+    }
+
+    // Normalize to correlation
+    const corr = Array(dims).fill(0).map(() => Array(dims).fill(0));
+    for (let i = 0; i < dims; i++) {
+      for (let j = 0; j < dims; j++) {
+        const stdI = Math.sqrt(cov[i][i] / n);
+        const stdJ = Math.sqrt(cov[j][j] / n);
+        corr[i][j] = cov[i][j] / (n * stdI * stdJ);
+      }
+    }
+
+    return corr;
+  }
+
+  // Adjustable correlation matrix state
+  const adjustState = {
+    element: null,
+    row: -1,
+    col: -1,
+    startY: 0,
+    startValue: 0,
+    updatePending: false
+  };
+
+  // Make correlation value adjustable
+  function makeAdjustable(element, row, col, currentValue) {
+    element.addEventListener('mousedown', (e) => {
+      adjustState.element = element;
+      adjustState.row = row;
+      adjustState.col = col;
+      adjustState.startY = e.clientY;
+      adjustState.startValue = currentValue;
+      element.classList.add('adjusting');
+      e.preventDefault();
+    });
+  }
+
+  // Store current correlation matrix for editing
+  let editableCorr = null;
+
+  // Render simple correlation matrix grid
+  function renderCorrelationMatrix(data) {
+    // Use editableCorr if it's set, otherwise compute from data
+    let corr;
+    if (editableCorr) {
+      corr = editableCorr;
+    } else {
+      corr = computeCorrelationMatrix(data);
+      editableCorr = corr.map(row => [...row]); // Deep copy
+    }
+
+    const labels = ['SepL', 'SepW', 'PetL', 'PetW'];
+    const container = document.getElementById('corrMatrix');
+    container.innerHTML = '';
+
+    // Header row
+    const emptyCell = document.createElement('div');
+    emptyCell.className = 'corr-cell corr-header';
+    emptyCell.textContent = 'ρ';
+    container.appendChild(emptyCell);
+
+    for (const label of labels) {
+      const cell = document.createElement('div');
+      cell.className = 'corr-cell corr-header';
+      cell.textContent = label;
+      container.appendChild(cell);
+    }
+
+    // Data rows
+    for (let i = 0; i < 4; i++) {
+      const rowLabel = document.createElement('div');
+      rowLabel.className = 'corr-cell corr-header';
+      rowLabel.textContent = labels[i];
+      container.appendChild(rowLabel);
+
+      for (let j = 0; j < 4; j++) {
+        const cell = document.createElement('div');
+        cell.className = 'corr-cell corr-value';
+        const val = editableCorr[i][j];
+        cell.textContent = val.toFixed(2);
+        cell.dataset.row = i;
+        cell.dataset.col = j;
+
+        // Color coding based on correlation strength
+        const absVal = Math.abs(val);
+        const hue = val > 0 ? 210 : 0; // blue for positive, red for negative
+        const alpha = absVal * 0.7;
+        cell.style.background = `hsla(${hue}, 80%, 55%, ${alpha})`;
+
+        // Make adjustable (except diagonal which is always 1)
+        if (i !== j) {
+          makeAdjustable(cell, i, j, val);
+        } else {
+          cell.style.cursor = 'default';
+          cell.style.opacity = '0.7';
+        }
+
+        container.appendChild(cell);
+      }
+    }
+  }
+
+  // Update all visualizations (throttled with requestAnimationFrame)
+  function updateAllVisualizations() {
+    if (!adjustState.updatePending) return;
+    adjustState.updatePending = false;
+
+    // REAL-TIME UPDATE: Regenerate data with new correlation matrix
+    currentData = generateData(editableCorr);
+
+    // Show indicator that we're using custom correlation
+    document.getElementById('corrModeIndicator').style.display = 'inline';
+
+    // Update all visualizations
+    projections.forEach((proj, i) => {
+      drawScatter(canvases[i], currentData, proj[0], proj[1]);
+    });
+    renderGMMParams(currentData);
+    renderGaussianEquation(currentData);
+  }
+
+  // Handle mouse movement for adjusting values
+  document.addEventListener('mousemove', (e) => {
+    if (!adjustState.element) return;
+
+    const deltaY = adjustState.startY - e.clientY; // Inverted: drag up increases
+    const sensitivity = 0.005;
+    let newValue = adjustState.startValue + (deltaY * sensitivity);
+
+    // Clamp to [-1, 1]
+    newValue = Math.max(-1, Math.min(1, newValue));
+
+    // Update the editable correlation matrix
+    editableCorr[adjustState.row][adjustState.col] = newValue;
+    editableCorr[adjustState.col][adjustState.row] = newValue; // Keep symmetric
+
+    // Update display
+    adjustState.element.textContent = newValue.toFixed(2);
+
+    // Update color
+    const absVal = Math.abs(newValue);
+    const hue = newValue > 0 ? 210 : 0;
+    const alpha = absVal * 0.7;
+    adjustState.element.style.background = `hsla(${hue}, 80%, 55%, ${alpha})`;
+
+    // Update symmetric cell
+    const symCell = document.querySelector(`[data-row="${adjustState.col}"][data-col="${adjustState.row}"]`);
+    if (symCell) {
+      symCell.textContent = newValue.toFixed(2);
+      symCell.style.background = `hsla(${hue}, 80%, 55%, ${alpha})`;
+    }
+
+    // Schedule visualization update (throttled)
+    if (!adjustState.updatePending) {
+      adjustState.updatePending = true;
+      requestAnimationFrame(updateAllVisualizations);
+    }
+  });
+
+  // Handle mouse up for adjusting
+  document.addEventListener('mouseup', () => {
+    if (adjustState.element) {
+      adjustState.element.classList.remove('adjusting');
+      adjustState.element = null;
+    }
+  });
+
+  // Gaussian PDF function
+  function gaussianPDF(x, mu, sigma) {
+    const coefficient = 1 / (sigma * Math.sqrt(2 * Math.PI));
+    const exponent = -Math.pow(x - mu, 2) / (2 * Math.pow(sigma, 2));
+    return coefficient * Math.exp(exponent);
+  }
+
+  // Compute actual statistics from data for a feature and class
+  function computeFeatureStats(data, classIdx, featureIdx) {
+    const classData = data.filter(d => d.class === classIdx);
+    const values = classData.map(d => d.features[featureIdx]);
+
+    const n = values.length;
+    const mean = values.reduce((a, b) => a + b, 0) / n;
+    const variance = values.reduce((a, v) => a + Math.pow(v - mean, 2), 0) / n;
+    const std = Math.sqrt(variance);
+
+    return { mean, std };
+  }
+
+  // Draw Gaussian curve on canvas using actual data statistics
+  function drawGaussianCurve(canvas, data, featureIdx) {
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    const w = rect.width;
+    const h = rect.height;
+    const pad = 10;
+
+    // Clear
+    ctx.fillStyle = '#0d1117';
+    ctx.fillRect(0, 0, w, h);
+
+    const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d'];
+    const classNames = ['Setosa', 'Versicolor', 'Virginica'];
+
+    // Compute actual stats from data
+    const stats = [];
+    for (let c = 0; c < 3; c++) {
+      stats.push(computeFeatureStats(data, c, featureIdx));
+    }
+
+    // Find global min/max for this feature across all classes
+    let minX = Infinity, maxX = -Infinity;
+    for (let c = 0; c < 3; c++) {
+      const { mean, std } = stats[c];
+      minX = Math.min(minX, mean - 3 * std);
+      maxX = Math.max(maxX, mean + 3 * std);
+    }
+
+    // Draw all three curves
+    let maxY = 0;
+    const curves = [];
+    for (let c = 0; c < 3; c++) {
+      const { mean, std } = stats[c];
+      const curve = [];
+
+      for (let i = 0; i <= 100; i++) {
+        const x = minX + (i / 100) * (maxX - minX);
+        const y = gaussianPDF(x, mean, std);
+        curve.push({ x, y });
+        maxY = Math.max(maxY, y);
+      }
+      curves.push({ curve, mean, std });
+    }
+
+    // Draw curves
+    for (let c = 0; c < 3; c++) {
+      const { curve, mean, std } = curves[c];
+
+      // Draw curve
+      ctx.strokeStyle = colors[c];
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+
+      for (let i = 0; i < curve.length; i++) {
+        const px = pad + ((curve[i].x - minX) / (maxX - minX)) * (w - 2 * pad);
+        const py = h - pad - (curve[i].y / maxY) * (h - 2 * pad);
+
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+
+      // Draw mean marker
+      const muX = pad + ((mean - minX) / (maxX - minX)) * (w - 2 * pad);
+      ctx.strokeStyle = colors[c];
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 2]);
+      ctx.beginPath();
+      ctx.moveTo(muX, h - pad);
+      ctx.lineTo(muX, pad);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Label mean and std
+      ctx.fillStyle = colors[c];
+      ctx.font = '8px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`μ=${mean.toFixed(2)}`, muX, h - 2);
+      ctx.fillText(`σ=${std.toFixed(2)}`, muX, 10);
+    }
+
+    // Draw axes
+    ctx.strokeStyle = '#30363d';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad, h - pad);
+    ctx.lineTo(w - pad, h - pad);
+    ctx.stroke();
+  }
+
+  // Compute matrix power for Taylor series
+  function matrixPower(matrix, power) {
+    if (power === 0) {
+      // Return identity matrix
+      const n = matrix.length;
+      const I = Array(n).fill(0).map(() => Array(n).fill(0));
+      for (let i = 0; i < n; i++) I[i][i] = 1;
+      return I;
+    }
+    if (power === 1) return matrix;
+
+    // Matrix multiplication for power 2
+    const n = matrix.length;
+    const result = Array(n).fill(0).map(() => Array(n).fill(0));
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        for (let k = 0; k < n; k++) {
+          result[i][j] += matrix[i][k] * matrix[k][j];
+        }
+      }
+    }
+    return result;
+  }
+
+  // Compute Frobenius norm of a matrix (total magnitude)
+  function frobeniusNorm(matrix) {
+    let sum = 0;
+    for (let i = 0; i < matrix.length; i++) {
+      for (let j = 0; j < matrix[i].length; j++) {
+        sum += matrix[i][j] * matrix[i][j];
+      }
+    }
+    return Math.sqrt(sum);
+  }
+
+  // Compute determinant of 4x4 matrix
+  function determinant4x4(m) {
+    // Using cofactor expansion (simplified for 4x4)
+    // This is a simplified calculation
+    return (
+      m[0][0] * m[1][1] * m[2][2] * m[3][3] +
+      m[0][1] * m[1][2] * m[2][3] * m[3][0] +
+      m[0][2] * m[1][3] * m[2][0] * m[3][1] +
+      m[0][3] * m[1][0] * m[2][1] * m[3][2] -
+      m[0][3] * m[1][2] * m[2][1] * m[3][0] -
+      m[0][2] * m[1][1] * m[2][0] * m[3][3] -
+      m[0][1] * m[1][0] * m[2][3] * m[3][2] -
+      m[0][0] * m[1][3] * m[2][2] * m[3][1]
+    );
+  }
+
+  // Render matrix exponential equation for Gaussian with Taylor expansion
+  function renderGaussianEquation(data) {
+    const container = document.getElementById('gmmEquation');
+    const corr = editableCorr || computeCorrelationMatrix(data);
+
+    // Compute correlation matrix powers for Taylor series
+    const R0 = matrixPower(corr, 0); // Identity
+    const R1 = corr;
+    const R2 = matrixPower(corr, 2);
+    const R3 = matrixPower(corr, 3);
+
+    // Calculate contributions (Frobenius norms)
+    const norm0 = frobeniusNorm(R0);
+    const norm1 = frobeniusNorm(R1);
+    const norm2 = frobeniusNorm(R2) / 2; // Divided by 2!
+    const norm3 = frobeniusNorm(R3) / 6; // Divided by 3!
+
+    const totalNorm = norm0 + norm1 + norm2 + norm3;
+    const contrib0 = (norm0 / totalNorm) * 100;
+    const contrib1 = (norm1 / totalNorm) * 100;
+    const contrib2 = (norm2 / totalNorm) * 100;
+    const contrib3 = (norm3 / totalNorm) * 100;
+
+    // Calculate determinant
+    const det = determinant4x4(corr);
+
+    const renderMatrix = (mat, small = false) => `
+      <div class="eq-matrix ${small ? 'eq-matrix-small' : ''}">
+        ${mat.map((row, i) =>
+          row.map((val, j) =>
+            `<div class="eq-matrix-cell" style="color: ${val > 0 ? '#58a6ff' : '#f78166'}">${val.toFixed(2)}</div>`
+          ).join('')
+        ).join('')}
+      </div>
+    `;
+
+    container.innerHTML = `
+      <div class="margin-note" style="top: 0;">
+        <strong class="var-sigma">Σ</strong> (Sigma) is the <strong>covariance matrix</strong> - a 4×4 matrix encoding how features vary together. Diagonal = variances, off-diagonal = covariances.
+      </div>
+
+      <div class="eq-element">
+        <i>p</i>(<b class="var-x">x</b> | <b class="var-mu">μ</b>, <b class="var-sigma">Σ</b>)
+      </div>
+
+      <div class="eq-element">
+        <span>=</span>
+      </div>
+
+      <div class="margin-note" style="top: 50px;">
+        <strong>Multivariate Gaussian PDF:</strong> Probability density of observing a d-dimensional vector <span class="var-x">x</span>, given mean <span class="var-mu">μ</span> and covariance <span class="var-sigma">Σ</span>.
+      </div>
+
+      <div class="eq-element">
+        <div class="eq-fraction">
+          <div class="eq-numerator">1</div>
+          <div class="eq-denominator">
+            <span class="eq-sqrt">(2π)<span class="eq-superscript">d/2</span> |<b class="var-sigma">Σ</b>|<span class="eq-superscript">1/2</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="margin-note" style="top: 100px;">
+        <strong>Normalization constant:</strong> (2π)^(d/2) ensures integral over all space equals 1. |<span class="var-sigma">Σ</span>|^(1/2) is determinant = ${det.toFixed(3)}, measuring "volume" of uncertainty ellipsoid. Click "Nearly Singular" to see determinant approach 0.
+      </div>
+
+      <div class="eq-element">
+        <span class="eq-exp">exp</span>
+      </div>
+
+      <div class="eq-element">
+        <span class="eq-parentheses">(</span>
+      </div>
+
+      <div class="margin-note" style="top: 200px;">
+        <strong>Matrix exponential:</strong> exp(M) = I + M + M²/2! + M³/3! + ... The key to understanding Gaussian correlations through infinite Taylor series. Click "Weak Correlations" to see first 2 terms capture 85%+ of the action!
+      </div>
+
+      <div class="eq-element">
+        <span class="eq-fraction">
+          <div class="eq-numerator">−1</div>
+          <div class="eq-denominator">2</div>
+        </span>
+      </div>
+
+      <div class="eq-element">
+        (<b class="var-x">x</b> − <b class="var-mu">μ</b>)<span class="eq-superscript">T</span>
+      </div>
+
+      <div class="margin-note" style="top: 250px;">
+        <strong>Negative exponent:</strong> Creates bell-shaped distribution peaked at <span class="var-mu">μ</span>. The -1/2 factor comes from completing the square in the Gaussian integral. (<span class="var-x">x</span>−<span class="var-mu">μ</span>)^T centers the data.
+      </div>
+
+      <div class="eq-element">
+        <b class="var-sigma">Σ</b><span class="eq-superscript">−1</span>
+      </div>
+
+      <div class="margin-note" style="top: 300px;">
+        <strong>Precision matrix <span class="var-sigma">Σ</span>⁻¹:</strong> Inverse of covariance. High precision = low variance = tight distribution. Click "Tight" button to see low variance example. Encodes conditional independence: if <span class="var-sigma">Σ</span>⁻¹[i,j]=0, variables i and j are conditionally independent given others.
+      </div>
+
+      <div class="eq-element">
+        (<b class="var-x">x</b> − <b class="var-mu">μ</b>)
+      </div>
+
+      <div class="margin-note" style="top: 350px;">
+        <strong>Mahalanobis distance:</strong> The full quadratic form (<span class="var-x">x</span>−<span class="var-mu">μ</span>)^T <span class="var-sigma">Σ</span>⁻¹ (<span class="var-x">x</span>−<span class="var-mu">μ</span>) measures distance from mean, accounting for correlations and variances.
+      </div>
+
+      <div class="eq-element">
+        <span class="eq-parentheses">)</span>
+      </div>
+
+      <div style="width: 100%; margin: 16px 0; padding: 14px; background: rgba(247, 129, 102, 0.15); border-left: 5px solid var(--accent2); border-radius: 4px;">
+        <div style="font-size: 15px; font-weight: 700; color: var(--accent2); margin-bottom: 10px; text-align: center;">
+          Taylor Series Expansion
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; font-size: 15px; font-weight: 600;">
+          <span><b>exp(<span class="var-r">R</span>)</b> ≈</span>
+          <span style="display: inline-flex; flex-direction: column; align-items: center; gap: 4px;">
+            <span style="display: inline-flex; flex-direction: column; align-items: center;">
+              <span>${renderMatrix(R0, true)}</span>
+              <span style="height: 16px;"></span>
+            </span>
+            <span style="font-size: 12px; color: var(--accent); font-weight: 700;">${contrib0.toFixed(1)}%</span>
+          </span>
+          <span><b>+</b></span>
+          <span style="display: inline-flex; flex-direction: column; align-items: center; gap: 4px;">
+            <span style="display: inline-flex; flex-direction: column; align-items: center;">
+              <span>${renderMatrix(R1, true)}</span>
+              <span style="height: 16px;"></span>
+            </span>
+            <span style="font-size: 12px; color: var(--accent); font-weight: 700;">${contrib1.toFixed(1)}%</span>
+          </span>
+          <span><b>+</b></span>
+          <span style="display: inline-flex; flex-direction: column; align-items: center; font-size: 11px; gap: 4px;">
+            <span style="display: inline-flex; flex-direction: column; align-items: center;">
+              <span>${renderMatrix(R2, true)}</span>
+              <span style="border-top: 1px solid var(--text); padding-top: 2px; margin-top: 2px; font-weight: 700;">2</span>
+            </span>
+            <span style="font-size: 12px; color: var(--accent); font-weight: 700;">${contrib2.toFixed(1)}%</span>
+          </span>
+          <span><b>+</b></span>
+          <span style="display: inline-flex; flex-direction: column; align-items: center; font-size: 11px; gap: 4px;">
+            <span style="display: inline-flex; flex-direction: column; align-items: center;">
+              <span>${renderMatrix(R3, true)}</span>
+              <span style="border-top: 1px solid var(--text); padding-top: 2px; margin-top: 2px; font-weight: 700;">6</span>
+            </span>
+            <span style="font-size: 12px; color: var(--accent); font-weight: 700;">${contrib3.toFixed(1)}%</span>
+          </span>
+          <span style="color: var(--muted); font-weight: 500;">+ ...</span>
+        </div>
+      </div>
+
+      <div class="contribution-analysis">
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 6px; color: var(--accent);">
+          Term Contributions (Frobenius Norms)
+        </div>
+        <div style="font-size: 10px; color: var(--muted); margin-bottom: 8px; line-height: 1.4;">
+          <strong>Frobenius norm:</strong> ||A|| = √(Σᵢⱼ aᵢⱼ²) measures matrix "magnitude". Like SVD variance explained, shows relative importance of each term in the series.<br>
+          <strong>Reading:</strong> Individual contribution → <strong>Cumulative total</strong> (how much all terms up to this point explain)
+        </div>
+
+        <div class="contribution-row">
+          <div class="contribution-label">Term 0 (I)</div>
+          <div class="contribution-bar">
+            <div class="contribution-fill" style="width: ${contrib0.toFixed(1)}%"></div>
+          </div>
+          <div class="contribution-value">${norm0.toFixed(2)} → ${contrib0.toFixed(1)}% (${contrib0.toFixed(1)}%)</div>
+        </div>
+
+        <div class="contribution-row">
+          <div class="contribution-label">Term 1 (R)</div>
+          <div class="contribution-bar">
+            <div class="contribution-fill" style="width: ${contrib1.toFixed(1)}%"></div>
+          </div>
+          <div class="contribution-value">${norm1.toFixed(2)} → ${contrib1.toFixed(1)}% (${(contrib0 + contrib1).toFixed(1)}%)</div>
+        </div>
+
+        <div class="contribution-row">
+          <div class="contribution-label">Term 2 (R²/2)</div>
+          <div class="contribution-bar">
+            <div class="contribution-fill" style="width: ${contrib2.toFixed(1)}%"></div>
+          </div>
+          <div class="contribution-value">${norm2.toFixed(2)} → ${contrib2.toFixed(1)}% (${(contrib0 + contrib1 + contrib2).toFixed(1)}%)</div>
+        </div>
+
+        <div class="contribution-row">
+          <div class="contribution-label">Term 3 (R³/6)</div>
+          <div class="contribution-bar">
+            <div class="contribution-fill" style="width: ${contrib3.toFixed(1)}%"></div>
+          </div>
+          <div class="contribution-value">${norm3.toFixed(2)} → ${contrib3.toFixed(1)}% (100.0%)</div>
+        </div>
+
+        <div style="margin-top: 10px; padding: 8px; background: var(--panel); border-radius: 4px; font-size: 11px; line-height: 1.5;">
+          <strong style="color: var(--accent2);">Approximation quality:</strong>
+          ${norm1 < 0.5 * norm0
+            ? `<strong style="color: #3fb950;">Linear approximation exp(<span class="var-r">R</span>) ≈ I + <span class="var-r">R</span> is valid (weak correlations).</strong> Terms 0+1 capture ${(contrib0 + contrib1).toFixed(1)}% of the action!`
+            : `<strong style="color: var(--accent2);">Higher-order terms needed for strong correlations.</strong> Terms 0+1 only capture ${(contrib0 + contrib1).toFixed(1)}%, need term 2 to reach ${(contrib0 + contrib1 + contrib2).toFixed(1)}%.`
+          }
+          <br>
+          <strong style="color: var(--accent);">Connection to SVD:</strong> In PCA/SVD, eigenvalues show variance explained per component. Here, Frobenius norms show "power" explained per Taylor term. Both measure relative importance in decomposition.
+          ${det < 0.1 ? '<br><br><strong style="color: var(--accent2);">WARNING:</strong> |<span class="var-sigma">Σ</span>| = ' + det.toFixed(3) + ' (nearly singular - features highly correlated)' : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  // Render GMM parameters as Gaussian curves from actual data
+  function renderGMMParams(data) {
+    const container = document.getElementById('gmmParams');
+    const classNames = ['Setosa', 'Versicolor', 'Virginica'];
+    const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d'];
+    const featureNames = ['Sepal Length', 'Sepal Width', 'Petal Length', 'Petal Width'];
+
+    container.innerHTML = '';
+
+    for (let d = 0; d < 4; d++) {
+      const featurePanel = document.createElement('div');
+      featurePanel.className = 'gmm-feature-panel';
+
+      const header = document.createElement('div');
+      header.className = 'gmm-feature-header';
+      header.textContent = featureNames[d];
+      featurePanel.appendChild(header);
+
+      const canvas = document.createElement('canvas');
+      canvas.className = 'gmm-curve-canvas';
+      featurePanel.appendChild(canvas);
+
+      const legend = document.createElement('div');
+      legend.className = 'gmm-legend';
+
+      for (let c = 0; c < 3; c++) {
+        const item = document.createElement('div');
+        item.className = 'gmm-legend-item';
+
+        const dot = document.createElement('div');
+        dot.className = 'gmm-legend-dot';
+        dot.style.background = colors[c];
+        item.appendChild(dot);
+
+        const label = document.createElement('span');
+        label.textContent = classNames[c].substring(0, 3);
+        item.appendChild(label);
+
+        legend.appendChild(item);
+      }
+
+      featurePanel.appendChild(legend);
+      container.appendChild(featurePanel);
+
+      // Draw after DOM insertion with actual data
+      requestAnimationFrame(() => drawGaussianCurve(canvas, data, d));
+    }
+  }
+
+  // Compute 2D covariance matrix for a specific class and dimensions
+  function compute2DCovMatrix(data, classIdx, dimX, dimY) {
+    const classData = data.filter(d => d.class === classIdx);
+    const n = classData.length;
+    if (n === 0) return { covXX: 1, covYY: 1, covXY: 0 };
+
+    // Compute means
+    let meanX = 0, meanY = 0;
+    for (const d of classData) {
+      meanX += d.features[dimX];
+      meanY += d.features[dimY];
+    }
+    meanX /= n;
+    meanY /= n;
+
+    // Compute covariance
+    let covXX = 0, covYY = 0, covXY = 0;
+    for (const d of classData) {
+      const dx = d.features[dimX] - meanX;
+      const dy = d.features[dimY] - meanY;
+      covXX += dx * dx;
+      covYY += dy * dy;
+      covXY += dx * dy;
+    }
+    covXX /= n;
+    covYY /= n;
+    covXY /= n;
+
+    return { covXX, covYY, covXY, meanX, meanY };
+  }
+
+  // Draw rotated Gaussian ellipse using eigenvalue decomposition
+  function drawEllipse(ctx, centerX, centerY, covXX, covYY, covXY, w, h, pad, minX, maxX, minY, maxY, color, alpha = 0.2, nstd = 2) {
+    ctx.save();
+
+    // Transform center to canvas coordinates
+    const cx = pad + ((centerX - minX) / (maxX - minX)) * (w - 2 * pad);
+    const cy = h - pad - ((centerY - minY) / (maxY - minY)) * (h - 2 * pad);
+
+    // Eigenvalue decomposition for 2x2 covariance matrix
+    // λ = (a+d)/2 ± sqrt(((a-d)/2)^2 + bc)
+    const a = covXX, b = covXY, c = covXY, d = covYY;
+    const trace = a + d;
+    const det = a * d - b * c;
+    const discriminant = Math.sqrt(Math.max(0, trace * trace / 4 - det));
+
+    const lambda1 = trace / 2 + discriminant;
+    const lambda2 = trace / 2 - discriminant;
+
+    // Eigenvector for lambda1
+    let angle = 0;
+    if (Math.abs(b) > 1e-10) {
+      angle = Math.atan2(lambda1 - a, b);
+    } else if (a >= d) {
+      angle = 0;
+    } else {
+      angle = Math.PI / 2;
+    }
+
+    // Ellipse radii (nstd standard deviations)
+    const rx = Math.abs(nstd * Math.sqrt(Math.max(0, lambda1)) * (w - 2 * pad) / (maxX - minX));
+    const ry = Math.abs(nstd * Math.sqrt(Math.max(0, lambda2)) * (h - 2 * pad) / (maxY - minY));
+
+    ctx.translate(cx, cy);
+    ctx.rotate(-angle); // Negative because canvas Y is inverted
+
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+
+    // Fill with transparent color
+    ctx.fillStyle = color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
+    ctx.fill();
+
+    // Stroke with more opaque color
+    ctx.strokeStyle = color + Math.floor((alpha * 2) * 255).toString(16).padStart(2, '0');
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Draw scatter plot
+  function drawScatter(canvas, data, dimX, dimY) {
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+
+    ctx.scale(dpr, dpr);
+
+    const w = rect.width;
+    const h = rect.height;
+
+    // Clear
+    ctx.fillStyle = '#1b1f27';
+    ctx.fillRect(0, 0, w, h);
+
+    const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d'];
+    const pad = 35;
+
+    // Get data ranges
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    for (const d of data) {
+      if (d.features[dimX] < minX) minX = d.features[dimX];
+      if (d.features[dimX] > maxX) maxX = d.features[dimX];
+      if (d.features[dimY] < minY) minY = d.features[dimY];
+      if (d.features[dimY] > maxY) maxY = d.features[dimY];
+    }
+
+    // Add padding to ranges
+    const rangeX = maxX - minX;
+    const rangeY = maxY - minY;
+    minX -= rangeX * 0.1;
+    maxX += rangeX * 0.1;
+    minY -= rangeY * 0.1;
+    maxY += rangeY * 0.1;
+
+    // Draw grid
+    ctx.strokeStyle = '#30363d';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 4; i++) {
+      const x = pad + (i / 4) * (w - 2 * pad);
+      const y = h - pad - (i / 4) * (h - 2 * pad);
+      ctx.beginPath();
+      ctx.moveTo(x, pad);
+      ctx.lineTo(x, h - pad);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(pad, y);
+      ctx.lineTo(w - pad, y);
+      ctx.stroke();
+    }
+
+    // Draw axes
+    ctx.strokeStyle = '#4b5563';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(pad, h - pad);
+    ctx.lineTo(w - pad, h - pad);
+    ctx.moveTo(pad, pad);
+    ctx.lineTo(pad, h - pad);
+    ctx.stroke();
+
+    // Draw Gaussian ellipses if enabled
+    if (showEllipses) {
+      for (let c = 0; c < 3; c++) {
+        const cov = compute2DCovMatrix(data, c, dimX, dimY);
+        drawEllipse(ctx, cov.meanX, cov.meanY, cov.covXX, cov.covYY, cov.covXY,
+                    w, h, pad, minX, maxX, minY, maxY, colors[c], 0.15, 2);
+      }
+    }
+
+    // Draw points
+    for (const d of data) {
+      const x = pad + ((d.features[dimX] - minX) / (maxX - minX)) * (w - 2 * pad);
+      const y = h - pad - ((d.features[dimY] - minY) / (maxY - minY)) * (h - 2 * pad);
+
+      ctx.fillStyle = colors[d.class];
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Add subtle stroke
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+
+    // Axis labels
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText(minX.toFixed(1), pad - 5, h - pad + 15);
+    ctx.textAlign = 'right';
+    ctx.fillText(maxX.toFixed(1), w - pad + 5, h - pad + 15);
+
+    ctx.textAlign = 'right';
+    ctx.fillText(minY.toFixed(1), pad - 5, h - pad + 5);
+    ctx.fillText(maxY.toFixed(1), pad - 5, pad + 5);
+  }
+
+  // Initialize
+  let currentData = generateData();
+  const labels = ['Sepal L', 'Sepal W', 'Petal L', 'Petal W'];
+
+  const canvases = [
+    document.getElementById('canvas1'),
+    document.getElementById('canvas2'),
+    document.getElementById('canvas3'),
+    document.getElementById('canvas4')
+  ];
+
+  const projections = [
+    [0, 1], // Sepal L vs W
+    [2, 3], // Petal L vs W
+    [0, 2], // Sepal L vs Petal L
+    [1, 3]  // Sepal W vs Petal W
+  ];
+
+  let showEllipses = true;
+
+  // Draw all visualizations
+  // Update flower icons based on actual data
+  function updateFlowerIcons(data) {
+    const classNames = ['Setosa', 'Versicolor', 'Virginica'];
+
+    for (let c = 0; c < 3; c++) {
+      const classData = data.filter(d => d.class === c);
+
+      // Calculate mean petal length (feature 2) and petal width (feature 3)
+      const meanPetalLength = classData.reduce((sum, d) => sum + d.features[2], 0) / classData.length;
+      const meanPetalWidth = classData.reduce((sum, d) => sum + d.features[3], 0) / classData.length;
+
+      // Scale to visual size (petal length 1-7cm → 5-14px, petal width 0.1-2.5cm → 3-8px)
+      const petalHeight = 5 + (meanPetalLength - 1) * 1.5;
+      const petalWidth = 3 + (meanPetalWidth - 0.1) * 2;
+
+      const flower = document.getElementById(`flower-${c}`);
+      const petals = flower.querySelectorAll('.petal');
+
+      petals.forEach((petal, i) => {
+        petal.style.width = `${petalWidth}px`;
+        petal.style.height = `${petalHeight}px`;
+
+        // Position petals in cross pattern
+        const offset = petalHeight / 2 - 2;
+        if (i === 0) { // top
+          petal.style.top = `-${offset}px`;
+          petal.style.left = '50%';
+          petal.style.transform = 'translateX(-50%)';
+        } else if (i === 1) { // bottom
+          petal.style.bottom = `-${offset}px`;
+          petal.style.left = '50%';
+          petal.style.transform = 'translateX(-50%)';
+        } else if (i === 2) { // left
+          petal.style.left = `-${offset}px`;
+          petal.style.top = '50%';
+          petal.style.transform = 'translateY(-50%) rotate(90deg)';
+        } else { // right
+          petal.style.right = `-${offset}px`;
+          petal.style.top = '50%';
+          petal.style.transform = 'translateY(-50%) rotate(90deg)';
+        }
+      });
+    }
+  }
+
+  function drawAll(data) {
+    projections.forEach((proj, i) => {
+      drawScatter(canvases[i], data, proj[0], proj[1]);
+    });
+    renderCorrelationMatrix(data);
+    renderGMMParams(data);
+    renderGaussianEquation(data);
+    updateFlowerIcons(data);
+  }
+
+  // Full regenerate
+  function regenerateAll() {
+    editableCorr = null;
+    document.getElementById('corrModeIndicator').style.display = 'none';
+    currentData = generateData();
+    drawAll(currentData);
+  }
+
+  // Check if we're in an iframe and adjust layout
+  const isInIframe = window.self !== window.top;
+  if (isInIframe) {
+    // Force margin notes to be inline when in iframe
+    const style = document.createElement('style');
+    style.textContent = `
+      .margin-note {
+        position: static !important;
+        width: 100% !important;
+        margin: 8px 0 !important;
+      }
+      .equation-panel {
+        position: relative !important;
+        overflow: visible !important;
+      }
+      body {
+        padding: 8px !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Add indicator that this is embedded view
+    const info = document.querySelector('.info');
+    if (info) {
+      info.innerHTML += ' <span style="font-size: 9px; color: var(--muted);">(Embedded View)</span>';
+    }
+  }
+
+  // Initial draw
+  drawAll(currentData);
+
+  // Event listeners
+  document.getElementById('btnRegenerate').addEventListener('click', regenerateAll);
+
+  document.getElementById('btnResetCorr').addEventListener('click', () => {
+    editableCorr = null;
+    document.getElementById('corrModeIndicator').style.display = 'none';
+    currentData = generateData(); // Regenerate with default (no correlation)
+    drawAll(currentData);
+  });
+
+  // Interactive example buttons
+  document.getElementById('btnWeakCorr').addEventListener('click', () => {
+    // Weak correlations: small off-diagonal values
+    // This will show that Term 0 (I) + Term 1 (R) capture most of the action
+    editableCorr = [
+      [1.00,  0.15, -0.10,  0.05],
+      [0.15,  1.00,  0.08, -0.12],
+      [-0.10, 0.08,  1.00,  0.20],
+      [0.05, -0.12,  0.20,  1.00]
+    ];
+    document.getElementById('corrModeIndicator').style.display = 'block';
+    currentData = generateData(editableCorr);
+    drawAll(currentData);
+  });
+
+  document.getElementById('btnStrongCorr').addEventListener('click', () => {
+    // Strong correlations: large off-diagonal values
+    // This requires higher-order terms for accuracy
+    editableCorr = [
+      [1.00,  0.75,  0.60, -0.50],
+      [0.75,  1.00,  0.65, -0.45],
+      [0.60,  0.65,  1.00, -0.70],
+      [-0.50, -0.45, -0.70, 1.00]
+    ];
+    document.getElementById('corrModeIndicator').style.display = 'block';
+    currentData = generateData(editableCorr);
+    drawAll(currentData);
+  });
+
+  document.getElementById('btnUncorrelated').addEventListener('click', () => {
+    // Identity matrix: no correlations
+    // Only Term 0 matters! (all others are zero)
+    editableCorr = [
+      [1.00, 0.00, 0.00, 0.00],
+      [0.00, 1.00, 0.00, 0.00],
+      [0.00, 0.00, 1.00, 0.00],
+      [0.00, 0.00, 0.00, 1.00]
+    ];
+    document.getElementById('corrModeIndicator').style.display = 'block';
+    currentData = generateData(editableCorr);
+    drawAll(currentData);
+  });
+
+  document.getElementById('btnTight').addEventListener('click', () => {
+    // Low variance (tight distribution) with weak correlations
+    // Shows precision matrix effect
+    editableCorr = [
+      [0.30,  0.05, -0.03,  0.02],
+      [0.05,  0.25,  0.04, -0.03],
+      [-0.03, 0.04,  0.35,  0.06],
+      [0.02, -0.03,  0.06,  0.20]
+    ];
+    document.getElementById('corrModeIndicator').style.display = 'block';
+    currentData = generateData(editableCorr);
+    drawAll(currentData);
+  });
+
+  document.getElementById('btnSingular').addEventListener('click', () => {
+    // Nearly singular matrix: features are almost perfectly correlated
+    // Determinant approaches 0
+    editableCorr = [
+      [1.00,  0.95,  0.90,  0.85],
+      [0.95,  1.00,  0.95,  0.90],
+      [0.90,  0.95,  1.00,  0.95],
+      [0.85,  0.90,  0.95,  1.00]
+    ];
+    document.getElementById('corrModeIndicator').style.display = 'block';
+    currentData = generateData(editableCorr);
+    drawAll(currentData);
+  });
+
+  document.getElementById('samplesPerClass').addEventListener('change', e => {
+    gmmConfig.nPerClass = parseInt(e.target.value);
+    regenerateAll();
+  });
+
+  document.getElementById('showEllipses').addEventListener('change', e => {
+    showEllipses = e.target.checked;
+    drawAll(currentData);
+  });
+
+  document.getElementById('spreadSlider').addEventListener('input', e => {
+    gmmConfig.spreadMultiplier = parseFloat(e.target.value);
+    document.getElementById('spreadValue').textContent = gmmConfig.spreadMultiplier.toFixed(1);
+    updateSpreads();
+    regenerateAll();
+  });
+
+  document.getElementById('separationSlider').addEventListener('input', e => {
+    gmmConfig.separationMultiplier = parseFloat(e.target.value);
+    document.getElementById('separationValue').textContent = gmmConfig.separationMultiplier.toFixed(1);
+    regenerateAll();
+  });
+
+  // Regenerate on canvas click
+  canvases.forEach(c => {
+    c.addEventListener('click', regenerateAll);
+  });
+
+  // Redraw on resize
+  window.addEventListener('resize', () => {
+    drawAll(currentData);
+  });
+
+  // Toggle equation view (compact vs full)
+  document.getElementById('btnToggleEquation').addEventListener('click', () => {
+    const panel = document.getElementById('equationPanel');
+    const btn = document.getElementById('btnToggleEquation');
+
+    if (panel.classList.contains('compact')) {
+      panel.classList.remove('compact');
+      btn.textContent = 'Hide';
+    } else {
+      panel.classList.add('compact');
+      btn.textContent = 'Explain';
+    }
+  });
+</script>
+</body>
+</html>
