@@ -18,9 +18,16 @@
       overflow: auto;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
     }
+    /* Wikipedia math equation images - invert for dark mode */
+    .mwe-math-fallback-image-inline,
+    .mwe-math-fallback-image-display,
+    img[src*="wikimedia.org/api/rest_v1/media/math"] {
+      filter: invert(1) hue-rotate(180deg);
+      opacity: 0.9;
+    }
     .controls {
       display: flex;
-      gap: 8px;
+      gap: 12px;
       align-items: center;
       justify-content: center;
       padding: 6px 10px;
@@ -30,7 +37,7 @@
       flex-wrap: wrap;
     }
     .controls button {
-      padding: 4px 10px;
+      padding: 4px 8px;
       background: var(--panel);
       border: 1px solid var(--grid);
       border-radius: 3px;
@@ -47,8 +54,9 @@
       font-size: 10px;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
       font-weight: 500;
+      margin-right: 4px;
     }
     .controls select {
       font-size: 10px;
@@ -72,7 +80,7 @@
       width: 8px;
       height: 16px;
       border-radius: 2px;
-      margin-top: -6px;
+      margin-top: -4px;
       cursor: pointer;
     }
     input[type="range"]::-moz-range-track {
@@ -155,7 +163,7 @@
     }
     .legend {
       display: flex;
-      gap: 12px;
+      gap: 30px;
       justify-content: center;
       font-size: 10px;
       padding: 6px;
@@ -164,7 +172,7 @@
     .legend-item {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 7px;
     }
     .flower-icon {
       position: relative;
@@ -590,7 +598,7 @@
   <div class="info">
     <strong>Synthetic Iris Dataset</strong>
     <span id="corrModeIndicator" style="margin-left: 12px; font-size: 10px; color: var(--accent2); display: none;">
-      ⚡ Using Custom Correlation Matrix
+      Using Custom Correlation Matrix
     </span>
   </div>
 
@@ -630,151 +638,245 @@
       </div>
     </div>
 
-    <div id="dataInfoPanel" style="display: none; background: linear-gradient(135deg, rgba(88, 166, 255, 0.06) 0%, rgba(78, 205, 196, 0.06) 100%); border-radius: 6px; padding: 16px; margin-top: 12px; font-size: 12px; line-height: 1.7; color: var(--text); border: 1px solid rgba(88, 166, 255, 0.2);">
+    <div id="dataInfoPanel" style="display: none; margin-top: 12px; background: rgba(88, 166, 255, 0.08); border-radius: 6px; padding: 16px; font-size: 14px; line-height: 1.7; color: var(--text); border: 1px solid rgba(88, 166, 255, 0.2); max-height: 80vh; overflow-y: auto;">
 
       <!-- Header -->
-      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 10px; border-top: 2px solid rgba(88, 166, 255, 0.3);">
-        <strong style="color: var(--accent); font-size: 14px; letter-spacing: 0.5px;">How Data Points are Generated</strong>
+      <div style="margin-bottom: 16px;">
+        <strong style="color: var(--accent); font-size: 16px; letter-spacing: 0.5px;">How data points are generated</strong>
       </div>
 
-      <div style="margin-bottom: 14px; padding: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 5px;">
-        <p style="margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7;">
-          Data points are generated using a <a href="https://en.wikipedia.org/wiki/Mixture_model#Gaussian_mixture_model" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">Gaussian Mixture Model (GMM)</a>. Each of the three iris species is represented by a separate <a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">multivariate Gaussian distribution</a> with its own mean and covariance.
-        </p>
-      </div>
-      <!-- Generation Process Tree -->
-      <svg viewBox="0 0 420 240" style="width: 100%; max-width: 450px; margin: 12px auto; display: block;">
-        <!-- Start node -->
-        <rect x="175" y="10" width="70" height="32" rx="4" fill="rgba(138, 180, 248, 0.15)" stroke="#8ab4f8" stroke-width="2"/>
-        <text x="210" y="31" fill="#8ab4f8" font-size="13" text-anchor="middle" font-weight="bold">START</text>
+      <p style="margin: 0 0 16px 0; color: var(--muted); line-height: 1.7; font-size: 14px;">
+        Data points are generated using a <strong style="color: var(--text);"><a href="https://en.wikipedia.org/wiki/Mixture_model" target="_blank" style="color: var(--accent); text-decoration: none;">Gaussian Mixture Model</a> (GMM)</strong>. Generation is a two-stage process: <strong style="color: var(--text);">first pick a&nbsp;species&nbsp;k</strong> with probability <span id="gmm_pik"></span>, then <strong style="color: var(--text);">sample features conditioned on that species</strong> from <span id="gmm_normal"></span> (a Gaussian distribution with mean μ and covariance Σ).
+      </p>
 
-        <!-- Vertical line down -->
-        <line x1="210" y1="42" x2="210" y2="60" stroke="#666" stroke-width="1.5"/>
+      <!-- Tree and Histogram side by side -->
+      <div style="display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; margin: 20px 0;">
 
-        <!-- Species selection node -->
-        <rect x="130" y="60" width="160" height="28" rx="4" fill="rgba(255, 230, 109, 0.12)" stroke="#ffe66d" stroke-width="2"/>
-        <text x="210" y="79" fill="#ffe66d" font-size="11" text-anchor="middle" font-weight="600">Pick Species (π = 1/3 each)</text>
+        <!-- Generation Process Tree -->
+        <div style="flex: 1; min-width: 300px;">
+          <svg viewBox="0 0 420 240" style="width: 100%; max-width: 450px; margin: 0 auto; display: block;">
+            <!-- Start node -->
+            <rect x="175" y="10" width="70" height="32" rx="4" fill="rgba(138, 180, 248, 0.15)" stroke="#8ab4f8" stroke-width="2"/>
+            <text x="210" y="31" fill="#8ab4f8" font-size="13" text-anchor="middle" font-weight="bold">START</text>
 
-        <!-- Three branches -->
-        <line x1="210" y1="88" x2="70" y2="110" stroke="#ff6b6b" stroke-width="1.5"/>
-        <line x1="210" y1="88" x2="210" y2="110" stroke="#4ecdc4" stroke-width="1.5"/>
-        <line x1="210" y1="88" x2="350" y2="110" stroke="#ffe66d" stroke-width="1.5"/>
+            <!-- Vertical line down -->
+            <line x1="210" y1="42" x2="210" y2="60" stroke="#666" stroke-width="1.5"/>
 
-        <!-- Setosa branch -->
-        <rect x="10" y="110" width="120" height="26" rx="3" fill="rgba(255, 107, 107, 0.12)" stroke="#ff6b6b" stroke-width="1.5"/>
-        <text x="70" y="127" fill="#ff6b6b" font-size="10" text-anchor="middle" font-weight="600">𝒩(μ₁, Σ₁) Setosa</text>
-        <line x1="70" y1="136" x2="70" y2="150" stroke="#ff6b6b" stroke-width="1.5"/>
-        <circle cx="70" cy="160" r="10" fill="#ff6b6b" opacity="0.8"/>
+            <!-- Species selection node -->
+            <rect x="130" y="60" width="160" height="28" rx="4" fill="rgba(255, 230, 109, 0.12)" stroke="#ffe66d" stroke-width="2"/>
+            <text x="210" y="79" fill="#ffe66d" font-size="11" text-anchor="middle" font-weight="600">Pick Species (π = 1/3 each)</text>
 
-        <!-- Versicolor branch -->
-        <rect x="150" y="110" width="120" height="26" rx="3" fill="rgba(78, 205, 196, 0.12)" stroke="#4ecdc4" stroke-width="1.5"/>
-        <text x="210" y="127" fill="#4ecdc4" font-size="10" text-anchor="middle" font-weight="600">𝒩(μ₂, Σ₂) Versicolor</text>
-        <line x1="210" y1="136" x2="210" y2="150" stroke="#4ecdc4" stroke-width="1.5"/>
-        <circle cx="210" cy="160" r="10" fill="#4ecdc4" opacity="0.8"/>
+            <!-- Three branches -->
+            <line x1="210" y1="88" x2="70" y2="110" stroke="#ff6b6b" stroke-width="1.5"/>
+            <line x1="210" y1="88" x2="210" y2="110" stroke="#4ecdc4" stroke-width="1.5"/>
+            <line x1="210" y1="88" x2="350" y2="110" stroke="#ffe66d" stroke-width="1.5"/>
 
-        <!-- Virginica branch -->
-        <rect x="290" y="110" width="120" height="26" rx="3" fill="rgba(255, 230, 109, 0.12)" stroke="#ffe66d" stroke-width="1.5"/>
-        <text x="350" y="127" fill="#ffe66d" font-size="10" text-anchor="middle" font-weight="600">𝒩(μ₃, Σ₃) Virginica</text>
-        <line x1="350" y1="136" x2="350" y2="150" stroke="#ffe66d" stroke-width="1.5"/>
-        <circle cx="350" cy="160" r="10" fill="#ffe66d" opacity="0.8"/>
+            <!-- Setosa branch -->
+            <g class="species-branch" data-species="0" style="cursor: pointer;">
+              <rect x="10" y="110" width="120" height="26" rx="3" fill="rgba(255, 107, 107, 0.12)" stroke="#ff6b6b" stroke-width="1.5"/>
+              <text x="70" y="127" fill="#ff6b6b" font-size="10" text-anchor="middle" font-weight="600">𝒩(μ₁, Σ₁) Setosa</text>
+            </g>
 
-        <!-- Output label -->
-        <text x="210" y="175" fill="var(--muted)" font-size="9" text-anchor="middle" font-style="italic">Output: 4D feature vector</text>
-      </svg>
+            <!-- Versicolor branch -->
+            <g class="species-branch" data-species="1" style="cursor: pointer;">
+              <rect x="150" y="110" width="120" height="26" rx="3" fill="rgba(78, 205, 196, 0.12)" stroke="#4ecdc4" stroke-width="1.5"/>
+              <text x="210" y="127" fill="#4ecdc4" font-size="10" text-anchor="middle" font-weight="600">𝒩(μ₂, Σ₂) Versicolor</text>
+            </g>
 
-      <!-- Mathematical Formulation -->
-      <div style="margin-top: 14px; padding: 10px; background: rgba(78, 205, 196, 0.08); border-radius: 4px;">
-        <div style="color: #4ecdc4; font-weight: bold; font-size: 11px; margin-bottom: 6px; letter-spacing: 0.5px;">GMM PROBABILITY DENSITY</div>
-        <div style="font-family: 'Courier New', monospace; font-size: 13px; color: var(--text); padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center;">
-          p(<strong>x</strong>) = Σ<sub>k=1</sub><sup>K</sup> π<sub>k</sub> 𝒩(<strong>x</strong> | <strong>μ</strong><sub>k</sub>, <strong>Σ</strong><sub>k</sub>)
+            <!-- Virginica branch -->
+            <g class="species-branch" data-species="2" style="cursor: pointer;">
+              <rect x="290" y="110" width="120" height="26" rx="3" fill="rgba(255, 230, 109, 0.12)" stroke="#ffe66d" stroke-width="1.5"/>
+              <text x="350" y="127" fill="#ffe66d" font-size="10" text-anchor="middle" font-weight="600">𝒩(μ₃, Σ₃) Virginica</text>
+            </g>
+
+            <!-- Converging lines to output box -->
+            <line x1="70" y1="136" x2="120" y2="165" stroke="#666" stroke-width="1" opacity="0.5"/>
+            <line x1="210" y1="136" x2="210" y2="165" stroke="#666" stroke-width="1" opacity="0.5"/>
+            <line x1="350" y1="136" x2="300" y2="165" stroke="#666" stroke-width="1" opacity="0.5"/>
+
+            <!-- Output: 4D feature vector box -->
+            <rect x="90" y="155" width="240" height="85" rx="4" fill="rgba(138, 180, 248, 0.08)" stroke="var(--accent)" stroke-width="2" stroke-dasharray="3,3"/>
+            <text x="210" y="172" fill="var(--accent)" font-size="10" text-anchor="middle" font-weight="bold">4D Feature Vector</text>
+
+            <!-- Four features in a 2x2 grid - clickable -->
+            <g class="feature-select" data-feature="0" style="cursor: pointer;">
+              <rect x="100" y="180" width="100" height="22" rx="2" fill="rgba(138, 180, 248, 0.1)" stroke="var(--accent)" stroke-width="1"/>
+              <text x="150" y="195" fill="var(--text)" font-size="9" text-anchor="middle">Sepal Length</text>
+            </g>
+            <g class="feature-select" data-feature="1" style="cursor: pointer;">
+              <rect x="220" y="180" width="100" height="22" rx="2" fill="rgba(138, 180, 248, 0.1)" stroke="var(--accent)" stroke-width="1"/>
+              <text x="270" y="195" fill="var(--text)" font-size="9" text-anchor="middle">Sepal Width</text>
+            </g>
+            <g class="feature-select" data-feature="2" style="cursor: pointer;">
+              <rect x="100" y="210" width="100" height="22" rx="2" fill="rgba(138, 180, 248, 0.1)" stroke="var(--accent)" stroke-width="1"/>
+              <text x="150" y="225" fill="var(--text)" font-size="9" text-anchor="middle">Petal Length</text>
+            </g>
+            <g class="feature-select" data-feature="3" style="cursor: pointer;">
+              <rect x="220" y="210" width="100" height="22" rx="2" fill="rgba(138, 180, 248, 0.1)" stroke="var(--accent)" stroke-width="1"/>
+              <text x="270" y="225" fill="var(--text)" font-size="9" text-anchor="middle">Petal Width</text>
+            </g>
+          </svg>
         </div>
-        <div style="margin-top: 8px; font-size: 10px; color: var(--muted); line-height: 1.5;">
-          Weighted sum of <strong style="color: var(--text);">K = 3</strong> Gaussian components (species)
-        </div>
 
-        <!-- Parameters Breakdown -->
-        <div style="margin-top: 10px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 3px;">
-          <div style="font-size: 10px; color: var(--muted); line-height: 1.6;">
-            <div style="margin-bottom: 3px;">• <strong style="color: var(--text);">π<sub>k</sub> = 1/3</strong> — Mixing coefficient (equal probability)</div>
-            <div style="margin-bottom: 3px;">• <strong style="color: var(--text);">μ<sub>k</sub></strong> — Mean vector [4D] for species k</div>
-            <div style="margin-bottom: 3px;">• <strong style="color: var(--text);">Σ<sub>k</sub></strong> — Covariance matrix [4×4] for species k</div>
+        <!-- Histogram showing feature distribution -->
+        <div style="flex: 1; min-width: 300px;">
+          <div id="gmmHistogramTitle" style="text-align: center; margin-bottom: 8px; color: var(--muted); font-size: 13px;">
+            Petal Length - All Species
           </div>
-        </div>
-      </div>
-
-      <!-- Multivariate Gaussian Formula -->
-      <div style="margin-top: 10px; padding: 10px; background: rgba(255, 107, 107, 0.08); border-radius: 4px;">
-        <div style="color: #ff6b6b; font-weight: bold; font-size: 11px; margin-bottom: 6px; letter-spacing: 0.5px;">MULTIVARIATE GAUSSIAN</div>
-        <div style="font-family: 'Courier New', monospace; font-size: 11px; color: var(--text); padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center; overflow-x: auto;">
-          𝒩(<strong>x</strong> | <strong>μ</strong><sub>k</sub>, <strong>Σ</strong><sub>k</sub>) = (2π)<sup>-d/2</sup> |<strong>Σ</strong><sub>k</sub>|<sup>-1/2</sup> exp(-½(<strong>x</strong> - <strong>μ</strong><sub>k</sub>)<sup>T</sup> <strong>Σ</strong><sub>k</sub><sup>-1</sup> (<strong>x</strong> - <strong>μ</strong><sub>k</sub>))
-        </div>
-        <div style="margin-top: 6px; font-size: 10px; color: var(--muted); line-height: 1.5;">
-          where <strong style="color: var(--text);">d = 4</strong> dimensions: Sepal Length, Sepal Width, Petal Length, Petal Width
-        </div>
-      </div>
-
-      <!-- Sampling Algorithm -->
-      <div style="margin-top: 14px; padding: 10px; background: rgba(255, 230, 109, 0.08); border-radius: 4px;">
-        <div style="color: #ffe66d; font-weight: bold; font-size: 11px; margin-bottom: 8px; letter-spacing: 0.5px;">SAMPLING ALGORITHM (2 STEPS)</div>
-
-        <!-- Step 1 -->
-        <div style="margin-bottom: 12px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; border-left: 3px solid #4ecdc4;">
-          <div style="color: #4ecdc4; font-weight: 600; font-size: 11px; margin-bottom: 6px;">Step 1: Component Selection</div>
-          <div style="font-family: 'Courier New', monospace; font-size: 11px; color: var(--text); padding: 6px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center;">
-            k ~ Categorical(π₁, π₂, π₃) = Categorical(1/3, 1/3, 1/3)
-          </div>
-          <div style="margin-top: 6px; font-size: 10px; color: var(--muted); line-height: 1.5;">
-            Randomly choose which species to sample from (each has 33.3% probability)
+          <canvas id="gmmHistogram" width="500" height="240" style="width: 100%; height: auto; border-radius: 4px; background: rgba(0, 0, 0, 0.2); cursor: pointer;"></canvas>
+          <div style="text-align: center; margin-top: 8px; font-size: 11px; color: var(--muted);">
+            Click species or features in tree • Click histogram to reset
           </div>
         </div>
 
-        <!-- Step 2 -->
-        <div style="margin-bottom: 8px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; border-left: 3px solid #ff6b6b;">
-          <div style="color: #ff6b6b; font-weight: 600; font-size: 11px; margin-bottom: 6px;">Step 2: Sample Features</div>
-          <div style="font-family: 'Courier New', monospace; font-size: 11px; color: var(--text); padding: 6px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center;">
-            <strong>x</strong> ~ 𝒩(<strong>μ</strong><sub>k</sub>, <strong>Σ</strong><sub>k</sub>)
-          </div>
-          <div style="margin-top: 6px; font-size: 10px; color: var(--muted); line-height: 1.5;">
-            Draw a correlated 4D sample from the selected species' Gaussian distribution
-          </div>
-        </div>
       </div>
 
-      <!-- Cholesky Decomposition -->
-      <div style="margin-top: 10px; padding: 10px; background: rgba(138, 180, 248, 0.08); border-radius: 4px;">
-        <div style="color: #8ab4f8; font-weight: bold; font-size: 11px; margin-bottom: 8px; letter-spacing: 0.5px;">CHOLESKY DECOMPOSITION</div>
-        <div style="font-size: 10px; color: var(--muted); margin-bottom: 8px; line-height: 1.5;">
-          To generate correlated samples, we use <a href="https://en.wikipedia.org/wiki/Cholesky_decomposition" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">Cholesky decomposition</a>:
-        </div>
+          <p style="margin: 20px 0 16px 0; color: var(--muted); line-height: 1.7; font-size: 14px;">
+            To generate correlated samples from a <a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">multivariate Gaussian</a>, <strong style="color: var(--text);"><a href="https://en.wikipedia.org/wiki/Cholesky_decomposition" target="_blank" style="color: var(--accent); text-decoration: none;">Cholesky decomposition</a></strong> is the standard approach.
+          </p>
 
-        <div style="display: grid; gap: 8px;">
-          <div style="padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px;">
-            <div style="font-family: 'Courier New', monospace; font-size: 10px; color: var(--text);">
-              <strong>1.</strong> Decompose: <strong>Σ</strong><sub>k</sub> = <strong>L</strong><strong>L</strong><sup>T</sup>
+          <p style="margin: 16px 0; color: var(--muted); line-height: 1.7; font-size: 14px;">
+            We decompose the <strong style="color: var(--text);"><a href="https://en.wikipedia.org/wiki/Covariance_matrix" target="_blank" style="color: var(--accent); text-decoration: none;">4×4 covariance matrix</a></strong>:
+          </p>
+
+            <!-- Cholesky Decomposition Visual -->
+            <div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin: 32px 0; flex-wrap: wrap;">
+              <!-- Sigma matrix -->
+              <div style="font-family: 'Courier New', monospace; font-size: 10px; color: var(--text);">
+                <div style="text-align: center; margin-bottom: 8px; font-size: 20px; color: var(--accent); font-weight: bold;">Σ<sub>k</sub></div>
+                <div style="display: grid; grid-template-columns: auto 1fr auto; gap: 3px; align-items: center;">
+                  <div style="font-size: 20px; color: var(--muted);">[</div>
+                  <div style="display: grid; grid-template-rows: repeat(4, 1fr); gap: 2px;">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;">
+                      <div style="padding: 4px; background: rgba(255,107,107,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₁₁</div>
+                      <div style="padding: 4px; background: rgba(78,205,196,0.2); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₁₂</div>
+                      <div style="padding: 4px; background: rgba(78,205,196,0.2); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₁₃</div>
+                      <div style="padding: 4px; background: rgba(78,205,196,0.2); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₁₄</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;">
+                      <div style="padding: 4px; background: rgba(78,205,196,0.2); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₂₁</div>
+                      <div style="padding: 4px; background: rgba(255,107,107,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₂₂</div>
+                      <div style="padding: 4px; background: rgba(78,205,196,0.2); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₂₃</div>
+                      <div style="padding: 4px; background: rgba(78,205,196,0.2); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₂₄</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;">
+                      <div style="padding: 4px; background: rgba(78,205,196,0.2); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₃₁</div>
+                      <div style="padding: 4px; background: rgba(78,205,196,0.2); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₃₂</div>
+                      <div style="padding: 4px; background: rgba(255,107,107,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₃₃</div>
+                      <div style="padding: 4px; background: rgba(78,205,196,0.2); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₃₄</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;">
+                      <div style="padding: 4px; background: rgba(78,205,196,0.2); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₄₁</div>
+                      <div style="padding: 4px; background: rgba(78,205,196,0.2); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₄₂</div>
+                      <div style="padding: 4px; background: rgba(78,205,196,0.2); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₄₃</div>
+                      <div style="padding: 4px; background: rgba(255,107,107,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">σ₄₄</div>
+                    </div>
+                  </div>
+                  <div style="font-size: 20px; color: var(--muted);">]</div>
+                </div>
+              </div>
+
+              <div style="font-size: 20px; color: var(--text); font-weight: bold;">=</div>
+
+              <!-- L matrix (lower triangular) -->
+              <div style="font-family: 'Courier New', monospace; font-size: 10px; color: var(--text);">
+                <div style="text-align: center; margin-bottom: 8px; font-size: 20px; color: var(--accent); font-weight: bold;">L</div>
+                <div style="display: grid; grid-template-columns: auto 1fr auto; gap: 3px; align-items: center;">
+                  <div style="font-size: 20px; color: var(--muted);">[</div>
+                  <div style="display: grid; grid-template-rows: repeat(4, 1fr); gap: 2px;">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;">
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₁₁</div>
+                      <div style="padding: 4px; background: rgba(0,0,0,0.4); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px; color: var(--muted);">0</div>
+                      <div style="padding: 4px; background: rgba(0,0,0,0.4); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px; color: var(--muted);">0</div>
+                      <div style="padding: 4px; background: rgba(0,0,0,0.4); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px; color: var(--muted);">0</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;">
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₂₁</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₂₂</div>
+                      <div style="padding: 4px; background: rgba(0,0,0,0.4); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px; color: var(--muted);">0</div>
+                      <div style="padding: 4px; background: rgba(0,0,0,0.4); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px; color: var(--muted);">0</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;">
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₃₁</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₃₂</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₃₃</div>
+                      <div style="padding: 4px; background: rgba(0,0,0,0.4); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px; color: var(--muted);">0</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;">
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₄₁</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₄₂</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₄₃</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₄₄</div>
+                    </div>
+                  </div>
+                  <div style="font-size: 20px; color: var(--muted);">]</div>
+                </div>
+              </div>
+
+              <div style="font-size: 20px; color: var(--text); font-weight: bold;">×</div>
+
+              <!-- L^T matrix (upper triangular) -->
+              <div style="font-family: 'Courier New', monospace; font-size: 10px; color: var(--text);">
+                <div style="text-align: center; margin-bottom: 8px; font-size: 20px; color: var(--accent); font-weight: bold;">L<sup>T</sup></div>
+                <div style="display: grid; grid-template-columns: auto 1fr auto; gap: 3px; align-items: center;">
+                  <div style="font-size: 20px; color: var(--muted);">[</div>
+                  <div style="display: grid; grid-template-rows: repeat(4, 1fr); gap: 2px;">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;">
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₁₁</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₂₁</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₃₁</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₄₁</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;">
+                      <div style="padding: 4px; background: rgba(0,0,0,0.4); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px; color: var(--muted);">0</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₂₂</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₃₂</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₄₂</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;">
+                      <div style="padding: 4px; background: rgba(0,0,0,0.4); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px; color: var(--muted);">0</div>
+                      <div style="padding: 4px; background: rgba(0,0,0,0.4); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px; color: var(--muted);">0</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₃₃</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₄₃</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;">
+                      <div style="padding: 4px; background: rgba(0,0,0,0.4); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px; color: var(--muted);">0</div>
+                      <div style="padding: 4px; background: rgba(0,0,0,0.4); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px; color: var(--muted);">0</div>
+                      <div style="padding: 4px; background: rgba(0,0,0,0.4); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px; color: var(--muted);">0</div>
+                      <div style="padding: 4px; background: rgba(138,180,248,0.3); border-radius: 2px; text-align: center; font-size: 7px; min-width: 18px;">l₄₄</div>
+                    </div>
+                  </div>
+                  <div style="font-size: 20px; color: var(--muted);">]</div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div style="padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px;">
-            <div style="font-family: 'Courier New', monospace; font-size: 10px; color: var(--text);">
-              <strong>2.</strong> Sample: <strong>z</strong> ~ 𝒩(<strong>0</strong>, <strong>I</strong>) (4 independent normals)
+
+            <p style="margin: 24px 0; color: var(--muted); line-height: 1.7; font-size: 16px;">
+              Computers natively generate <strong style="color: var(--text);">independent uniform</strong> samples. The <strong style="color: var(--text);">Box–Muller transform</strong> converts pairs of these uniforms into <strong style="color: var(--text);">independent N(0,1)</strong> samples. <strong style="color: var(--text);">Cholesky</strong> then introduces the desired correlations. You cannot use Σ directly, because x = μ + Σz would give Cov(x) = <strong style="color: var(--text);">Σ², not Σ</strong>.
+            </p>
+
+            <p style="margin: 16px 0; color: var(--muted); line-height: 1.7; font-size: 16px;">
+              The scalar analogy: if Z ~ N(0,1) and you want X ~ N(0, σ²), you use X = σZ (<a href="https://en.wikipedia.org/wiki/Standard_deviation" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">standard deviation</a>), not X = σ²Z (<a href="https://en.wikipedia.org/wiki/Variance" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">variance</a>). In the matrix case, you likewise need a matrix "square root" of Σ. Cholesky provides this via Σ = LL<sup>T</sup>, and the transform <span id="gmm_transform"></span> produces x ~ N(μ, Σ), where each draw <strong style="color: var(--text);">x</strong> is one 4D iris measurement vector.
+            </p>
+
+            <!-- Before/After 2D visualization -->
+            <div style="display: flex; gap: 20px; align-items: center; justify-content: center; margin: 24px 0; flex-wrap: wrap;">
+              <div style="text-align: center;">
+                <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">Before (z): Independent</div>
+                <canvas id="beforeTransform" width="150" height="150" style="border: 1px solid var(--grid); border-radius: 4px; background: rgba(0,0,0,0.2);"></canvas>
+                <div style="font-size: 10px; color: var(--muted); margin-top: 4px;">Circular cloud (dims 0,2)</div>
+              </div>
+              <div style="font-size: 24px; color: var(--accent);">→</div>
+              <div style="text-align: center;">
+                <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">After (x): Correlated</div>
+                <canvas id="afterTransform" width="150" height="150" style="border: 1px solid var(--grid); border-radius: 4px; background: rgba(0,0,0,0.2);"></canvas>
+                <div style="font-size: 10px; color: var(--muted); margin-top: 4px;">Elliptical cloud (sepal len, petal len)</div>
+              </div>
             </div>
-          </div>
-          <div style="padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px;">
-            <div style="font-family: 'Courier New', monospace; font-size: 10px; color: var(--text);">
-              <strong>3.</strong> Transform: <strong>x</strong> = <strong>μ</strong><sub>k</sub> + <strong>L</strong><strong>z</strong>
-            </div>
-          </div>
-        </div>
 
-        <div style="margin-top: 8px; font-size: 9px; color: var(--muted); line-height: 1.5; font-style: italic; text-align: center;">
-          Transforms uncorrelated samples into correlated features
-        </div>
-      </div>
-
-      <!-- Footer Note -->
-      <div style="margin-top: 12px; padding: 8px 10px; background: rgba(255, 255, 255, 0.02); border-radius: 4px; font-size: 10px; color: var(--muted); font-style: italic; text-align: center; border: 1px dashed rgba(255, 255, 255, 0.1);">
-        💡 The GMM is "generative" — this process describes how real iris flowers could have their features sampled from species-specific distributions
-      </div>
-
+          <p style="margin: 16px 0 0 0; color: var(--muted); line-height: 1.7; font-size: 16px;">
+            Each draw produces a full 4D <a href="https://en.wikipedia.org/wiki/Sample_(statistics)" target="_blank" style="color: var(--accent); text-decoration: none;">sample</a> with the correct correlations. <a href="https://en.wikipedia.org/wiki/Sampling_(statistics)" target="_blank" style="color: var(--accent); text-decoration: none;">Sampling</a> dimensions independently would create unrealistic flowers (e.g., tiny petals on huge sepals). The L transform enforces the natural relationships between measurements that real flowers exhibit.
+          </p>
     </div>
   </div>
 
@@ -819,11 +921,15 @@
     <div style="margin-bottom: 12px;">
       The genetics behind the formation of <a href="https://en.wikipedia.org/wiki/Petal" target="_blank" style="color: var(--accent); text-decoration: none;">petals</a>, in accordance with the ABC model of flower development, are that sepals, petals, stamens, and carpels are modified versions of each other. It appears that the mechanisms to form <a href="https://en.wikipedia.org/wiki/Petal" target="_blank" style="color: var(--accent); text-decoration: none;">petals</a> evolved very few times (perhaps only once), rather than evolving repeatedly from stamens.
     </div>
-    <div style="text-align: center; margin-bottom: 12px;">
+    <div style="text-align: center; margin-bottom: 16px;">
       <img src="ABC_Model.svg" alt="ABC Model of Flower Development" style="max-width: 60%; height: auto; border: 1px solid var(--grid); border-radius: 4px; background: transparent; mix-blend-mode: lighten; display: block; margin: 0 auto;">
     </div>
-    <div style="text-align: right; margin-top: 8px;">
+    <div style="margin-bottom: 12px; font-size: 15px; line-height: 1.8; color: var(--text);">
+      This biological hierarchy mirrors our <a href="https://en.wikipedia.org/wiki/Mixture_model" target="_blank" style="color: var(--accent); text-decoration: none;">Gaussian Mixture Model</a>: just as discrete <a href="https://en.wikipedia.org/wiki/Gene_expression" target="_blank" style="color: var(--accent); text-decoration: none;">gene combinations</a> in the ABC model unfold into continuous petal morphology, our GMM maps a discrete 3-class latent variable (species "genotype") to continuous 4D trait measurements (the observable "phenotype"). Both capture how low-dimensional genetic code generates high-dimensional observable features through a hierarchical developmental process.
+    </div>
+    <div style="text-align: right; margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end;">
       <a href="#" id="showFlowerTuner" style="color: var(--muted); text-decoration: none; font-size: 10px; border: 1px solid var(--grid); padding: 3px 8px; border-radius: 3px; display: inline-block;">🔧 flower tuner</a>
+      <a href="#" id="showSliderStyles" style="color: var(--muted); text-decoration: none; font-size: 10px; border: 1px solid var(--grid); padding: 3px 8px; border-radius: 3px; display: inline-block;">⚙ slider styles</a>
     </div>
     </div>
   </div>
@@ -838,7 +944,7 @@
       </div>
     </div>
 
-    <div id="scatterInfoPanel" style="display: none; background: linear-gradient(135deg, rgba(88, 166, 255, 0.06) 0%, rgba(78, 205, 196, 0.06) 100%); border-radius: 6px; padding: 16px; margin-bottom: 12px; font-size: 12px; line-height: 1.7; color: var(--text); border: 1px solid rgba(88, 166, 255, 0.2);">
+    <div id="scatterInfoPanel" style="display: none; background: linear-gradient(135deg, rgba(88, 166, 255, 0.06) 0%, rgba(78, 205, 196, 0.06) 100%); border-radius: 6px; padding: 16px; margin-bottom: 12px; font-size: 12px; line-height: 1.7; color: var(--text); border: 1px solid rgba(88, 166, 255, 0.2); max-height: 80vh; overflow-y: auto;">
 
       <!-- Header -->
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid rgba(88, 166, 255, 0.3);">
@@ -852,7 +958,7 @@
         <div>
           <div style="margin-bottom: 14px; padding: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 5px;">
             <p style="margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7;">
-              The ellipses are computed <strong style="color: var(--text);">from the actual generated points</strong> using the <strong style="color: var(--text);">empirical approach</strong>.
+              The <a href="https://en.wikipedia.org/wiki/Ellipse" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">ellipses</a> are computed <strong style="color: var(--text);">from the actual generated points</strong> using the <strong style="color: var(--text);">empirical approach</strong>.
             </p>
           </div>
 
@@ -881,39 +987,16 @@
           <!-- Formulas -->
           <div style="margin-top: 14px;">
             <div style="margin-bottom: 10px; padding: 10px; background: rgba(255, 107, 107, 0.08); border-radius: 4px;">
-              <div style="color: #ff6b6b; font-weight: bold; font-size: 11px; margin-bottom: 6px; letter-spacing: 0.5px;">STEP 1: MEAN VECTOR</div>
-              <div style="font-family: 'Courier New', monospace; font-size: 13px; color: var(--text); padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center;">
-                <strong>μ</strong> = (1/N) Σ<sub>i=1</sub><sup>N</sup> <strong>x</strong><sub>i</sub>
-              </div>
-              <div style="margin-top: 6px; font-size: 10px; color: var(--muted); line-height: 1.5;">
-                Average position of all N points
+              <div style="color: #ff6b6b; font-weight: bold; font-size: 11px; margin-bottom: 6px; letter-spacing: 0.5px;">MEAN VECTOR</div>
+              <div class="katex-formula" style="font-size: 18px; color: var(--text); padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center;">
+                \boldsymbol{\mu} = \frac{1}{N} \sum_{i=1}^{N} \mathbf{x}_i
               </div>
             </div>
 
             <div style="margin-bottom: 10px; padding: 10px; background: rgba(78, 205, 196, 0.08); border-radius: 4px;">
-              <div style="color: #4ecdc4; font-weight: bold; font-size: 11px; margin-bottom: 6px; letter-spacing: 0.5px;">STEP 2: COVARIANCE MATRIX</div>
-              <div style="font-family: 'Courier New', monospace; font-size: 13px; color: var(--text); padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center; line-height: 1.8;">
-                Σ[j,k] = (1/N) Σ<sub>i</sub> (x<sub>i,j</sub> - μ<sub>j</sub>)(x<sub>i,k</sub> - μ<sub>k</sub>)
-              </div>
-
-              <!-- Breakdown -->
-              <div style="margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 3px;">
-                <div style="font-size: 10px; color: var(--muted); line-height: 1.6;">
-                  <div style="margin-bottom: 4px;"><strong style="color: var(--text);">What it means:</strong></div>
-                  <div style="margin-left: 8px; margin-bottom: 3px;">• <strong style="color: var(--text);">j, k</strong> = feature indices (0 or 1 for 2D)</div>
-                  <div style="margin-left: 8px; margin-bottom: 3px;">• <strong style="color: var(--text);">x<sub>i,j</sub></strong> = value of feature j for point i</div>
-                  <div style="margin-left: 8px; margin-bottom: 3px;">• <strong style="color: var(--text);">μ<sub>j</sub></strong> = mean of feature j</div>
-                  <div style="margin-left: 8px;">• Multiply deviations from mean</div>
-                </div>
-              </div>
-
-              <!-- What you get -->
-              <div style="margin-top: 8px; padding: 6px 8px; background: rgba(78, 205, 196, 0.15); border-radius: 3px;">
-                <div style="font-size: 10px; color: var(--text); font-weight: 600; margin-bottom: 3px;">Result: 2×2 Matrix →</div>
-                <div style="font-size: 10px; color: var(--muted); line-height: 1.5;">
-                  When <strong style="color: #ff6b6b;">j = k</strong>: variance (spread)<br>
-                  When <strong style="color: #4ecdc4;">j ≠ k</strong>: covariance (correlation)
-                </div>
+              <div style="color: #4ecdc4; font-weight: bold; font-size: 11px; margin-bottom: 6px; letter-spacing: 0.5px;">COVARIANCE MATRIX</div>
+              <div class="katex-formula" style="font-size: 18px; color: var(--text); padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center;">
+                \boldsymbol{\Sigma}_{jk} = \frac{1}{N} \sum_{i=1}^{N} (x_{i,j} - \mu_j)(x_{i,k} - \mu_k)
               </div>
             </div>
 
@@ -1084,10 +1167,6 @@
         </div>
       </div>
 
-      <!-- Footer Note -->
-      <div style="margin-top: 12px; padding: 8px 10px; background: rgba(255, 255, 255, 0.02); border-radius: 4px; font-size: 10px; color: var(--muted); font-style: italic; text-align: center; border: 1px dashed rgba(255, 255, 255, 0.1);">
-        💡 Because of random sampling, the ellipse will vary slightly each time you regenerate the data
-      </div>
 
     </div>
 
@@ -1122,7 +1201,7 @@
       </div>
 
       <!-- Correlation Info Panel -->
-      <div id="corrInfoPanel" style="display: none; background: rgba(88, 166, 255, 0.08); border-radius: 4px; padding: 10px; margin-top: 10px; font-size: 12px; line-height: 1.5; color: var(--text);">
+      <div id="corrInfoPanel" style="display: none; background: rgba(88, 166, 255, 0.08); border-radius: 4px; padding: 10px; margin-top: 10px; font-size: 12px; line-height: 1.5; color: var(--text); max-height: 80vh; overflow-y: auto;">
         <div style="margin-bottom: 8px;">
           <strong style="color: #4ecdc4; font-size: 15px;">Interactive: 2×2 Submatrix → 4×4 Full Matrix</strong>
         </div>
@@ -1284,18 +1363,38 @@
       </div>
     </div>
     <div class="matrix-panel">
-      <div class="matrix-title">Gaussian Mixture Model Parameters</div>
+      <div class="matrix-title"><a href="https://en.wikipedia.org/wiki/Mixture_model#Gaussian_mixture_model" target="_blank" style="color: var(--accent2); text-decoration: none;">Gaussian Mixture Model</a> Parameters</div>
       <div id="gmmParams" class="gmm-container"></div>
     </div>
   </div>
 
   <div class="equation-panel compact" id="equationPanel">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-      <div class="equation-title" style="margin: 0;">Multivariate Gaussian as Matrix Exponential</div>
+      <div class="equation-title" style="margin: 0;"><a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution" style="color: var(--accent2); text-decoration: none;">Multivariate Gaussian</a> as <a href="https://en.wikipedia.org/wiki/Matrix_exponential" style="color: var(--accent2); text-decoration: none;">Matrix Exponential</a></div>
       <button id="btnToggleEquation" style="padding: 3px 8px; font-size: 10px; color: var(--muted); background: transparent; border: 1px solid var(--grid); border-radius: 3px; cursor: pointer; white-space: nowrap;">info</button>
     </div>
     <div id="gmmEquation" class="equation"></div>
   </div>
+
+<!-- Wikipedia Sidebar -->
+<div id="wikiBackdrop" class="wiki-backdrop"></div>
+<div id="wikiSidebar" class="wiki-sidebar">
+  <div class="wiki-header">
+    <button id="wikiBack" class="wiki-back" aria-label="Go back" style="display: none;">←</button>
+    <h3 id="wikiTitle" class="wiki-title">Wikipedia</h3>
+    <button id="wikiClose" class="wiki-close" aria-label="Close sidebar">&times;</button>
+  </div>
+  <div id="wikiContent" class="wiki-content">
+    <div id="wikiLoading" class="wiki-loading">
+      <div class="wiki-spinner"></div>
+      <p>Loading...</p>
+    </div>
+    <div id="wikiBody" class="wiki-body"></div>
+  </div>
+  <div id="wikiFooter" class="wiki-footer">
+    <a id="wikiLink" href="#" target="_blank" rel="noopener noreferrer">Read more on Wikipedia →</a>
+  </div>
+</div>
 
 <script>
   // Global tuning parameters - set immediately
@@ -1307,11 +1406,13 @@
     sepalSizeMin: 5,
     sepalSizeRange: 1.5,
     sepalRoundness: 20,      // 0-50% border-radius (50 = circle)
-    sepalGreen: '#11df11'
+    sepalGreen: '#11df11',
+    labelSpacing: 30,        // Gap between flower labels in legend (px)
+    interFlowerLabelSpacing: 7  // Gap between flower icon and text label (px)
   };
   console.log('🌸 Flower tuning available:', window.flowerTuning);
 
-  // Gaussian RNG (Box-Muller transform)
+  // Gaussian RNG (<a href="https://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform" target="_blank" style="color: var(--accent); text-decoration: none;">Box-Muller transform</a>)
   let _gaussSpare = null;
   function gaussianRandom() {
     if (_gaussSpare !== null) {
@@ -1962,30 +2063,30 @@
               <td style="padding: 10px; color: var(--text);">4×4 matrix encoding variances & correlations</td>
             </tr>
             <tr style="border-bottom: 1px solid var(--grid);">
-              <td style="padding: 10px; color: #4ecdc4; font-weight: 600;">Precision matrix</td>
+              <td style="padding: 10px; color: #4ecdc4; font-weight: 600;"><a href="https://en.wikipedia.org/wiki/Precision_(statistics)" target="_blank" style="color: #4ecdc4; text-decoration: none;">Precision matrix</a></td>
               <td style="padding: 10px; color: #4ecdc4; font-size: 18px; font-weight: 700;">Σ⁻¹</td>
-              <td style="padding: 10px; color: var(--text);">Inverse of covariance (high precision = tight distribution)</td>
+              <td style="padding: 10px; color: var(--text);"><a href="https://en.wikipedia.org/wiki/Invertible_matrix" target="_blank" style="color: var(--accent); text-decoration: none;">Inverse</a> of covariance (high precision = tight distribution)</td>
             </tr>
             <tr style="border-bottom: 1px solid var(--grid);">
-              <td style="padding: 10px; color: #ba68c8; font-weight: 600;">Normalization constant</td>
+              <td style="padding: 10px; color: #ba68c8; font-weight: 600;"><a href="https://en.wikipedia.org/wiki/Normalizing_constant" target="_blank" style="color: #ba68c8; text-decoration: none;">Normalization constant</a></td>
               <td style="padding: 10px; color: #ba68c8; font-size: 18px; font-weight: 700;">(2π)^(d/2)</td>
-              <td style="padding: 10px; color: var(--text);">2π raised to the power d/2, where d is the number of dimensions</td>
+              <td style="padding: 10px; color: var(--text);"><a href="https://en.wikipedia.org/wiki/Pi" target="_blank" style="color: var(--accent); text-decoration: none;">2π</a> raised to the power d/2, where d is the number of dimensions</td>
             </tr>
             <tr style="border-bottom: 1px solid var(--grid);">
-              <td style="padding: 10px; color: #3fb950; font-weight: 600;">Exponential function</td>
+              <td style="padding: 10px; color: #3fb950; font-weight: 600;"><a href="https://en.wikipedia.org/wiki/Exponential_function" target="_blank" style="color: #3fb950; text-decoration: none;">Exponential function</a></td>
               <td style="padding: 10px; color: #3fb950; font-size: 18px; font-weight: 700;">exp</td>
-              <td style="padding: 10px; color: var(--text);">Creates the bell-shaped curve (e^x function)</td>
+              <td style="padding: 10px; color: var(--text);">Creates the <a href="https://en.wikipedia.org/wiki/Normal_distribution" target="_blank" style="color: var(--accent); text-decoration: none;">bell-shaped curve</a> (e^x function)</td>
             </tr>
             <tr>
               <td style="padding: 10px; color: #ff9800; font-weight: 600;">Exponent factor</td>
               <td style="padding: 10px; color: #ff9800; font-size: 18px; font-weight: 700;">-1/2</td>
-              <td style="padding: 10px; color: var(--text);">From completing the square in quadratic form</td>
+              <td style="padding: 10px; color: var(--text);">From <a href="https://en.wikipedia.org/wiki/Completing_the_square" target="_blank" style="color: var(--accent); text-decoration: none;">completing the square</a> in <a href="https://en.wikipedia.org/wiki/Quadratic_form" target="_blank" style="color: var(--accent); text-decoration: none;">quadratic form</a></td>
             </tr>
           </tbody>
         </table>
 
         <p style="margin: 0 0 16px 0; font-size: 18px; line-height: 2; color: var(--text);">
-          The multivariate Gaussian probability density function describes the likelihood of observing a d-dimensional vector <b style="color: #58a6ff;">x</b> given a mean vector <b style="color: #ffe66d;">μ</b> and covariance matrix <b style="color: #ff6b6b;">Σ</b>. In our Iris dataset, this is a 4-dimensional distribution (sepal length, sepal width, petal length, petal width) that captures how these features vary together for each species.
+          The <a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">multivariate Gaussian</a> <a href="https://en.wikipedia.org/wiki/Probability_density_function" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">probability density function</a> describes the likelihood of observing a d-dimensional vector <b style="color: #58a6ff;">x</b> given a <a href="https://en.wikipedia.org/wiki/Mean" target="_blank" style="color: var(--accent); text-decoration: none;">mean vector</a> <b style="color: #ffe66d;">μ</b> and <a href="https://en.wikipedia.org/wiki/Covariance_matrix" target="_blank" style="color: var(--accent); text-decoration: none;">covariance matrix</a> <b style="color: #ff6b6b;">Σ</b>. In our <a href="https://en.wikipedia.org/wiki/Iris_flower_data_set" target="_blank" style="color: var(--accent); text-decoration: none;">Iris dataset</a>, this is a 4-dimensional distribution (<a href="https://en.wikipedia.org/wiki/Sepal" target="_blank" style="color: var(--accent); text-decoration: none;">sepal</a> length, sepal width, <a href="https://en.wikipedia.org/wiki/Petal" target="_blank" style="color: var(--accent); text-decoration: none;">petal</a> length, petal width) that captures how these features vary together for each species.
         </p>
 
         <!-- Mean Vector Visualization -->
@@ -1994,7 +2095,7 @@
             <canvas id="meanVectorCanvas" width="800" height="640" style="width: 400px; height: 320px; background: #0d1117; border: none;"></canvas>
             <div style="font-size: 18px; line-height: 1.9; color: var(--text); padding-top: 0;">
               <p style="margin: 0 0 20px 0;">
-                The <b style="color: #ff8800;">mean vector μ</b> is the center point of the distribution in 4-dimensional space. The diagram shows a 2D projection (petal length vs. petal width) of the Setosa class. The full 4D mean vector for Setosa is:
+                The <b style="color: #ff8800;">mean vector μ</b> is the center point of the distribution in 4-dimensional space. The diagram shows a 2D <a href="https://en.wikipedia.org/wiki/Projection_(linear_algebra)" target="_blank" style="color: var(--accent); text-decoration: none;">projection</a> (petal length vs. petal width) of the Setosa class. The full 4D mean vector for Setosa is:
               </p>
               <div style="margin: 20px 0; font-family: monospace; font-size: 17px; line-height: 1.7;">
                 <div><b style="color: #ff8800;">μ</b> = [<span id="meanVector_SL" style="color: #58a6ff;">5.01</span>, <span id="meanVector_SW" style="color: #58a6ff;">3.42</span>, <span id="meanVector_PL" style="color: #ff8800;">1.46</span>, <span id="meanVector_PW" style="color: #ff8800;">0.25</span>]</div>
@@ -2022,7 +2123,7 @@
               </div>
             </div>
             <div style="flex: 1; font-size: 18px; line-height: 1.9; color: var(--text);">
-              The diagonal holds variances (spread along each axis). The off-diagonal elements are identical and measure covariance—when petal length increases, petal width tends to increase too, creating positive correlation.
+              The <a href="https://en.wikipedia.org/wiki/Diagonal_matrix" target="_blank" style="color: var(--accent); text-decoration: none;">diagonal</a> holds variances (spread along each axis). The off-diagonal elements are identical and measure covariance—when petal length increases, petal width tends to increase too, creating positive <a href="https://en.wikipedia.org/wiki/Correlation" target="_blank" style="color: var(--accent); text-decoration: none;">correlation</a>.
             </div>
           </div>
         </div>
@@ -2068,7 +2169,7 @@
             </div>
             <div style="font-size: 16px; color: rgba(139, 148, 158, 0.7); line-height: 1.8; text-align: center;">
               <div>★ = Strong correlation (PL×PW)</div>
-              <div>Diagonal = Variances</div>
+              <div><a href="https://en.wikipedia.org/wiki/Diagonal_matrix" target="_blank" style="color: var(--accent); text-decoration: none;">Diagonal</a> = Variances</div>
             </div>
           </div>
         </div>
@@ -2131,7 +2232,7 @@
         <!-- Mahalanobis Distance Section -->
         <div style="margin: 40px 0;">
           <p style="margin: 0 0 20px 0; font-size: 18px; line-height: 2; color: var(--text);">
-            The Gaussian probability density is built from a single core quantity: the Mahalanobis distance. For a point <b style="color: #58a6ff;">x</b> relative to the distribution centered at <b style="color: #ff8800;">μ</b> with precision matrix <b style="color: #4ecdc4;">Σ⁻¹</b>, the squared Mahalanobis distance is:
+            The <a href="https://en.wikipedia.org/wiki/Normal_distribution" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">Gaussian</a> <a href="https://en.wikipedia.org/wiki/Probability_density_function" target="_blank" style="color: var(--accent); text-decoration: none;">probability density</a> is built from a single core quantity: the <a href="https://en.wikipedia.org/wiki/Mahalanobis_distance" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">Mahalanobis distance</a>. For a point <b style="color: #58a6ff;">x</b> relative to the distribution centered at <b style="color: #ff8800;">μ</b> with precision matrix <b style="color: #4ecdc4;">Σ⁻¹</b>, the squared Mahalanobis distance is:
           </p>
 
           <div style="text-align: center; font-size: 20px; font-weight: 600; margin: 24px 0; padding: 20px; background: rgba(0,0,0,0.2); border-radius: 6px;">
@@ -2139,7 +2240,7 @@
           </div>
 
           <p style="margin: 20px 0; font-size: 18px; line-height: 2; color: var(--text);">
-            This generalizes Euclidean distance. In 2D with uncorrelated, unit-variance features, <b style="color: #4ecdc4;">Σ⁻¹</b> = I (identity matrix), and d² reduces to the familiar (x₁ - μ₁)² + (x₂ - μ₂)². The precision matrix <b style="color: #4ecdc4;">Σ⁻¹</b> weights and rotates the coordinate system to account for different variances and correlations between dimensions.
+            This generalizes <a href="https://en.wikipedia.org/wiki/Euclidean_distance" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">Euclidean distance</a>. In 2D with uncorrelated, unit-variance features, <b style="color: #4ecdc4;">Σ⁻¹</b> = I (<a href="https://en.wikipedia.org/wiki/Identity_matrix" target="_blank" style="color: var(--accent); text-decoration: none;">identity matrix</a>), and d² reduces to the familiar (x₁ - μ₁)² + (x₂ - μ₂)². The precision matrix <b style="color: #4ecdc4;">Σ⁻¹</b> weights and rotates the coordinate system to account for different variances and correlations between dimensions.
           </p>
 
           <div style="display: flex; gap: 32px; margin: 30px 0;">
@@ -2163,19 +2264,41 @@
 
           <!-- Interactive: Euclidean vs Mahalanobis -->
           <div style="margin: 30px 0;">
-            <p style="margin: 0 0 16px 0; font-size: 18px; line-height: 2; color: var(--text);">
+            <p style="margin: 0 0 16px 0; font-size: 20px; font-weight: 600; color: var(--accent2);">
               Interactive: Euclidean vs Mahalanobis distance
             </p>
             <div style="display: flex; gap: 24px; align-items: start;">
               <div style="flex: 0 0 350px;">
                 <canvas id="euclideanVsMahalanobis" width="350" height="350" style="border: 1px solid var(--grid); border-radius: 4px; cursor: crosshair;"></canvas>
-                <p style="margin: 10px 0 0 0; font-size: 13px; color: rgba(139, 148, 158, 0.9); text-align: center;">
+                <p style="margin: 10px 0 8px 0; font-size: 13px; color: rgba(139, 148, 158, 0.9); text-align: center;">
                   Click or drag the point to explore
                 </p>
+                <!-- Covariance Matrix Display -->
+                <div style="margin: 0 auto; max-width: 180px; padding: 12px; background: rgba(78, 205, 196, 0.08); border: 1px solid rgba(78, 205, 196, 0.3); border-radius: 4px;">
+                  <div style="font-size: 12px; font-weight: 600; color: #4ecdc4; text-align: center; margin-bottom: 8px;">Covariance Matrix Σ</div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-family: monospace; font-size: 13px;">
+                    <div style="padding: 6px; background: rgba(255, 107, 107, 0.2); border-radius: 3px; text-align: center; color: var(--text);">
+                      <span id="covMat00">0.00</span>
+                    </div>
+                    <div style="padding: 6px; background: rgba(78, 205, 196, 0.2); border-radius: 3px; text-align: center; color: var(--text);">
+                      <span id="covMat01">0.00</span>
+                    </div>
+                    <div style="padding: 6px; background: rgba(78, 205, 196, 0.2); border-radius: 3px; text-align: center; color: var(--text);">
+                      <span id="covMat10">0.00</span>
+                    </div>
+                    <div style="padding: 6px; background: rgba(255, 107, 107, 0.2); border-radius: 3px; text-align: center; color: var(--text);">
+                      <span id="covMat11">0.00</span>
+                    </div>
+                  </div>
+                  <div style="margin-top: 6px; font-size: 10px; color: rgba(139, 148, 158, 0.8); text-align: center;">
+                    <span style="color: #ff6b6b;">■</span> Variance &nbsp;
+                    <span style="color: #4ecdc4;">■</span> Covariance
+                  </div>
+                </div>
               </div>
               <div style="flex: 1;">
                 <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.8; color: var(--text);">
-                  The ellipse contours represent points at equal Mahalanobis distance from the mean. As you move the point around, notice how the two distance metrics behave differently:
+                  The <a href="https://en.wikipedia.org/wiki/Ellipse" target="_blank" style="color: var(--accent); text-decoration: none;">ellipse</a> contours represent points at equal Mahalanobis distance from the mean. These ellipses reveal the <b style="color: #4ecdc4;"><a href="https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors" target="_blank" style="color: #4ecdc4; text-decoration: none;">eigenvector</a> structure</b> of the covariance matrix:
                 </p>
                 <div style="margin: 20px 0; padding: 16px; background: rgba(78, 205, 196, 0.05); border-left: 3px solid #4ecdc4; border-radius: 4px;">
                   <div style="margin-bottom: 12px;">
@@ -2187,8 +2310,14 @@
                     <span id="mahalanobisDist" style="font-size: 24px; font-weight: 600; font-family: monospace; color: #4ecdc4;">0.00</span>
                   </div>
                 </div>
-                <p style="margin: 0; font-size: 16px; line-height: 1.8; color: rgba(139, 148, 158, 0.9);">
-                  When you drag the point along an ellipse contour, the Mahalanobis distance stays approximately constant while the Euclidean distance changes. This demonstrates how Mahalanobis distance accounts for the shape and orientation of the distribution, not just raw coordinate distance.
+                <p style="margin: 0 0 12px 0; font-size: 15px; line-height: 1.8; color: rgba(139, 148, 158, 0.9);">
+                  <b style="color: #ff8800;">The ellipse axes align with <a href="https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors" target="_blank" style="color: #ff8800; text-decoration: none;">eigenvectors</a></b> of the covariance matrix <b style="color: #ff6b6b;">Σ</b>. The <b style="color: #ffe66d;"><a href="https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors" target="_blank" style="color: #ffe66d; text-decoration: none;">eigenvalues</a> λ₁ and λ₂</b> determine how far you can travel along each eigenvector direction before the Mahalanobis distance increases by 1 standard deviation.
+                </p>
+                <p style="margin: 0 0 12px 0; font-size: 15px; line-height: 1.8; color: rgba(139, 148, 158, 0.9);">
+                  Moving along the <b style="color: #4ecdc4;">wide axis</b> (large eigenvalue = high variance): you can go far before Mahalanobis distance increases. Moving along the <b style="color: #58a6ff;">narrow axis</b> (small eigenvalue = low variance): small movements create large Mahalanobis distances.
+                </p>
+                <p style="margin: 0; font-size: 15px; line-height: 1.8; color: rgba(139, 148, 158, 0.9);">
+                  Drag the point along an ellipse contour: Mahalanobis distance stays constant while Euclidean distance changes. This shows how Mahalanobis "warps" space according to the data's correlation structure, making statistically equivalent points appear at different physical distances.
                 </p>
               </div>
             </div>
@@ -2244,7 +2373,7 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start;">
           <div>
             <p style="margin: 0 0 20px 0; font-size: 16px; color: rgba(139, 148, 158, 0.9);">
-              The Gaussian is constructed by applying the exponential function to <b style="color: #ff9800;">-½</b> d². Points at Mahalanobis distance d from the mean get probability proportional to <b style="color: #3fb950;">exp</b>(<b style="color: #ff9800;">-½</b> d²). At the mean (<b style="color: #58a6ff;">x</b> = <b style="color: #ff8800;">μ</b>), d² = 0 and probability is maximal. Moving away, d² grows quadratically and probability decays exponentially.
+              The Gaussian is constructed by applying the <a href="https://en.wikipedia.org/wiki/Exponential_function" target="_blank" style="color: var(--accent); text-decoration: none;">exponential function</a> to <b style="color: #ff9800;">-½</b> d². Points at Mahalanobis distance d from the mean get probability proportional to <b style="color: #3fb950;">exp</b>(<b style="color: #ff9800;">-½</b> d²). At the mean (<b style="color: #58a6ff;">x</b> = <b style="color: #ff8800;">μ</b>), d² = 0 and probability is maximal. Moving away, d² grows quadratically and probability decays exponentially.
             </p>
             <p style="margin: 0; font-size: 16px; color: rgba(139, 148, 158, 0.9);">
               The result is the multivariate Gaussian probability density function.
@@ -2270,7 +2399,7 @@
               Step 3: Normalize: multiply by (<b style="color: #ba68c8;">2π</b>)<sup>-d/2</sup> |<b style="color: #ff6b6b;">Σ</b>|<sup>-1/2</sup>
             </p>
             <p style="margin: 0; font-size: 16px; color: rgba(139, 148, 158, 0.9);">
-              Ensures total probability = 1. The term <b style="color: #ba68c8;">2π raised to the power d/2</b> accounts for dimension; |<b style="color: #ff6b6b;">Σ</b>| measures ellipsoid volume—smaller determinant = more concentrated.
+              Ensures total probability = 1. The term <b style="color: #ba68c8;">2π raised to the power d/2</b> accounts for dimension; |<b style="color: #ff6b6b;">Σ</b>| measures <a href="https://en.wikipedia.org/wiki/Ellipsoid" target="_blank" style="color: var(--accent); text-decoration: none;">ellipsoid</a> volume—smaller <a href="https://en.wikipedia.org/wiki/Determinant" target="_blank" style="color: var(--accent); text-decoration: none;">determinant</a> = more concentrated.
             </p>
           </div>
         </div>
@@ -2282,7 +2411,7 @@
         </p>
 
         <p style="margin: 0 0 20px 0; font-size: 16px; color: rgba(139, 148, 158, 0.9);">
-          The normalization constant (<b style="color: #ba68c8;">2π</b>)<sup>-d/2</sup> |<b style="color: #ff6b6b;">Σ</b>|<sup>-1/2</sup> ensures the probability integrates to 1. But why <b style="color: #ba68c8;">2π</b>? It comes from the circumference of a circle—and to see it, we need to work in <b>2D</b>.
+          The normalization constant (<b style="color: #ba68c8;">2π</b>)<sup>-d/2</sup> |<b style="color: #ff6b6b;">Σ</b>|<sup>-1/2</sup> ensures the probability <a href="https://en.wikipedia.org/wiki/Integral" target="_blank" style="color: var(--accent); text-decoration: none;">integrates</a> to 1. But why <b style="color: #ba68c8;">2π</b>? It comes from the <a href="https://en.wikipedia.org/wiki/Circumference" target="_blank" style="color: var(--accent); text-decoration: none;">circumference</a> of a <a href="https://en.wikipedia.org/wiki/Circle" target="_blank" style="color: var(--accent); text-decoration: none;">circle</a>—and to see it, we need to work in <b>2D</b>.
         </p>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; margin: 24px 0;">
@@ -2297,7 +2426,7 @@
               I = ∫<sub>-∞</sub><sup>∞</sup> e<sup>-x²/2</sup> dx
             </p>
             <p style="margin: 0; font-size: 16px; color: rgba(139, 148, 158, 0.9);">
-              This integral has no closed-form antiderivative. You <b>cannot</b> use polar coordinates in 1D—there's no angle to integrate over.
+              This <a href="https://en.wikipedia.org/wiki/Integral" target="_blank" style="color: var(--accent); text-decoration: none;">integral</a> has no closed-form <a href="https://en.wikipedia.org/wiki/Antiderivative" target="_blank" style="color: var(--accent); text-decoration: none;">antiderivative</a>. You <b>cannot</b> use <a href="https://en.wikipedia.org/wiki/Polar_coordinate_system" target="_blank" style="color: var(--accent); text-decoration: none;">polar coordinates</a> in 1D—there's no angle to integrate over.
             </p>
           </div>
 
@@ -2315,7 +2444,7 @@
               Now we have two <b>independent</b> random variables (x, y). The 2D integral factors into separate x and y integrals because they're uncorrelated.
             </p>
             <p style="margin: 0; font-size: 16px; color: rgba(139, 148, 158, 0.9);">
-              The integrand depends only on <b>r² = x² + y²</b> (radially symmetric), making polar coordinates natural.
+              The integrand depends only on <b>r² = x² + y²</b> (<a href="https://en.wikipedia.org/wiki/Circular_symmetry" target="_blank" style="color: var(--accent); text-decoration: none;">radially symmetric</a>), making <a href="https://en.wikipedia.org/wiki/Polar_coordinate_system" target="_blank" style="color: var(--accent); text-decoration: none;">polar coordinates</a> natural.
             </p>
           </div>
         </div>
@@ -2376,7 +2505,7 @@
           </p>
 
           <p style="margin: 0 0 16px 0; font-size: 18px; line-height: 1.8; color: var(--text);">
-            The Taylor series expansion reveals the answer:
+            The <a href="https://en.wikipedia.org/wiki/Taylor_series" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">Taylor series</a> expansion reveals the answer:
           </p>
 
           <p style="margin: 0 0 24px 0; font-size: 20px; line-height: 1.8; color: var(--text); text-align: center;">
@@ -2413,12 +2542,12 @@
         </div>
       </div>
 
-      <div style="width: 100%; margin: 16px 0; padding: 14px; background: rgba(247, 129, 102, 0.15); border-radius: 4px;">
+      <div style="width: 100%; margin: 16px 0; padding: 14px; background: rgba(247, 129, 102, 0.15); border-radius: 4px; text-align: center;">
         <div style="font-size: 15px; font-weight: 700; color: var(--accent2); margin-bottom: 10px; text-align: center;">
-          Taylor Series: exp(Precision Matrix)
+          <a href="https://en.wikipedia.org/wiki/Taylor_series" target="_blank" style="color: var(--accent2); text-decoration: none;">Taylor Series</a>: exp(Precision Matrix)
         </div>
-        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; font-size: 15px; font-weight: 600;">
-          <span><b>exp(<span class="var-r">Σ⁻¹</span>)</b> ≈</span>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; font-size: 15px; font-weight: 600; text-align: center;">
+          <span style="align-self: center; margin-bottom: 28px;"><b>exp(<span class="var-r">Σ⁻¹</span>)</b> ≈</span>
           <span style="display: inline-flex; flex-direction: column; align-items: center; gap: 4px;">
             <span style="display: inline-flex; flex-direction: column; align-items: center;">
               <span>${renderMatrix(R0, true)}</span>
@@ -2426,7 +2555,7 @@
             </span>
             <span style="font-size: 12px; color: var(--accent); font-weight: 700;">${contrib0.toFixed(1)}%</span>
           </span>
-          <span><b>+</b></span>
+          <span style="align-self: center; margin-bottom: 28px;"><b>+</b></span>
           <span style="display: inline-flex; flex-direction: column; align-items: center; gap: 4px;">
             <span style="display: inline-flex; flex-direction: column; align-items: center;">
               <span>${renderMatrix(R1, true)}</span>
@@ -2434,7 +2563,7 @@
             </span>
             <span style="font-size: 12px; color: var(--accent); font-weight: 700;">${contrib1.toFixed(1)}%</span>
           </span>
-          <span><b>+</b></span>
+          <span style="align-self: center; margin-bottom: 28px;"><b>+</b></span>
           <span style="display: inline-flex; flex-direction: column; align-items: center; font-size: 11px; gap: 4px;">
             <span style="display: inline-flex; flex-direction: column; align-items: center;">
               <span>${renderMatrix(R2, true)}</span>
@@ -2442,7 +2571,7 @@
             </span>
             <span style="font-size: 12px; color: var(--accent); font-weight: 700;">${contrib2.toFixed(1)}%</span>
           </span>
-          <span><b>+</b></span>
+          <span style="align-self: center; margin-bottom: 28px;"><b>+</b></span>
           <span style="display: inline-flex; flex-direction: column; align-items: center; font-size: 11px; gap: 4px;">
             <span style="display: inline-flex; flex-direction: column; align-items: center;">
               <span>${renderMatrix(R3, true)}</span>
@@ -2450,7 +2579,7 @@
             </span>
             <span style="font-size: 12px; color: var(--accent); font-weight: 700;">${contrib3.toFixed(1)}%</span>
           </span>
-          <span style="color: var(--muted); font-weight: 500;">+ ...</span>
+          <span style="align-self: center; margin-bottom: 28px; color: var(--muted); font-weight: 500;">+ ...</span>
         </div>
       </div>
 
@@ -2461,7 +2590,7 @@
 
         <div class="equation-explanation" style="margin: 20px 0; font-size: 18px; line-height: 2; color: var(--text);">
           <p style="margin: 0;">
-            We can measure how much each term in the Taylor series contributes using the Frobenius norm—a way to measure the "size" or "magnitude" of a matrix, similar to how eigenvalues measure variance explained in PCA. The bars below show both individual contributions and cumulative totals.
+            We can measure how much each term in the Taylor series contributes using the <a href="https://en.wikipedia.org/wiki/Matrix_norm#Frobenius_norm" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">Frobenius norm</a>—a way to measure the "size" or "magnitude" of a matrix, similar to how eigenvalues measure variance explained in <a href="https://en.wikipedia.org/wiki/Principal_component_analysis" target="_blank" style="color: var(--accent); text-decoration: none;">PCA</a>. The bars below show both individual contributions and cumulative totals.
           </p>
         </div>
 
@@ -2674,8 +2803,10 @@
     ctx.fillStyle = color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
     ctx.fill();
 
-    ctx.strokeStyle = color + Math.floor((alpha * 2) * 255).toString(16).padStart(2, '0');
-    ctx.lineWidth = 1.5;
+    // Make red ellipse strokes more visible
+    const strokeAlpha = color.toLowerCase() === '#ff6b6b' ? 0.75 : Math.min(1.0, alpha * 3.5);
+    ctx.strokeStyle = color + Math.floor(strokeAlpha * 255).toString(16).padStart(2, '0');
+    ctx.lineWidth = 2.5;
     ctx.stroke();
 
     ctx.restore();
@@ -3072,7 +3203,9 @@
       sepalSizeMin: 5,
       sepalSizeRange: 1.5,
       sepalRoundness: 20,
-      sepalGreen: '#11df11'
+      sepalGreen: '#11df11',
+      labelSpacing: 30,
+      interFlowerLabelSpacing: 7
     };
 
     for (let c = 0; c < 3; c++) {
@@ -3147,7 +3280,139 @@
     }
   }
 
+  // Track selected species and feature for histogram
+  let selectedHistogramSpecies = null;
+  let selectedHistogramFeature = 2; // Default to Petal Length
+
+  // Draw GMM histogram showing feature distribution
+  function drawGMMHistogram(filterSpecies = null) {
+    const canvas = document.getElementById('gmmHistogram');
+    if (!canvas || !window.currentData) {
+      return;
+    }
+
+    // Check if panel is visible
+    const panel = document.getElementById('dataInfoPanel');
+    const isVisible = panel && panel.style.display !== 'none';
+    if (!isVisible) {
+      return; // Panel is hidden, don't waste time drawing
+    }
+
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const padding = 40;
+    const plotWidth = width - 2 * padding;
+    const plotHeight = height - 2 * padding;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+
+    // Use selected feature
+    const featureIndex = selectedHistogramFeature;
+    const speciesData = [[], [], []];
+    const colors = ['#d14545', '#4ecdc4', '#ffe66d'];
+    const speciesNames = ['Setosa', 'Versicolor', 'Virginica'];
+    const featureNames = ['Sepal Length', 'Sepal Width', 'Petal Length', 'Petal Width'];
+
+    window.currentData.forEach(d => {
+      speciesData[d.class].push(d.features[featureIndex]);
+    });
+
+    // Update title based on filter
+    const titleEl = document.getElementById('gmmHistogramTitle');
+    if (titleEl) {
+      if (filterSpecies !== null) {
+        titleEl.textContent = `${featureNames[featureIndex]} - ${speciesNames[filterSpecies]}`;
+        titleEl.style.color = colors[filterSpecies];
+      } else {
+        titleEl.textContent = `${featureNames[featureIndex]} - All Species`;
+        titleEl.style.color = 'var(--muted)';
+      }
+    }
+
+    // Find global min/max for binning
+    const allValues = speciesData.flat();
+    const minVal = Math.min(...allValues);
+    const maxVal = Math.max(...allValues);
+    const range = maxVal - minVal;
+
+    // Create bins
+    const numBins = 25;
+    const binWidth = range / numBins;
+    const bins = Array(numBins).fill(0).map(() => [0, 0, 0]); // [count_species0, count_species1, count_species2]
+
+    // Fill bins
+    for (let s = 0; s < 3; s++) {
+      speciesData[s].forEach(val => {
+        const binIndex = Math.min(Math.floor((val - minVal) / binWidth), numBins - 1);
+        bins[binIndex][s]++;
+      });
+    }
+
+    // Find max count for scaling
+    const maxCount = Math.max(...bins.map(b => Math.max(...b)));
+
+    // Draw axes
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, height - padding);
+    ctx.lineTo(width - padding, height - padding);
+    ctx.stroke();
+
+    // Draw bars (overlapping semi-transparent or single species)
+    if (filterSpecies !== null) {
+      // Show only selected species
+      ctx.fillStyle = colors[filterSpecies];
+      for (let i = 0; i < numBins; i++) {
+        const x = padding + (i / numBins) * plotWidth;
+        const barWidth = plotWidth / numBins;
+        const barHeight = (bins[i][filterSpecies] / maxCount) * plotHeight;
+        const y = height - padding - barHeight;
+        ctx.fillRect(x, y, barWidth, barHeight);
+      }
+    } else {
+      // Show all species with transparency
+      for (let s = 0; s < 3; s++) {
+        ctx.fillStyle = colors[s] + '80'; // Add transparency
+        for (let i = 0; i < numBins; i++) {
+          const x = padding + (i / numBins) * plotWidth;
+          const barWidth = plotWidth / numBins;
+          const barHeight = (bins[i][s] / maxCount) * plotHeight;
+          const y = height - padding - barHeight;
+          ctx.fillRect(x, y, barWidth, barHeight);
+        }
+      }
+    }
+
+    // Draw labels
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+
+    // X-axis label
+    ctx.fillText('Value (cm)', width / 2, height - 5);
+
+    // Y-axis label
+    ctx.save();
+    ctx.translate(10, height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Count', 0, 0);
+    ctx.restore();
+
+    // X-axis ticks
+    ctx.textAlign = 'center';
+    ctx.fillText(minVal.toFixed(1), padding, height - padding + 15);
+    ctx.fillText(maxVal.toFixed(1), width - padding, height - padding + 15);
+    ctx.fillText(((minVal + maxVal) / 2).toFixed(1), width / 2, height - padding + 15);
+  }
+
   function drawAll(data) {
+    // Update window.currentData for functions that rely on it
+    window.currentData = data;
+
     projections.forEach((proj, i) => {
       drawScatter(canvases[i], data, proj[0], proj[1]);
     });
@@ -3162,7 +3427,99 @@
     if (typeof drawComparativePrecisionExamples === 'function') {
       drawComparativePrecisionExamples();
     }
+    if (typeof drawGMMHistogram === 'function') {
+      drawGMMHistogram(selectedHistogramSpecies);
+    }
+    if (typeof drawCholeskyExample === 'function') {
+      drawCholeskyExample();
+    }
   }
+
+  // Add click handlers for species and feature selection in decision tree
+  document.addEventListener('DOMContentLoaded', () => {
+    const speciesBranches = document.querySelectorAll('.species-branch');
+    const featureSelectors = document.querySelectorAll('.feature-select');
+
+    // Species selection
+    speciesBranches.forEach(branch => {
+      branch.addEventListener('click', function() {
+        const species = parseInt(this.getAttribute('data-species'));
+        selectedHistogramSpecies = species;
+
+        // Highlight selected branch
+        speciesBranches.forEach(b => {
+          const rect = b.querySelector('rect');
+          if (rect) {
+            rect.setAttribute('stroke-width', '1.5');
+          }
+        });
+        const selectedRect = this.querySelector('rect');
+        if (selectedRect) {
+          selectedRect.setAttribute('stroke-width', '3');
+        }
+
+        if (typeof drawGMMHistogram === 'function') {
+          drawGMMHistogram(species);
+        }
+      });
+    });
+
+    // Feature selection
+    featureSelectors.forEach(selector => {
+      selector.addEventListener('click', function() {
+        const feature = parseInt(this.getAttribute('data-feature'));
+        selectedHistogramFeature = feature;
+
+        // Highlight selected feature
+        featureSelectors.forEach(f => {
+          const rect = f.querySelector('rect');
+          if (rect) {
+            rect.setAttribute('stroke-width', '1');
+            rect.setAttribute('fill', 'rgba(138, 180, 248, 0.1)');
+          }
+        });
+        const selectedRect = this.querySelector('rect');
+        if (selectedRect) {
+          selectedRect.setAttribute('stroke-width', '2');
+          selectedRect.setAttribute('fill', 'rgba(138, 180, 248, 0.25)');
+        }
+
+        if (typeof drawGMMHistogram === 'function') {
+          drawGMMHistogram(selectedHistogramSpecies);
+        }
+      });
+    });
+
+    // Set initial highlight for Petal Length (feature 2)
+    const initialFeature = Array.from(featureSelectors).find(f => f.getAttribute('data-feature') === '2');
+    if (initialFeature) {
+      const rect = initialFeature.querySelector('rect');
+      if (rect) {
+        rect.setAttribute('stroke-width', '2');
+        rect.setAttribute('fill', 'rgba(138, 180, 248, 0.25)');
+      }
+    }
+
+    // Click histogram to reset species filter (keep feature selection)
+    const histCanvas = document.getElementById('gmmHistogram');
+    if (histCanvas) {
+      histCanvas.addEventListener('click', () => {
+        selectedHistogramSpecies = null;
+
+        // Reset branch highlighting
+        speciesBranches.forEach(b => {
+          const rect = b.querySelector('rect');
+          if (rect) {
+            rect.setAttribute('stroke-width', '1.5');
+          }
+        });
+
+        if (typeof drawGMMHistogram === 'function') {
+          drawGMMHistogram(null);
+        }
+      });
+    }
+  });
 
   // Draw ellipse calculation visualization for Versicolor
   function drawEllipseCalculation(data) {
@@ -3476,6 +3833,13 @@
   // Initial draw
   drawAll(currentData);
 
+  // Draw histogram on initial load (after a brief delay to ensure canvas is ready)
+  setTimeout(() => {
+    if (typeof drawGMMHistogram === 'function') {
+      drawGMMHistogram(selectedHistogramSpecies);
+    }
+  }, 100);
+
   // IIFE: Flower tuning controls (for development/tweaking)
   (function() {
     const controlsDiv = document.createElement('div');
@@ -3616,6 +3980,25 @@
     controlsDiv.appendChild(createSlider('Sepal Roundness', 'sepalRoundness', 0, 50, 1));
     controlsDiv.appendChild(createColorPicker('Sepal Color', 'sepalGreen'));
 
+    const labelTitle = document.createElement('div');
+    labelTitle.textContent = 'Label Controls';
+    labelTitle.style.cssText = 'font-weight: 600; margin-top: 10px; margin-bottom: 6px; color: var(--muted); text-align: left; border-top: 1px solid var(--grid); padding-top: 8px; font-size: 10px;';
+    controlsDiv.appendChild(labelTitle);
+
+    controlsDiv.appendChild(createSlider('Label Spacing', 'labelSpacing', 0, 40, 1, (val) => {
+      const legend = document.getElementById('flowerLegend');
+      if (legend) {
+        legend.style.gap = `${val}px`;
+      }
+    }));
+
+    controlsDiv.appendChild(createSlider('Icon-Text Gap', 'interFlowerLabelSpacing', 0, 20, 1, (val) => {
+      const legendItems = document.querySelectorAll('.legend-item');
+      legendItems.forEach(item => {
+        item.style.gap = `${val}px`;
+      });
+    }));
+
     // Data controls section
     const dataTitle = document.createElement('div');
     dataTitle.textContent = 'Data Controls';
@@ -3714,7 +4097,9 @@
         sepalSizeMin: 5,
         sepalSizeRange: 1.5,
         sepalRoundness: 20,
-        sepalGreen: '#11df11'
+        sepalGreen: '#11df11',
+        labelSpacing: 30,
+        interFlowerLabelSpacing: 7
       };
       location.reload();
     };
@@ -3752,6 +4137,482 @@
     });
   })();
 
+  // IIFE: Slider styles customization
+  (function() {
+    console.log('Creating slider styles popup...');
+    const stylesDiv = document.createElement('div');
+    stylesDiv.id = 'sliderStyles';
+    stylesDiv.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: var(--panel);
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+      padding: 12px;
+      z-index: 9999;
+      font-size: 11px;
+      min-width: 280px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      display: none;
+    `;
+
+    const title = document.createElement('div');
+    title.textContent = '🎨 Slider Styles';
+    title.style.cssText = 'font-weight: 600; margin-bottom: 8px; color: var(--text); text-align: center; font-size: 12px; user-select: none; cursor: move;';
+    stylesDiv.appendChild(title);
+
+    // Add info text
+    const infoText = document.createElement('div');
+    infoText.textContent = 'Customize the appearance of all range sliders';
+    infoText.style.cssText = 'font-size: 9px; color: var(--muted); text-align: center; margin-bottom: 12px; font-style: italic;';
+    stylesDiv.appendChild(infoText);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '×';
+    closeBtn.style.cssText = `
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0;
+      width: 20px;
+      height: 20px;
+      line-height: 1;
+    `;
+    closeBtn.onmouseover = () => closeBtn.style.color = 'var(--text)';
+    closeBtn.onmouseout = () => closeBtn.style.color = 'var(--muted)';
+    closeBtn.onclick = () => stylesDiv.style.display = 'none';
+    stylesDiv.appendChild(closeBtn);
+
+    // Default slider styles
+    window.sliderStyles = {
+      overallWidth: 149,
+      leftMargin: 0,
+      labelWidth: 66,
+      thumbBorderColor: '#58a6ff',
+      thumbFillColor: '#58a6ff',
+      thumbOpacity: 0.85,
+      thumbWidth: 8,
+      thumbHeight: 16,
+      thumbBorderRadius: 2,
+      thumbVerticalOffset: 7,
+      trackColor: '#30363d',
+      trackHeight: 4,
+      trackBorderRadius: 2
+    };
+
+    function updateSliderStyles() {
+      console.log('updateSliderStyles called with:', window.sliderStyles);
+      console.log('Track height value:', window.sliderStyles.trackHeight);
+      console.log('Track color value:', window.sliderStyles.trackColor);
+
+      // Remove old style if exists
+      const oldStyle = document.getElementById('dynamic-slider-styles');
+      if (oldStyle) {
+        oldStyle.remove();
+      }
+
+      // Create new style element and append to end of head (higher priority)
+      const styleSheet = document.createElement('style');
+      styleSheet.id = 'dynamic-slider-styles';
+      document.head.appendChild(styleSheet);
+      console.log('Created/recreated dynamic style sheet');
+
+      const s = window.sliderStyles;
+      // Calculate margin to position thumb lower on track
+      const thumbMargin = -((s.thumbHeight - s.trackHeight) / 2) + s.thumbVerticalOffset;
+
+      const cssText = `
+        .controls input[type="range"],
+        .visual-slider-track,
+        #spreadSlider,
+        #separationSlider,
+        #skewSlider {
+          width: ${s.overallWidth}px !important;
+          max-width: ${s.overallWidth}px !important;
+          flex: 0 0 ${s.overallWidth}px !important;
+        }
+        .slider-track-bar {
+          left: ${s.leftMargin}px !important;
+          right: ${-s.leftMargin}px !important;
+        }
+        #spreadSlider + span,
+        #separationSlider + span,
+        #skewSlider + span {
+          min-width: auto !important;
+        }
+        label:has(#spreadSlider) > span:first-child,
+        label:has(#separationSlider) > span:first-child,
+        label:has(#skewSlider) > span:first-child {
+          min-width: ${s.labelWidth}px !important;
+          max-width: ${s.labelWidth}px !important;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none !important;
+          background: ${s.thumbFillColor} !important;
+          opacity: ${s.thumbOpacity} !important;
+          border: 1.5px solid ${s.thumbBorderColor} !important;
+          width: ${s.thumbWidth}px !important;
+          height: ${s.thumbHeight}px !important;
+          border-radius: ${s.thumbBorderRadius}px !important;
+          margin-top: ${thumbMargin}px !important;
+        }
+        input[type="range"]::-moz-range-thumb {
+          background: ${s.thumbFillColor} !important;
+          opacity: ${s.thumbOpacity} !important;
+          border: 1.5px solid ${s.thumbBorderColor} !important;
+          width: ${s.thumbWidth}px !important;
+          height: ${s.thumbHeight}px !important;
+          border-radius: ${s.thumbBorderRadius}px !important;
+        }
+        input[type="range"]::-webkit-slider-track {
+          background: ${s.trackColor} !important;
+          height: ${s.trackHeight}px !important;
+          border-radius: ${s.trackBorderRadius}px !important;
+        }
+        input[type="range"]::-moz-range-track {
+          background: ${s.trackColor} !important;
+          height: ${s.trackHeight}px !important;
+          border-radius: ${s.trackBorderRadius}px !important;
+        }
+        #sliderStyles input[type="range"] {
+          width: 100% !important;
+        }
+        #sliderStyles input[type="range"]::-webkit-slider-thumb {
+          background: rgba(88, 166, 255, 0.5) !important;
+          border: 1.5px solid #58a6ff !important;
+          width: 8px !important;
+          height: 16px !important;
+          border-radius: 2px !important;
+          opacity: 1 !important;
+        }
+        #sliderStyles input[type="range"]::-moz-range-thumb {
+          background: rgba(88, 166, 255, 0.5) !important;
+          border: 1.5px solid #58a6ff !important;
+          width: 8px !important;
+          height: 16px !important;
+          border-radius: 2px !important;
+          opacity: 1 !important;
+        }
+        #sliderStyles input[type="range"]::-webkit-slider-track {
+          background: #30363d !important;
+          height: 4px !important;
+          border-radius: 2px !important;
+        }
+        #sliderStyles input[type="range"]::-moz-range-track {
+          background: #30363d !important;
+          height: 4px !important;
+          border-radius: 2px !important;
+        }
+      `;
+      styleSheet.textContent = cssText;
+      console.log('Applied CSS:', cssText);
+
+      // Create visual track overlays since native track styling doesn't work on all browsers
+      createVisualTracks();
+    }
+
+    function createVisualTracks() {
+      const s = window.sliderStyles;
+
+      // Update existing tracks or create new ones
+      const sliders = document.querySelectorAll('input[type="range"]:not(#sliderStyles input[type="range"])');
+
+      sliders.forEach(slider => {
+        // Check if slider already has a visual track wrapper
+        const existingWrapper = slider.closest('.visual-slider-track');
+
+        if (existingWrapper) {
+          // Update existing track
+          const track = existingWrapper.querySelector('.slider-track-bar');
+          if (track) {
+            track.style.height = `${s.trackHeight}px`;
+            track.style.background = s.trackColor;
+            track.style.borderRadius = `${s.trackBorderRadius}px`;
+          }
+        } else {
+          // Create new wrapper and track
+          const parent = slider.parentElement;
+          const wrapper = document.createElement('div');
+          wrapper.className = 'visual-slider-track';
+          wrapper.style.cssText = `
+            position: relative;
+            display: inline-block;
+            width: 100%;
+          `;
+
+          const track = document.createElement('div');
+          track.className = 'slider-track-bar';
+          track.style.cssText = `
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: ${s.trackHeight}px;
+            background: ${s.trackColor};
+            border-radius: ${s.trackBorderRadius}px;
+            pointer-events: none;
+            z-index: 0;
+          `;
+
+          // Make slider transparent background and position it above track
+          slider.style.position = 'relative';
+          slider.style.zIndex = '1';
+          slider.style.background = 'transparent';
+
+          parent.insertBefore(wrapper, slider);
+          wrapper.appendChild(track);
+          wrapper.appendChild(slider);
+        }
+      });
+
+      console.log(`Updated/created ${sliders.length} visual tracks`);
+    }
+
+    function createColorPicker(label, key) {
+      const container = document.createElement('div');
+      container.style.marginBottom = '8px';
+
+      const labelEl = document.createElement('div');
+      labelEl.textContent = label;
+      labelEl.style.cssText = 'margin-bottom: 3px; color: var(--muted); font-size: 10px;';
+      container.appendChild(labelEl);
+
+      const pickerContainer = document.createElement('div');
+      pickerContainer.style.display = 'flex';
+      pickerContainer.style.alignItems = 'center';
+      pickerContainer.style.gap = '6px';
+
+      const colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.value = window.sliderStyles[key];
+      colorInput.style.cssText = 'width: 40px; height: 24px; border: 1px solid var(--grid); border-radius: 3px; cursor: pointer;';
+
+      const textInput = document.createElement('input');
+      textInput.type = 'text';
+      textInput.value = window.sliderStyles[key];
+      textInput.style.cssText = 'flex: 1; padding: 2px 6px; font-size: 10px; font-family: monospace; background: var(--bg); border: 1px solid var(--grid); border-radius: 3px; color: var(--text);';
+
+      colorInput.oninput = function() {
+        window.sliderStyles[key] = this.value;
+        textInput.value = this.value;
+        updateSliderStyles();
+      };
+
+      textInput.oninput = function() {
+        if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) {
+          window.sliderStyles[key] = this.value;
+          colorInput.value = this.value;
+          updateSliderStyles();
+        }
+      };
+
+      pickerContainer.appendChild(colorInput);
+      pickerContainer.appendChild(textInput);
+      container.appendChild(pickerContainer);
+
+      return container;
+    }
+
+    function createSlider(label, key, min, max, step) {
+      const container = document.createElement('div');
+      container.style.marginBottom = '8px';
+
+      const labelEl = document.createElement('div');
+      labelEl.textContent = label;
+      labelEl.style.cssText = 'margin-bottom: 3px; color: var(--muted); font-size: 10px;';
+      container.appendChild(labelEl);
+
+      const sliderContainer = document.createElement('div');
+      sliderContainer.style.display = 'flex';
+      sliderContainer.style.alignItems = 'center';
+      sliderContainer.style.gap = '6px';
+
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.min = min;
+      slider.max = max;
+      slider.step = step;
+      slider.value = window.sliderStyles[key];
+      slider.style.cssText = 'flex: 1; cursor: pointer;';
+
+      const valueDisplay = document.createElement('span');
+      valueDisplay.textContent = window.sliderStyles[key];
+      valueDisplay.style.cssText = 'min-width: 35px; text-align: right; font-family: monospace; color: var(--text); font-size: 11px;';
+
+      slider.oninput = function() {
+        const val = parseFloat(this.value);
+        window.sliderStyles[key] = val;
+        valueDisplay.textContent = val;
+        updateSliderStyles();
+      };
+
+      sliderContainer.appendChild(slider);
+      sliderContainer.appendChild(valueDisplay);
+      container.appendChild(sliderContainer);
+
+      return container;
+    }
+
+    // Add controls
+    stylesDiv.appendChild(createSlider('Overall Width (px)', 'overallWidth', 40, 200, 1));
+    stylesDiv.appendChild(createSlider('Left Margin (px)', 'leftMargin', 0, 100, 1));
+    stylesDiv.appendChild(createSlider('Label Width (px)', 'labelWidth', 30, 120, 1));
+
+    // Separator
+    const separator1 = document.createElement('div');
+    separator1.style.cssText = 'border-top: 1px solid var(--grid); margin: 12px 0 8px 0;';
+    stylesDiv.appendChild(separator1);
+
+    stylesDiv.appendChild(createColorPicker('Thumb Border Color', 'thumbBorderColor'));
+    stylesDiv.appendChild(createColorPicker('Thumb Fill Color', 'thumbFillColor'));
+    stylesDiv.appendChild(createSlider('Thumb Opacity', 'thumbOpacity', 0, 1, 0.05));
+    stylesDiv.appendChild(createSlider('Thumb Width (px)', 'thumbWidth', 4, 20, 1));
+    stylesDiv.appendChild(createSlider('Thumb Height (px)', 'thumbHeight', 8, 32, 1));
+    stylesDiv.appendChild(createSlider('Thumb Border Radius (px)', 'thumbBorderRadius', 0, 16, 1));
+    stylesDiv.appendChild(createSlider('Thumb Vertical Offset (px)', 'thumbVerticalOffset', -16, 16, 1));
+
+    // Separator
+    const separator = document.createElement('div');
+    separator.style.cssText = 'border-top: 1px solid var(--grid); margin: 12px 0 8px 0;';
+    stylesDiv.appendChild(separator);
+
+    stylesDiv.appendChild(createColorPicker('Track Color', 'trackColor'));
+    stylesDiv.appendChild(createSlider('Track Height (px)', 'trackHeight', 1, 12, 1));
+    stylesDiv.appendChild(createSlider('Track Border Radius (px)', 'trackBorderRadius', 0, 6, 1));
+
+    // Button container
+    const btnContainer = document.createElement('div');
+    btnContainer.style.cssText = 'display: flex; gap: 4px; margin-top: 10px; border-top: 1px solid var(--grid); padding-top: 8px;';
+
+    // Copy button
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = 'Copy';
+    copyBtn.style.cssText = `
+      flex: 1;
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+      border: 1px solid var(--grid);
+      background: #161b22;
+      color: var(--text);
+      cursor: pointer;
+    `;
+    copyBtn.onmouseover = () => copyBtn.style.background = '#1f2933';
+    copyBtn.onmouseout = () => copyBtn.style.background = '#161b22';
+    copyBtn.onclick = () => {
+      const settings = JSON.stringify(window.sliderStyles, null, 2);
+      navigator.clipboard.writeText(settings).then(() => {
+        const originalText = copyBtn.textContent;
+        copyBtn.textContent = '✓ Copied';
+        setTimeout(() => {
+          copyBtn.textContent = originalText;
+        }, 1500);
+      }).catch(err => {
+        console.log('Settings:', settings);
+        alert('Settings logged to console:\n\n' + settings);
+      });
+    };
+    btnContainer.appendChild(copyBtn);
+
+    // Reset button
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = 'Reset';
+    resetBtn.style.cssText = `
+      flex: 1;
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+      border: 1px solid var(--grid);
+      background: #161b22;
+      color: var(--text);
+      cursor: pointer;
+    `;
+    resetBtn.onmouseover = () => resetBtn.style.background = '#1f2933';
+    resetBtn.onmouseout = () => resetBtn.style.background = '#161b22';
+    resetBtn.onclick = () => {
+      window.sliderStyles = {
+        overallWidth: 149,
+        leftMargin: 0,
+        labelWidth: 66,
+        thumbBorderColor: '#58a6ff',
+        thumbFillColor: '#58a6ff',
+        thumbOpacity: 0.85,
+        thumbWidth: 8,
+        thumbHeight: 16,
+        thumbBorderRadius: 2,
+        thumbVerticalOffset: 7,
+        trackColor: '#30363d',
+        trackHeight: 4,
+        trackBorderRadius: 2
+      };
+      location.reload();
+    };
+    btnContainer.appendChild(resetBtn);
+
+    stylesDiv.appendChild(btnContainer);
+
+    document.body.appendChild(stylesDiv);
+    console.log('Slider styles popup created and added to body');
+
+    // Apply initial styles
+    updateSliderStyles();
+
+    // Make draggable
+    let isDragging = false;
+    let startX, startY, initialX, initialY;
+
+    title.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = stylesDiv.getBoundingClientRect();
+      initialX = rect.left;
+      initialY = rect.top;
+      stylesDiv.style.right = 'auto';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      stylesDiv.style.left = (initialX + dx) + 'px';
+      stylesDiv.style.top = (initialY + dy) + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+  })();
+
+  // Show slider styles when link is clicked
+  const sliderStylesBtn = document.getElementById('showSliderStyles');
+  console.log('Slider styles button:', sliderStylesBtn);
+  if (sliderStylesBtn) {
+    sliderStylesBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      console.log('Slider styles button clicked');
+      const stylesDiv = document.getElementById('sliderStyles');
+      console.log('Slider styles div:', stylesDiv);
+      if (stylesDiv) {
+        const currentDisplay = stylesDiv.style.display;
+        const newDisplay = currentDisplay === 'none' ? 'block' : 'none';
+        stylesDiv.style.display = newDisplay;
+        console.log('Changed display from', currentDisplay, 'to', newDisplay);
+      }
+    });
+  } else {
+    console.error('Slider styles button not found');
+  }
+
   // Data info panel toggle (below plots)
   document.getElementById('dataInfoBtn').addEventListener('click', function() {
     const infoDiv = document.getElementById('dataInfoPanel');
@@ -3759,6 +4620,11 @@
     infoDiv.style.display = isVisible ? 'none' : 'block';
     this.textContent = isVisible ? 'info' : 'hide';
     this.style.color = isVisible ? 'var(--muted)' : 'var(--accent)';
+
+    // Draw histogram when panel is shown
+    if (!isVisible && typeof drawGMMHistogram === 'function') {
+      setTimeout(() => drawGMMHistogram(selectedHistogramSpecies), 50);
+    }
   });
 
   // Scatter plots info panel toggle
@@ -4385,6 +5251,172 @@
     }
   });
 
+  // Render KaTeX equations for GMM data generation panel
+  const renderGMMEquations = () => {
+    if (typeof katex === 'undefined') {
+      setTimeout(renderGMMEquations, 100);
+      return;
+    }
+
+    try {
+      // Check if elements exist before rendering
+      const elements = {
+        'gmm_pik': '\\pi_k',
+        'gmm_normal': '\\mathcal{N}(\\boldsymbol{\\mu}_k, \\boldsymbol{\\Sigma}_k)',
+        'gmm_z': '\\mathbf{z} \\sim \\mathcal{N}(\\mathbf{0}, \\mathbf{I})',
+        'gmm_transform': '\\mathbf{x} = \\boldsymbol{\\mu}_k + \\mathbf{L}\\mathbf{z}',
+        'gmm_expect': '\\mathbb{E}[\\mathbf{x}] = \\boldsymbol{\\mu}_k',
+        'gmm_cov': '\\text{Cov}(\\mathbf{x}) = \\boldsymbol{\\Sigma}_k'
+      };
+
+      for (const [id, latex] of Object.entries(elements)) {
+        const element = document.getElementById(id);
+        if (element) {
+          katex.render(latex, element, { throwOnError: false });
+        }
+      }
+    } catch (e) {
+      console.error('KaTeX render error (GMM):', e);
+    }
+  };
+
+  setTimeout(renderGMMEquations, 100);
+
+  // Render KaTeX equations for ellipse calculation formulas
+  const renderEllipseEquations = () => {
+    if (typeof katex === 'undefined') {
+      setTimeout(renderEllipseEquations, 100);
+      return;
+    }
+
+    try {
+      // Find all elements with class 'katex-formula'
+      const formulaElements = document.querySelectorAll('.katex-formula');
+      formulaElements.forEach(element => {
+        const latex = element.textContent.trim();
+        if (latex) {
+          katex.render(latex, element, { throwOnError: false });
+        }
+      });
+    } catch (e) {
+      console.error('KaTeX render error (Ellipse):', e);
+    }
+  };
+
+  setTimeout(renderEllipseEquations, 100);
+
+  // Draw Cholesky transformation example
+  function drawCholeskyExample() {
+    if (!window.currentData) return;
+
+    // Get L from Versicolor (class 1)
+    const classData = window.currentData.filter(d => d.class === 1);
+    if (classData.length === 0) return;
+
+    // Compute mean and covariance
+    const n = classData.length;
+    const mean = [0, 0, 0, 0];
+    for (let i = 0; i < 4; i++) {
+      for (const d of classData) {
+        mean[i] += d.features[i];
+      }
+      mean[i] /= n;
+    }
+
+    const cov = Array(4).fill(0).map(() => Array(4).fill(0));
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 4; j++) {
+        for (const d of classData) {
+          cov[i][j] += (d.features[i] - mean[i]) * (d.features[j] - mean[j]);
+        }
+        cov[i][j] /= n;
+      }
+    }
+
+    // Cholesky decomposition
+    const L = Array(4).fill(0).map(() => Array(4).fill(0));
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j <= i; j++) {
+        let sum = 0;
+        for (let k = 0; k < j; k++) {
+          sum += L[i][k] * L[j][k];
+        }
+        if (i === j) {
+          L[i][j] = Math.sqrt(Math.max(0, cov[i][i] - sum));
+        } else {
+          L[i][j] = L[j][j] === 0 ? 0 : (cov[i][j] - sum) / L[j][j];
+        }
+      }
+    }
+
+    // Draw before/after scatter plots
+    drawBeforeAfter(L);
+  }
+
+  function drawBeforeAfter(L) {
+    const beforeCanvas = document.getElementById('beforeTransform');
+    const afterCanvas = document.getElementById('afterTransform');
+    if (!beforeCanvas || !afterCanvas) return;
+
+    const beforeCtx = beforeCanvas.getContext('2d');
+    const afterCtx = afterCanvas.getContext('2d');
+    const size = 150;
+    const scale = 40;
+
+    // Clear
+    beforeCtx.clearRect(0, 0, size, size);
+    afterCtx.clearRect(0, 0, size, size);
+
+    // Generate 100 points
+    function gaussianRandom() {
+      let u = 0, v = 0;
+      while(u === 0) u = Math.random();
+      while(v === 0) v = Math.random();
+      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
+    for (let i = 0; i < 100; i++) {
+      const z0 = gaussianRandom();
+      const z2 = gaussianRandom();
+
+      // Before: independent N(0,1) - circular cloud
+      const bx = size / 2 + z0 * scale;
+      const by = size / 2 + z2 * scale;
+      beforeCtx.fillStyle = 'rgba(88, 166, 255, 0.4)';
+      beforeCtx.beginPath();
+      beforeCtx.arc(bx, by, 2, 0, 2 * Math.PI);
+      beforeCtx.fill();
+
+      // After: transform with L (use dims 0 and 2)
+      const x0 = L[0][0] * z0;
+      const x2 = L[2][0] * z0 + L[2][2] * z2;
+      const ax = size / 2 + x0 * scale;
+      const ay = size / 2 + x2 * scale;
+      afterCtx.fillStyle = 'rgba(88, 166, 255, 0.4)';
+      afterCtx.beginPath();
+      afterCtx.arc(ax, ay, 2, 0, 2 * Math.PI);
+      afterCtx.fill();
+    }
+
+    // Draw center points
+    beforeCtx.fillStyle = '#58a6ff';
+    beforeCtx.beginPath();
+    beforeCtx.arc(size / 2, size / 2, 4, 0, 2 * Math.PI);
+    beforeCtx.fill();
+
+    afterCtx.fillStyle = '#58a6ff';
+    afterCtx.beginPath();
+    afterCtx.arc(size / 2, size / 2, 4, 0, 2 * Math.PI);
+    afterCtx.fill();
+  }
+
+  // Initial draw when panel is shown
+  setTimeout(() => {
+    if (window.currentData) {
+      drawCholeskyExample();
+    }
+  }, 200);
+
   // Draw example covariance visualizations in info panel
   function drawExampleVisualizations() {
     const examples = [
@@ -4490,7 +5522,16 @@
 
   window.updateMahalanobisViz = function(data) {
     const canvas = document.getElementById('euclideanVsMahalanobis');
-    if (!canvas) return;
+    if (!canvas) {
+      return;
+    }
+
+    // Check if canvas reference changed (which would break event listeners)
+    const canvasChanged = window.mahalanobisState.canvas && window.mahalanobisState.canvas !== canvas;
+    if (canvasChanged) {
+      // Reset initialization flag so listeners get re-attached
+      window.mahalanobisState.initialized = false;
+    }
 
     // Store canvas and context in state
     window.mahalanobisState.canvas = canvas;
@@ -4531,14 +5572,28 @@
 
     window.mahalanobisState.precision = invertMatrix2x2(window.mahalanobisState.cov);
 
-    // Draw with current covariance
+    // Draw immediately to ensure state is in sync
     drawMahalanobisViz();
+
+    // Re-attach event listeners if canvas changed
+    if (canvasChanged) {
+      initMahalanobisListeners();
+    }
   };
 
   // Global draw function that uses state
   function drawMahalanobisViz() {
     const state = window.mahalanobisState;
-    if (!state.canvas || !state.ctx || !state.cov || !state.precision || !state.point) return;
+    if (!state.canvas || !state.ctx || !state.cov || !state.precision || !state.point) {
+      console.warn('Mahalanobis state incomplete:', {
+        hasCanvas: !!state.canvas,
+        hasCtx: !!state.ctx,
+        hasCov: !!state.cov,
+        hasPrecision: !!state.precision,
+        hasPoint: !!state.point
+      });
+      return;
+    }
 
     const canvas = state.canvas;
     const ctx = state.ctx;
@@ -4602,6 +5657,98 @@
     drawEllipse(ctx, mu.x, mu.y, cov, scale);
     ctx.stroke();
 
+    // Draw eigenvector arrows showing principal axes
+    const a = cov[0][0], b = cov[0][1], d = cov[1][1];
+    const trace = a + d;
+    const det = a * d - b * b;
+    const lambda1 = trace / 2 + Math.sqrt(trace * trace / 4 - det);
+    const lambda2 = trace / 2 - Math.sqrt(trace * trace / 4 - det);
+    const angle = b === 0 ? 0 : Math.atan2(lambda1 - a, b);
+
+    // Draw eigenvector 1 (major axis) - wider spread
+    const ev1_len = Math.sqrt(lambda1) * 1.5;
+    const ev1_dx = Math.cos(angle) * ev1_len;
+    const ev1_dy = Math.sin(angle) * ev1_len;
+
+    ctx.strokeStyle = 'rgba(255, 136, 0, 0.6)';
+    ctx.fillStyle = 'rgba(255, 136, 0, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([]);
+
+    // Draw arrow line
+    ctx.beginPath();
+    ctx.moveTo(mu.x, mu.y);
+    ctx.lineTo(mu.x + ev1_dx, mu.y + ev1_dy);
+    ctx.stroke();
+
+    // Draw arrowhead
+    const arrowSize = 8;
+    ctx.beginPath();
+    ctx.moveTo(mu.x + ev1_dx, mu.y + ev1_dy);
+    ctx.lineTo(mu.x + ev1_dx - arrowSize * Math.cos(angle - Math.PI / 6),
+               mu.y + ev1_dy - arrowSize * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(mu.x + ev1_dx - arrowSize * Math.cos(angle + Math.PI / 6),
+               mu.y + ev1_dy - arrowSize * Math.sin(angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw eigenvector 2 (minor axis) - narrower spread
+    const ev2_angle = angle + Math.PI / 2;
+    const ev2_len = Math.sqrt(lambda2) * 1.5;
+    const ev2_dx = Math.cos(ev2_angle) * ev2_len;
+    const ev2_dy = Math.sin(ev2_angle) * ev2_len;
+
+    ctx.strokeStyle = 'rgba(88, 166, 255, 0.6)';
+    ctx.fillStyle = 'rgba(88, 166, 255, 0.8)';
+    ctx.lineWidth = 2;
+
+    // Draw arrow line
+    ctx.beginPath();
+    ctx.moveTo(mu.x, mu.y);
+    ctx.lineTo(mu.x + ev2_dx, mu.y + ev2_dy);
+    ctx.stroke();
+
+    // Draw arrowhead
+    ctx.beginPath();
+    ctx.moveTo(mu.x + ev2_dx, mu.y + ev2_dy);
+    ctx.lineTo(mu.x + ev2_dx - arrowSize * Math.cos(ev2_angle - Math.PI / 6),
+               mu.y + ev2_dy - arrowSize * Math.sin(ev2_angle - Math.PI / 6));
+    ctx.lineTo(mu.x + ev2_dx - arrowSize * Math.cos(ev2_angle + Math.PI / 6),
+               mu.y + ev2_dy - arrowSize * Math.sin(ev2_angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fill();
+
+    // Label eigenvalues with fixed-width backgrounds to prevent jarring
+    ctx.font = '11px monospace';
+    const labelWidth = 50;
+    const labelHeight = 16;
+    const labelOffset = 15; // Distance beyond arrow tip
+
+    // λ₁ label - positioned beyond arrow tip
+    const label1_x = mu.x + ev1_dx + Math.cos(angle) * labelOffset;
+    const label1_y = mu.y + ev1_dy + Math.sin(angle) * labelOffset;
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(13, 17, 23, 0.9)';
+    ctx.fillRect(label1_x - labelWidth/2, label1_y - labelHeight/2, labelWidth, labelHeight);
+    ctx.strokeStyle = 'rgba(255, 136, 0, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(label1_x - labelWidth/2, label1_y - labelHeight/2, labelWidth, labelHeight);
+    ctx.fillStyle = '#ff8800';
+    ctx.fillText('λ₁=' + lambda1.toFixed(1), label1_x, label1_y + 4);
+
+    // λ₂ label - positioned beyond arrow tip
+    const label2_x = mu.x + ev2_dx + Math.cos(ev2_angle) * labelOffset;
+    const label2_y = mu.y + ev2_dy + Math.sin(ev2_angle) * labelOffset;
+
+    ctx.fillStyle = 'rgba(13, 17, 23, 0.9)';
+    ctx.fillRect(label2_x - labelWidth/2, label2_y - labelHeight/2, labelWidth, labelHeight);
+    ctx.strokeStyle = 'rgba(88, 166, 255, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(label2_x - labelWidth/2, label2_y - labelHeight/2, labelWidth, labelHeight);
+    ctx.fillStyle = '#58a6ff';
+    ctx.fillText('λ₂=' + lambda2.toFixed(1), label2_x, label2_y + 4);
+
     // Draw mean
     ctx.fillStyle = '#ff8800';
     ctx.beginPath();
@@ -4628,23 +5775,35 @@
     const euclidean = computeEuclidean(point);
     document.getElementById('euclideanDist').textContent = euclidean.toFixed(2);
     document.getElementById('mahalanobisDist').textContent = mahal.toFixed(2);
+
+    // Update covariance matrix display
+    document.getElementById('covMat00').textContent = cov[0][0].toFixed(2);
+    document.getElementById('covMat01').textContent = cov[0][1].toFixed(2);
+    document.getElementById('covMat10').textContent = cov[1][0].toFixed(2);
+    document.getElementById('covMat11').textContent = cov[1][1].toFixed(2);
   }
 
-  // Initialize the Mahalanobis visualization first
-  if (window.currentData) {
-    updateMahalanobisViz(window.currentData);
-  }
-
-  // Add event listeners only once (after initialization)
-  (function initMahalanobisListeners() {
-    if (window.mahalanobisState.initialized) return;
+  // Add event listeners only once (or when canvas changes)
+  function initMahalanobisListeners() {
+    if (window.mahalanobisState.initialized) {
+      return;
+    }
     window.mahalanobisState.initialized = true;
 
     const canvas = document.getElementById('euclideanVsMahalanobis');
-    if (!canvas) return;
+    if (!canvas) {
+      return;
+    }
 
     canvas.addEventListener('mousedown', (e) => {
-      if (!window.mahalanobisState.point) return; // Safety check
+      if (!window.mahalanobisState.point) {
+        return; // Safety check
+      }
+      if (!window.mahalanobisState.cov) {
+        console.warn('No covariance in state!');
+        return;
+      }
+
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
@@ -4655,7 +5814,7 @@
       window.mahalanobisState.isDragging = true;
       // Redraw
       drawMahalanobisViz();
-    });
+    }, { capture: true });
 
     canvas.addEventListener('mousemove', (e) => {
       if (!window.mahalanobisState.isDragging || !window.mahalanobisState.point) return;
@@ -4676,7 +5835,13 @@
     canvas.addEventListener('mouseleave', () => {
       window.mahalanobisState.isDragging = false;
     });
-  })();
+  }
+
+  // Initialize on page load
+  if (window.currentData) {
+    updateMahalanobisViz(window.currentData);
+  }
+  initMahalanobisListeners();
 
   // Comparative precision examples
   function drawComparativePrecisionExamples() {
@@ -4742,6 +5907,408 @@
 
   // Draw comparative examples initially and whenever needed
   drawComparativePrecisionExamples();
+
+  // ========================================
+  // Wikipedia Sidebar Functionality
+  // ========================================
+
+  (function() {
+    const wikiSidebar = document.getElementById('wikiSidebar');
+    const wikiBackdrop = document.getElementById('wikiBackdrop');
+    const wikiClose = document.getElementById('wikiClose');
+    const wikiBack = document.getElementById('wikiBack');
+    const wikiTitle = document.getElementById('wikiTitle');
+    const wikiBody = document.getElementById('wikiBody');
+    const wikiLoading = document.getElementById('wikiLoading');
+    const wikiLink = document.getElementById('wikiLink');
+
+    // History stack for back navigation
+    const history = [];
+
+    // Check if any required elements are missing
+    if (!wikiSidebar || !wikiBackdrop || !wikiClose || !wikiBack || !wikiTitle || !wikiBody || !wikiLoading || !wikiLink) {
+      console.error('❌ Wikipedia sidebar initialization failed: Missing required elements');
+      return;
+    }
+
+    // Extract Wikipedia article title from URL
+    function getWikiTitle(url) {
+      const match = url.match(/wikipedia\.org\/wiki\/([^#?]+)/);
+      return match ? decodeURIComponent(match[1]) : null;
+    }
+
+    // Open sidebar
+    function openSidebar() {
+      wikiSidebar.classList.add('active');
+      wikiBackdrop.classList.add('active');
+      document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+
+    // Close sidebar
+    function closeSidebar() {
+      wikiSidebar.classList.remove('active');
+      wikiBackdrop.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    // Fetch Wikipedia summary
+    async function fetchWikiSummary(title) {
+      try {
+        const apiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+        const response = await fetch(apiUrl);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error('Error fetching Wikipedia summary:', error);
+        throw error;
+      }
+    }
+
+    // Fetch "See also" links from Wikipedia HTML page
+    async function fetchSeeAlsoLinks(title) {
+      try {
+        const pageUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
+        // Use CORS proxy to get around CORS restrictions
+        const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(pageUrl)}`);
+
+        if (!response.ok) {
+          console.log('❌ See also fetch failed:', response.status);
+          return [];
+        }
+
+        const html = await response.text();
+        console.log('✓ Fetched HTML, length:', html.length);
+
+        // Parse HTML to find "See also" section
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Try multiple strategies to find "See also" section
+        let seeAlsoSection = null;
+
+        // Strategy 1: Look for h2 with .mw-headline containing "See also"
+        const headingsWithClass = doc.querySelectorAll('h2 .mw-headline');
+        console.log('📋 Found headings with .mw-headline:', headingsWithClass.length);
+
+        for (const heading of headingsWithClass) {
+          console.log('  Heading (strategy 1):', heading.textContent.trim());
+          if (heading.textContent.trim() === 'See also') {
+            seeAlsoSection = heading.closest('h2').nextElementSibling;
+            console.log('✓ Found "See also" section (strategy 1), tag:', seeAlsoSection?.tagName);
+            break;
+          }
+        }
+
+        // Strategy 2: Look for any h2 containing "See also"
+        if (!seeAlsoSection) {
+          const allH2s = doc.querySelectorAll('h2');
+          console.log('📋 Trying strategy 2: Found h2 tags:', allH2s.length);
+
+          for (const h2 of allH2s) {
+            console.log('  H2 text:', h2.textContent.trim());
+            if (h2.textContent.includes('See also')) {
+              console.log('  Found "See also" h2, searching for next UL in document...');
+
+              // Find the next UL element after this h2 in the entire document
+              let current = h2;
+              let found = false;
+              let searchCount = 0;
+              const maxSearch = 20; // Limit search to prevent infinite loops
+
+              while (current && searchCount < maxSearch) {
+                searchCount++;
+
+                // Try nextSibling
+                if (current.nextSibling) {
+                  current = current.nextSibling;
+
+                  // Skip text nodes
+                  if (current.nodeType === 1) { // Element node
+                    if (current.tagName === 'UL') {
+                      seeAlsoSection = current;
+                      console.log('✓ Found UL via nextSibling traversal');
+                      found = true;
+                      break;
+                    }
+
+                    // Check if UL is inside this element
+                    const ulInside = current.querySelector('ul');
+                    if (ulInside) {
+                      seeAlsoSection = ulInside;
+                      console.log('✓ Found UL inside', current.tagName);
+                      found = true;
+                      break;
+                    }
+                  }
+                } else {
+                  // Go up to parent and continue
+                  current = current.parentElement;
+                  if (!current) break;
+                }
+              }
+
+              if (found) break;
+              console.log('  Searched', searchCount, 'nodes, no UL found');
+            }
+          }
+        }
+
+        if (!seeAlsoSection || seeAlsoSection.tagName !== 'UL') {
+          console.log('❌ No UL found for "See also" section');
+          return [];
+        }
+
+        console.log('✓ Found UL with', seeAlsoSection.children.length, 'items');
+
+        // Extract links from the list
+        const links = [];
+        const listItems = seeAlsoSection.querySelectorAll('li > a');
+        console.log('📎 Found list items with links:', listItems.length);
+
+        for (const link of listItems) {
+          const href = link.getAttribute('href');
+          if (href && href.startsWith('/wiki/') && !href.includes(':')) {
+            const linkTitle = href.replace('/wiki/', '');
+            const displayTitle = link.textContent.trim();
+            links.push({ title: linkTitle, display: displayTitle });
+            console.log(`  → ${displayTitle} (${linkTitle})`);
+            if (links.length >= 4) break; // Only take first 4
+          }
+        }
+
+        console.log('✓ Returning', links.length, 'See also links');
+        return links;
+      } catch (error) {
+        console.error('Error fetching See also links:', error);
+        return [];
+      }
+    }
+
+    // Knowledge graph of related topics for common pages (top 4 most relevant)
+    const relatedTopics = {
+      'Petal': ['Flower', 'Sepal', 'Stamen', 'Pollination'],
+      'Mixture_model': ['Gaussian_mixture_model', 'Expectation–maximization_algorithm', 'Statistical_model', 'Latent_variable'],
+      'Gene_expression': ['Transcription_(biology)', 'Translation_(biology)', 'Gene_regulation', 'RNA'],
+      'Gaussian_mixture_model': ['Mixture_model', 'Expectation–maximization_algorithm', 'K-means_clustering', 'Cluster_analysis'],
+      'Covariance_matrix': ['Covariance', 'Variance', 'Principal_component_analysis', 'Eigenvalues_and_eigenvectors'],
+      'Eigendecomposition_of_a_matrix': ['Eigenvalues_and_eigenvectors', 'Linear_algebra', 'Principal_component_analysis', 'Matrix_(mathematics)']
+    };
+
+    // Display Wikipedia content
+    function displayWikiContent(data) {
+      wikiTitle.textContent = data.title || 'Wikipedia';
+
+      // Add thumbnail image if available
+      let imageHtml = '';
+      if (data.thumbnail && data.thumbnail.source) {
+        imageHtml = `
+          <div style="float: right; margin: 0 0 8px 12px; width: 80px; height: 80px; overflow: hidden;">
+            <img src="${data.thumbnail.source}"
+                 alt="${data.title}"
+                 style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px; border: 1px solid var(--grid); opacity: 0.7;">
+          </div>
+        `;
+      }
+
+      // Use extract_html if available for rich formatting, otherwise fall back to plain extract
+      let content = data.extract_html || `<p>${data.extract || 'No summary available.'}</p>`;
+
+      // Strip out inline color styles that make text black
+      content = content.replace(/color:\s*#?[0-9a-fA-F]{3,6}/gi, '');
+      content = content.replace(/style="[^"]*color[^"]*"/gi, (match) => {
+        // Remove only color property, keep other styles
+        return match.replace(/color:\s*[^;"]+;?/gi, '');
+      });
+
+      wikiBody.innerHTML = imageHtml + content;
+
+      wikiLink.href = data.content_urls?.desktop?.page || '#';
+
+      // Make internal Wikipedia links in the content open in sidebar
+      const wikiBodyLinks = wikiBody.querySelectorAll('a[href*="wikipedia.org"]');
+      wikiBodyLinks.forEach(link => {
+        link.addEventListener('click', (e) => handleWikiLinkClick(e, link.href));
+      });
+
+      // Fetch and display "See also" links dynamically
+      console.log('🔍 Fetching See also links for:', data.title);
+      fetchSeeAlsoLinks(data.title.replace(/ /g, '_')).then(seeAlsoLinks => {
+        console.log('✓ Got See also links:', seeAlsoLinks);
+        if (seeAlsoLinks.length > 0) {
+          const relatedHtml = `
+            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--grid);">
+              <h4 style="margin: 0 0 12px 0; font-size: 14px; color: var(--accent); font-weight: 600; letter-spacing: 0.5px;">SEE ALSO</h4>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${seeAlsoLinks.map(link => {
+                  return `
+                    <a href="https://en.wikipedia.org/wiki/${encodeURIComponent(link.title)}"
+                       class="wiki-related-link"
+                       data-topic="${link.title}"
+                       style="display: flex; align-items: center; padding: 10px 12px; background: rgba(88, 166, 255, 0.06); border-radius: 4px; text-decoration: none; transition: all 0.2s ease; border: 1px solid transparent;">
+                      <span style="color: var(--accent); font-size: 16px; margin-right: 10px; font-weight: bold;">→</span>
+                      <span style="color: var(--text); font-size: 14px; flex: 1;">${link.display}</span>
+                    </a>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `;
+          wikiBody.innerHTML += relatedHtml;
+
+          // Add click handlers to related links
+          const relatedLinks = wikiBody.querySelectorAll('.wiki-related-link');
+          relatedLinks.forEach(link => {
+            link.addEventListener('click', (e) => handleWikiLinkClick(e, link.href));
+            link.addEventListener('mouseenter', function() {
+              this.style.background = 'rgba(88, 166, 255, 0.12)';
+              this.style.borderColor = 'var(--accent)';
+            });
+            link.addEventListener('mouseleave', function() {
+              this.style.background = 'rgba(88, 166, 255, 0.06)';
+              this.style.borderColor = 'transparent';
+            });
+          });
+        }
+      });
+
+      // Hide loading, show content
+      wikiLoading.style.display = 'none';
+      wikiBody.classList.add('loaded');
+    }
+
+    // Display error message
+    function displayError(message) {
+      wikiTitle.textContent = 'Error';
+      wikiBody.innerHTML = `<p style="color: var(--accent2);">${message}</p>`;
+      wikiLoading.style.display = 'none';
+      wikiBody.classList.add('loaded');
+    }
+
+    // Handle Wikipedia link click
+    async function handleWikiLinkClick(event, url, isBackNavigation = false) {
+      console.log('🔗 Wikipedia link clicked:', url);
+      event.preventDefault();
+      console.log('✓ Default navigation prevented');
+
+      const title = getWikiTitle(url);
+      if (!title) {
+        console.error('❌ Could not extract Wikipedia title from URL:', url);
+        return;
+      }
+      console.log('📖 Extracted title:', title);
+
+      // Save current page to history (unless this is a back navigation)
+      if (!isBackNavigation && wikiBody.innerHTML && wikiTitle.textContent !== 'Loading...') {
+        history.push({
+          title: wikiTitle.textContent,
+          content: wikiBody.innerHTML,
+          url: wikiLink.href
+        });
+        wikiBack.style.display = 'flex';
+      }
+
+      // Reset sidebar state
+      wikiLoading.style.display = 'flex';
+      wikiBody.classList.remove('loaded');
+      wikiBody.innerHTML = '';
+      wikiTitle.textContent = 'Loading...';
+
+      // Open sidebar
+      console.log('🚪 Opening sidebar...');
+      openSidebar();
+
+      // Fetch and display content
+      try {
+        console.log('📡 Fetching Wikipedia summary for:', title);
+        const data = await fetchWikiSummary(title);
+        console.log('✓ Data received:', data.title);
+        displayWikiContent(data);
+      } catch (error) {
+        console.error('❌ Error fetching Wikipedia content:', error);
+        displayError('Failed to load Wikipedia content. Please try again later.');
+      }
+    }
+
+    // Add click listeners to all Wikipedia links
+    function initWikiLinks() {
+      const wikiLinks = document.querySelectorAll('a[href*="wikipedia.org/wiki/"]');
+      console.log(`🔗 Found ${wikiLinks.length} Wikipedia link(s) on page`);
+
+      wikiLinks.forEach((link, index) => {
+        console.log(`  ${index + 1}. ${link.href}`);
+        link.addEventListener('click', (e) => handleWikiLinkClick(e, link.href));
+      });
+
+      if (wikiLinks.length > 0) {
+        console.log('✓ Click listeners attached to all Wikipedia links');
+      } else {
+        console.warn('⚠️ No Wikipedia links found - sidebar will not work');
+      }
+    }
+
+    // Back button click
+    wikiBack.addEventListener('click', () => {
+      if (history.length > 0) {
+        const previous = history.pop();
+        wikiTitle.textContent = previous.title;
+        wikiBody.innerHTML = previous.content;
+        wikiLink.href = previous.url;
+
+        // Re-attach event listeners to related links
+        const relatedLinks = wikiBody.querySelectorAll('.wiki-related-link');
+        relatedLinks.forEach(link => {
+          link.addEventListener('click', (e) => handleWikiLinkClick(e, link.href));
+          link.addEventListener('mouseenter', function() {
+            this.style.background = 'rgba(88, 166, 255, 0.12)';
+            this.style.borderColor = 'var(--accent)';
+          });
+          link.addEventListener('mouseleave', function() {
+            this.style.background = 'rgba(88, 166, 255, 0.06)';
+            this.style.borderColor = 'transparent';
+          });
+        });
+
+        // Hide back button if no more history
+        if (history.length === 0) {
+          wikiBack.style.display = 'none';
+        }
+      }
+    });
+
+    // Close button click
+    wikiClose.addEventListener('click', () => {
+      closeSidebar();
+      // Clear history when closing
+      history.length = 0;
+      wikiBack.style.display = 'none';
+    });
+
+    // Backdrop click
+    wikiBackdrop.addEventListener('click', () => {
+      closeSidebar();
+      // Clear history when closing
+      history.length = 0;
+      wikiBack.style.display = 'none';
+    });
+
+    // Escape key to close
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && wikiSidebar.classList.contains('active')) {
+        closeSidebar();
+      }
+    });
+
+    // Initialize Wikipedia links
+    initWikiLinks();
+
+    // Re-initialize when DOM changes (if you dynamically add content)
+    // You can call initWikiLinks() again after adding new Wikipedia links
+  })();
 
 </script>
 </body>
