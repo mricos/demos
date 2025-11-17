@@ -1794,17 +1794,67 @@
     }
     if (power === 1) return matrix;
 
-    // Matrix multiplication for power 2
-    const n = matrix.length;
-    const result = Array(n).fill(0).map(() => Array(n).fill(0));
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        for (let k = 0; k < n; k++) {
-          result[i][j] += matrix[i][k] * matrix[k][j];
+    // For power >= 2, do repeated matrix multiplication
+    let result = matrix;
+    for (let p = 1; p < power; p++) {
+      const temp = Array(matrix.length).fill(0).map(() => Array(matrix.length).fill(0));
+      for (let i = 0; i < matrix.length; i++) {
+        for (let j = 0; j < matrix.length; j++) {
+          for (let k = 0; k < matrix.length; k++) {
+            temp[i][j] += result[i][k] * matrix[k][j];
+          }
+        }
+      }
+      result = temp;
+    }
+    return result;
+  }
+
+  // Invert a 4x4 matrix using Gauss-Jordan elimination
+  function invert4x4(m) {
+    // Create augmented matrix [A | I]
+    const aug = m.map((row, i) => [
+      ...row,
+      i === 0 ? 1 : 0,
+      i === 1 ? 1 : 0,
+      i === 2 ? 1 : 0,
+      i === 3 ? 1 : 0
+    ]);
+
+    // Gauss-Jordan elimination
+    for (let i = 0; i < 4; i++) {
+      // Find pivot
+      let maxRow = i;
+      for (let k = i + 1; k < 4; k++) {
+        if (Math.abs(aug[k][i]) > Math.abs(aug[maxRow][i])) {
+          maxRow = k;
+        }
+      }
+      [aug[i], aug[maxRow]] = [aug[maxRow], aug[i]];
+
+      // Make diagonal 1
+      const pivot = aug[i][i];
+      if (Math.abs(pivot) < 1e-10) {
+        console.error('Matrix is singular');
+        return m; // Return original if singular
+      }
+      for (let j = 0; j < 8; j++) {
+        aug[i][j] /= pivot;
+      }
+
+      // Eliminate column
+      for (let k = 0; k < 4; k++) {
+        if (k !== i) {
+          const factor = aug[k][i];
+          for (let j = 0; j < 8; j++) {
+            aug[k][j] -= factor * aug[i][j];
+          }
         }
       }
     }
-    return result;
+
+    // Extract inverse from right half
+    return aug.map(row => row.slice(4));
   }
 
   // Compute Frobenius norm of a matrix (total magnitude)
@@ -1847,11 +1897,14 @@
       corr = computeCorrelationMatrix(data);
     }
 
-    // Compute correlation matrix powers for Taylor series
-    const R0 = matrixPower(corr, 0); // Identity
-    const R1 = corr;
-    const R2 = matrixPower(corr, 2);
-    const R3 = matrixPower(corr, 3);
+    // Compute PRECISION matrix (inverse) - this is what appears in Gaussian formula
+    const precision = invert4x4(corr);
+
+    // Compute precision matrix powers for Taylor series
+    const R0 = matrixPower(precision, 0); // Identity
+    const R1 = precision;
+    const R2 = matrixPower(precision, 2);
+    const R3 = matrixPower(precision, 3);
 
     // Calculate contributions (Frobenius norms)
     const norm0 = frobeniusNorm(R0);
@@ -2327,7 +2380,7 @@
           </p>
 
           <p style="margin: 0 0 24px 0; font-size: 20px; line-height: 1.8; color: var(--text); text-align: center;">
-            exp(Σ) = I + Σ + Σ²/2! + Σ³/3! + ...
+            exp(Σ⁻¹) = I + Σ⁻¹ + (Σ⁻¹)²/2! + (Σ⁻¹)³/3! + ...
           </p>
 
           <p style="margin: 0 0 24px 0; font-size: 18px; line-height: 1.8; color: var(--text);">
@@ -2340,7 +2393,7 @@
                 Weak Correlations
               </p>
               <p style="margin: 0; font-size: 18px; line-height: 1.8; color: var(--text);">
-                The first two terms (I + Σ) capture 85%+ of the total. Higher-order terms contribute less than 15%. The distribution is nearly "separable"—features behave almost independently.
+                The first two terms (I + Σ⁻¹) capture most of the total. Higher-order terms contribute less. The precision matrix is nearly diagonal—features are nearly independent.
               </p>
             </div>
 
@@ -2349,7 +2402,7 @@
                 Strong Correlations
               </p>
               <p style="margin: 0; font-size: 18px; line-height: 1.8; color: var(--text);">
-                Higher-order terms (Σ²/2!, Σ³/3!, ...) become significant. You need 4+ terms to capture 90%+ of the distribution. Correlations create complex dependencies.
+                Higher-order terms ((Σ⁻¹)²/2!, (Σ⁻¹)³/3!, ...) become significant. The precision matrix has large off-diagonal elements, requiring more terms to capture complex dependencies.
               </p>
             </div>
           </div>
@@ -2362,10 +2415,10 @@
 
       <div style="width: 100%; margin: 16px 0; padding: 14px; background: rgba(247, 129, 102, 0.15); border-radius: 4px;">
         <div style="font-size: 15px; font-weight: 700; color: var(--accent2); margin-bottom: 10px; text-align: center;">
-          Taylor Series: exp(Correlation Matrix)
+          Taylor Series: exp(Precision Matrix)
         </div>
         <div style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; font-size: 15px; font-weight: 600;">
-          <span><b>exp(<span class="var-r">Σ</span>)</b> ≈</span>
+          <span><b>exp(<span class="var-r">Σ⁻¹</span>)</b> ≈</span>
           <span style="display: inline-flex; flex-direction: column; align-items: center; gap: 4px;">
             <span style="display: inline-flex; flex-direction: column; align-items: center;">
               <span>${renderMatrix(R0, true)}</span>
@@ -2421,7 +2474,7 @@
         </div>
 
         <div class="contribution-row">
-          <div class="contribution-label">Term 1 (Σ)</div>
+          <div class="contribution-label">Term 1 (Σ⁻¹)</div>
           <div class="contribution-bar">
             <div class="contribution-fill" style="width: ${contrib1.toFixed(1)}%"></div>
           </div>
@@ -2429,7 +2482,7 @@
         </div>
 
         <div class="contribution-row">
-          <div class="contribution-label">Term 2 (Σ²/2)</div>
+          <div class="contribution-label">Term 2 ((Σ⁻¹)²/2)</div>
           <div class="contribution-bar">
             <div class="contribution-fill" style="width: ${contrib2.toFixed(1)}%"></div>
           </div>
@@ -2437,7 +2490,7 @@
         </div>
 
         <div class="contribution-row">
-          <div class="contribution-label">Term 3 (Σ³/6)</div>
+          <div class="contribution-label">Term 3 ((Σ⁻¹)³/6)</div>
           <div class="contribution-bar">
             <div class="contribution-fill" style="width: ${contrib3.toFixed(1)}%"></div>
           </div>
@@ -2447,8 +2500,8 @@
         <div class="equation-explanation" style="margin: 20px 0; font-size: 18px; line-height: 2; color: var(--text);">
           <p style="margin: 0;">
             ${norm1 < 0.5 * norm0
-              ? `When correlations are weak, the linear approximation exp(Σ) ≈ I + Σ works remarkably well. In this case, just the first two terms capture ${(contrib0 + contrib1).toFixed(1)}% of the total contribution, meaning we can safely ignore higher-order terms. This is analogous to how in PCA, the first few principal components often explain most of the variance.`
-              : `With stronger correlations, we need more terms. The first two terms only account for ${(contrib0 + contrib1).toFixed(1)}% of the total, and we need the quadratic term (Σ²/2) to reach ${(contrib0 + contrib1 + contrib2).toFixed(1)}%. This shows that correlations introduce non-linear effects that require higher-order terms to capture accurately.`
+              ? `When correlations are weak, the linear approximation exp(Σ⁻¹) ≈ I + Σ⁻¹ works remarkably well. In this case, just the first two terms capture ${(contrib0 + contrib1).toFixed(1)}% of the total contribution, meaning we can safely ignore higher-order terms. This is analogous to how in PCA, the first few principal components often explain most of the variance.`
+              : `With stronger correlations, we need more terms. The first two terms only account for ${(contrib0 + contrib1).toFixed(1)}% of the total, and we need the quadratic term ((Σ⁻¹)²/2) to reach ${(contrib0 + contrib1 + contrib2).toFixed(1)}%. This shows that correlations introduce non-linear effects that require higher-order terms to capture accurately.`
             }
             ${det < 0.1 ? ' The determinant |<b style="color: #ff6b6b;">Σ</b>| = ' + det.toFixed(3) + ' is very small, indicating the features are nearly collinear—the uncertainty ellipsoid is extremely flat in one or more directions.' : ''}
           </p>
