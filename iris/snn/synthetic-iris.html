@@ -646,7 +646,7 @@
       </div>
 
       <p style="margin: 0 0 16px 0; color: var(--muted); line-height: 1.7; font-size: 14px;">
-        Data points are generated using a <strong style="color: var(--text);"><a href="https://en.wikipedia.org/wiki/Mixture_model" target="_blank" style="color: var(--accent); text-decoration: none;">Gaussian Mixture Model</a> (GMM)</strong>. Generation is a two-stage process: <strong style="color: var(--text);">first pick a&nbsp;species&nbsp;k</strong> with probability <span id="gmm_pik"></span>, then <strong style="color: var(--text);">sample features conditioned on that species</strong> from <span id="gmm_normal"></span> (a Gaussian distribution with mean μ and covariance Σ).
+        Data points are generated using a <strong style="color: var(--text);"><a href="https://en.wikipedia.org/wiki/Mixture_model" style="color: var(--accent); text-decoration: none;"> Gaussian Mixture Model</a> (GMM)</strong>. Generation is a two-stage process: <strong style="color: var(--text);">first pick a&nbsp;species&nbsp;k</strong> with probability <span id="gmm_pik"></span>, then <strong style="color: var(--text);">sample features conditioned on that species</strong> from <span id="gmm_normal"></span> (a Gaussian distribution with mean μ and covariance Σ).
       </p>
 
       <!-- Tree and Histogram side by side -->
@@ -732,11 +732,11 @@
       </div>
 
           <p style="margin: 20px 0 16px 0; color: var(--muted); line-height: 1.7; font-size: 14px;">
-            To generate correlated samples from a <a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">multivariate Gaussian</a>, <strong style="color: var(--text);"><a href="https://en.wikipedia.org/wiki/Cholesky_decomposition" target="_blank" style="color: var(--accent); text-decoration: none;">Cholesky decomposition</a></strong> is the standard approach.
+            To generate correlated samples from a <a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution" style="color: var(--accent); text-decoration: none; font-weight: 600;">multivariate Gaussian</a>, <strong style="color: var(--text);"><a href="https://en.wikipedia.org/wiki/Cholesky_decomposition" style="color: var(--accent); text-decoration: none;">Cholesky decomposition</a></strong> is the standard approach.
           </p>
 
           <p style="margin: 16px 0; color: var(--muted); line-height: 1.7; font-size: 14px;">
-            We decompose the <strong style="color: var(--text);"><a href="https://en.wikipedia.org/wiki/Covariance_matrix" target="_blank" style="color: var(--accent); text-decoration: none;">4×4 covariance matrix</a></strong>:
+            We decompose the <strong style="color: var(--text);"><a href="https://en.wikipedia.org/wiki/Covariance_matrix" style="color: var(--accent); text-decoration: none;">4×4 covariance matrix</a></strong>:
           </p>
 
             <!-- Cholesky Decomposition Visual -->
@@ -856,7 +856,7 @@
             </p>
 
             <p style="margin: 16px 0; color: var(--muted); line-height: 1.7; font-size: 16px;">
-              The scalar analogy: if Z ~ N(0,1) and you want X ~ N(0, σ²), you use X = σZ (<a href="https://en.wikipedia.org/wiki/Standard_deviation" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">standard deviation</a>), not X = σ²Z (<a href="https://en.wikipedia.org/wiki/Variance" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">variance</a>). In the matrix case, you likewise need a matrix "square root" of Σ. Cholesky provides this via Σ = LL<sup>T</sup>, and the transform <span id="gmm_transform"></span> produces x ~ N(μ, Σ), where each draw <strong style="color: var(--text);">x</strong> is one 4D iris measurement vector.
+              The scalar analogy: if Z ~ N(0,1) and you want X ~ N(0, σ²), you use X = σZ (<a href="https://en.wikipedia.org/wiki/Standard_deviation" style="color: var(--accent); text-decoration: none; font-weight: 600;">standard deviation</a>), not X = σ²Z (<a href="https://en.wikipedia.org/wiki/Variance" style="color: var(--accent); text-decoration: none; font-weight: 600;">variance</a>). In the matrix case, you likewise need a matrix "square root" of Σ. Cholesky provides this via Σ = LL<sup>T</sup>, and the transform <span id="gmm_transform"></span> produces x ~ N(μ, Σ), where each draw <strong style="color: var(--text);">x</strong> is one 4D iris measurement vector.
             </p>
 
             <!-- Before/After 2D visualization -->
@@ -875,7 +875,7 @@
             </div>
 
           <p style="margin: 16px 0 0 0; color: var(--muted); line-height: 1.7; font-size: 16px;">
-            Each draw produces a full 4D <a href="https://en.wikipedia.org/wiki/Sample_(statistics)" target="_blank" style="color: var(--accent); text-decoration: none;">sample</a> with the correct correlations. <a href="https://en.wikipedia.org/wiki/Sampling_(statistics)" target="_blank" style="color: var(--accent); text-decoration: none;">Sampling</a> dimensions independently would create unrealistic flowers (e.g., tiny petals on huge sepals). The L transform enforces the natural relationships between measurements that real flowers exhibit.
+            Each draw produces a full 4D <a href="https://en.wikipedia.org/wiki/Sample_(statistics)" style="color: var(--accent); text-decoration: none;">sample</a> with the correct correlations. <a href="https://en.wikipedia.org/wiki/Sampling_(statistics)" style="color: var(--accent); text-decoration: none;">Sampling</a> dimensions independently would create unrealistic flowers (e.g., tiny petals on huge sepals). The L transform enforces the natural relationships between measurements that real flowers exhibit.
           </p>
     </div>
   </div>
@@ -918,14 +918,14 @@
     </div>
 
     <div id="flowerInfo" style="display: none; background: rgba(88, 166, 255, 0.08); border-radius: 4px; padding: 12px; font-size: 12px; line-height: 1.6; color: var(--text);">
-    <div style="margin-bottom: 12px;">
-      The genetics behind the formation of <a href="https://en.wikipedia.org/wiki/Petal" target="_blank" style="color: var(--accent); text-decoration: none;">petals</a>, in accordance with the ABC model of flower development, are that sepals, petals, stamens, and carpels are modified versions of each other. It appears that the mechanisms to form <a href="https://en.wikipedia.org/wiki/Petal" target="_blank" style="color: var(--accent); text-decoration: none;">petals</a> evolved very few times (perhaps only once), rather than evolving repeatedly from stamens.
+    <div style="margin-bottom: 12px; font-size: 15px; line-height: 1.8; color: var(--text);">
+      The genetics behind the formation of <a href="https://en.wikipedia.org/wiki/Petal" style="color: var(--accent); text-decoration: none;">petals</a>, in accordance with the <a href="https://en.wikipedia.org/wiki/ABC_model_of_flower_development" style="color: var(--accent); text-decoration: none;">ABC model</a> of flower development, are that sepals, petals, stamens, and carpels are modified versions of each other. It appears that the mechanisms to form petals evolved very few times (perhaps only once), rather than evolving repeatedly from stamens.
     </div>
     <div style="text-align: center; margin-bottom: 16px;">
       <img src="ABC_Model.svg" alt="ABC Model of Flower Development" style="max-width: 60%; height: auto; border: 1px solid var(--grid); border-radius: 4px; background: transparent; mix-blend-mode: lighten; display: block; margin: 0 auto;">
     </div>
     <div style="margin-bottom: 12px; font-size: 15px; line-height: 1.8; color: var(--text);">
-      This biological hierarchy mirrors our <a href="https://en.wikipedia.org/wiki/Mixture_model" target="_blank" style="color: var(--accent); text-decoration: none;">Gaussian Mixture Model</a>: just as discrete <a href="https://en.wikipedia.org/wiki/Gene_expression" target="_blank" style="color: var(--accent); text-decoration: none;">gene combinations</a> in the ABC model unfold into continuous petal morphology, our GMM maps a discrete 3-class latent variable (species "genotype") to continuous 4D trait measurements (the observable "phenotype"). Both capture how low-dimensional genetic code generates high-dimensional observable features through a hierarchical developmental process.
+      This biological hierarchy mirrors our <a href="https://en.wikipedia.org/wiki/Mixture_model" style="color: var(--accent); text-decoration: none;">Gaussian Mixture Model</a>: just as discrete <a href="https://en.wikipedia.org/wiki/Gene_expression" style="color: var(--accent); text-decoration: none;">gene combinations</a> in the ABC model unfold into continuous petal morphology, our GMM maps a discrete 3-class latent variable (species <a href="https://en.wikipedia.org/wiki/Genotype" style="color: var(--accent); text-decoration: none;">"genotype"</a>) to continuous 4D trait measurements (the observable <a href="https://en.wikipedia.org/wiki/Phenotype" style="color: var(--accent); text-decoration: none;">"phenotype"</a>). Both capture how low-dimensional genetic code generates high-dimensional observable features through a hierarchical developmental process.
     </div>
     <div style="text-align: right; margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end;">
       <a href="#" id="showFlowerTuner" style="color: var(--muted); text-decoration: none; font-size: 10px; border: 1px solid var(--grid); padding: 3px 8px; border-radius: 3px; display: inline-block;">🔧 flower tuner</a>
@@ -958,7 +958,7 @@
         <div>
           <div style="margin-bottom: 14px; padding: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 5px;">
             <p style="margin: 0; color: var(--muted); font-size: 14px; line-height: 1.7;">
-              The <a href="https://en.wikipedia.org/wiki/Ellipse" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">ellipses</a> are computed <strong style="color: var(--text);">from the actual generated points</strong> using the <strong style="color: var(--text);">empirical approach</strong>.
+              The <a href="https://en.wikipedia.org/wiki/Ellipse" style="color: var(--accent); text-decoration: none; font-weight: 600;">ellipses</a> are computed <strong style="color: var(--text);">from the actual generated points</strong> using the <strong style="color: var(--text);">empirical approach</strong>.
             </p>
           </div>
 
@@ -967,7 +967,7 @@
             <div style="display: flex; gap: 10px; padding: 10px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 4px;">
               <div style="color: #ff6b6b; font-weight: bold; min-width: 28px; font-size: 16px;">1.</div>
               <div style="flex: 1; color: var(--muted); font-size: 14px; line-height: 1.6;">
-                Calculate <a href="https://en.wikipedia.org/wiki/Covariance_matrix" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">covariance matrix</a> and mean from points
+                Calculate <a href="https://en.wikipedia.org/wiki/Covariance_matrix" style="color: var(--accent); text-decoration: none; font-weight: 600;">covariance matrix</a> and mean from points
               </div>
             </div>
           </div>
@@ -993,7 +993,7 @@
               <div style="display: flex; gap: 10px; padding: 10px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 4px;">
                 <div style="color: #4ecdc4; font-weight: bold; min-width: 28px; font-size: 16px;">2.</div>
                 <div style="flex: 1; color: var(--muted); font-size: 14px; line-height: 1.6;">
-                  Apply <a href="https://en.wikipedia.org/wiki/Eigendecomposition_of_a_matrix" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">eigendecomposition</a> to find principal axes
+                  Apply <a href="https://en.wikipedia.org/wiki/Eigendecomposition_of_a_matrix" style="color: var(--accent); text-decoration: none; font-weight: 600;">eigendecomposition</a> to find principal axes
                 </div>
               </div>
             </div>
@@ -1335,14 +1335,14 @@
       </div>
     </div>
     <div class="matrix-panel">
-      <div class="matrix-title"><a href="https://en.wikipedia.org/wiki/Mixture_model#Gaussian_mixture_model" target="_blank" style="color: var(--accent2); text-decoration: none;">Gaussian Mixture Model</a> Parameters</div>
+      <div class="matrix-title"><a href="https://en.wikipedia.org/wiki/Mixture_model#Gaussian_mixture_model" style="color: var(--accent2); text-decoration: none;">Gaussian Mixture Model</a> Parameters</div>
       <div id="gmmParams" class="gmm-container"></div>
     </div>
   </div>
 
   <div class="equation-panel compact" id="equationPanel">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-      <div class="equation-title" style="margin: 0;"><a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution" target="_blank" style="color: var(--accent2); text-decoration: none;">Multivariate Gaussian</a> as <a href="https://en.wikipedia.org/wiki/Matrix_exponential" target="_blank" style="color: var(--accent2); text-decoration: none;">Matrix Exponential</a></div>
+      <div class="equation-title" style="margin: 0;"><a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution" style="color: var(--accent2); text-decoration: none;">Multivariate Gaussian</a> as <a href="https://en.wikipedia.org/wiki/Matrix_exponential" style="color: var(--accent2); text-decoration: none;">Matrix Exponential</a></div>
       <button id="btnToggleEquation" style="padding: 3px 8px; font-size: 10px; color: var(--muted); background: transparent; border: 1px solid var(--grid); border-radius: 3px; cursor: pointer; white-space: nowrap;">info</button>
     </div>
     <div id="gmmEquation" class="equation"></div>
@@ -1384,7 +1384,7 @@
   };
   console.log('🌸 Flower tuning available:', window.flowerTuning);
 
-  // Gaussian RNG (<a href="https://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform" target="_blank" style="color: var(--accent); text-decoration: none;">Box-Muller transform</a>)
+  // Gaussian RNG (<a href="https://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform" style="color: var(--accent); text-decoration: none;">Box-Muller transform</a>)
   let _gaussSpare = null;
   function gaussianRandom() {
     if (_gaussSpare !== null) {
@@ -2035,30 +2035,30 @@
               <td style="padding: 10px; color: var(--text);">4×4 matrix encoding variances & correlations</td>
             </tr>
             <tr style="border-bottom: 1px solid var(--grid);">
-              <td style="padding: 10px; color: #4ecdc4; font-weight: 600;"><a href="https://en.wikipedia.org/wiki/Precision_(statistics)" target="_blank" style="color: #4ecdc4; text-decoration: none;">Precision matrix</a></td>
+              <td style="padding: 10px; color: #4ecdc4; font-weight: 600;"><a href="https://en.wikipedia.org/wiki/Precision_(statistics)" style="color: #4ecdc4; text-decoration: none;">Precision matrix</a></td>
               <td style="padding: 10px; color: #4ecdc4; font-size: 18px; font-weight: 700;">Σ⁻¹</td>
-              <td style="padding: 10px; color: var(--text);"><a href="https://en.wikipedia.org/wiki/Invertible_matrix" target="_blank" style="color: var(--accent); text-decoration: none;">Inverse</a> of covariance (high precision = tight distribution)</td>
+              <td style="padding: 10px; color: var(--text);"><a href="https://en.wikipedia.org/wiki/Invertible_matrix" style="color: var(--accent); text-decoration: none;">Inverse</a> of covariance (high precision = tight distribution)</td>
             </tr>
             <tr style="border-bottom: 1px solid var(--grid);">
-              <td style="padding: 10px; color: #ba68c8; font-weight: 600;"><a href="https://en.wikipedia.org/wiki/Normalizing_constant" target="_blank" style="color: #ba68c8; text-decoration: none;">Normalization constant</a></td>
+              <td style="padding: 10px; color: #ba68c8; font-weight: 600;"><a href="https://en.wikipedia.org/wiki/Normalizing_constant" style="color: #ba68c8; text-decoration: none;">Normalization constant</a></td>
               <td style="padding: 10px; color: #ba68c8; font-size: 18px; font-weight: 700;">(2π)^(d/2)</td>
-              <td style="padding: 10px; color: var(--text);"><a href="https://en.wikipedia.org/wiki/Pi" target="_blank" style="color: var(--accent); text-decoration: none;">2π</a> raised to the power d/2, where d is the number of dimensions</td>
+              <td style="padding: 10px; color: var(--text);"><a href="https://en.wikipedia.org/wiki/Pi" style="color: var(--accent); text-decoration: none;">2π</a> raised to the power d/2, where d is the number of dimensions</td>
             </tr>
             <tr style="border-bottom: 1px solid var(--grid);">
-              <td style="padding: 10px; color: #3fb950; font-weight: 600;"><a href="https://en.wikipedia.org/wiki/Exponential_function" target="_blank" style="color: #3fb950; text-decoration: none;">Exponential function</a></td>
+              <td style="padding: 10px; color: #3fb950; font-weight: 600;"><a href="https://en.wikipedia.org/wiki/Exponential_function" style="color: #3fb950; text-decoration: none;">Exponential function</a></td>
               <td style="padding: 10px; color: #3fb950; font-size: 18px; font-weight: 700;">exp</td>
-              <td style="padding: 10px; color: var(--text);">Creates the <a href="https://en.wikipedia.org/wiki/Normal_distribution" target="_blank" style="color: var(--accent); text-decoration: none;">bell-shaped curve</a> (e^x function)</td>
+              <td style="padding: 10px; color: var(--text);">Creates the <a href="https://en.wikipedia.org/wiki/Normal_distribution" style="color: var(--accent); text-decoration: none;">bell-shaped curve</a> (e^x function)</td>
             </tr>
             <tr>
               <td style="padding: 10px; color: #ff9800; font-weight: 600;">Exponent factor</td>
               <td style="padding: 10px; color: #ff9800; font-size: 18px; font-weight: 700;">-1/2</td>
-              <td style="padding: 10px; color: var(--text);">From <a href="https://en.wikipedia.org/wiki/Completing_the_square" target="_blank" style="color: var(--accent); text-decoration: none;">completing the square</a> in <a href="https://en.wikipedia.org/wiki/Quadratic_form" target="_blank" style="color: var(--accent); text-decoration: none;">quadratic form</a></td>
+              <td style="padding: 10px; color: var(--text);">From <a href="https://en.wikipedia.org/wiki/Completing_the_square" style="color: var(--accent); text-decoration: none;">completing the square</a> in <a href="https://en.wikipedia.org/wiki/Quadratic_form" style="color: var(--accent); text-decoration: none;">quadratic form</a></td>
             </tr>
           </tbody>
         </table>
 
         <p style="margin: 0 0 16px 0; font-size: 18px; line-height: 2; color: var(--text);">
-          The <a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">multivariate Gaussian</a> <a href="https://en.wikipedia.org/wiki/Probability_density_function" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">probability density function</a> describes the likelihood of observing a d-dimensional vector <b style="color: #58a6ff;">x</b> given a <a href="https://en.wikipedia.org/wiki/Mean" target="_blank" style="color: var(--accent); text-decoration: none;">mean vector</a> <b style="color: #ffe66d;">μ</b> and <a href="https://en.wikipedia.org/wiki/Covariance_matrix" target="_blank" style="color: var(--accent); text-decoration: none;">covariance matrix</a> <b style="color: #ff6b6b;">Σ</b>. In our <a href="https://en.wikipedia.org/wiki/Iris_flower_data_set" target="_blank" style="color: var(--accent); text-decoration: none;">Iris dataset</a>, this is a 4-dimensional distribution (<a href="https://en.wikipedia.org/wiki/Sepal" target="_blank" style="color: var(--accent); text-decoration: none;">sepal</a> length, sepal width, <a href="https://en.wikipedia.org/wiki/Petal" target="_blank" style="color: var(--accent); text-decoration: none;">petal</a> length, petal width) that captures how these features vary together for each species.
+          The <a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution" style="color: var(--accent); text-decoration: none; font-weight: 600;">multivariate Gaussian</a> <a href="https://en.wikipedia.org/wiki/Probability_density_function" style="color: var(--accent); text-decoration: none; font-weight: 600;">probability density function</a> describes the likelihood of observing a d-dimensional vector <b style="color: #58a6ff;">x</b> given a <a href="https://en.wikipedia.org/wiki/Mean" style="color: var(--accent); text-decoration: none;">mean vector</a> <b style="color: #ffe66d;">μ</b> and <a href="https://en.wikipedia.org/wiki/Covariance_matrix" style="color: var(--accent); text-decoration: none;">covariance matrix</a> <b style="color: #ff6b6b;">Σ</b>. In our <a href="https://en.wikipedia.org/wiki/Iris_flower_data_set" style="color: var(--accent); text-decoration: none;">Iris dataset</a>, this is a 4-dimensional distribution (<a href="https://en.wikipedia.org/wiki/Sepal" style="color: var(--accent); text-decoration: none;">sepal</a> length, sepal width, <a href="https://en.wikipedia.org/wiki/Petal" style="color: var(--accent); text-decoration: none;">petal</a> length, petal width) that captures how these features vary together for each species.
         </p>
 
         <!-- Mean Vector Visualization -->
@@ -2067,7 +2067,7 @@
             <canvas id="meanVectorCanvas" width="800" height="640" style="width: 400px; height: 320px; background: #0d1117; border: none;"></canvas>
             <div style="font-size: 18px; line-height: 1.9; color: var(--text); padding-top: 0;">
               <p style="margin: 0 0 20px 0;">
-                The <b style="color: #ff8800;">mean vector μ</b> is the center point of the distribution in 4-dimensional space. The diagram shows a 2D <a href="https://en.wikipedia.org/wiki/Projection_(linear_algebra)" target="_blank" style="color: var(--accent); text-decoration: none;">projection</a> (petal length vs. petal width) of the Setosa class. The full 4D mean vector for Setosa is:
+                The <b style="color: #ff8800;">mean vector μ</b> is the center point of the distribution in 4-dimensional space. The diagram shows a 2D <a href="https://en.wikipedia.org/wiki/Projection_(linear_algebra)" style="color: var(--accent); text-decoration: none;">projection</a> (petal length vs. petal width) of the Setosa class. The full 4D mean vector for Setosa is:
               </p>
               <div style="margin: 20px 0; font-family: monospace; font-size: 17px; line-height: 1.7;">
                 <div><b style="color: #ff8800;">μ</b> = [<span id="meanVector_SL" style="color: #58a6ff;">5.01</span>, <span id="meanVector_SW" style="color: #58a6ff;">3.42</span>, <span id="meanVector_PL" style="color: #ff8800;">1.46</span>, <span id="meanVector_PW" style="color: #ff8800;">0.25</span>]</div>
@@ -2095,7 +2095,7 @@
               </div>
             </div>
             <div style="flex: 1; font-size: 18px; line-height: 1.9; color: var(--text);">
-              The <a href="https://en.wikipedia.org/wiki/Diagonal_matrix" target="_blank" style="color: var(--accent); text-decoration: none;">diagonal</a> holds variances (spread along each axis). The off-diagonal elements are identical and measure covariance—when petal length increases, petal width tends to increase too, creating positive <a href="https://en.wikipedia.org/wiki/Correlation" target="_blank" style="color: var(--accent); text-decoration: none;">correlation</a>.
+              The <a href="https://en.wikipedia.org/wiki/Diagonal_matrix" style="color: var(--accent); text-decoration: none;">diagonal</a> holds variances (spread along each axis). The off-diagonal elements are identical and measure covariance—when petal length increases, petal width tends to increase too, creating positive <a href="https://en.wikipedia.org/wiki/Correlation" style="color: var(--accent); text-decoration: none;">correlation</a>.
             </div>
           </div>
         </div>
@@ -2141,7 +2141,7 @@
             </div>
             <div style="font-size: 16px; color: rgba(139, 148, 158, 0.7); line-height: 1.8; text-align: center;">
               <div>★ = Strong correlation (PL×PW)</div>
-              <div><a href="https://en.wikipedia.org/wiki/Diagonal_matrix" target="_blank" style="color: var(--accent); text-decoration: none;">Diagonal</a> = Variances</div>
+              <div><a href="https://en.wikipedia.org/wiki/Diagonal_matrix" style="color: var(--accent); text-decoration: none;">Diagonal</a> = Variances</div>
             </div>
           </div>
         </div>
@@ -2204,7 +2204,7 @@
         <!-- Mahalanobis Distance Section -->
         <div style="margin: 40px 0;">
           <p style="margin: 0 0 20px 0; font-size: 18px; line-height: 2; color: var(--text);">
-            The <a href="https://en.wikipedia.org/wiki/Normal_distribution" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">Gaussian</a> <a href="https://en.wikipedia.org/wiki/Probability_density_function" target="_blank" style="color: var(--accent); text-decoration: none;">probability density</a> is built from a single core quantity: the <a href="https://en.wikipedia.org/wiki/Mahalanobis_distance" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">Mahalanobis distance</a>. For a point <b style="color: #58a6ff;">x</b> relative to the distribution centered at <b style="color: #ff8800;">μ</b> with precision matrix <b style="color: #4ecdc4;">Σ⁻¹</b>, the squared Mahalanobis distance is:
+            The <a href="https://en.wikipedia.org/wiki/Normal_distribution" style="color: var(--accent); text-decoration: none; font-weight: 600;">Gaussian</a> <a href="https://en.wikipedia.org/wiki/Probability_density_function" style="color: var(--accent); text-decoration: none;">probability density</a> is built from a single core quantity: the <a href="https://en.wikipedia.org/wiki/Mahalanobis_distance" style="color: var(--accent); text-decoration: none; font-weight: 600;">Mahalanobis distance</a>. For a point <b style="color: #58a6ff;">x</b> relative to the distribution centered at <b style="color: #ff8800;">μ</b> with precision matrix <b style="color: #4ecdc4;">Σ⁻¹</b>, the squared Mahalanobis distance is:
           </p>
 
           <div style="text-align: center; font-size: 20px; font-weight: 600; margin: 24px 0; padding: 20px; background: rgba(0,0,0,0.2); border-radius: 6px;">
@@ -2212,7 +2212,7 @@
           </div>
 
           <p style="margin: 20px 0; font-size: 18px; line-height: 2; color: var(--text);">
-            This generalizes <a href="https://en.wikipedia.org/wiki/Euclidean_distance" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">Euclidean distance</a>. In 2D with uncorrelated, unit-variance features, <b style="color: #4ecdc4;">Σ⁻¹</b> = I (<a href="https://en.wikipedia.org/wiki/Identity_matrix" target="_blank" style="color: var(--accent); text-decoration: none;">identity matrix</a>), and d² reduces to the familiar (x₁ - μ₁)² + (x₂ - μ₂)². The precision matrix <b style="color: #4ecdc4;">Σ⁻¹</b> weights and rotates the coordinate system to account for different variances and correlations between dimensions.
+            This generalizes <a href="https://en.wikipedia.org/wiki/Euclidean_distance" style="color: var(--accent); text-decoration: none; font-weight: 600;">Euclidean distance</a>. In 2D with uncorrelated, unit-variance features, <b style="color: #4ecdc4;">Σ⁻¹</b> = I (<a href="https://en.wikipedia.org/wiki/Identity_matrix" style="color: var(--accent); text-decoration: none;">identity matrix</a>), and d² reduces to the familiar (x₁ - μ₁)² + (x₂ - μ₂)². The precision matrix <b style="color: #4ecdc4;">Σ⁻¹</b> weights and rotates the coordinate system to account for different variances and correlations between dimensions.
           </p>
 
           <div style="display: flex; gap: 32px; margin: 30px 0;">
@@ -2270,7 +2270,7 @@
               </div>
               <div style="flex: 1;">
                 <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.8; color: var(--text);">
-                  The <a href="https://en.wikipedia.org/wiki/Ellipse" target="_blank" style="color: var(--accent); text-decoration: none;">ellipse</a> contours represent points at equal Mahalanobis distance from the mean. These ellipses reveal the <b style="color: #4ecdc4;"><a href="https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors" target="_blank" style="color: #4ecdc4; text-decoration: none;">eigenvector</a> structure</b> of the covariance matrix:
+                  The <a href="https://en.wikipedia.org/wiki/Ellipse" style="color: var(--accent); text-decoration: none;">ellipse</a> contours represent points at equal Mahalanobis distance from the mean. These ellipses reveal the <b style="color: #4ecdc4;"><a href="https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors" style="color: #4ecdc4; text-decoration: none;">eigenvector</a> structure</b> of the covariance matrix:
                 </p>
                 <div style="margin: 20px 0; padding: 16px; background: rgba(78, 205, 196, 0.05); border-left: 3px solid #4ecdc4; border-radius: 4px;">
                   <div style="margin-bottom: 12px;">
@@ -2283,7 +2283,7 @@
                   </div>
                 </div>
                 <p style="margin: 0 0 12px 0; font-size: 15px; line-height: 1.8; color: rgba(139, 148, 158, 0.9);">
-                  <b style="color: #ff8800;">The ellipse axes align with <a href="https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors" target="_blank" style="color: #ff8800; text-decoration: none;">eigenvectors</a></b> of the covariance matrix <b style="color: #ff6b6b;">Σ</b>. The <b style="color: #ffe66d;"><a href="https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors" target="_blank" style="color: #ffe66d; text-decoration: none;">eigenvalues</a> λ₁ and λ₂</b> determine how far you can travel along each eigenvector direction before the Mahalanobis distance increases by 1 standard deviation.
+                  <b style="color: #ff8800;">The ellipse axes align with <a href="https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors" style="color: #ff8800; text-decoration: none;">eigenvectors</a></b> of the covariance matrix <b style="color: #ff6b6b;">Σ</b>. The <b style="color: #ffe66d;"><a href="https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors" style="color: #ffe66d; text-decoration: none;">eigenvalues</a> λ₁ and λ₂</b> determine how far you can travel along each eigenvector direction before the Mahalanobis distance increases by 1 standard deviation.
                 </p>
                 <p style="margin: 0 0 12px 0; font-size: 15px; line-height: 1.8; color: rgba(139, 148, 158, 0.9);">
                   Moving along the <b style="color: #4ecdc4;">wide axis</b> (large eigenvalue = high variance): you can go far before Mahalanobis distance increases. Moving along the <b style="color: #58a6ff;">narrow axis</b> (small eigenvalue = low variance): small movements create large Mahalanobis distances.
@@ -2345,7 +2345,7 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start;">
           <div>
             <p style="margin: 0 0 20px 0; font-size: 16px; color: rgba(139, 148, 158, 0.9);">
-              The Gaussian is constructed by applying the <a href="https://en.wikipedia.org/wiki/Exponential_function" target="_blank" style="color: var(--accent); text-decoration: none;">exponential function</a> to <b style="color: #ff9800;">-½</b> d². Points at Mahalanobis distance d from the mean get probability proportional to <b style="color: #3fb950;">exp</b>(<b style="color: #ff9800;">-½</b> d²). At the mean (<b style="color: #58a6ff;">x</b> = <b style="color: #ff8800;">μ</b>), d² = 0 and probability is maximal. Moving away, d² grows quadratically and probability decays exponentially.
+              The Gaussian is constructed by applying the <a href="https://en.wikipedia.org/wiki/Exponential_function" style="color: var(--accent); text-decoration: none;">exponential function</a> to <b style="color: #ff9800;">-½</b> d². Points at Mahalanobis distance d from the mean get probability proportional to <b style="color: #3fb950;">exp</b>(<b style="color: #ff9800;">-½</b> d²). At the mean (<b style="color: #58a6ff;">x</b> = <b style="color: #ff8800;">μ</b>), d² = 0 and probability is maximal. Moving away, d² grows quadratically and probability decays exponentially.
             </p>
             <p style="margin: 0; font-size: 16px; color: rgba(139, 148, 158, 0.9);">
               The result is the multivariate Gaussian probability density function.
@@ -2371,7 +2371,7 @@
               Step 3: Normalize: multiply by (<b style="color: #ba68c8;">2π</b>)<sup>-d/2</sup> |<b style="color: #ff6b6b;">Σ</b>|<sup>-1/2</sup>
             </p>
             <p style="margin: 0; font-size: 16px; color: rgba(139, 148, 158, 0.9);">
-              Ensures total probability = 1. The term <b style="color: #ba68c8;">2π raised to the power d/2</b> accounts for dimension; |<b style="color: #ff6b6b;">Σ</b>| measures <a href="https://en.wikipedia.org/wiki/Ellipsoid" target="_blank" style="color: var(--accent); text-decoration: none;">ellipsoid</a> volume—smaller <a href="https://en.wikipedia.org/wiki/Determinant" target="_blank" style="color: var(--accent); text-decoration: none;">determinant</a> = more concentrated.
+              Ensures total probability = 1. The term <b style="color: #ba68c8;">2π raised to the power d/2</b> accounts for dimension; |<b style="color: #ff6b6b;">Σ</b>| measures <a href="https://en.wikipedia.org/wiki/Ellipsoid" style="color: var(--accent); text-decoration: none;">ellipsoid</a> volume—smaller <a href="https://en.wikipedia.org/wiki/Determinant" style="color: var(--accent); text-decoration: none;">determinant</a> = more concentrated.
             </p>
           </div>
         </div>
@@ -2383,7 +2383,7 @@
         </p>
 
         <p style="margin: 0 0 20px 0; font-size: 16px; color: rgba(139, 148, 158, 0.9);">
-          The normalization constant (<b style="color: #ba68c8;">2π</b>)<sup>-d/2</sup> |<b style="color: #ff6b6b;">Σ</b>|<sup>-1/2</sup> ensures the probability <a href="https://en.wikipedia.org/wiki/Integral" target="_blank" style="color: var(--accent); text-decoration: none;">integrates</a> to 1. But why <b style="color: #ba68c8;">2π</b>? It comes from the <a href="https://en.wikipedia.org/wiki/Circumference" target="_blank" style="color: var(--accent); text-decoration: none;">circumference</a> of a <a href="https://en.wikipedia.org/wiki/Circle" target="_blank" style="color: var(--accent); text-decoration: none;">circle</a>—and to see it, we need to work in <b>2D</b>.
+          The normalization constant (<b style="color: #ba68c8;">2π</b>)<sup>-d/2</sup> |<b style="color: #ff6b6b;">Σ</b>|<sup>-1/2</sup> ensures the probability <a href="https://en.wikipedia.org/wiki/Integral" style="color: var(--accent); text-decoration: none;">integrates</a> to 1. But why <b style="color: #ba68c8;">2π</b>? It comes from the <a href="https://en.wikipedia.org/wiki/Circumference" style="color: var(--accent); text-decoration: none;">circumference</a> of a <a href="https://en.wikipedia.org/wiki/Circle" style="color: var(--accent); text-decoration: none;">circle</a>—and to see it, we need to work in <b>2D</b>.
         </p>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; margin: 24px 0;">
@@ -2398,7 +2398,7 @@
               I = ∫<sub>-∞</sub><sup>∞</sup> e<sup>-x²/2</sup> dx
             </p>
             <p style="margin: 0; font-size: 16px; color: rgba(139, 148, 158, 0.9);">
-              This <a href="https://en.wikipedia.org/wiki/Integral" target="_blank" style="color: var(--accent); text-decoration: none;">integral</a> has no closed-form <a href="https://en.wikipedia.org/wiki/Antiderivative" target="_blank" style="color: var(--accent); text-decoration: none;">antiderivative</a>. You <b>cannot</b> use <a href="https://en.wikipedia.org/wiki/Polar_coordinate_system" target="_blank" style="color: var(--accent); text-decoration: none;">polar coordinates</a> in 1D—there's no angle to integrate over.
+              This <a href="https://en.wikipedia.org/wiki/Integral" style="color: var(--accent); text-decoration: none;">integral</a> has no closed-form <a href="https://en.wikipedia.org/wiki/Antiderivative" style="color: var(--accent); text-decoration: none;">antiderivative</a>. You <b>cannot</b> use <a href="https://en.wikipedia.org/wiki/Polar_coordinate_system" style="color: var(--accent); text-decoration: none;">polar coordinates</a> in 1D—there's no angle to integrate over.
             </p>
           </div>
 
@@ -2416,7 +2416,7 @@
               Now we have two <b>independent</b> random variables (x, y). The 2D integral factors into separate x and y integrals because they're uncorrelated.
             </p>
             <p style="margin: 0; font-size: 16px; color: rgba(139, 148, 158, 0.9);">
-              The integrand depends only on <b>r² = x² + y²</b> (<a href="https://en.wikipedia.org/wiki/Circular_symmetry" target="_blank" style="color: var(--accent); text-decoration: none;">radially symmetric</a>), making <a href="https://en.wikipedia.org/wiki/Polar_coordinate_system" target="_blank" style="color: var(--accent); text-decoration: none;">polar coordinates</a> natural.
+              The integrand depends only on <b>r² = x² + y²</b> (<a href="https://en.wikipedia.org/wiki/Circular_symmetry" style="color: var(--accent); text-decoration: none;">radially symmetric</a>), making <a href="https://en.wikipedia.org/wiki/Polar_coordinate_system" style="color: var(--accent); text-decoration: none;">polar coordinates</a> natural.
             </p>
           </div>
         </div>
@@ -2477,7 +2477,7 @@
           </p>
 
           <p style="margin: 0 0 16px 0; font-size: 18px; line-height: 1.8; color: var(--text);">
-            The <a href="https://en.wikipedia.org/wiki/Taylor_series" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">Taylor series</a> expansion reveals the answer:
+            The <a href="https://en.wikipedia.org/wiki/Taylor_series" style="color: var(--accent); text-decoration: none; font-weight: 600;">Taylor series</a> expansion reveals the answer:
           </p>
 
           <p style="margin: 0 0 24px 0; font-size: 20px; line-height: 1.8; color: var(--text); text-align: center;">
@@ -2516,7 +2516,7 @@
 
       <div style="width: 100%; margin: 16px 0; padding: 14px; background: rgba(247, 129, 102, 0.15); border-radius: 4px; text-align: center;">
         <div style="font-size: 15px; font-weight: 700; color: var(--accent2); margin-bottom: 10px; text-align: center;">
-          <a href="https://en.wikipedia.org/wiki/Taylor_series" target="_blank" style="color: var(--accent2); text-decoration: none;">Taylor Series</a>: exp(Precision Matrix)
+          <a href="https://en.wikipedia.org/wiki/Taylor_series" style="color: var(--accent2); text-decoration: none;">Taylor Series</a>: exp(Precision Matrix)
         </div>
         <div style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; font-size: 15px; font-weight: 600; text-align: center;">
           <span style="align-self: center; margin-bottom: 28px;"><b>exp(<span class="var-r">Σ⁻¹</span>)</b> ≈</span>
@@ -2562,7 +2562,7 @@
 
         <div class="equation-explanation" style="margin: 20px 0; font-size: 18px; line-height: 2; color: var(--text);">
           <p style="margin: 0;">
-            We can measure how much each term in the Taylor series contributes using the <a href="https://en.wikipedia.org/wiki/Matrix_norm#Frobenius_norm" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">Frobenius norm</a>—a way to measure the "size" or "magnitude" of a matrix, similar to how eigenvalues measure variance explained in <a href="https://en.wikipedia.org/wiki/Principal_component_analysis" target="_blank" style="color: var(--accent); text-decoration: none;">PCA</a>. The bars below show both individual contributions and cumulative totals.
+            We can measure how much each term in the Taylor series contributes using the <a href="https://en.wikipedia.org/wiki/Matrix_norm#Frobenius_norm" style="color: var(--accent); text-decoration: none; font-weight: 600;">Frobenius norm</a>—a way to measure the "size" or "magnitude" of a matrix, similar to how eigenvalues measure variance explained in <a href="https://en.wikipedia.org/wiki/Principal_component_analysis" style="color: var(--accent); text-decoration: none;">PCA</a>. The bars below show both individual contributions and cumulative totals.
           </p>
         </div>
 
@@ -2642,6 +2642,11 @@
         drawMeanVector(meanVectorCanvas, data);
       }
     }, 100);
+
+    // Re-attach Wikipedia link handlers after innerHTML update
+    if (typeof window.initWikiLinks === 'function') {
+      setTimeout(window.initWikiLinks, 150);
+    }
   }
 
   // Render GMM parameters as Gaussian curves from actual data
@@ -4134,7 +4139,7 @@
     `;
 
     const title = document.createElement('div');
-    title.textContent = '🎨 Slider Styles';
+    title.textContent = 'Slider Styles';
     title.style.cssText = 'font-weight: 600; margin-bottom: 8px; color: var(--text); text-align: center; font-size: 12px; user-select: none; cursor: move;';
     stylesDiv.appendChild(title);
 
@@ -6272,6 +6277,9 @@
         console.warn('⚠️ No Wikipedia links found - sidebar will not work');
       }
     }
+
+    // Expose globally so it can be called when DOM content is updated
+    window.initWikiLinks = initWikiLinks;
 
     // Back button click
     wikiBack.addEventListener('click', () => {
