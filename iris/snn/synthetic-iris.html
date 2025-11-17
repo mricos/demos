@@ -4478,14 +4478,22 @@
   window.mahalanobisState = window.mahalanobisState || {
     point: null,
     isDragging: false,
-    initialized: false
+    initialized: false,
+    cov: null,
+    precision: null,
+    canvas: null,
+    ctx: null
   };
 
   window.updateMahalanobisViz = function(data) {
     const canvas = document.getElementById('euclideanVsMahalanobis');
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    // Store canvas and context in state
+    window.mahalanobisState.canvas = canvas;
+    window.mahalanobisState.ctx = canvas.getContext('2d');
+
+    const ctx = window.mahalanobisState.ctx;
     const width = canvas.width;
     const height = canvas.height;
 
@@ -4494,20 +4502,15 @@
 
     // Scale covariance to canvas size for visualization
     const scaleFactor = 1000; // Adjust this to make ellipses visible
-    const cov = [
+    window.mahalanobisState.cov = [
       [covData.covXX * scaleFactor, covData.covXY * scaleFactor],
       [covData.covXY * scaleFactor, covData.covYY * scaleFactor]
     ];
-
-    // State
-    const mu = { x: width / 2, y: height / 2 };
 
     // Initialize point position on first call
     if (!window.mahalanobisState.point) {
       window.mahalanobisState.point = { x: width / 2 + 80, y: height / 2 + 50 };
     }
-    const point = window.mahalanobisState.point;
-    let isDragging = window.mahalanobisState.isDragging;
 
     // Compute precision matrix (inverse of covariance)
     function invertMatrix2x2(m) {
@@ -4523,7 +4526,25 @@
       ];
     }
 
-    const precision = invertMatrix2x2(cov);
+    window.mahalanobisState.precision = invertMatrix2x2(window.mahalanobisState.cov);
+
+    // Draw with current covariance
+    drawMahalanobisViz();
+  };
+
+  // Global draw function that uses state
+  function drawMahalanobisViz() {
+    const state = window.mahalanobisState;
+    if (!state.canvas || !state.ctx || !state.cov || !state.precision || !state.point) return;
+
+    const canvas = state.canvas;
+    const ctx = state.ctx;
+    const cov = state.cov;
+    const precision = state.precision;
+    const point = state.point;
+    const width = canvas.width;
+    const height = canvas.height;
+    const mu = { x: width / 2, y: height / 2 };
 
     function drawEllipse(ctx, cx, cy, cov, scale) {
       // Eigendecomposition for drawing ellipse
@@ -4560,98 +4581,93 @@
       return Math.sqrt(dx * dx + dy * dy);
     }
 
-    function draw() {
-      ctx.clearRect(0, 0, width, height);
+    ctx.clearRect(0, 0, width, height);
 
-      // Draw multiple ellipse contours (iso-Mahalanobis distance)
-      ctx.strokeStyle = 'rgba(78, 205, 196, 0.3)';
-      ctx.lineWidth = 1;
-      for (let i = 1; i <= 3; i++) {
-        drawEllipse(ctx, mu.x, mu.y, cov, i);
-        ctx.stroke();
+    // Draw multiple ellipse contours (iso-Mahalanobis distance)
+    ctx.strokeStyle = 'rgba(78, 205, 196, 0.3)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 3; i++) {
+      drawEllipse(ctx, mu.x, mu.y, cov, i);
+      ctx.stroke();
+    }
+
+    // Highlight the contour closest to current point
+    const mahal = computeMahalanobis(point);
+    const scale = mahal * mahal;
+    ctx.strokeStyle = 'rgba(78, 205, 196, 0.8)';
+    ctx.lineWidth = 2;
+    drawEllipse(ctx, mu.x, mu.y, cov, scale);
+    ctx.stroke();
+
+    // Draw mean
+    ctx.fillStyle = '#ff8800';
+    ctx.beginPath();
+    ctx.arc(mu.x, mu.y, 6, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Draw point
+    ctx.fillStyle = '#58a6ff';
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 8, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Draw line from mu to point
+    ctx.strokeStyle = 'rgba(88, 166, 255, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(mu.x, mu.y);
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Update distance displays
+    const euclidean = computeEuclidean(point);
+    document.getElementById('euclideanDist').textContent = euclidean.toFixed(2);
+    document.getElementById('mahalanobisDist').textContent = mahal.toFixed(2);
+  }
+
+  // Add event listeners only once
+  (function initMahalanobisListeners() {
+    if (window.mahalanobisState.initialized) return;
+    window.mahalanobisState.initialized = true;
+
+    const canvas = document.getElementById('euclideanVsMahalanobis');
+    if (!canvas) return;
+
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      // Move point to mouse position
+      window.mahalanobisState.point.x = mx;
+      window.mahalanobisState.point.y = my;
+      window.mahalanobisState.isDragging = true;
+      // Redraw
+      drawMahalanobisViz();
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!window.mahalanobisState.isDragging) return;
+      const rect = canvas.getBoundingClientRect();
+      if (e.clientX >= rect.left && e.clientX <= rect.right &&
+          e.clientY >= rect.top && e.clientY <= rect.bottom) {
+        window.mahalanobisState.point.x = e.clientX - rect.left;
+        window.mahalanobisState.point.y = e.clientY - rect.top;
+        // Redraw
+        drawMahalanobisViz();
       }
+    });
 
-      // Highlight the contour closest to current point
-      const mahal = computeMahalanobis(point);
-      const scale = mahal * mahal;
-      ctx.strokeStyle = 'rgba(78, 205, 196, 0.8)';
-      ctx.lineWidth = 2;
-      drawEllipse(ctx, mu.x, mu.y, cov, scale);
-      ctx.stroke();
+    canvas.addEventListener('mouseup', () => {
+      window.mahalanobisState.isDragging = false;
+    });
 
-      // Draw mean
-      ctx.fillStyle = '#ff8800';
-      ctx.beginPath();
-      ctx.arc(mu.x, mu.y, 6, 0, 2 * Math.PI);
-      ctx.fill();
-
-      // Draw point
-      ctx.fillStyle = '#58a6ff';
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, 8, 0, 2 * Math.PI);
-      ctx.fill();
-
-      // Draw line from mu to point
-      ctx.strokeStyle = 'rgba(88, 166, 255, 0.5)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([5, 5]);
-      ctx.beginPath();
-      ctx.moveTo(mu.x, mu.y);
-      ctx.lineTo(point.x, point.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Update distance displays
-      const euclidean = computeEuclidean(point);
-      document.getElementById('euclideanDist').textContent = euclidean.toFixed(2);
-      document.getElementById('mahalanobisDist').textContent = mahal.toFixed(2);
-    }
-
-    // Add event listeners only once
-    if (!window.mahalanobisState.initialized) {
-      window.mahalanobisState.initialized = true;
-
-      canvas.addEventListener('mousedown', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const my = e.clientY - rect.top;
-
-        // Move point to mouse position
-        window.mahalanobisState.point.x = mx;
-        window.mahalanobisState.point.y = my;
-        window.mahalanobisState.isDragging = true;
-        // Redraw with current data
-        if (window.currentData) {
-          updateMahalanobisViz(window.currentData);
-        }
-      });
-
-      canvas.addEventListener('mousemove', (e) => {
-        if (!window.mahalanobisState.isDragging) return;
-        const rect = canvas.getBoundingClientRect();
-        if (e.clientX >= rect.left && e.clientX <= rect.right &&
-            e.clientY >= rect.top && e.clientY <= rect.bottom) {
-          window.mahalanobisState.point.x = e.clientX - rect.left;
-          window.mahalanobisState.point.y = e.clientY - rect.top;
-          // Redraw with current data
-          if (window.currentData) {
-            updateMahalanobisViz(window.currentData);
-          }
-        }
-      });
-
-      canvas.addEventListener('mouseup', () => {
-        window.mahalanobisState.isDragging = false;
-      });
-
-      canvas.addEventListener('mouseleave', () => {
-        window.mahalanobisState.isDragging = false;
-      });
-    }
-
-    // Draw with current covariance
-    draw();
-  };
+    canvas.addEventListener('mouseleave', () => {
+      window.mahalanobisState.isDragging = false;
+    });
+  })();
 
   // Initialize the Mahalanobis visualization
   if (window.currentData) {
