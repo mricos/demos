@@ -3159,6 +3159,9 @@
     if (typeof updateMahalanobisViz === 'function') {
       updateMahalanobisViz(data);
     }
+    if (typeof drawComparativePrecisionExamples === 'function') {
+      drawComparativePrecisionExamples();
+    }
   }
 
   // Draw ellipse calculation visualization for Versicolor
@@ -4627,7 +4630,12 @@
     document.getElementById('mahalanobisDist').textContent = mahal.toFixed(2);
   }
 
-  // Add event listeners only once
+  // Initialize the Mahalanobis visualization first
+  if (window.currentData) {
+    updateMahalanobisViz(window.currentData);
+  }
+
+  // Add event listeners only once (after initialization)
   (function initMahalanobisListeners() {
     if (window.mahalanobisState.initialized) return;
     window.mahalanobisState.initialized = true;
@@ -4636,6 +4644,7 @@
     if (!canvas) return;
 
     canvas.addEventListener('mousedown', (e) => {
+      if (!window.mahalanobisState.point) return; // Safety check
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
@@ -4649,7 +4658,7 @@
     });
 
     canvas.addEventListener('mousemove', (e) => {
-      if (!window.mahalanobisState.isDragging) return;
+      if (!window.mahalanobisState.isDragging || !window.mahalanobisState.point) return;
       const rect = canvas.getBoundingClientRect();
       if (e.clientX >= rect.left && e.clientX <= rect.right &&
           e.clientY >= rect.top && e.clientY <= rect.bottom) {
@@ -4669,13 +4678,8 @@
     });
   })();
 
-  // Initialize the Mahalanobis visualization
-  if (window.currentData) {
-    updateMahalanobisViz(window.currentData);
-  }
-
   // Comparative precision examples
-  (function() {
+  function drawComparativePrecisionExamples() {
     const configs = [
       { id: 'precisionLow', variance: 1.0 },
       { id: 'precisionMed', variance: 0.25 },
@@ -4734,9 +4738,10 @@
       ctx.stroke();
       ctx.setLineDash([]);
     });
+  }
 
-    setTimeout(() => configs.forEach(c => {}), 0);
-  })();
+  // Draw comparative examples initially and whenever needed
+  drawComparativePrecisionExamples();
 
 </script>
 </body>
