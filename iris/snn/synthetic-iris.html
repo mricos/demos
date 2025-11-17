@@ -4474,6 +4474,13 @@
   // setTimeout(drawExampleVisualizations, 100);
 
   // Interactive Scene 5: Euclidean vs Mahalanobis Distance
+  // Store state outside the function so it persists across updates
+  window.mahalanobisState = window.mahalanobisState || {
+    point: null,
+    isDragging: false,
+    initialized: false
+  };
+
   window.updateMahalanobisViz = function(data) {
     const canvas = document.getElementById('euclideanVsMahalanobis');
     if (!canvas) return;
@@ -4494,8 +4501,13 @@
 
     // State
     const mu = { x: width / 2, y: height / 2 };
-    let point = { x: width / 2 + 80, y: height / 2 + 50 };
-    let isDragging = false;
+
+    // Initialize point position on first call
+    if (!window.mahalanobisState.point) {
+      window.mahalanobisState.point = { x: width / 2 + 80, y: height / 2 + 50 };
+    }
+    const point = window.mahalanobisState.point;
+    let isDragging = window.mahalanobisState.isDragging;
 
     // Compute precision matrix (inverse of covariance)
     function invertMatrix2x2(m) {
@@ -4595,45 +4607,50 @@
       document.getElementById('mahalanobisDist').textContent = mahal.toFixed(2);
     }
 
-    // Remove old event listeners by cloning the canvas (if being called again)
-    const newCanvas = canvas.cloneNode(true);
-    canvas.parentNode.replaceChild(newCanvas, canvas);
-    const canvasRef = newCanvas;
+    // Add event listeners only once
+    if (!window.mahalanobisState.initialized) {
+      window.mahalanobisState.initialized = true;
 
-    // Add event listeners to the new canvas
-    canvasRef.addEventListener('mousedown', (e) => {
-      const rect = canvasRef.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
+      canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
 
-      // Move point to mouse position
-      point.x = mx;
-      point.y = my;
-      isDragging = true;
-      draw();
-    });
+        // Move point to mouse position
+        window.mahalanobisState.point.x = mx;
+        window.mahalanobisState.point.y = my;
+        window.mahalanobisState.isDragging = true;
+        // Redraw with current data
+        if (window.currentData) {
+          updateMahalanobisViz(window.currentData);
+        }
+      });
 
-    canvasRef.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      const rect = canvasRef.getBoundingClientRect();
-      if (e.clientX >= rect.left && e.clientX <= rect.right &&
-          e.clientY >= rect.top && e.clientY <= rect.bottom) {
-        point.x = e.clientX - rect.left;
-        point.y = e.clientY - rect.top;
-        draw();
-      }
-    });
+      canvas.addEventListener('mousemove', (e) => {
+        if (!window.mahalanobisState.isDragging) return;
+        const rect = canvas.getBoundingClientRect();
+        if (e.clientX >= rect.left && e.clientX <= rect.right &&
+            e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          window.mahalanobisState.point.x = e.clientX - rect.left;
+          window.mahalanobisState.point.y = e.clientY - rect.top;
+          // Redraw with current data
+          if (window.currentData) {
+            updateMahalanobisViz(window.currentData);
+          }
+        }
+      });
 
-    canvasRef.addEventListener('mouseup', () => {
-      isDragging = false;
-    });
+      canvas.addEventListener('mouseup', () => {
+        window.mahalanobisState.isDragging = false;
+      });
 
-    canvasRef.addEventListener('mouseleave', () => {
-      isDragging = false;
-    });
+      canvas.addEventListener('mouseleave', () => {
+        window.mahalanobisState.isDragging = false;
+      });
+    }
 
-    // Initial draw
-    setTimeout(draw, 0);
+    // Draw with current covariance
+    draw();
   };
 
   // Initialize the Mahalanobis visualization
