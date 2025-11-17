@@ -642,38 +642,45 @@
           Data points are generated using a <a href="https://en.wikipedia.org/wiki/Mixture_model#Gaussian_mixture_model" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">Gaussian Mixture Model (GMM)</a>. Each of the three iris species is represented by a separate <a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">multivariate Gaussian distribution</a> with its own mean and covariance.
         </p>
       </div>
-      <!-- Generation Process Steps -->
-      <div style="margin-bottom: 10px; color: var(--accent); font-weight: 600; font-size: 12px;">Generation Process</div>
+      <!-- Generation Process Tree -->
+      <svg viewBox="0 0 420 240" style="width: 100%; max-width: 450px; margin: 12px auto; display: block;">
+        <!-- Start node -->
+        <rect x="175" y="10" width="70" height="32" rx="4" fill="rgba(138, 180, 248, 0.15)" stroke="#8ab4f8" stroke-width="2"/>
+        <text x="210" y="31" fill="#8ab4f8" font-size="13" text-anchor="middle" font-weight="bold">START</text>
 
-      <div style="display: grid; gap: 10px; margin-bottom: 16px;">
-        <div style="display: flex; gap: 10px; padding: 10px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 4px;">
-          <div style="color: #ff6b6b; font-weight: bold; min-width: 24px; font-size: 13px;">1.</div>
-          <div style="flex: 1; color: var(--muted); font-size: 12px; line-height: 1.6;">
-            <strong style="color: var(--text);">Select species:</strong> Choose one of 3 classes (Setosa, Versicolor, Virginica) with equal probability (33.3% each)
-          </div>
-        </div>
+        <!-- Vertical line down -->
+        <line x1="210" y1="42" x2="210" y2="60" stroke="#666" stroke-width="1.5"/>
 
-        <div style="display: flex; gap: 10px; padding: 10px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 4px;">
-          <div style="color: #4ecdc4; font-weight: bold; min-width: 24px; font-size: 13px;">2.</div>
-          <div style="flex: 1; color: var(--muted); font-size: 12px; line-height: 1.6;">
-            <strong style="color: var(--text);">Sample features:</strong> Draw 4 correlated values from a <a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">multivariate Gaussian</a> using the species' mean vector <strong>μ</strong><sub>k</sub> and covariance matrix <strong>Σ</strong><sub>k</sub>
-          </div>
-        </div>
+        <!-- Species selection node -->
+        <rect x="130" y="60" width="160" height="28" rx="4" fill="rgba(255, 230, 109, 0.12)" stroke="#ffe66d" stroke-width="2"/>
+        <text x="210" y="79" fill="#ffe66d" font-size="11" text-anchor="middle" font-weight="600">Pick Species (π = 1/3 each)</text>
 
-        <div style="display: flex; gap: 10px; padding: 10px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 4px;">
-          <div style="color: #ffe66d; font-weight: bold; min-width: 24px; font-size: 13px;">3.</div>
-          <div style="flex: 1; color: var(--muted); font-size: 12px; line-height: 1.6;">
-            <strong style="color: var(--text);">Apply controls:</strong> The <strong style="color: var(--text);">spread multiplier</strong> scales variance, <strong style="color: var(--text);">separation multiplier</strong> adjusts class centers
-          </div>
-        </div>
+        <!-- Three branches -->
+        <line x1="210" y1="88" x2="70" y2="110" stroke="#ff6b6b" stroke-width="1.5"/>
+        <line x1="210" y1="88" x2="210" y2="110" stroke="#4ecdc4" stroke-width="1.5"/>
+        <line x1="210" y1="88" x2="350" y2="110" stroke="#ffe66d" stroke-width="1.5"/>
 
-        <div style="display: flex; gap: 10px; padding: 10px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 4px;">
-          <div style="color: #8ab4f8; font-weight: bold; min-width: 24px; font-size: 13px;">4.</div>
-          <div style="flex: 1; color: var(--muted); font-size: 12px; line-height: 1.6;">
-            <strong style="color: var(--text);">Result:</strong> Realistic-looking clusters that can overlap or separate based on your settings
-          </div>
-        </div>
-      </div>
+        <!-- Setosa branch -->
+        <rect x="10" y="110" width="120" height="26" rx="3" fill="rgba(255, 107, 107, 0.12)" stroke="#ff6b6b" stroke-width="1.5"/>
+        <text x="70" y="127" fill="#ff6b6b" font-size="10" text-anchor="middle" font-weight="600">𝒩(μ₁, Σ₁) Setosa</text>
+        <line x1="70" y1="136" x2="70" y2="150" stroke="#ff6b6b" stroke-width="1.5"/>
+        <circle cx="70" cy="160" r="10" fill="#ff6b6b" opacity="0.8"/>
+
+        <!-- Versicolor branch -->
+        <rect x="150" y="110" width="120" height="26" rx="3" fill="rgba(78, 205, 196, 0.12)" stroke="#4ecdc4" stroke-width="1.5"/>
+        <text x="210" y="127" fill="#4ecdc4" font-size="10" text-anchor="middle" font-weight="600">𝒩(μ₂, Σ₂) Versicolor</text>
+        <line x1="210" y1="136" x2="210" y2="150" stroke="#4ecdc4" stroke-width="1.5"/>
+        <circle cx="210" cy="160" r="10" fill="#4ecdc4" opacity="0.8"/>
+
+        <!-- Virginica branch -->
+        <rect x="290" y="110" width="120" height="26" rx="3" fill="rgba(255, 230, 109, 0.12)" stroke="#ffe66d" stroke-width="1.5"/>
+        <text x="350" y="127" fill="#ffe66d" font-size="10" text-anchor="middle" font-weight="600">𝒩(μ₃, Σ₃) Virginica</text>
+        <line x1="350" y1="136" x2="350" y2="150" stroke="#ffe66d" stroke-width="1.5"/>
+        <circle cx="350" cy="160" r="10" fill="#ffe66d" opacity="0.8"/>
+
+        <!-- Output label -->
+        <text x="210" y="175" fill="var(--muted)" font-size="9" text-anchor="middle" font-style="italic">Output: 4D feature vector</text>
+      </svg>
 
       <!-- Mathematical Formulation -->
       <div style="margin-top: 14px; padding: 10px; background: rgba(78, 205, 196, 0.08); border-radius: 4px;">
@@ -1830,7 +1837,15 @@
   // Render matrix exponential equation for Gaussian with Taylor expansion
   function renderGaussianEquation(data) {
     const container = document.getElementById('gmmEquation');
-    const corr = editableCorr || computeCorrelationMatrix(data);
+    // Use the actual correlation matrix if correlation slider is active
+    let corr;
+    if (editableCorr) {
+      corr = editableCorr;
+    } else if (Math.abs(gmmConfig.correlationStrength) > 0.01) {
+      corr = createCorrelationMatrix(gmmConfig.correlationStrength);
+    } else {
+      corr = computeCorrelationMatrix(data);
+    }
 
     // Compute correlation matrix powers for Taylor series
     const R0 = matrixPower(corr, 0); // Identity
@@ -2312,7 +2327,7 @@
           </p>
 
           <p style="margin: 0 0 24px 0; font-size: 20px; line-height: 1.8; color: var(--text); text-align: center;">
-            exp(M) = I + M + M²/2! + M³/3! + ...
+            exp(Σ) = I + Σ + Σ²/2! + Σ³/3! + ...
           </p>
 
           <p style="margin: 0 0 24px 0; font-size: 18px; line-height: 1.8; color: var(--text);">
@@ -2325,7 +2340,7 @@
                 Weak Correlations
               </p>
               <p style="margin: 0; font-size: 18px; line-height: 1.8; color: var(--text);">
-                The first two terms (I + M) capture 85%+ of the total. Higher-order terms contribute less than 15%. The distribution is nearly "separable"—features behave almost independently.
+                The first two terms (I + Σ) capture 85%+ of the total. Higher-order terms contribute less than 15%. The distribution is nearly "separable"—features behave almost independently.
               </p>
             </div>
 
@@ -2334,7 +2349,7 @@
                 Strong Correlations
               </p>
               <p style="margin: 0; font-size: 18px; line-height: 1.8; color: var(--text);">
-                Higher-order terms (M²/2!, M³/3!, ...) become significant. You need 4+ terms to capture 90%+ of the distribution. Correlations create complex dependencies.
+                Higher-order terms (Σ²/2!, Σ³/3!, ...) become significant. You need 4+ terms to capture 90%+ of the distribution. Correlations create complex dependencies.
               </p>
             </div>
           </div>
@@ -2347,10 +2362,10 @@
 
       <div style="width: 100%; margin: 16px 0; padding: 14px; background: rgba(247, 129, 102, 0.15); border-radius: 4px;">
         <div style="font-size: 15px; font-weight: 700; color: var(--accent2); margin-bottom: 10px; text-align: center;">
-          Taylor Series Expansion
+          Taylor Series: exp(Correlation Matrix)
         </div>
         <div style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; font-size: 15px; font-weight: 600;">
-          <span><b>exp(<span class="var-r">R</span>)</b> ≈</span>
+          <span><b>exp(<span class="var-r">Σ</span>)</b> ≈</span>
           <span style="display: inline-flex; flex-direction: column; align-items: center; gap: 4px;">
             <span style="display: inline-flex; flex-direction: column; align-items: center;">
               <span>${renderMatrix(R0, true)}</span>
@@ -2406,7 +2421,7 @@
         </div>
 
         <div class="contribution-row">
-          <div class="contribution-label">Term 1 (R)</div>
+          <div class="contribution-label">Term 1 (Σ)</div>
           <div class="contribution-bar">
             <div class="contribution-fill" style="width: ${contrib1.toFixed(1)}%"></div>
           </div>
@@ -2414,7 +2429,7 @@
         </div>
 
         <div class="contribution-row">
-          <div class="contribution-label">Term 2 (R²/2)</div>
+          <div class="contribution-label">Term 2 (Σ²/2)</div>
           <div class="contribution-bar">
             <div class="contribution-fill" style="width: ${contrib2.toFixed(1)}%"></div>
           </div>
@@ -2422,7 +2437,7 @@
         </div>
 
         <div class="contribution-row">
-          <div class="contribution-label">Term 3 (R³/6)</div>
+          <div class="contribution-label">Term 3 (Σ³/6)</div>
           <div class="contribution-bar">
             <div class="contribution-fill" style="width: ${contrib3.toFixed(1)}%"></div>
           </div>
@@ -2432,8 +2447,8 @@
         <div class="equation-explanation" style="margin: 20px 0; font-size: 18px; line-height: 2; color: var(--text);">
           <p style="margin: 0;">
             ${norm1 < 0.5 * norm0
-              ? `When correlations are weak, the linear approximation exp(R) ≈ I + R works remarkably well. In this case, just the first two terms capture ${(contrib0 + contrib1).toFixed(1)}% of the total contribution, meaning we can safely ignore higher-order terms. This is analogous to how in PCA, the first few principal components often explain most of the variance.`
-              : `With stronger correlations, we need more terms. The first two terms only account for ${(contrib0 + contrib1).toFixed(1)}% of the total, and we need the quadratic term (R²/2) to reach ${(contrib0 + contrib1 + contrib2).toFixed(1)}%. This shows that correlations introduce non-linear effects that require higher-order terms to capture accurately.`
+              ? `When correlations are weak, the linear approximation exp(Σ) ≈ I + Σ works remarkably well. In this case, just the first two terms capture ${(contrib0 + contrib1).toFixed(1)}% of the total contribution, meaning we can safely ignore higher-order terms. This is analogous to how in PCA, the first few principal components often explain most of the variance.`
+              : `With stronger correlations, we need more terms. The first two terms only account for ${(contrib0 + contrib1).toFixed(1)}% of the total, and we need the quadratic term (Σ²/2) to reach ${(contrib0 + contrib1 + contrib2).toFixed(1)}%. This shows that correlations introduce non-linear effects that require higher-order terms to capture accurately.`
             }
             ${det < 0.1 ? ' The determinant |<b style="color: #ff6b6b;">Σ</b>| = ' + det.toFixed(3) + ' is very small, indicating the features are nearly collinear—the uncertainty ellipsoid is extremely flat in one or more directions.' : ''}
           </p>
