@@ -3156,6 +3156,9 @@
     renderGaussianEquation(data);
     updateFlowerIcons(data);
     drawEllipseCalculation(data);
+    if (typeof updateMahalanobisViz === 'function') {
+      updateMahalanobisViz(data);
+    }
   }
 
   // Draw ellipse calculation visualization for Versicolor
@@ -4471,7 +4474,7 @@
   // setTimeout(drawExampleVisualizations, 100);
 
   // Interactive Scene 5: Euclidean vs Mahalanobis Distance
-  (function() {
+  window.updateMahalanobisViz = function(data) {
     const canvas = document.getElementById('euclideanVsMahalanobis');
     if (!canvas) return;
 
@@ -4479,17 +4482,29 @@
     const width = canvas.width;
     const height = canvas.height;
 
+    // Get covariance from actual data (Versicolor, dims 0 and 1)
+    const covData = compute2DCovMatrix(data, 1, 0, 1);
+
+    // Scale covariance to canvas size for visualization
+    const scaleFactor = 1000; // Adjust this to make ellipses visible
+    const cov = [
+      [covData.covXX * scaleFactor, covData.covXY * scaleFactor],
+      [covData.covXY * scaleFactor, covData.covYY * scaleFactor]
+    ];
+
     // State
     const mu = { x: width / 2, y: height / 2 };
     let point = { x: width / 2 + 80, y: height / 2 + 50 };
     let isDragging = false;
 
-    // Covariance matrix (for a tilted ellipse)
-    const cov = [[3600, 1800], [1800, 1600]]; // Scaled for canvas
-
     // Compute precision matrix (inverse of covariance)
     function invertMatrix2x2(m) {
       const det = m[0][0] * m[1][1] - m[0][1] * m[1][0];
+      if (Math.abs(det) < 1e-10) {
+        // Matrix is singular, return identity
+        console.warn('Singular covariance matrix, using identity');
+        return [[1, 0], [0, 1]];
+      }
       return [
         [m[1][1] / det, -m[0][1] / det],
         [-m[1][0] / det, m[0][0] / det]
@@ -4580,9 +4595,14 @@
       document.getElementById('mahalanobisDist').textContent = mahal.toFixed(2);
     }
 
-    // Mouse handling - click anywhere to move point, or drag it
-    canvas.addEventListener('mousedown', (e) => {
-      const rect = canvas.getBoundingClientRect();
+    // Remove old event listeners by cloning the canvas (if being called again)
+    const newCanvas = canvas.cloneNode(true);
+    canvas.parentNode.replaceChild(newCanvas, canvas);
+    const canvasRef = newCanvas;
+
+    // Add event listeners to the new canvas
+    canvasRef.addEventListener('mousedown', (e) => {
+      const rect = canvasRef.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
 
@@ -4593,26 +4613,33 @@
       draw();
     });
 
-    canvas.addEventListener('mousemove', (e) => {
-      if (isDragging) {
-        const rect = canvas.getBoundingClientRect();
+    canvasRef.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const rect = canvasRef.getBoundingClientRect();
+      if (e.clientX >= rect.left && e.clientX <= rect.right &&
+          e.clientY >= rect.top && e.clientY <= rect.bottom) {
         point.x = e.clientX - rect.left;
         point.y = e.clientY - rect.top;
         draw();
       }
     });
 
-    canvas.addEventListener('mouseup', () => {
+    canvasRef.addEventListener('mouseup', () => {
       isDragging = false;
     });
 
-    canvas.addEventListener('mouseleave', () => {
+    canvasRef.addEventListener('mouseleave', () => {
       isDragging = false;
     });
 
     // Initial draw
     setTimeout(draw, 0);
-  })();
+  };
+
+  // Initialize the Mahalanobis visualization
+  if (window.currentData) {
+    updateMahalanobisViz(window.currentData);
+  }
 
   // Comparative precision examples
   (function() {
