@@ -976,14 +976,14 @@
           <div style="margin-top: 14px;">
             <div style="margin-bottom: 10px; padding: 10px; background: rgba(255, 107, 107, 0.08); border-radius: 4px;">
               <div style="color: #ff6b6b; font-weight: bold; font-size: 13px; margin-bottom: 6px; letter-spacing: 0.5px;">MEAN VECTOR</div>
-              <div class="katex-formula" style="font-size: 20px; color: #e8e8e8; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center;">
+              <div class="katex-formula" style="font-size: 20px; color: #f5f5f0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center;">
                 \color{#ffe66d}{\boldsymbol{\mu}} \color{#e8e8e8}{=} \color{#ffe66d}{\begin{bmatrix} \mu_1 \\ \mu_2 \end{bmatrix}} \color{#e8e8e8}{=} \color{#e8e8e8}{\frac{1}{N}} \color{#e8e8e8}{\sum_{i=1}^{N}} \color{#e8e8e8}{\mathbf{x}_i}
               </div>
             </div>
 
             <div style="margin-bottom: 10px; padding: 10px; background: rgba(78, 205, 196, 0.08); border-radius: 4px;">
               <div style="color: #4ecdc4; font-weight: bold; font-size: 13px; margin-bottom: 6px; letter-spacing: 0.5px;">COVARIANCE MATRIX</div>
-              <div class="katex-formula" style="font-size: 20px; color: #e8e8e8; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center;">
+              <div class="katex-formula" style="font-size: 20px; color: #f5f5f0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center;">
                 \color{#ff6b6b}{\boldsymbol{\Sigma}_{jk}} \color{#e8e8e8}{=} \color{#e8e8e8}{\frac{1}{N}} \color{#e8e8e8}{\sum_{i=1}^{N}} \color{#e8e8e8}{(}x_{i,j} \color{#e8e8e8}{-} \color{#ffe66d}{\mu_j}\color{#e8e8e8}{)(}x_{i,k} \color{#e8e8e8}{-} \color{#ffe66d}{\mu_k}\color{#e8e8e8}{)}
               </div>
             </div>
@@ -1000,12 +1000,12 @@
 
             <!-- Eigendecomposition -->
             <div style="margin-top: 10px; padding: 10px; background: rgba(78, 205, 196, 0.08); border-radius: 4px;">
-              <div class="katex-formula" style="font-size: 20px; color: #e8e8e8; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center;">
+              <div class="katex-formula" style="font-size: 20px; color: #f5f5f0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center;">
                 \color{#ff6b6b}{\boldsymbol{\Sigma}} \color{#e8e8e8}{=} \color{#e8e8e8}{Q} \color{#e8e8e8}{\Lambda} \color{#e8e8e8}{Q^{\top}}
               </div>
               <div style="font-size: 14px; color: var(--muted); margin-top: 10px; line-height: 1.6;">
-                <strong style="color: var(--text);">Eigenvectors</strong> <span style="font-family: 'Courier New', monospace; color: #e8e8e8;">Q = [v₁ v₂]</span> give the <strong style="color: var(--text);">principal directions</strong> (ellipse axes rotation).<br>
-                <strong style="color: var(--text);">Eigenvalues</strong> <span style="font-family: 'Courier New', monospace; color: #e8e8e8;">Λ = [λ₁ 0; 0 λ₂]</span> diagonal matrix of <strong style="color: var(--text);">variances</strong> along those axes (ellipse size).
+                <strong style="color: var(--text);">Eigenvectors</strong> <span style="font-family: 'Courier New', monospace; color: #f5f5f0;">Q = [v₁ v₂]</span> give the <strong style="color: var(--text);">principal directions</strong> (ellipse axes rotation).<br>
+                <strong style="color: var(--text);">Eigenvalues</strong> <span style="font-family: 'Courier New', monospace; color: #f5f5f0;">Λ = [λ₁ 0; 0 λ₂]</span> diagonal matrix of <strong style="color: var(--text);">variances</strong> along those axes (ellipse size).
               </div>
             </div>
 
@@ -1074,164 +1074,54 @@
             <div style="margin-top: 10px; padding: 10px; background: rgba(255, 230, 109, 0.08); border-radius: 4px;">
               <div style="font-size: 14px; color: var(--muted); line-height: 1.6;">
                 The ellipse boundary is parameterized as:<br>
-                <div class="katex-formula" style="font-size: 18px; color: #e8e8e8; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center; margin: 8px 0;">
+                <div class="katex-formula" style="font-size: 18px; color: #f5f5f0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center; margin: 8px 0;">
                   \color{#e8e8e8}{\mathbf{x}(\theta)} \color{#e8e8e8}{=} \color{#ffe66d}{\boldsymbol{\mu}} \color{#e8e8e8}{+} \color{#e8e8e8}{2} \color{#e8e8e8}{Q} \color{#e8e8e8}{\begin{bmatrix} \sqrt{\lambda_1} & 0 \\ 0 & \sqrt{\lambda_2} \end{bmatrix}} \color{#e8e8e8}{\begin{bmatrix} \cos\theta \\ \sin\theta \end{bmatrix}}
                 </div>
                 <strong style="color: var(--text); font-size: 15px;">Center</strong>: Mean <span style="font-family: 'Courier New', monospace; color: #ffe66d; font-size: 18px;">μ = [μ₁ μ₂]ᵀ</span><br>
-                <strong style="color: var(--text); font-size: 15px;">Rotation</strong>: Eigenvector matrix <span style="font-family: 'Courier New', monospace; color: #e8e8e8; font-size: 15px;">Q</span> aligns axes<br>
-                <strong style="color: var(--text); font-size: 15px;">Size</strong>: <span style="font-family: 'Courier New', monospace; color: #e8e8e8; font-size: 15px;">2√λ₁</span> and <span style="font-family: 'Courier New', monospace; color: #e8e8e8; font-size: 15px;">2√λ₂</span> are semi-axis lengths (2σ for 95% coverage)
+                <strong style="color: var(--text); font-size: 15px;">Rotation</strong>: Eigenvector matrix <span style="font-family: 'Courier New', monospace; color: #f5f5f0; font-size: 15px;">Q</span> aligns axes<br>
+                <strong style="color: var(--text); font-size: 15px;">Size</strong>: <span style="font-family: 'Courier New', monospace; color: #f5f5f0; font-size: 15px;">2√λ₁</span> and <span style="font-family: 'Courier New', monospace; color: #f5f5f0; font-size: 15px;">2√λ₂</span> are semi-axis lengths (2σ for 95% coverage)
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Right Column: Examples with Matrices -->
+        <!-- Right Column: Worked Example -->
         <div>
-          <div style="margin-bottom: 8px; color: var(--accent); font-weight: 600; font-size: 14px;">2×2 Submatrix Examples</div>
-          <div style="font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height: 1.5;">
-            Each scatter plot extracts a 2×2 slice from the full 4×4 matrix above:
-          </div>
-
-          <!-- Example 1: Uncorrelated -->
-          <div style="margin-bottom: 10px; padding: 10px; background: rgba(0, 0, 0, 0.2); border-radius: 4px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <div style="color: var(--text); font-weight: 600; font-size: 13px;">Uncorrelated</div>
-              <div style="color: #8b949e; font-size: 11px;">covXY = 0</div>
-            </div>
-
-            <!-- Matrix and Visual side by side -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center;">
-              <!-- Matrix -->
-              <div style="display: flex; justify-content: center;">
-                <div style="font-family: 'Courier New', monospace; font-size: 13px; color: var(--text);">
-                  <div style="display: grid; grid-template-columns: auto 1fr auto; gap: 3px; align-items: center;">
-                    <div style="font-size: 24px; color: var(--muted);">[</div>
-                    <div style="display: grid; grid-template-rows: 1fr 1fr; gap: 2px;">
-                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; text-align: center;">
-                        <div style="padding: 5px 8px; background: rgba(255,107,107,0.25); border-radius: 3px; font-size: 12px;">σ²ₓ</div>
-                        <div style="padding: 5px 8px; background: rgba(139,148,158,0.2); border-radius: 3px; font-size: 12px;">0</div>
-                      </div>
-                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; text-align: center;">
-                        <div style="padding: 5px 8px; background: rgba(139,148,158,0.2); border-radius: 3px; font-size: 12px;">0</div>
-                        <div style="padding: 5px 8px; background: rgba(255,107,107,0.25); border-radius: 3px; font-size: 12px;">σ²ᵧ</div>
-                      </div>
-                    </div>
-                    <div style="font-size: 24px; color: var(--muted);">]</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Visual -->
-              <canvas id="exampleCanvas1" width="240" height="240" style="width: 100%; height: auto; background: rgba(0,0,0,0.3); border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);"></canvas>
-            </div>
-            <div style="font-size: 12px; color: var(--muted); text-align: center; margin-top: 6px;">Axes-aligned ellipse</div>
-          </div>
-
-          <!-- Example 2: Positive Correlation -->
-          <div style="margin-bottom: 10px; padding: 10px; background: rgba(0, 0, 0, 0.2); border-radius: 4px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <div style="color: var(--text); font-weight: 600; font-size: 13px;">Positive Correlation</div>
-              <div style="color: #4ecdc4; font-size: 11px;">covXY > 0</div>
-            </div>
-
-            <!-- Matrix and Visual side by side -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center;">
-              <!-- Matrix -->
-              <div style="display: flex; justify-content: center;">
-                <div style="font-family: 'Courier New', monospace; font-size: 13px; color: var(--text);">
-                  <div style="display: grid; grid-template-columns: auto 1fr auto; gap: 3px; align-items: center;">
-                    <div style="font-size: 24px; color: var(--muted);">[</div>
-                    <div style="display: grid; grid-template-rows: 1fr 1fr; gap: 2px;">
-                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; text-align: center;">
-                        <div style="padding: 5px 8px; background: rgba(255,107,107,0.25); border-radius: 3px; font-size: 12px;">σ²ₓ</div>
-                        <div style="padding: 5px 8px; background: rgba(78,205,196,0.25); border-radius: 3px; font-size: 12px;">+ρ</div>
-                      </div>
-                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; text-align: center;">
-                        <div style="padding: 5px 8px; background: rgba(78,205,196,0.25); border-radius: 3px; font-size: 12px;">+ρ</div>
-                        <div style="padding: 5px 8px; background: rgba(255,107,107,0.25); border-radius: 3px; font-size: 12px;">σ²ᵧ</div>
-                      </div>
-                    </div>
-                    <div style="font-size: 24px; color: var(--muted);">]</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Visual -->
-              <canvas id="exampleCanvas2" width="240" height="240" style="width: 100%; height: auto; background: rgba(0,0,0,0.3); border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);"></canvas>
-            </div>
-            <div style="font-size: 12px; color: var(--muted); text-align: center; margin-top: 6px;">Rotated ellipse (/ slope)</div>
-          </div>
-
-          <!-- Example 3: Negative Correlation -->
-          <div style="margin-bottom: 10px; padding: 10px; background: rgba(0, 0, 0, 0.2); border-radius: 4px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <div style="color: var(--text); font-weight: 600; font-size: 13px;">Negative Correlation</div>
-              <div style="color: #ff6b6b; font-size: 11px;">covXY < 0</div>
-            </div>
-
-            <!-- Matrix and Visual side by side -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center;">
-              <!-- Matrix -->
-              <div style="display: flex; justify-content: center;">
-                <div style="font-family: 'Courier New', monospace; font-size: 13px; color: var(--text);">
-                  <div style="display: grid; grid-template-columns: auto 1fr auto; gap: 3px; align-items: center;">
-                    <div style="font-size: 24px; color: var(--muted);">[</div>
-                    <div style="display: grid; grid-template-rows: 1fr 1fr; gap: 2px;">
-                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; text-align: center;">
-                        <div style="padding: 5px 8px; background: rgba(255,107,107,0.25); border-radius: 3px; font-size: 12px;">σ²ₓ</div>
-                        <div style="padding: 5px 8px; background: rgba(255,107,107,0.25); border-radius: 3px; font-size: 12px;">-ρ</div>
-                      </div>
-                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; text-align: center;">
-                        <div style="padding: 5px 8px; background: rgba(255,107,107,0.25); border-radius: 3px; font-size: 12px;">-ρ</div>
-                        <div style="padding: 5px 8px; background: rgba(255,107,107,0.25); border-radius: 3px; font-size: 12px;">σ²ᵧ</div>
-                      </div>
-                    </div>
-                    <div style="font-size: 24px; color: var(--muted);">]</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Visual -->
-              <canvas id="exampleCanvas3" width="240" height="240" style="width: 100%; height: auto; background: rgba(0,0,0,0.3); border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);"></canvas>
-            </div>
-            <div style="font-size: 12px; color: var(--muted); text-align: center; margin-top: 6px;">Rotated ellipse (\ slope)</div>
-          </div>
-
           <!-- Worked Example: 95% Confidence -->
-          <div style="margin-top: 16px; padding: 12px; background: rgba(255, 230, 109, 0.1); border-radius: 4px; border: 1px solid rgba(255, 230, 109, 0.3);">
+          <div style="padding: 12px; background: rgba(255, 230, 109, 0.1); border-radius: 4px; border: 1px solid rgba(255, 230, 109, 0.3);">
             <div style="color: #ffe66d; font-weight: 600; font-size: 16px; margin-bottom: 10px;">Worked Example: 95% Confidence Ellipse</div>
 
             <div style="font-size: 14px; color: var(--muted); line-height: 1.7;">
               <div style="margin-bottom: 12px;">
-                <strong style="color: var(--text); font-size: 15px;">Given:</strong> <span style="font-size: 14px;">Covariance matrix from positive correlation example above</span>
-                <div class="katex-formula" style="font-size: 18px; color: #e8e8e8; padding: 6px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center; margin: 6px 0;">
+                <strong style="color: var(--text); font-size: 15px;">Given:</strong> <span style="font-size: 14px;">Covariance matrix from positive correlation example</span>
+                <div class="katex-formula" style="font-size: 18px; color: #f5f5f0; padding: 6px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center; margin: 6px 0;">
                   \color{#ff6b6b}{\boldsymbol{\Sigma}} \color{#e8e8e8}{=} \color{#e8e8e8}{\begin{bmatrix} 0.5 & 0.35 \\ 0.35 & 0.5 \end{bmatrix}}
                 </div>
               </div>
 
               <div style="margin-bottom: 12px;">
                 <strong style="color: var(--text); font-size: 15px;">Step 1:</strong> <span style="font-size: 14px;">Find eigenvalues λ from det(Σ - λI) = 0</span>
-                <div style="font-family: 'Courier New', monospace; font-size: 16px; color: #e8e8e8; margin: 6px 0; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 3px;">
+                <div style="font-family: 'Courier New', monospace; font-size: 16px; color: #f5f5f0; margin: 6px 0; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 3px;">
                   λ₁ = 0.85, λ₂ = 0.15
                 </div>
               </div>
 
               <div style="margin-bottom: 12px;">
                 <strong style="color: var(--text); font-size: 15px;">Step 2:</strong> <span style="font-size: 14px;">Take square roots for standard deviations (σ)</span>
-                <div style="font-family: 'Courier New', monospace; font-size: 16px; color: #e8e8e8; margin: 6px 0; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 3px;">
+                <div style="font-family: 'Courier New', monospace; font-size: 16px; color: #f5f5f0; margin: 6px 0; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 3px;">
                   σ₁ = √λ₁ = 0.92<br>
                   σ₂ = √λ₂ = 0.39
                 </div>
                 <div style="padding: 8px; background: rgba(78, 205, 196, 0.1); border-radius: 3px; margin-top: 6px; font-size: 14px;">
-                  <strong style="color: #4ecdc4;">Key relationship:</strong> <span style="color: #e8e8e8;">Eigenvalues λ are <strong style="color: var(--text);">variances</strong> (σ²) along principal axes</span><br>
-                  <span style="color: #e8e8e8;">√λ₁ = σ₁ (standard deviation along first principal axis)</span><br>
-                  <span style="color: #e8e8e8;">√λ₂ = σ₂ (standard deviation along second principal axis)</span>
+                  <strong style="color: #4ecdc4;">Key relationship:</strong> <span style="color: #f5f5f0;">Eigenvalues λ are <strong style="color: var(--text);">variances</strong> (σ²) along principal axes</span><br>
+                  <span style="color: #f5f5f0;">√λ₁ = σ₁ (standard deviation along first principal axis)</span><br>
+                  <span style="color: #f5f5f0;">√λ₂ = σ₂ (standard deviation along second principal axis)</span>
                 </div>
               </div>
 
               <div style="margin-bottom: 12px;">
                 <strong style="color: var(--text); font-size: 15px;">Step 3:</strong> <span style="font-size: 14px;">Multiply by 2 for 95% confidence (2σ)</span>
-                <div style="font-family: 'Courier New', monospace; font-size: 16px; color: #e8e8e8; margin: 6px 0; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 3px;">
+                <div style="font-family: 'Courier New', monospace; font-size: 16px; color: #f5f5f0; margin: 6px 0; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 3px;">
                   Semi-major axis: 2σ₁ = 2√λ₁ = 1.84<br>
                   Semi-minor axis: 2σ₂ = 2√λ₂ = 0.78
                 </div>
@@ -2351,7 +2241,7 @@
             </p>
             <div style="display: flex; gap: 24px; align-items: start;">
               <div style="flex: 0 0 350px;">
-                <canvas id="euclideanVsMahalanobis" width="350" height="350" style="border: 1px solid var(--grid); border-radius: 4px; cursor: crosshair;"></canvas>
+                <canvas id="euclideanVsMahalanobis" width="350" height="350" style="width: 350px; height: 350px; border: 1px solid var(--grid); border-radius: 4px; cursor: crosshair;"></canvas>
                 <p style="margin: 10px 0 8px 0; font-size: 13px; color: rgba(139, 148, 158, 0.9); text-align: center;">
                   Click or drag the point to explore
                 </p>
@@ -5630,7 +5520,8 @@
     cov: null,
     precision: null,
     canvas: null,
-    ctx: null
+    ctx: null,
+    rafPending: false
   };
 
   window.updateMahalanobisViz = function(data) {
@@ -5685,8 +5576,14 @@
 
     window.mahalanobisState.precision = invertMatrix2x2(window.mahalanobisState.cov);
 
-    // Draw immediately to ensure state is in sync
-    drawMahalanobisViz();
+    // Use requestAnimationFrame to prevent flickering during rapid updates
+    if (!window.mahalanobisState.rafPending) {
+      window.mahalanobisState.rafPending = true;
+      requestAnimationFrame(() => {
+        window.mahalanobisState.rafPending = false;
+        drawMahalanobisViz();
+      });
+    }
 
     // Re-attach event listeners if canvas changed
     if (canvasChanged) {
@@ -5925,8 +5822,14 @@
       window.mahalanobisState.point.x = mx;
       window.mahalanobisState.point.y = my;
       window.mahalanobisState.isDragging = true;
-      // Redraw
-      drawMahalanobisViz();
+      // Redraw with requestAnimationFrame
+      if (!window.mahalanobisState.rafPending) {
+        window.mahalanobisState.rafPending = true;
+        requestAnimationFrame(() => {
+          window.mahalanobisState.rafPending = false;
+          drawMahalanobisViz();
+        });
+      }
     }, { capture: true });
 
     canvas.addEventListener('mousemove', (e) => {
@@ -5936,8 +5839,14 @@
           e.clientY >= rect.top && e.clientY <= rect.bottom) {
         window.mahalanobisState.point.x = e.clientX - rect.left;
         window.mahalanobisState.point.y = e.clientY - rect.top;
-        // Redraw
-        drawMahalanobisViz();
+        // Redraw with requestAnimationFrame
+        if (!window.mahalanobisState.rafPending) {
+          window.mahalanobisState.rafPending = true;
+          requestAnimationFrame(() => {
+            window.mahalanobisState.rafPending = false;
+            drawMahalanobisViz();
+          });
+        }
       }
     });
 
