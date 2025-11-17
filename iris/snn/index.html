@@ -94,6 +94,11 @@
           <table id="confModel" class="confusion"></table>
         </div>
       </div>
+
+      <div class="metrics-section-title">ROC Curves &amp; AUC</div>
+      <div style="position: relative; width: 100%; height: 580px; border: 1px solid var(--grid); border-radius: 6px; overflow: hidden; background: var(--bg);">
+        <iframe id="rocIframe" src="roc.html" style="width: 100%; height: 100%; border: none;"></iframe>
+      </div>
     </div>
   </div>
 </div>
@@ -198,6 +203,35 @@
       </p>
       <p>
         Diagonal cells (green) are correct predictions; off-diagonal cells (red) are errors.
+      </p>
+
+      <h3>ROC Curves &amp; AUC</h3>
+      <p>
+        <strong>Receiver Operating Characteristic (ROC)</strong> curves visualize the trade-off
+        between true positive rate (TPR) and false positive rate (FPR) across all decision thresholds.
+      </p>
+      <p>
+        For multi-class classification, we use the <strong>one-vs-rest</strong> strategy:
+        each class is treated as "positive" vs all others as "negative", producing 3 binary ROC curves.
+      </p>
+      <ul>
+        <li><strong>TPR (Sensitivity):</strong> TP / (TP + FN) — fraction of positives correctly identified</li>
+        <li><strong>FPR:</strong> FP / (FP + TN) — fraction of negatives incorrectly classified as positive</li>
+        <li><strong>AUC (Area Under Curve):</strong> Scalar summary of classifier performance
+          <ul>
+            <li>0.5 = random classifier (diagonal line)</li>
+            <li>0.7-0.8 = acceptable discrimination</li>
+            <li>0.8-0.9 = excellent discrimination</li>
+            <li>&gt;0.9 = outstanding discrimination</li>
+          </ul>
+        </li>
+      </ul>
+      <p>
+        <strong>Probabilistic interpretation:</strong> AUC = Pr(s(x⁺) &gt; s(x⁻)), the probability
+        that the classifier scores a random positive sample higher than a random negative sample.
+      </p>
+      <p>
+        A perfect classifier has AUC = 1.0 and its curve hugs the top-left corner (100% TPR at 0% FPR).
       </p>
     </div>
   </div>
@@ -978,6 +1012,29 @@
     }
   }
 
+  function updateROC() {
+    if (!dataset.samples || dataset.samples.length === 0) return;
+
+    // Collect scores and labels for all samples
+    const scores = [];
+    const labels = [];
+
+    for (const sample of dataset.samples) {
+      const { probs } = forwardSingle(sample.x);
+      scores.push(probs);
+      labels.push(sample.y);
+    }
+
+    // Send to ROC iframe
+    const rocIframe = document.getElementById('rocIframe');
+    if (rocIframe && rocIframe.contentWindow) {
+      rocIframe.contentWindow.postMessage({
+        type: 'updateROC',
+        data: { scores, labels }
+      }, '*');
+    }
+  }
+
   function updateAllVisuals() {
     updateConnectionStyles();
     updateNetworkVisualization();
@@ -985,6 +1042,7 @@
     updateConfusionTables();
     updateStats();
     updateSampleView();
+    updateROC();
   }
 
   // ----- training control -----
@@ -1024,6 +1082,7 @@
     updateStats();
     setupSampleProbsSkeleton();
     updateSampleView();
+    updateROC();
 
     document.getElementById('btnInit').addEventListener('click', () => {
       stopTraining();
@@ -1065,6 +1124,68 @@
 
     window.addEventListener('resize', () => {
       buildNetworkDiagram();
+    });
+
+    // Listen for data regeneration from iframe
+    window.addEventListener('message', (event) => {
+      if (event.data.type === 'dataRegenerated') {
+        // Update our dataset with the new data from the iframe
+        dataset.samples = event.data.data.map(d => ({
+          raw: [...d.features],
+          x: [...d.features], // Will be normalized below
+          y: d.class
+        }));
+
+        // Re-normalize the data (same as generateSyntheticIris)
+        const mean = new Array(CONFIG.NUM_INPUT).fill(0);
+        const std = new Array(CONFIG.NUM_INPUT).fill(0);
+        const N = dataset.samples.length;
+
+        for (const s of dataset.samples) {
+          for (let d = 0; d < CONFIG.NUM_INPUT; d++) {
+            mean[d] += s.raw[d];
+          }
+        }
+        for (let d = 0; d < CONFIG.NUM_INPUT; d++) {
+          mean[d] /= N;
+        }
+        for (const s of dataset.samples) {
+          for (let d = 0; d < CONFIG.NUM_INPUT; d++) {
+            const diff = s.raw[d] - mean[d];
+            std[d] += diff * diff;
+          }
+        }
+        for (let d = 0; d < CONFIG.NUM_INPUT; d++) {
+          std[d] = Math.sqrt(std[d] / N) || 1.0;
+        }
+        for (const s of dataset.samples) {
+          const x = new Array(CONFIG.NUM_INPUT);
+          for (let d = 0; d < CONFIG.NUM_INPUT; d++) {
+            x[d] = (s.raw[d] - mean[d]) / std[d];
+          }
+          s.x = x;
+        }
+
+        // Update feature min/max
+        dataset.featureMin.fill(Infinity);
+        dataset.featureMax.fill(-Infinity);
+        for (const s of dataset.samples) {
+          for (let d = 0; d < CONFIG.NUM_INPUT; d++) {
+            if (s.raw[d] < dataset.featureMin[d]) dataset.featureMin[d] = s.raw[d];
+            if (s.raw[d] > dataset.featureMax[d]) dataset.featureMax[d] = s.raw[d];
+          }
+        }
+
+        // Reset network and training
+        initNetwork();
+        training.lossHistory = [];
+        training.valLossHistory = [];
+        training.stepCount = 0;
+        training.randomConfusion = computeConfusion(false);
+
+        // Update all visuals
+        updateAllVisuals();
+      }
     });
 
     // Documentation modal
