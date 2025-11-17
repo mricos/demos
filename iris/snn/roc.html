@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ROC Curves - Multi-class One-vs-Rest</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: auto;
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    }
+    .roc-container {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .roc-panel {
+      background: var(--panel);
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+      padding: 12px;
+    }
+    .roc-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent2);
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    canvas {
+      width: 100%;
+      height: 280px;
+      display: block;
+      border-radius: 4px;
+      background: #0d1117;
+    }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .metric-card {
+      background: #0d1117;
+      border: 1px solid var(--grid);
+      border-radius: 4px;
+      padding: 8px;
+      text-align: center;
+    }
+    .metric-label {
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .metric-value {
+      font-size: 16px;
+      font-weight: 700;
+      font-family: monospace;
+    }
+    .metric-value.good { color: #3fb950; }
+    .metric-value.medium { color: #f78166; }
+    .metric-value.poor { color: #8b949e; }
+    .info-box {
+      background: rgba(88, 166, 255, 0.1);
+      border-left: 3px solid var(--accent);
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 8px;
+      font-size: 11px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+    }
+    .formula {
+      background: #0d1117;
+      border: 1px solid var(--grid);
+      border-radius: 4px;
+      padding: 10px;
+      margin-top: 8px;
+      font-family: 'Times New Roman', serif;
+      font-size: 13px;
+      text-align: center;
+    }
+    .formula-row {
+      margin: 6px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .frac {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 12px;
+      vertical-align: middle;
+    }
+    .frac-num {
+      border-bottom: 1px solid var(--text);
+      padding-bottom: 2px;
+      margin-bottom: 2px;
+    }
+    .frac-den {
+      padding-top: 2px;
+    }
+    .var-tpr { color: #3fb950; font-weight: 700; }
+    .var-fpr { color: #f78166; font-weight: 700; }
+    .var-auc { color: #58a6ff; font-weight: 700; }
+
+    /* Global scrollbar styling for WebKit browsers (Chrome, Safari, Edge) */
+    ::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--grid);
+      border-radius: 6px;
+      border: 2px solid var(--bg);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--muted);
+    }
+    ::-webkit-scrollbar-corner {
+      background: var(--bg);
+    }
+
+    /* Firefox scrollbar styling */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--grid) var(--bg);
+    }
+  </style>
+</head>
+<body>
+  <div class="roc-container">
+    <!-- Main ROC Curve Panel -->
+    <div class="roc-panel">
+      <div class="roc-title">ROC Curves (One-vs-Rest Multi-class)</div>
+      <canvas id="rocCanvas"></canvas>
+
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-color" style="background: #ff6b6b;"></div>
+          <span>Setosa vs Rest</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #4ecdc4;"></div>
+          <span>Versicolor vs Rest</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #ffe66d;"></div>
+          <span>Virginica vs Rest</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #8b949e;"></div>
+          <span>Random (diagonal)</span>
+        </div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Setosa AUC</div>
+          <div class="metric-value" id="auc0">0.500</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Versicolor AUC</div>
+          <div class="metric-value" id="auc1">0.500</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Virginica AUC</div>
+          <div class="metric-value" id="auc2">0.500</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formula Panel -->
+    <div class="roc-panel">
+      <div class="roc-title">ROC Mathematics</div>
+
+      <div class="formula">
+        <div class="formula-row">
+          <span class="var-tpr">TPR(τ)</span>
+          <span>=</span>
+          <div class="frac">
+            <div class="frac-num">TP(τ)</div>
+            <div class="frac-den">TP(τ) + FN(τ)</div>
+          </div>
+          <span style="margin-left: 16px; margin-right: 16px;">|</span>
+          <span class="var-fpr">FPR(τ)</span>
+          <span>=</span>
+          <div class="frac">
+            <div class="frac-num">FP(τ)</div>
+            <div class="frac-den">FP(τ) + TN(τ)</div>
+          </div>
+        </div>
+        <div class="formula-row" style="margin-top: 12px;">
+          <span class="var-auc">AUC</span>
+          <span>=</span>
+          <span>Pr(</span>
+          <span style="font-style: italic;">s</span>
+          <span>(</span>
+          <span style="font-style: italic;">x</span>
+          <span><sup style="color: #3fb950;">+</sup>) &gt; </span>
+          <span style="font-style: italic;">s</span>
+          <span>(</span>
+          <span style="font-style: italic;">x</span>
+          <span><sup style="color: #f78166;">−</sup>))</span>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <strong>One-vs-Rest Strategy:</strong> For 3-class classification, we compute 3 binary ROC curves.
+        Each class is treated as "positive" vs all others as "negative".
+        The model score for class <em>k</em> is the softmax probability <em>p<sub>k</sub></em>.
+        <br><br>
+        <strong>AUC Interpretation:</strong>
+        • 0.5 = random classifier (diagonal line)
+        • 0.7-0.8 = acceptable discrimination
+        • 0.8-0.9 = excellent discrimination
+        • &gt;0.9 = outstanding discrimination
+        <br><br>
+        <strong>Perfect Classifier:</strong> AUC = 1.0, curve hugs the top-left corner (100% TPR at 0% FPR).
+      </div>
+    </div>
+  </div>
+
+<script>
+  // Configuration
+  const CONFIG = {
+    NUM_CLASSES: 3,
+    CLASS_NAMES: ['Setosa', 'Versicolor', 'Virginica'],
+    COLORS: ['#ff6b6b', '#4ecdc4', '#ffe66d']
+  };
+
+  // State
+  let modelData = null;
+
+  // Compute ROC curve for binary classification (one-vs-rest)
+  function computeROC(scores, labels, positiveClass) {
+    // Create binary labels: 1 if sample is positiveClass, 0 otherwise
+    const binaryLabels = labels.map(y => y === positiveClass ? 1 : 0);
+    const classScores = scores.map(s => s[positiveClass]);
+
+    // Get unique thresholds (all score values + boundary values)
+    const thresholds = [...new Set(classScores)].sort((a, b) => b - a);
+    thresholds.unshift(Infinity); // Start with all negatives
+    thresholds.push(-Infinity);   // End with all positives
+
+    const rocPoints = [];
+
+    for (const tau of thresholds) {
+      let tp = 0, fp = 0, tn = 0, fn = 0;
+
+      for (let i = 0; i < classScores.length; i++) {
+        const predicted = classScores[i] >= tau ? 1 : 0;
+        const actual = binaryLabels[i];
+
+        if (predicted === 1 && actual === 1) tp++;
+        else if (predicted === 1 && actual === 0) fp++;
+        else if (predicted === 0 && actual === 1) fn++;
+        else tn++;
+      }
+
+      const tpr = (tp + fn) > 0 ? tp / (tp + fn) : 0;
+      const fpr = (fp + tn) > 0 ? fp / (fp + tn) : 0;
+
+      rocPoints.push({ fpr, tpr, threshold: tau });
+    }
+
+    return rocPoints;
+  }
+
+  // Compute AUC using trapezoidal rule
+  function computeAUC(rocPoints) {
+    let auc = 0;
+    for (let i = 1; i < rocPoints.length; i++) {
+      const dx = rocPoints[i].fpr - rocPoints[i - 1].fpr;
+      const avgHeight = (rocPoints[i].tpr + rocPoints[i - 1].tpr) / 2;
+      auc += dx * avgHeight;
+    }
+    return Math.abs(auc); // Handle negative area from sorting
+  }
+
+  // Draw ROC curves
+  function drawROC(data) {
+    const canvas = document.getElementById('rocCanvas');
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    const w = rect.width;
+    const h = rect.height;
+    const pad = 40;
+
+    // Clear
+    ctx.fillStyle = '#0d1117';
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw grid
+    ctx.strokeStyle = '#30363d';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 10; i++) {
+      const x = pad + (i / 10) * (w - 2 * pad);
+      const y = h - pad - (i / 10) * (h - 2 * pad);
+      ctx.beginPath();
+      ctx.moveTo(x, h - pad);
+      ctx.lineTo(x, pad);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(pad, y);
+      ctx.lineTo(w - pad, y);
+      ctx.stroke();
+    }
+
+    // Draw axes
+    ctx.strokeStyle = '#4b5563';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pad, h - pad);
+    ctx.lineTo(w - pad, h - pad);
+    ctx.moveTo(pad, pad);
+    ctx.lineTo(pad, h - pad);
+    ctx.stroke();
+
+    // Axis labels
+    ctx.fillStyle = '#e6edf3';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('False Positive Rate (FPR)', w / 2, h - 5);
+
+    ctx.save();
+    ctx.translate(12, h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('True Positive Rate (TPR)', 0, 0);
+    ctx.restore();
+
+    // Draw diagonal (random classifier)
+    ctx.strokeStyle = '#8b949e';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(pad, h - pad);
+    ctx.lineTo(w - pad, pad);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw tick labels
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '9px system-ui';
+    ctx.textAlign = 'center';
+    for (let i = 0; i <= 10; i += 2) {
+      const val = (i / 10).toFixed(1);
+      const x = pad + (i / 10) * (w - 2 * pad);
+      const y = h - pad + (i / 10) * (h - 2 * pad);
+      ctx.fillText(val, x, h - pad + 15);
+      ctx.textAlign = 'right';
+      ctx.fillText(val, pad - 5, y + 3);
+      ctx.textAlign = 'center';
+    }
+
+    if (!data) {
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '13px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('Waiting for training data...', w / 2, h / 2);
+      return;
+    }
+
+    // Compute and draw ROC for each class
+    const aucs = [];
+    for (let c = 0; c < CONFIG.NUM_CLASSES; c++) {
+      const rocPoints = computeROC(data.scores, data.labels, c);
+      const auc = computeAUC(rocPoints);
+      aucs.push(auc);
+
+      // Draw ROC curve
+      ctx.strokeStyle = CONFIG.COLORS[c];
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+
+      for (let i = 0; i < rocPoints.length; i++) {
+        const px = pad + rocPoints[i].fpr * (w - 2 * pad);
+        const py = h - pad - rocPoints[i].tpr * (h - 2 * pad);
+
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+
+      // Draw points at key thresholds
+      ctx.fillStyle = CONFIG.COLORS[c];
+      const sampleIndices = [0, Math.floor(rocPoints.length / 4), Math.floor(rocPoints.length / 2),
+                             Math.floor(3 * rocPoints.length / 4), rocPoints.length - 1];
+      for (const idx of sampleIndices) {
+        if (idx < rocPoints.length) {
+          const px = pad + rocPoints[idx].fpr * (w - 2 * pad);
+          const py = h - pad - rocPoints[idx].tpr * (h - 2 * pad);
+          ctx.beginPath();
+          ctx.arc(px, py, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Update AUC display
+      const aucEl = document.getElementById(`auc${c}`);
+      aucEl.textContent = auc.toFixed(3);
+
+      // Color code based on AUC value
+      if (auc >= 0.9) aucEl.className = 'metric-value good';
+      else if (auc >= 0.7) aucEl.className = 'metric-value medium';
+      else aucEl.className = 'metric-value poor';
+    }
+
+    // Draw AUC regions (shaded areas under curves) with low opacity
+    ctx.globalAlpha = 0.15;
+    for (let c = 0; c < CONFIG.NUM_CLASSES; c++) {
+      const rocPoints = computeROC(data.scores, data.labels, c);
+      ctx.fillStyle = CONFIG.COLORS[c];
+      ctx.beginPath();
+      ctx.moveTo(pad, h - pad);
+
+      for (let i = 0; i < rocPoints.length; i++) {
+        const px = pad + rocPoints[i].fpr * (w - 2 * pad);
+        const py = h - pad - rocPoints[i].tpr * (h - 2 * pad);
+        ctx.lineTo(px, py);
+      }
+      ctx.lineTo(pad + (w - 2 * pad), h - pad);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1.0;
+  }
+
+  // Listen for data from parent
+  window.addEventListener('message', (event) => {
+    if (event.data.type === 'updateROC') {
+      modelData = event.data.data;
+      drawROC(modelData);
+    }
+  });
+
+  // Initial draw
+  drawROC(null);
+
+  // Redraw on resize
+  window.addEventListener('resize', () => {
+    if (modelData) {
+      drawROC(modelData);
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Synthetic Iris Dataset - Refactored</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header style="text-align: center; margin-bottom: 30px;">
+      <h1 style="color: #58a6ff; margin-bottom: 10px;">Synthetic Iris Dataset Generator</h1>
+      <div style="color: #8b949e; font-size: 14px;">
+        Interactive Gaussian Mixture Model • Refactored modular architecture
+      </div>
+    </header>
+
+    <!-- Controls Panel -->
+    <div class="panel" style="margin-bottom: 20px;">
+      <h2>Dataset Controls</h2>
+
+      <div class="controls-group">
+        <label>
+          Spread Multiplier: <span id="spreadValue">1.0</span>
+          <input type="range" id="spreadSlider" min="0.1" max="3" step="0.1" value="1.0" style="width: 200px;">
+        </label>
+
+        <label>
+          Class Separation: <span id="separationValue">1.0</span>
+          <input type="range" id="separationSlider" min="0.1" max="2" step="0.1" value="1.0" style="width: 200px;">
+        </label>
+
+        <label>
+          Samples/Class: <span id="samplesValue">50</span>
+          <input type="range" id="samplesSlider" min="10" max="200" step="10" value="50" style="width: 200px;">
+        </label>
+      </div>
+
+      <div class="controls-group" style="margin-top: 15px;">
+        <button id="regenerateBtn">Regenerate Data</button>
+        <button id="resetBtn">Reset to Defaults</button>
+        <button id="toggleEllipses">Toggle Ellipses</button>
+      </div>
+    </div>
+
+    <!-- Scatter Plots Grid -->
+    <div class="viz-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px;">
+      <div class="plot-wrapper">
+        <div class="plot-title">Sepal Length vs Sepal Width</div>
+        <canvas id="canvas1"></canvas>
+      </div>
+      <div class="plot-wrapper">
+        <div class="plot-title">Petal Length vs Petal Width</div>
+        <canvas id="canvas2"></canvas>
+      </div>
+      <div class="plot-wrapper">
+        <div class="plot-title">Sepal Length vs Petal Length</div>
+        <canvas id="canvas3"></canvas>
+      </div>
+      <div class="plot-wrapper">
+        <div class="plot-title">Sepal Width vs Petal Width</div>
+        <canvas id="canvas4"></canvas>
+      </div>
+    </div>
+
+    <!-- Gaussian Curves -->
+    <div class="panel" style="margin-bottom: 20px;">
+      <h2>Feature Distributions (1D Gaussian Curves)</h2>
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+        <div>
+          <div style="font-size: 12px; color: #8b949e; margin-bottom: 5px;">Sepal Length</div>
+          <canvas id="gauss1" width="400" height="150"></canvas>
+        </div>
+        <div>
+          <div style="font-size: 12px; color: #8b949e; margin-bottom: 5px;">Sepal Width</div>
+          <canvas id="gauss2" width="400" height="150"></canvas>
+        </div>
+        <div>
+          <div style="font-size: 12px; color: #8b949e; margin-bottom: 5px;">Petal Length</div>
+          <canvas id="gauss3" width="400" height="150"></canvas>
+        </div>
+        <div>
+          <div style="font-size: 12px; color: #8b949e; margin-bottom: 5px;">Petal Width</div>
+          <canvas id="gauss4" width="400" height="150"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistics Panel -->
+    <div class="panel">
+      <h2>Dataset Statistics</h2>
+      <div id="statsDisplay" style="font-family: monospace; font-size: 12px; color: #8b949e;"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { generateData, gmmConfig, updateSpreads } from './js/core/data-generator.js';
+    import { drawScatter } from './js/visualization/scatter-plot.js';
+    import { drawGaussianCurve } from './js/visualization/gaussian-curves.js';
+    import { computeFeatureStats, computeCorrelationMatrix } from './js/core/statistics.js';
+
+    // Application state
+    let currentData = null;
+    let showEllipses = false;
+
+    // Canvas configurations
+    const scatterCanvases = [
+      { id: 'canvas1', dims: [0, 1] }, // Sepal L vs W
+      { id: 'canvas2', dims: [2, 3] }, // Petal L vs W
+      { id: 'canvas3', dims: [0, 2] }, // Sepal L vs Petal L
+      { id: 'canvas4', dims: [1, 3] }  // Sepal W vs Petal W
+    ];
+
+    const gaussianCanvases = [
+      { id: 'gauss1', dim: 0 }, // Sepal Length
+      { id: 'gauss2', dim: 1 }, // Sepal Width
+      { id: 'gauss3', dim: 2 }, // Petal Length
+      { id: 'gauss4', dim: 3 }  // Petal Width
+    ];
+
+    const classNames = ['Setosa', 'Versicolor', 'Virginica'];
+    const featureNames = ['Sepal Length', 'Sepal Width', 'Petal Length', 'Petal Width'];
+
+    // Initialize application
+    function init() {
+      regenerateData();
+      setupEventListeners();
+    }
+
+    // Generate new dataset
+    function regenerateData() {
+      updateSpreads();
+      currentData = generateData();
+      drawAllVisualizations();
+      updateStatistics();
+    }
+
+    // Draw all scatter plots and Gaussian curves
+    function drawAllVisualizations() {
+      // Draw scatter plots
+      scatterCanvases.forEach(({ id, dims }) => {
+        const canvas = document.getElementById(id);
+        drawScatter(canvas, currentData, dims[0], dims[1], showEllipses);
+      });
+
+      // Draw Gaussian curves
+      gaussianCanvases.forEach(({ id, dim }) => {
+        const canvas = document.getElementById(id);
+        drawGaussianCurve(canvas, currentData, dim);
+      });
+    }
+
+    // Update statistics display
+    function updateStatistics() {
+      const container = document.getElementById('statsDisplay');
+      let html = '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">';
+
+      // Display stats for each class and feature
+      for (let c = 0; c < 3; c++) {
+        const classColor = c === 0 ? '#ff6b6b' : c === 1 ? '#4ecdc4' : '#ffe66d';
+        html += `<div style="border-left: 3px solid ${classColor}; padding-left: 10px;">`;
+        html += `<div style="color: ${classColor}; font-weight: bold; margin-bottom: 8px;">${classNames[c]}</div>`;
+
+        for (let f = 0; f < 4; f++) {
+          const stats = computeFeatureStats(currentData, c, f);
+          html += `<div style="margin-bottom: 4px;">`;
+          html += `<span style="color: #58a6ff;">${featureNames[f]}:</span> `;
+          html += `μ=${stats.mean.toFixed(2)}, σ=${stats.std.toFixed(2)}`;
+          html += `</div>`;
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+
+      // Add correlation matrix info
+      html += '<div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #30363d;">';
+      html += '<div style="color: #58a6ff; font-weight: bold; margin-bottom: 10px;">Correlation Matrix</div>';
+      const corr = computeCorrelationMatrix(currentData);
+      html += '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; font-size: 10px;">';
+
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          const val = corr[i][j];
+          const absVal = Math.abs(val);
+          const hue = val > 0 ? 210 : 0;
+          const alpha = absVal * 0.7;
+          html += `<div style="background: hsla(${hue}, 80%, 55%, ${alpha}); padding: 5px; text-align: center; border-radius: 3px;">`;
+          html += `${val.toFixed(2)}`;
+          html += '</div>';
+        }
+      }
+      html += '</div>';
+      html += '<div style="margin-top: 5px; font-size: 10px;">Order: Sepal L, Sepal W, Petal L, Petal W</div>';
+      html += '</div>';
+
+      container.innerHTML = html;
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+      // Spread multiplier
+      const spreadSlider = document.getElementById('spreadSlider');
+      const spreadValue = document.getElementById('spreadValue');
+      spreadSlider.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        gmmConfig.spreadMultiplier = val;
+        spreadValue.textContent = val.toFixed(1);
+        regenerateData();
+      });
+
+      // Separation multiplier
+      const separationSlider = document.getElementById('separationSlider');
+      const separationValue = document.getElementById('separationValue');
+      separationSlider.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        gmmConfig.separationMultiplier = val;
+        separationValue.textContent = val.toFixed(1);
+        regenerateData();
+      });
+
+      // Samples per class
+      const samplesSlider = document.getElementById('samplesSlider');
+      const samplesValue = document.getElementById('samplesValue');
+      samplesSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        gmmConfig.nPerClass = val;
+        samplesValue.textContent = val;
+        regenerateData();
+      });
+
+      // Regenerate button
+      document.getElementById('regenerateBtn').addEventListener('click', () => {
+        regenerateData();
+      });
+
+      // Reset button
+      document.getElementById('resetBtn').addEventListener('click', () => {
+        gmmConfig.spreadMultiplier = 1.0;
+        gmmConfig.separationMultiplier = 1.0;
+        gmmConfig.nPerClass = 50;
+
+        spreadSlider.value = 1.0;
+        spreadValue.textContent = '1.0';
+        separationSlider.value = 1.0;
+        separationValue.textContent = '1.0';
+        samplesSlider.value = 50;
+        samplesValue.textContent = '50';
+
+        regenerateData();
+      });
+
+      // Toggle ellipses
+      document.getElementById('toggleEllipses').addEventListener('click', () => {
+        showEllipses = !showEllipses;
+        drawAllVisualizations();
+      });
+
+      // Handle window resize
+      let resizeTimeout;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          drawAllVisualizations();
+        }, 100);
+      });
+    }
+
+    // Start the application
+    init();
+  </script>
+</body>
+</html>
