@@ -1343,7 +1343,7 @@
     spreadMultiplier: 1.0,
     separationMultiplier: 1.0,
     ellipseAxisScale: 1.0,
-    versicolorSkew: 0.0  // Skew factor for Versicolor class only
+    correlationStrength: 0.0  // Global correlation strength: -1 to 1
   };
 
   // Update spreads based on multiplier
@@ -1377,27 +1377,6 @@
     return L;
   }
 
-  // Apply skew to samples (only for Versicolor)
-  function applySkewToSamples(samples, skewFactor) {
-    if (Math.abs(skewFactor) < 0.01) return samples;
-
-    // Apply non-linear transformation to create asymmetric distribution
-    return samples.map(sample => {
-      const skewed = sample.slice();
-      // Apply cubic transformation to all dimensions for dramatic skew effect
-      for (let i = 0; i < 4; i++) {
-        if (skewFactor > 0) {
-          // Positive skew: push values away from center on positive side
-          skewed[i] = sample[i] + skewFactor * Math.pow(Math.max(0, sample[i]), 2);
-        } else {
-          // Negative skew: push values away from center on negative side
-          skewed[i] = sample[i] + skewFactor * Math.pow(Math.min(0, sample[i]), 2);
-        }
-      }
-      return skewed;
-    });
-  }
-
   // Generate correlated samples using Cholesky decomposition
   function generateCorrelatedSamples(n, corrMatrix) {
     const L = choleskyDecomposition(corrMatrix);
@@ -1418,6 +1397,18 @@
     return samples;
   }
 
+  // Create correlation matrix from correlation strength
+  function createCorrelationMatrix(strength) {
+    // Create 4x4 correlation matrix with uniform off-diagonal correlation
+    const matrix = [
+      [1.0, strength, strength, strength],
+      [strength, 1.0, strength, strength],
+      [strength, strength, 1.0, strength],
+      [strength, strength, strength, 1.0]
+    ];
+    return matrix;
+  }
+
   // Generate synthetic Iris data using GMM
   function generateData(customCorrMatrix = null) {
     const data = [];
@@ -1431,9 +1422,15 @@
     for (let c = 0; c < 3; c++) {
       let classSamples;
 
-      if (customCorrMatrix) {
+      // Determine which correlation matrix to use
+      let corrMatrix = customCorrMatrix;
+      if (!corrMatrix && Math.abs(gmmConfig.correlationStrength) > 0.01) {
+        corrMatrix = createCorrelationMatrix(gmmConfig.correlationStrength);
+      }
+
+      if (corrMatrix) {
         // Generate correlated samples
-        classSamples = generateCorrelatedSamples(gmmConfig.nPerClass, customCorrMatrix);
+        classSamples = generateCorrelatedSamples(gmmConfig.nPerClass, corrMatrix);
       } else {
         // Generate independent samples
         classSamples = [];
@@ -4267,8 +4264,8 @@
   });
 
   document.getElementById('skewSlider').addEventListener('input', e => {
-    gmmConfig.versicolorSkew = parseFloat(e.target.value);
-    document.getElementById('skewValue').textContent = gmmConfig.versicolorSkew.toFixed(1);
+    gmmConfig.correlationStrength = parseFloat(e.target.value);
+    document.getElementById('skewValue').textContent = gmmConfig.correlationStrength.toFixed(1);
     regenerateAll();
   });
 
