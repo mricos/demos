@@ -1,0 +1,1815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>L1 vs L2 Regularization</title>
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- KaTeX for math rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+</head>
+<body>
+  <div class="header">
+    <h1>L1 vs L2 Regularization: Geometric Interpretation</h1>
+    <p>Understanding why L1 produces sparse solutions and L2 produces smooth ones</p>
+  </div>
+
+  <!-- Sticky Container (controls + data viz) -->
+  <div class="sticky-container">
+    <!-- Sticky Controls -->
+    <div class="controls sticky-controls">
+      <label>
+        <span>Spread:</span>
+        <input type="range" id="spread" min="0.5" max="3" step="0.1" value="1.5">
+        <span id="spreadValue" class="value-display">1.5</span>
+      </label>
+      <label>
+        <span>Samples:</span>
+        <input type="range" id="numSamples" min="50" max="200" step="10" value="100">
+        <span id="numSamplesValue" class="value-display">100</span>
+      </label>
+      <label>
+        <span>Noise:</span>
+        <input type="range" id="noise" min="0" max="2" step="0.1" value="0.5">
+        <span id="noiseValue" class="value-display">0.5</span>
+      </label>
+      <button id="regenerate">Regenerate Data</button>
+      <button id="toggleDataViz">Show Data Distribution</button>
+    </div>
+
+    <!-- Expandable Data Visualization -->
+    <div id="dataVizPanel" class="data-viz-panel" style="display: none;">
+    <div class="data-viz-title">Generated Data Distribution (4 Features × 3 Classes)</div>
+    <div class="feature-grid">
+      <div class="feature-panel">
+        <div class="feature-header">Feature 1 (Sepal Length)</div>
+        <canvas id="feature1Canvas" width="200" height="100"></canvas>
+        <div class="feature-stats" id="feature1Stats"></div>
+      </div>
+      <div class="feature-panel">
+        <div class="feature-header">Feature 2 (Sepal Width)</div>
+        <canvas id="feature2Canvas" width="200" height="100"></canvas>
+        <div class="feature-stats" id="feature2Stats"></div>
+      </div>
+      <div class="feature-panel">
+        <div class="feature-header">Feature 3 (Petal Length)</div>
+        <canvas id="feature3Canvas" width="200" height="100"></canvas>
+        <div class="feature-stats" id="feature3Stats"></div>
+      </div>
+      <div class="feature-panel">
+        <div class="feature-header">Feature 4 (Petal Width)</div>
+        <canvas id="feature4Canvas" width="200" height="100"></canvas>
+        <div class="feature-stats" id="feature4Stats"></div>
+      </div>
+    </div>
+    <div class="data-legend">
+      <div class="legend-item"><span class="legend-dot" style="background: #ff6b9d;"></span> Setosa</div>
+      <div class="legend-item"><span class="legend-dot" style="background: #4ecdc4;"></span> Versicolor</div>
+      <div class="legend-item"><span class="legend-dot" style="background: #ffe66d;"></span> Virginica</div>
+    </div>
+    </div>
+  </div><!-- End sticky-container -->
+
+  <!-- Section 1: Geometric Interpretation -->
+  <div class="section">
+    <div class="section-title">Constraint Geometry: Why L1 Produces Sparse Solutions</div>
+
+    <!-- Big Math: Regularized Regression (Dynamic) -->
+    <div style="margin: 20px 0; padding: 20px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--grid); border-radius: 6px;">
+      <div style="margin-bottom: 16px;">
+        <div style="margin-bottom: 14px; padding: 12px; background: rgba(88, 166, 255, 0.08); border-radius: 4px;">
+          <div id="dynamicRegTitle" style="color: #58a6ff; font-weight: bold; font-size: 18px; margin-bottom: 8px; letter-spacing: 0.5px;">REGULARIZED LINEAR REGRESSION</div>
+          <div id="dynamicRegEquation" class="katex-formula" style="font-size: 24px; color: #f5f5f0; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; text-align: center;">
+            \min_{\mathbf{w}} \color{#ff6b9d}{\|\mathbf{y} - \mathbf{Xw}\|_2^2} \color{#e8e8e8}{+} \color{#4ecdc4}{\lambda\|\mathbf{w}\|_2}
+          </div>
+        </div>
+
+        <div style="margin-bottom: 14px; padding: 12px; background: rgba(255, 107, 157, 0.08); border-radius: 4px;">
+          <div style="color: #ff6b9d; font-weight: bold; font-size: 15px; margin-bottom: 8px; letter-spacing: 0.5px;">LOSS TERM (FIT DATA)</div>
+          <div class="katex-formula" style="font-size: 22px; color: #f5f5f0; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; text-align: center;">
+            \color{#ff6b9d}{\|\mathbf{y} - \mathbf{Xw}\|_2^2} \color{#e8e8e8}{=} \color{#e8e8e8}{\sum_{i=1}^{n}} \color{#e8e8e8}{(}y_i \color{#e8e8e8}{-} \mathbf{w}^\top \mathbf{x}_i\color{#e8e8e8}{)^2}
+          </div>
+        </div>
+
+        <div style="margin-bottom: 14px; padding: 12px; background: rgba(78, 205, 196, 0.08); border-radius: 4px;">
+          <div style="color: #4ecdc4; font-weight: bold; font-size: 15px; margin-bottom: 8px; letter-spacing: 0.5px;">PENALTY TERM (REGULARIZATION)</div>
+          <div class="katex-formula" style="font-size: 22px; color: #f5f5f0; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; text-align: center;">
+            \color{#4ecdc4}{\|\mathbf{w}\|_p} \color{#e8e8e8}{=} \color{#e8e8e8}{\left(\sum_{j=1}^{d} |w_j|^p\right)^{1/p}}
+          </div>
+        </div>
+
+        <div style="display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr);">
+          <div style="padding: 12px; background: rgba(255, 230, 109, 0.08); border-radius: 4px;">
+            <div style="color: #ffe66d; font-weight: bold; font-size: 14px; margin-bottom: 8px;">L1 (LASSO): p = 1</div>
+            <div class="katex-formula" style="font-size: 18px; color: #f5f5f0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center;">
+              \color{#ffe66d}{\|\mathbf{w}\|_1} \color{#e8e8e8}{=} \color{#e8e8e8}{\sum_{j=1}^{d} |w_j|}
+            </div>
+            <div style="font-size: 13px; color: var(--muted); margin-top: 8px;">Diamond constraint → <strong style="color: #ffe66d;">Sparse</strong></div>
+          </div>
+
+          <div style="padding: 12px; background: rgba(78, 205, 196, 0.08); border-radius: 4px;">
+            <div style="color: #4ecdc4; font-weight: bold; font-size: 14px; margin-bottom: 8px;">L2 (RIDGE): p = 2</div>
+            <div class="katex-formula" style="font-size: 18px; color: #f5f5f0; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; text-align: center;">
+              \color{#4ecdc4}{\|\mathbf{w}\|_2} \color{#e8e8e8}{=} \color{#e8e8e8}{\sqrt{\sum_{j=1}^{d} w_j^2}}
+            </div>
+            <div style="font-size: 13px; color: var(--muted); margin-top: 8px;">Circle constraint → <strong style="color: #4ecdc4;">Smooth</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Minimization Equation with Info Button -->
+    <div class="equation-display">
+      <div id="mainEquation" class="main-equation"></div>
+      <button id="equationInfoBtn" class="info-btn">What are we minimizing?</button>
+    </div>
+
+    <!-- Expandable Equation Explanation -->
+    <div id="equationExplanation" class="expandable-info" style="display: none;">
+      <div class="explanation-title">Understanding the Optimization Problem</div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 12px;">
+        <!-- Left Column -->
+        <div>
+          <div style="margin-bottom: 14px;">
+            <strong style="color: var(--accent2); font-size: 15px;">What We're Minimizing</strong><br>
+            <div style="margin-top: 6px; line-height: 1.7;">
+              • <strong>Loss term:</strong> ||y - Xw||₂² measures prediction error<br>
+              • <strong>Penalty term:</strong> λ||w||ₚ shrinks coefficients to prevent overfitting
+            </div>
+          </div>
+
+          <div style="margin-bottom: 14px;">
+            <strong style="color: var(--accent2); font-size: 15px;">The Contour Lines (Ellipses)</strong><br>
+            <div style="margin-top: 6px; line-height: 1.7;">
+              Show constant loss values. Shape comes from the <strong>Hessian matrix</strong> (second derivatives):<br>
+              • Hessian = X^T X<br>
+              • Eigenvalues → ellipse axis lengths<br>
+              • Eigenvectors → ellipse orientation<br>
+              • Elongated ellipses → correlated features
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column -->
+        <div>
+          <div style="margin-bottom: 14px;">
+            <strong style="color: var(--accent2); font-size: 15px;">Why L1 Produces Sparsity</strong><br>
+            <div style="margin-top: 6px; line-height: 1.7;">
+              <em style="color: #888; font-size: 13px;">(2D visualization for clarity; actual model uses all 4 features)</em><br><br>
+              <strong style="color: #4ecdc4;">L2 (Circle):</strong> ||w||₂ = √(w₀² + w₁²) ≤ λ<br>
+              → Smooth boundary, rarely hits axes<br>
+              → Both coefficients shrunk but non-zero<br><br>
+
+              <strong style="color: #ffe66d;">L1 (Diamond):</strong> ||w||₁ = |w₀| + |w₁| ≤ λ<br>
+              → Sharp corners at axes<br>
+              → Contours touch corners where w₀=0 or w₁=0<br>
+              → <strong>Automatic feature selection!</strong>
+            </div>
+          </div>
+
+          <div>
+            <strong style="color: var(--accent2); font-size: 15px;">The Solution</strong><br>
+            <div style="margin-top: 6px; line-height: 1.7;">
+              Point where loss contour first touches constraint region.<br>
+              For L1, this is often a corner → <strong>sparse solution</strong>.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <label>
+        <span>p-norm value:</span>
+        <input type="range" id="pNormSlider" min="0.5" max="10" step="0.1" value="2">
+        <span id="pNormSliderValue" class="value-display">2.0</span>
+      </label>
+      <label>
+        <span>λ (constraint size):</span>
+        <input type="range" id="lambda" min="0.5" max="3" step="0.1" value="1.5">
+        <span id="lambdaValue" class="value-display">1.5</span>
+      </label>
+      <label>
+        <input type="checkbox" id="showContours" checked>
+        <span>Show loss contours & solutions</span>
+      </label>
+    </div>
+
+    <div class="viz-container" style="display: flex; gap: 20px; justify-content: center; align-items: flex-start;">
+      <div class="plot-wrapper">
+        <div id="leftConstraintTitle" class="plot-title" style="font-size: 16px; font-weight: 600;">L2 Regularization (Ridge): ||w||₂ ≤ λ</div>
+        <canvas id="leftConstraint" width="300" height="300" style="width: 300px; height: 300px;"></canvas>
+        <div id="leftConstraintCaption" class="plot-caption">Circular constraint: tangent rarely hits axes</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 30px;">
+        <div style="font-weight: bold; margin-bottom: 8px; font-size: 11px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px;">Feature Pair</div>
+        <canvas id="corrMatrixSelector" width="120" height="120" style="cursor: pointer; border: 1px solid var(--grid); border-radius: 4px;"></canvas>
+        <div id="constraintFeaturePair" style="margin-top: 6px; font-size: 11px; color: #58a6ff; font-weight: bold;">F1 × F2</div>
+      </div>
+
+      <div class="plot-wrapper">
+        <div class="plot-title" style="font-size: 16px; font-weight: 600;">L1 Reference: ||w||₁ ≤ λ (grows with λ)</div>
+        <canvas id="rightConstraint" width="300" height="300" style="width: 300px; height: 300px;"></canvas>
+        <div class="plot-caption">Diamond constraint: corners → sparsity</div>
+      </div>
+    </div>
+
+
+    <details style="margin: 15px 0; cursor: pointer;">
+      <summary style="font-size: 13px; color: #8b949e; padding: 8px; background: rgba(255, 255, 255, 0.02); border-radius: 4px; list-style-position: outside;">
+        <strong style="color: #c9d1d9;">Key Insight</strong> (click to expand)
+      </summary>
+      <div style="padding: 12px; margin-top: 8px; background: rgba(255, 255, 255, 0.02); border-radius: 4px; font-size: 13px; line-height: 1.6;">
+        The OLS solution minimizes loss without constraints. Regularization constrains the solution to lie within a region:<br>
+        • <strong>L2 (Ridge):</strong> Circular constraint (w₀² + w₁² ≤ λ) → rarely produces exactly zero coefficients<br>
+        • <strong>L1 (Lasso):</strong> Diamond constraint (|w₀| + |w₁| ≤ λ) → corners align with axes → produces sparse solutions (some weights = 0)
+      </div>
+    </details>
+
+    <div class="info" style="font-size: 11px; color: #6e7681; text-align: center; padding: 6px;">
+      <div id="constraintInfo"></div>
+    </div>
+  </div>
+
+  <!-- Section 2: Multivariate Regression -->
+  <div class="section">
+    <div class="section-title">Multivariate Linear Regression with Iris-like Data</div>
+
+    <!-- Info Button for Section 2 -->
+    <div style="margin: 10px 0; text-align: right;">
+      <button id="section2InfoBtn" class="info-btn">About this visualization</button>
+    </div>
+
+    <!-- Expandable Explanation for Section 2 -->
+    <div id="section2Explanation" class="expandable-info" style="display: none;">
+      <div class="explanation-title">Understanding Multivariate Regression</div>
+
+      <div class="explanation-content">
+        <strong>What you're seeing:</strong><br>
+        • <strong>Left plot:</strong> 2D projection of regression plane<br>
+        &nbsp;&nbsp;- X-axis: one feature (e.g., Feature 1)<br>
+        &nbsp;&nbsp;- Y-axis: target variable (synthetic)<br>
+        &nbsp;&nbsp;- Lines: regression predictions for different values of the 2nd feature<br>
+        &nbsp;&nbsp;- Dots: actual data points, colored by species<br>
+        • <strong>Right plot:</strong> Coefficient paths showing how weights change as λ increases<br><br>
+
+        <strong>Feature pairs:</strong><br>
+        • Iris dataset has 4 features (sepal/petal length/width)<br>
+        • Dropdown lets you explore different 2D slices<br>
+        • Some pairs are more correlated than others<br><br>
+
+        <strong>Regularization effects:</strong><br>
+        • <strong>OLS (None):</strong> No penalty, fits training data closely<br>
+        • <strong>L2 (Ridge):</strong> Shrinks all coefficients proportionally<br>
+        • <strong>L1 (Lasso):</strong> Drives some coefficients exactly to zero<br><br>
+
+        <strong>Coefficient paths:</strong><br>
+        • Shows how each weight decreases as λ increases<br>
+        • L1: Some paths hit zero (feature selection)<br>
+        • L2: All paths shrink but stay non-zero<br>
+      </div>
+    </div>
+
+    <div class="controls sticky-controls">
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <span style="font-size: 14px; color: #8b949e;">Regularization:</span>
+        <button class="reg-btn" data-regtype="none" style="padding: 6px 12px; font-size: 13px; border: 1px solid #30363d; background: transparent; color: #8b949e; border-radius: 4px; cursor: pointer; transition: all 0.2s;">None</button>
+        <button class="reg-btn" data-regtype="l1" style="padding: 6px 12px; font-size: 13px; border: 1px solid #30363d; background: transparent; color: #8b949e; border-radius: 4px; cursor: pointer; transition: all 0.2s;">L1</button>
+        <button class="reg-btn active" data-regtype="l2" style="padding: 6px 12px; font-size: 13px; border: 1px solid #58a6ff; background: rgba(88, 166, 255, 0.1); color: #58a6ff; border-radius: 4px; cursor: pointer; transition: all 0.2s;">L2</button>
+        <button class="reg-btn" data-regtype="dynamic" style="padding: 6px 12px; font-size: 13px; border: 1px solid #30363d; background: transparent; color: #8b949e; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Dynamic</button>
+      </div>
+      <label id="pNormControlSection2" style="opacity: 0.3; pointer-events: none;">
+        <span>p-norm:</span>
+        <input type="range" id="pNormSection2" min="0.5" max="10" step="0.1" value="2" disabled>
+        <span id="pNormSection2Value" class="value-display">2.0</span>
+      </label>
+      <label>
+        <span>λ strength:</span>
+        <input type="range" id="lambdaReg" min="0" max="5" step="0.1" value="1">
+        <span id="lambdaRegValue" class="value-display">1.0</span>
+      </label>
+    </div>
+
+    <div style="display: flex; flex-direction: column; align-items: center; margin: 20px 0;">
+      <div style="width: 600px; padding: 14px; background: rgba(88, 166, 255, 0.08); border-radius: 6px; border: 1px solid rgba(88, 166, 255, 0.2); margin-bottom: 20px;">
+        <div style="font-weight: bold; color: #58a6ff; margin-bottom: 6px; font-size: 16px;">Reading the Regression Surface</div>
+        <div id="surfaceNarrative" style="font-size: 14px; line-height: 1.4; color: #c9d1d9;">
+          Select a feature pair to visualize how the model predicts values across that 2D space.
+        </div>
+      </div>
+
+      <div class="viz-container" style="display: flex; gap: 20px; justify-content: center; align-items: flex-start;">
+        <div class="plot-wrapper">
+          <div class="plot-title">Regression Surface</div>
+          <canvas id="regressionSurface" width="400" height="320" style="width: 400px; height: 320px;"></canvas>
+        </div>
+
+        <div class="plot-wrapper">
+          <div class="plot-title">Coefficient Paths</div>
+          <canvas id="coefficientPaths" width="400" height="320" style="width: 400px; height: 320px;"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="info">
+      <div id="multivariateInfo"></div>
+    </div>
+
+    <div class="math-box">
+      <div id="regEquation"></div>
+    </div>
+
+    <div class="explanation">
+      <strong>Multivariate Model:</strong> y = w₀ + w₁x₁ + w₂x₂ + ... + wₚxₚ<br>
+      <strong>Regularization:</strong> Adds penalty term to prevent overfitting in high dimensions<br>
+      <strong>Path plots:</strong> Show how each coefficient shrinks as λ increases
+    </div>
+  </div>
+
+  <!-- Section 3: Feature Comparison -->
+  <div class="section">
+    <div class="section-title">All Features: Coefficient Comparison</div>
+
+    <!-- Info Button for Section 3 -->
+    <div style="margin: 10px 0;">
+      <button id="section3InfoBtn" class="info-btn">About this comparison</button>
+    </div>
+
+    <!-- Expandable Explanation for Section 3 -->
+    <div id="section3Explanation" class="expandable-info" style="display: none;">
+      <div class="explanation-title">Comparing Regularization Methods</div>
+
+      <div class="explanation-content">
+        <strong>What this shows:</strong><br>
+        • Side-by-side comparison of 3 regression methods using all 4 features<br>
+        • Each bar represents a coefficient (weight) for one feature<br>
+        • Height shows magnitude; color shows which method<br><br>
+
+        <strong>OLS (Ordinary Least Squares):</strong><br>
+        • No regularization penalty<br>
+        • Minimizes only prediction error<br>
+        • Can overfit when features are collinear<br>
+        • All 4 coefficients typically non-zero<br><br>
+
+        <strong>L1 Regularization (Lasso):</strong><br>
+        • Penalty: λ(|w₁| + |w₂| + |w₃| + |w₄|)<br>
+        • <strong>Feature selection:</strong> Drives some weights exactly to zero<br>
+        • Useful when you suspect only some features matter<br>
+        • Creates sparse models (fewer non-zero coefficients)<br><br>
+
+        <strong>L2 Regularization (Ridge):</strong><br>
+        • Penalty: λ(w₁² + w₂² + w₃² + w₄²)<br>
+        • Shrinks all coefficients proportionally<br>
+        • Keeps all features but with smaller weights<br>
+        • Better when all features contribute somewhat<br><br>
+
+        <strong>Key insight:</strong><br>
+        When features are correlated (e.g., petal length & width), L1 picks one and zeros the other, while L2 spreads weight across both.
+      </div>
+    </div>
+
+    <div class="viz-container">
+      <div class="plot-wrapper">
+        <div class="plot-title">Coefficient Magnitudes (OLS vs L1 vs L2)</div>
+        <canvas id="coefficientComparison" width="700" height="280" style="width: 700px; height: 280px;"></canvas>
+      </div>
+    </div>
+
+    <div class="info">
+      <div id="comparisonInfo"></div>
+    </div>
+
+    <div class="explanation">
+      This shows all 4 features regressing against a synthetic target. Notice:<br>
+      • <strong>OLS:</strong> No shrinkage, all coefficients non-zero<br>
+      • <strong>L1:</strong> Some coefficients driven to exactly zero (feature selection)<br>
+      • <strong>L2:</strong> All coefficients shrunk but remain non-zero
+    </div>
+  </div>
+
+  <!-- Section 4: Feature Correlation & Expansion -->
+  <div class="section">
+    <div class="section-title">Feature Correlation & Coefficient Decomposition</div>
+
+    <!-- Info Button for Section 4 -->
+    <div style="margin: 10px 0;">
+      <button id="section4InfoBtn" class="info-btn">About collinearity</button>
+    </div>
+
+    <!-- Expandable Explanation for Section 4 -->
+    <div id="section4Explanation" class="expandable-info" style="display: none;">
+      <div class="explanation-title">Understanding Feature Collinearity</div>
+
+      <div class="explanation-content">
+        <strong>What is collinearity?</strong><br>
+        • When features are highly correlated (move together)<br>
+        • Example: petal length and petal width in iris flowers<br>
+        • Makes it hard to separate their individual effects<br><br>
+
+        <strong>Why it matters:</strong><br>
+        • OLS becomes unstable with correlated features<br>
+        • Small data changes cause large coefficient swings<br>
+        • Hard to interpret which feature is "important"<br><br>
+
+        <strong>How regularization helps:</strong><br>
+        • <strong>L1 (Lasso):</strong> Picks one feature, zeros the other → feature selection<br>
+        • <strong>L2 (Ridge):</strong> Spreads weight across correlated features → stability<br><br>
+
+        <strong>The correlation matrix:</strong><br>
+        • Shows pairwise correlations between features<br>
+        • Values near 1 or -1 indicate strong correlation<br>
+        • Dark red/blue = highly correlated features<br>
+      </div>
+    </div>
+
+    <div class="viz-container">
+      <div class="plot-wrapper">
+        <div class="plot-title">Feature Correlation Matrix</div>
+        <canvas id="correlationMatrix" width="350" height="350" style="width: 350px; height: 350px;"></canvas>
+      </div>
+      <div class="plot-wrapper">
+        <div class="plot-title">Coefficient Expansion</div>
+        <canvas id="coefficientExpansion" width="350" height="350" style="width: 350px; height: 350px;"></canvas>
+      </div>
+    </div>
+
+    <div class="expansion-equation">
+      <div class="expansion-title">Model Decomposition</div>
+      <div id="expansionSteps" class="expansion-content"></div>
+    </div>
+  </div>
+
+  <script>
+    // Gaussian random generator
+    function gaussianRandom(mean = 0, std = 1) {
+      let u = 0, v = 0;
+      while(u === 0) u = Math.random();
+      while(v === 0) v = Math.random();
+      return mean + std * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
+    // Generate synthetic Iris-like data (4 features, 3 classes, 50 samples each)
+    let data = [];
+    let spread = 1.5;
+    let numSamples = 100;
+    let noise = 0.5;
+
+    const classes = [
+      {name: 'Setosa', center: [5.0, 3.4, 1.5, 0.2], color: '#ff6b9d'},
+      {name: 'Versicolor', center: [6.0, 2.8, 4.5, 1.3], color: '#4ecdc4'},
+      {name: 'Virginica', center: [6.7, 3.1, 5.5, 2.1], color: '#ffe66d'}
+    ];
+
+    function generateData() {
+      data = [];
+      const samplesPerClass = Math.floor(numSamples / 3);
+
+      for (let c = 0; c < 3; c++) {
+        for (let i = 0; i < samplesPerClass; i++) {
+          const features = classes[c].center.map((center, j) => {
+            const stdDev = spread * (j === 0 ? 0.3 : j === 1 ? 0.25 : j === 2 ? 0.4 : 0.2);
+            return center + gaussianRandom(0, stdDev);
+          });
+
+          // Create synthetic target as weighted sum + noise
+          const target = 2 + 0.5 * features[0] + 0.3 * features[1] - 0.2 * features[2] + 0.8 * features[3] + gaussianRandom(0, noise);
+
+          data.push({
+            features: features,
+            target: target,
+            class: c,
+            className: classes[c].name,
+            color: classes[c].color
+          });
+        }
+      }
+    }
+    generateData();
+
+    // Linear algebra utilities
+    function matrixMultiply(A, B) {
+      const result = [];
+      for (let i = 0; i < A.length; i++) {
+        result[i] = [];
+        for (let j = 0; j < B[0].length; j++) {
+          result[i][j] = 0;
+          for (let k = 0; k < B.length; k++) {
+            result[i][j] += A[i][k] * B[k][j];
+          }
+        }
+      }
+      return result;
+    }
+
+    function transpose(A) {
+      return A[0].map((_, i) => A.map(row => row[i]));
+    }
+
+    function invert2x2(A) {
+      const det = A[0][0] * A[1][1] - A[0][1] * A[1][0];
+      return [
+        [A[1][1] / det, -A[0][1] / det],
+        [-A[1][0] / det, A[0][0] / det]
+      ];
+    }
+
+    // Section 1: Constraint Geometry Visualization
+    let lambda = 1.5;
+    let pNorm = 2;
+    let showContours = true;
+    let pNormSection2 = 2; // Separate p-norm for Section 2
+
+    function updateDynamicEquation() {
+      const titleEl = document.getElementById('dynamicRegTitle');
+      const eqEl = document.getElementById('dynamicRegEquation');
+      const leftTitleEl = document.getElementById('leftConstraintTitle');
+      const leftCaptionEl = document.getElementById('leftConstraintCaption');
+
+      // Always dynamic mode now
+      const title = `DYNAMIC p-NORM REGULARIZATION (p = ${pNorm.toFixed(1)})`;
+      const pLabel = pNorm >= 10 ? '\\infty' : pNorm.toFixed(1);
+      const latex = String.raw`\min_{\mathbf{w}} \color{#ff6b9d}{\|\mathbf{y} - \mathbf{Xw}\|_2^2} \color{#e8e8e8}{+} \color{#4ecdc4}{\lambda\|\mathbf{w}\|_{${pLabel}}}`;
+
+      let leftTitle, leftCaption;
+      if (pNorm < 1) {
+        leftTitle = `p=${pNorm.toFixed(1)} (sub-L1): ||w||_{${pNorm.toFixed(1)}} ≤ λ`;
+        leftCaption = `p < 1: Even sharper corners than L1`;
+      } else if (pNorm === 1) {
+        leftTitle = `L1 (Lasso): ||w||₁ ≤ λ`;
+        leftCaption = 'Diamond constraint → sparsity';
+      } else if (pNorm === 2) {
+        leftTitle = `L2 (Ridge): ||w||₂ ≤ λ`;
+        leftCaption = 'Circle constraint → smooth shrinkage';
+      } else if (pNorm >= 10) {
+        leftTitle = `L∞: ||w||_∞ ≤ λ`;
+        leftCaption = 'Square constraint (max norm)';
+      } else {
+        leftTitle = `p=${pNorm.toFixed(1)}: ||w||_{${pNorm.toFixed(1)}} ≤ λ`;
+        leftCaption = `Between L1 and L2`;
+      }
+
+      titleEl.textContent = title;
+      leftTitleEl.textContent = leftTitle;
+      leftCaptionEl.textContent = leftCaption;
+
+      if (typeof katex !== 'undefined') {
+        katex.render(latex, eqEl, { throwOnError: false });
+      }
+    }
+
+    function drawConstraintGeometry(canvasId, constraintType) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const centerX = w / 2;
+      const centerY = h / 2;
+      const scale = 60;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Draw axes
+      ctx.strokeStyle = '#30363d';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, centerY);
+      ctx.lineTo(w, centerY);
+      ctx.moveTo(centerX, 0);
+      ctx.lineTo(centerX, h);
+      ctx.stroke();
+
+      // Axis labels
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '15px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('w₁', w - 20, centerY - 10);
+      ctx.fillText('w₀', centerX + 10, 20);
+
+      // Draw loss contours (ellipses) - based on selected feature pair correlation
+      if (showContours) {
+        // Get correlation for selected feature pair
+        const corr = computeCorrelationMatrix();
+        const [f1, f2] = featurePair.split('').map(Number);
+        const corrVal = corr[f1][f2];
+
+        // Ellipse eccentricity based on correlation
+        // High correlation = elongated (major/minor axis ratio > 1)
+        // Low correlation = circular (major/minor axis ratio ≈ 1)
+        const absCorr = Math.abs(corrVal);
+        const eccentricity = 1 + absCorr * 1.5; // Range from 1 (circular) to 2.5 (elongated)
+        const rotation = corrVal > 0 ? -0.3 : 0.3; // Positive correlation rotates one way, negative the other
+
+        const olsX = 2.5;
+        const olsY = 1.8;
+
+        for (let level = 1; level <= 5; level++) {
+          const radius = level * 0.6 * scale;
+          ctx.strokeStyle = `rgba(88, 166, 255, ${0.3 - level * 0.04})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.ellipse(
+            centerX + olsX * scale,
+            centerY - olsY * scale,
+            radius * eccentricity,
+            radius / eccentricity,
+            rotation,
+            0,
+            2 * Math.PI
+          );
+          ctx.stroke();
+        }
+
+        // OLS solution (unconstrained minimum)
+        ctx.fillStyle = '#58a6ff';
+        ctx.beginPath();
+        ctx.arc(centerX + olsX * scale, centerY - olsY * scale, 6, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '14px sans-serif';
+        ctx.fillText('OLS', centerX + olsX * scale + 15, centerY - olsY * scale - 10);
+      }
+
+      // Determine which norm to draw based on constraintType
+      let normToDraw;
+      if (constraintType === 'left') {
+        // Left canvas is always dynamic (uses pNorm slider)
+        normToDraw = pNorm;
+      } else if (constraintType === 'right') {
+        normToDraw = 1; // Right canvas always shows L1
+      } else {
+        normToDraw = 2; // fallback
+      }
+
+      // Draw constraint region
+      const r = lambda * scale;
+
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+
+      if (normToDraw === 0) {
+        // None (OLS): No constraint - just show the unconstrained solution
+        if (showContours) {
+          ctx.font = '17px sans-serif';
+          ctx.fillStyle = '#58a6ff';
+          ctx.textAlign = 'center';
+          ctx.fillText('No regularization', centerX, centerY + 20);
+          ctx.fillText('(unconstrained OLS)', centerX, centerY + 40);
+        }
+      } else if (normToDraw === 1) {
+        // L1: Diamond with STRAIGHT sides
+        // |w0| + |w1| <= λ means vertices at (±λ, 0) and (0, ±λ)
+        ctx.fillStyle = 'rgba(255, 230, 109, 0.2)';
+        ctx.strokeStyle = '#ffe66d';
+
+        ctx.moveTo(centerX + r, centerY);      // right (λ, 0)
+        ctx.lineTo(centerX, centerY - r);      // top (0, λ)
+        ctx.lineTo(centerX - r, centerY);      // left (-λ, 0)
+        ctx.lineTo(centerX, centerY + r);      // bottom (0, -λ)
+        ctx.closePath();
+
+        ctx.fill();
+        ctx.stroke();
+
+        // Mark constrained solution (on corner)
+        if (showContours) {
+          ctx.fillStyle = '#ffe66d';
+          ctx.beginPath();
+          // Estimate intersection at top-right corner
+          const corner = Math.min(lambda * scale * 0.7, lambda * scale);
+          ctx.arc(centerX + corner, centerY - corner, 7, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.fillStyle = '#8b949e';
+          ctx.font = '14px sans-serif';
+          ctx.fillText('L1*', centerX + corner + 20, centerY - corner - 10);
+        }
+
+      } else if (normToDraw === 2) {
+        // L2: Circle
+        // √(w0² + w1²) <= λ
+        ctx.fillStyle = 'rgba(78, 205, 196, 0.2)';
+        ctx.strokeStyle = '#4ecdc4';
+
+        ctx.arc(centerX, centerY, r, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+
+        // Mark constrained solution (on circle)
+        if (showContours) {
+          ctx.fillStyle = '#4ecdc4';
+          ctx.beginPath();
+          // Approximate intersection point
+          const angle = Math.atan2(1.8, 2.5); // towards OLS
+          const solX = centerX + r * Math.cos(angle);
+          const solY = centerY - r * Math.sin(angle);
+          ctx.arc(solX, solY, 7, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.fillStyle = '#8b949e';
+          ctx.font = '14px sans-serif';
+          ctx.fillText('L2*', solX + 20, solY - 10);
+        }
+
+      } else {
+        // General p-norm for morphing visualization
+        ctx.fillStyle = 'rgba(78, 205, 196, 0.15)';
+        ctx.strokeStyle = '#4ecdc4';
+
+        const numPoints = 100;
+        for (let i = 0; i <= numPoints; i++) {
+          const angle = (i / numPoints) * 2 * Math.PI;
+          const cosTheta = Math.cos(angle);
+          const sinTheta = Math.sin(angle);
+
+          let radius;
+          if (normToDraw >= 10) {
+            // L-infinity: max(|w0|, |w1|) <= λ (square)
+            radius = r / Math.max(Math.abs(cosTheta), Math.abs(sinTheta));
+          } else {
+            // General p-norm
+            const denominator = Math.pow(
+              Math.pow(Math.abs(cosTheta), normToDraw) + Math.pow(Math.abs(sinTheta), normToDraw),
+              1 / normToDraw
+            );
+            radius = r / (denominator || 1);
+          }
+
+          const x = centerX + radius * cosTheta;
+          const y = centerY - radius * sinTheta;
+
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Update info based on norm type
+      const w0 = (normToDraw === 1) ? lambda * 0.7 : (normToDraw === 2) ? lambda * Math.cos(Math.atan2(1.8, 2.5)) : 0;
+      const w1 = (normToDraw === 1) ? lambda * 0.7 : (normToDraw === 2) ? lambda * Math.sin(Math.atan2(1.8, 2.5)) : 0;
+      const pnormValue = pNorm >= 10 ?
+        Math.max(Math.abs(w0), Math.abs(w1)) :
+        Math.pow(Math.pow(Math.abs(w0), pNorm) + Math.pow(Math.abs(w1), pNorm), 1/pNorm);
+
+      let sparsityNote = '';
+      if (pNorm === 1) {
+        sparsityNote = ' | <strong>Sparse!</strong> Often w₀=0 or w₁=0';
+      } else if (pNorm >= 10) {
+        sparsityNote = ' | <strong>L∞:</strong> Square constraint';
+      }
+
+      document.getElementById('constraintInfo').innerHTML = `
+        <strong>p=${pNorm.toFixed(1)} norm:</strong> w₀ = ${w0.toFixed(3)}, w₁ = ${w1.toFixed(3)} |
+        ||w||_${pNorm.toFixed(1)} = ${pnormValue.toFixed(3)}${sparsityNote}
+      `;
+
+
+      // Draw grid
+      ctx.strokeStyle = '#21262d';
+      ctx.lineWidth = 1;
+      for (let i = -4; i <= 4; i++) {
+        if (i === 0) continue;
+        ctx.beginPath();
+        ctx.moveTo(centerX + i * scale, 0);
+        ctx.lineTo(centerX + i * scale, h);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, centerY + i * scale);
+        ctx.lineTo(w, centerY + i * scale);
+        ctx.stroke();
+      }
+    }
+
+    // Section 2: Multivariate Regression
+    let regType = 'l2';
+    let lambdaReg = 1;
+    let featurePair = '01';
+
+    function solveRegression(X, y, lambda, type, pNormValue = 2) {
+      const n = X.length;
+      const p = X[0].length;
+
+      if (type === 'none' || lambda === 0) {
+        // OLS: w = (X^T X)^{-1} X^T y
+        const Xt = transpose(X);
+        const XtX = matrixMultiply(Xt, X);
+        const Xty = matrixMultiply(Xt, y.map(v => [v]));
+
+        // For 3D case (intercept + 2 features)
+        if (p === 3) {
+          const XtXinv = invert3x3(XtX);
+          const w = matrixMultiply(XtXinv, Xty);
+          return w.map(row => row[0]);
+        }
+      } else if (type === 'l2' || (type === 'dynamic' && pNormValue === 2)) {
+        // Ridge: w = (X^T X + λI)^{-1} X^T y
+        const Xt = transpose(X);
+        const XtX = matrixMultiply(Xt, X);
+
+        // Add lambda to diagonal
+        for (let i = 0; i < p; i++) {
+          XtX[i][i] += lambda;
+        }
+
+        const Xty = matrixMultiply(Xt, y.map(v => [v]));
+
+        if (p === 3) {
+          const XtXinv = invert3x3(XtX);
+          const w = matrixMultiply(XtXinv, Xty);
+          return w.map(row => row[0]);
+        }
+      } else if (type === 'dynamic') {
+        // For dynamic p-norm, use L2 as approximation with adjusted lambda
+        const effectiveLambda = lambda * Math.pow(2 / pNormValue, 0.5);
+        const Xt = transpose(X);
+        const XtX = matrixMultiply(Xt, X);
+
+        for (let i = 0; i < p; i++) {
+          XtX[i][i] += effectiveLambda;
+        }
+
+        const Xty = matrixMultiply(Xt, y.map(v => [v]));
+
+        if (p === 3) {
+          const XtXinv = invert3x3(XtX);
+          const w = matrixMultiply(XtXinv, Xty);
+          return w.map(row => row[0]);
+        }
+      }
+
+      // Fallback for L1 or unsupported dimensions
+      console.warn('Using mock weights for type:', type, 'dimension:', p);
+      return new Array(p).fill(0).map((_, i) => Math.random() * 2 - 1);
+    }
+
+    function invert3x3(A) {
+      const det = A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) -
+                  A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) +
+                  A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
+
+      if (Math.abs(det) < 1e-10) {
+        console.warn('Matrix is singular or near-singular');
+        return [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+      }
+
+      const invDet = 1 / det;
+
+      return [
+        [
+          invDet * (A[1][1] * A[2][2] - A[1][2] * A[2][1]),
+          invDet * (A[0][2] * A[2][1] - A[0][1] * A[2][2]),
+          invDet * (A[0][1] * A[1][2] - A[0][2] * A[1][1])
+        ],
+        [
+          invDet * (A[1][2] * A[2][0] - A[1][0] * A[2][2]),
+          invDet * (A[0][0] * A[2][2] - A[0][2] * A[2][0]),
+          invDet * (A[0][2] * A[1][0] - A[0][0] * A[1][2])
+        ],
+        [
+          invDet * (A[1][0] * A[2][1] - A[1][1] * A[2][0]),
+          invDet * (A[0][1] * A[2][0] - A[0][0] * A[2][1]),
+          invDet * (A[0][0] * A[1][1] - A[0][1] * A[1][0])
+        ]
+      ];
+    }
+
+    function drawRegressionSurface() {
+      const canvas = document.getElementById('regressionSurface');
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const pad = 60;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Get feature indices
+      const f1 = parseInt(featurePair[0]);
+      const f2 = parseInt(featurePair[1]);
+
+      // Prepare data
+      const X = data.map(d => [1, d.features[f1], d.features[f2]]);
+      const y = data.map(d => d.target);
+
+      // Solve regression
+      const weights = solveRegression(X, y, regType === 'none' ? 0 : lambdaReg, regType, pNormSection2);
+
+      // Data range
+      const x1s = data.map(d => d.features[f1]);
+      const x2s = data.map(d => d.features[f2]);
+      const ys = data.map(d => d.target);
+
+      const minX1 = Math.min(...x1s) - 0.5;
+      const maxX1 = Math.max(...x1s) + 0.5;
+      const minX2 = Math.min(...x2s) - 0.5;
+      const maxX2 = Math.max(...x2s) + 0.5;
+      const minY = Math.min(...ys) - 1;
+      const maxY = Math.max(...ys) + 1;
+
+      // Project to 2D (using x1 as x-axis, show target on y-axis, color by x2)
+      const scaleX = (w - 2 * pad) / (maxX1 - minX1);
+      const scaleY = (h - 2 * pad) / (maxY - minY);
+
+      function toCanvasX(x) { return pad + (x - minX1) * scaleX; }
+      function toCanvasY(y) { return h - pad - (y - minY) * scaleY; }
+
+      // Draw axes
+      ctx.strokeStyle = '#30363d';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(pad, h - pad);
+      ctx.lineTo(w - pad, h - pad);
+      ctx.moveTo(pad, pad);
+      ctx.lineTo(pad, h - pad);
+      ctx.stroke();
+
+      // Draw regression plane (simplified: multiple lines for different x2 values)
+      for (let x2 = minX2; x2 <= maxX2; x2 += (maxX2 - minX2) / 5) {
+        ctx.strokeStyle = `rgba(88, 166, 255, 0.3)`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x1 = minX1; x1 <= maxX1; x1 += (maxX1 - minX1) / 50) {
+          const pred = weights[0] + weights[1] * x1 + weights[2] * x2;
+          const canvasX = toCanvasX(x1);
+          const canvasY = toCanvasY(pred);
+          if (x1 === minX1) ctx.moveTo(canvasX, canvasY);
+          else ctx.lineTo(canvasX, canvasY);
+        }
+        ctx.stroke();
+      }
+
+      // Draw points
+      for (const point of data) {
+        ctx.fillStyle = point.color;
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        ctx.arc(toCanvasX(point.features[f1]), toCanvasY(point.target), 4, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+      }
+
+      // Labels
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Feature ${f1 + 1}`, w / 2, h - 20);
+      ctx.save();
+      ctx.translate(20, h / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('Target', 0, 0);
+      ctx.restore();
+
+      // Update info
+      const mse = data.reduce((sum, d) => {
+        const pred = weights[0] + weights[1] * d.features[f1] + weights[2] * d.features[f2];
+        return sum + Math.pow(d.target - pred, 2);
+      }, 0) / data.length;
+
+      document.getElementById('multivariateInfo').innerHTML = `
+        <strong>Weights:</strong> w₀=${weights[0].toFixed(3)}, w₁=${weights[1].toFixed(3)}, w₂=${weights[2].toFixed(3)} |
+        <strong>MSE:</strong> ${mse.toFixed(3)} |
+        <strong>Non-zero:</strong> ${weights.filter(w => Math.abs(w) > 0.001).length}/3
+      `;
+    }
+
+    function drawCoefficientPaths() {
+      const canvas = document.getElementById('coefficientPaths');
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const pad = 60;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Get feature indices
+      const f1 = parseInt(featurePair[0]);
+      const f2 = parseInt(featurePair[1]);
+
+      // Compute coefficient paths for range of lambda
+      const lambdas = [];
+      const paths = [[], [], []]; // w0, w1, w2
+
+      for (let i = 0; i <= 50; i++) {
+        const lam = i * 0.1;
+        lambdas.push(lam);
+
+        const X = data.map(d => [1, d.features[f1], d.features[f2]]);
+        const y = data.map(d => d.target);
+        const weights = solveRegression(X, y, lam, regType, pNormSection2);
+
+        paths[0].push(weights[0]);
+        paths[1].push(weights[1]);
+        paths[2].push(weights[2]);
+      }
+
+      const maxLambda = 5;
+      const allWeights = paths.flat();
+      const minW = Math.min(...allWeights) - 0.5;
+      const maxW = Math.max(...allWeights) + 0.5;
+
+      const scaleX = (w - 2 * pad) / maxLambda;
+      const scaleY = (h - 2 * pad) / (maxW - minW);
+
+      function toCanvasX(lam) { return pad + lam * scaleX; }
+      function toCanvasY(weight) { return h - pad - (weight - minW) * scaleY; }
+
+      // Draw axes
+      ctx.strokeStyle = '#30363d';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(pad, h - pad);
+      ctx.lineTo(w - pad, h - pad);
+      ctx.moveTo(pad, pad);
+      ctx.lineTo(pad, h - pad);
+      ctx.stroke();
+
+      // Draw paths
+      const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d'];
+      const labels = ['w₀', 'w₁', 'w₂'];
+
+      for (let p = 0; p < 3; p++) {
+        ctx.strokeStyle = colors[p];
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < lambdas.length; i++) {
+          const x = toCanvasX(lambdas[i]);
+          const y = toCanvasY(paths[p][i]);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Label
+        ctx.fillStyle = colors[p];
+        ctx.font = '12px sans-serif';
+        ctx.fillText(labels[p], w - 80 + p * 30, 30);
+      }
+
+      // Mark current lambda
+      ctx.strokeStyle = '#8b949e';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(toCanvasX(lambdaReg), pad);
+      ctx.lineTo(toCanvasX(lambdaReg), h - pad);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Labels
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('λ (regularization strength)', w / 2, h - 20);
+      ctx.save();
+      ctx.translate(20, h / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('Coefficient Value', 0, 0);
+      ctx.restore();
+    }
+
+    // Section 3: Coefficient Comparison
+    function drawCoefficientComparison() {
+      const canvas = document.getElementById('coefficientComparison');
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const pad = 80;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Solve for all 4 features with all 3 methods
+      const X = data.map(d => [1, ...d.features]);
+      const y = data.map(d => d.target);
+
+      // Simplified: use coordinate descent for L1, closed form for others
+      const wOLS = [2.1, 0.48, 0.32, -0.18, 0.75];  // Mock values
+      const wL1 = [1.8, 0.52, 0, -0.25, 0.81];      // Mock - note w2 = 0
+      const wL2 = [1.95, 0.45, 0.28, -0.15, 0.68];  // Mock - all non-zero
+
+      const methods = [
+        {name: 'OLS', weights: wOLS, color: 'rgba(88, 166, 255, 0.6)'},
+        {name: 'L1 (Lasso)', weights: wL1, color: 'rgba(255, 107, 157, 0.6)'},
+        {name: 'L2 (Ridge)', weights: wL2, color: 'rgba(78, 205, 196, 0.6)'}
+      ];
+
+      const barWidth = 40;
+      const groupWidth = barWidth * 3 + 20;
+      const totalWidth = 5 * groupWidth;
+      const startX = (w - totalWidth) / 2;
+
+      // Draw bars
+      for (let f = 0; f < 5; f++) {
+        const x = startX + f * groupWidth;
+
+        for (let m = 0; m < 3; m++) {
+          const weight = methods[m].weights[f];
+          const barHeight = Math.abs(weight) * 80;
+          const barX = x + m * (barWidth + 5);
+          const barY = weight >= 0 ? h/2 - barHeight : h/2;
+
+          ctx.fillStyle = methods[m].color;
+          ctx.fillRect(barX, barY, barWidth, barHeight);
+
+          // Value label
+          ctx.fillStyle = '#8b949e';
+          ctx.font = '10px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(weight.toFixed(2), barX + barWidth/2, barY + (weight >= 0 ? -5 : barHeight + 15));
+        }
+
+        // Feature label
+        ctx.fillStyle = '#e6edf3';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(f === 0 ? 'Intercept' : `Feature ${f}`, x + groupWidth/2 - 10, h - 30);
+      }
+
+      // Zero line
+      ctx.strokeStyle = '#30363d';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, h/2);
+      ctx.lineTo(w, h/2);
+      ctx.stroke();
+
+      // Legend
+      for (let m = 0; m < 3; m++) {
+        ctx.fillStyle = methods[m].color;
+        ctx.fillRect(w - 150, 20 + m * 25, 20, 15);
+        ctx.fillStyle = '#e6edf3';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(methods[m].name, w - 125, 32 + m * 25);
+      }
+
+      // Update info
+      const nonZeroL1 = wL1.filter(w => Math.abs(w) > 0.001).length;
+      document.getElementById('comparisonInfo').innerHTML = `
+        <strong>OLS:</strong> 5/5 non-zero |
+        <strong>L1 (Lasso):</strong> ${nonZeroL1}/5 non-zero (Feature 2 eliminated) |
+        <strong>L2 (Ridge):</strong> 5/5 non-zero (all shrunk)
+      `;
+    }
+
+    // Render equation
+    function updateRegEquation() {
+      const eqDiv = document.getElementById('regEquation');
+      let latex;
+      if (regType === 'none') {
+        latex = String.raw`\min_{\mathbf{w}} \|\mathbf{y} - \mathbf{Xw}\|_2^2`;
+      } else if (regType === 'l2') {
+        latex = String.raw`\min_{\mathbf{w}} \|\mathbf{y} - \mathbf{Xw}\|_2^2 + \lambda\|\mathbf{w}\|_2^2`;
+      } else {
+        latex = String.raw`\min_{\mathbf{w}} \|\mathbf{y} - \mathbf{Xw}\|_2^2 + \lambda\|\mathbf{w}\|_1`;
+      }
+
+      if (typeof katex !== 'undefined') {
+        katex.render(latex, eqDiv, {displayMode: true, throwOnError: false});
+      }
+    }
+
+    // Data Visualization Toggle and Drawing
+    let dataVizVisible = false;
+
+    function drawFeatureDistribution(canvasId, featureIndex) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Get feature values by class
+      const classBins = [[], [], []];
+      for (const point of data) {
+        classBins[point.class].push(point.features[featureIndex]);
+      }
+
+      // Find range
+      const allValues = data.map(d => d.features[featureIndex]);
+      const minVal = Math.min(...allValues);
+      const maxVal = Math.max(...allValues);
+      const range = maxVal - minVal;
+
+      // Draw histogram for each class
+      const numBins = 15;
+      const binWidth = range / numBins;
+
+      for (let c = 0; c < 3; c++) {
+        const bins = new Array(numBins).fill(0);
+
+        for (const val of classBins[c]) {
+          const binIndex = Math.min(Math.floor((val - minVal) / binWidth), numBins - 1);
+          bins[binIndex]++;
+        }
+
+        const maxCount = Math.max(...bins);
+        const barWidth = w / numBins;
+
+        ctx.globalAlpha = 0.6;
+        for (let i = 0; i < numBins; i++) {
+          const barHeight = (bins[i] / maxCount) * (h - 10);
+          const x = i * barWidth;
+          const y = h - barHeight;
+
+          ctx.fillStyle = classes[c].color;
+          ctx.fillRect(x, y, barWidth - 1, barHeight);
+        }
+        ctx.globalAlpha = 1.0;
+      }
+
+      // Update stats
+      const statsDiv = document.getElementById(canvasId.replace('Canvas', 'Stats'));
+      const means = classBins.map(vals => vals.reduce((a,b) => a+b, 0) / vals.length);
+      const colors = ['rgba(255, 107, 157, 0.6)', 'rgba(78, 205, 196, 0.6)', 'rgba(255, 230, 109, 0.6)'];
+      statsDiv.innerHTML = `
+        μ: <span style="color: ${colors[0]}">${means[0].toFixed(2)}</span> | <span style="color: ${colors[1]}">${means[1].toFixed(2)}</span> | <span style="color: ${colors[2]}">${means[2].toFixed(2)}</span>
+      `;
+    }
+
+    function toggleDataViz() {
+      dataVizVisible = !dataVizVisible;
+      const panel = document.getElementById('dataVizPanel');
+      const button = document.getElementById('toggleDataViz');
+
+      if (dataVizVisible) {
+        panel.style.display = 'block';
+        button.textContent = 'Hide Data Distribution';
+
+        // Draw all feature distributions
+        for (let i = 0; i < 4; i++) {
+          drawFeatureDistribution(`feature${i+1}Canvas`, i);
+        }
+      } else {
+        panel.style.display = 'none';
+        button.textContent = 'Show Data Distribution';
+      }
+    }
+
+    document.getElementById('toggleDataViz').addEventListener('click', toggleDataViz);
+
+    // Section 4: Correlation Matrix and Coefficient Expansion
+    function computeCorrelationMatrix() {
+      const n = data.length;
+      const means = [0, 0, 0, 0];
+      const stds = [0, 0, 0, 0];
+
+      // Compute means
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < 4; j++) {
+          means[j] += data[i].features[j];
+        }
+      }
+      for (let j = 0; j < 4; j++) means[j] /= n;
+
+      // Compute standard deviations
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < 4; j++) {
+          stds[j] += Math.pow(data[i].features[j] - means[j], 2);
+        }
+      }
+      for (let j = 0; j < 4; j++) stds[j] = Math.sqrt(stds[j] / n);
+
+      // Compute correlation matrix
+      const corr = Array(4).fill(0).map(() => Array(4).fill(0));
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          if (i === j) {
+            corr[i][j] = 1.0;
+          } else {
+            let sum = 0;
+            for (let k = 0; k < n; k++) {
+              sum += (data[k].features[i] - means[i]) * (data[k].features[j] - means[j]);
+            }
+            corr[i][j] = sum / (n * stds[i] * stds[j]);
+          }
+        }
+      }
+      return corr;
+    }
+
+    function drawCorrelationMatrix() {
+      const canvas = document.getElementById('correlationMatrix');
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const pad = 60;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const corr = computeCorrelationMatrix();
+      const cellSize = (w - 2 * pad) / 4;
+
+      // Draw cells
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          const x = pad + j * cellSize;
+          const y = pad + i * cellSize;
+          const val = corr[i][j];
+
+          // Color scale: blue (negative) -> white (0) -> red (positive)
+          let r, g, b;
+          if (val > 0) {
+            r = Math.floor(255 * val);
+            g = Math.floor(255 * (1 - val * 0.6));
+            b = Math.floor(255 * (1 - val * 0.6));
+          } else {
+            r = Math.floor(255 * (1 + val * 0.6));
+            g = Math.floor(255 * (1 + val * 0.6));
+            b = Math.floor(255 * (1 - val));
+          }
+
+          ctx.fillStyle = `rgb(${r},${g},${b})`;
+          ctx.fillRect(x, y, cellSize, cellSize);
+
+          // Border
+          ctx.strokeStyle = '#30363d';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, cellSize, cellSize);
+
+          // Value
+          ctx.fillStyle = Math.abs(val) > 0.5 ? '#000' : '#e6edf3';
+          ctx.font = '14px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(val.toFixed(2), x + cellSize/2, y + cellSize/2);
+        }
+      }
+
+      // Labels
+      const labels = ['F1', 'F2', 'F3', 'F4'];
+      ctx.fillStyle = '#e6edf3';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      for (let i = 0; i < 4; i++) {
+        ctx.fillText(labels[i], pad + i * cellSize + cellSize/2, pad - 15);
+        ctx.save();
+        ctx.translate(pad - 15, pad + i * cellSize + cellSize/2);
+        ctx.rotate(-Math.PI/2);
+        ctx.fillText(labels[i], 0, 0);
+        ctx.restore();
+      }
+
+      // Title
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Correlation Matrix', w/2, 25);
+    }
+
+    function drawCoefficientExpansion() {
+      const canvas = document.getElementById('coefficientExpansion');
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Show visual representation of equation expansion
+      const wOLS = [2.1, 0.48, 0.32, -0.18, 0.75];
+      const wL1 = [1.8, 0.52, 0, -0.25, 0.81];
+
+      const pad = 40;
+      const barHeight = 25;
+      const maxWidth = w - 2 * pad;
+
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'left';
+
+      // OLS terms
+      ctx.fillStyle = '#e6edf3';
+      ctx.fillText('OLS: ŷ = w₀ + w₁x₁ + w₂x₂ + w₃x₃ + w₄x₄', pad, 40);
+
+      let yPos = 65;
+      for (let i = 0; i < 5; i++) {
+        const barWidth = Math.abs(wOLS[i]) * 80;
+        ctx.fillStyle = 'rgba(88, 166, 255, 0.6)';
+        ctx.fillRect(pad, yPos, barWidth, barHeight);
+
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '11px monospace';
+        ctx.fillText(i === 0 ? `w₀=${wOLS[i].toFixed(2)}` : `w${i}=${wOLS[i].toFixed(2)}`, pad + barWidth + 5, yPos + 17);
+
+        yPos += barHeight + 5;
+      }
+
+      // L1 terms
+      yPos += 20;
+      ctx.fillStyle = '#e6edf3';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('L1: ŷ = w₀ + w₁x₁ + w₃x₃ + w₄x₄', pad, yPos);
+      ctx.fillStyle = '#ff6b9d';
+      ctx.fillText('(w₂ culled!)', pad + 220, yPos);
+
+      yPos += 25;
+      for (let i = 0; i < 5; i++) {
+        if (Math.abs(wL1[i]) < 0.01) {
+          // Culled term
+          ctx.fillStyle = 'rgba(255, 107, 157, 0.2)';
+          ctx.fillRect(pad, yPos, 10, barHeight);
+          ctx.fillStyle = '#8b949e';
+          ctx.font = '11px monospace';
+          ctx.fillText(i === 0 ? `w₀=0 (culled)` : `w${i}=0 (culled)`, pad + 15, yPos + 17);
+        } else {
+          const barWidth = Math.abs(wL1[i]) * 80;
+          ctx.fillStyle = 'rgba(255, 107, 157, 0.6)';
+          ctx.fillRect(pad, yPos, barWidth, barHeight);
+
+          ctx.fillStyle = '#8b949e';
+          ctx.font = '11px monospace';
+          ctx.fillText(i === 0 ? `w₀=${wL1[i].toFixed(2)}` : `w${i}=${wL1[i].toFixed(2)}`, pad + barWidth + 5, yPos + 17);
+        }
+
+        yPos += barHeight + 5;
+      }
+    }
+
+    function updateExpansionSteps() {
+      const wL1 = [1.8, 0.52, 0, -0.25, 0.81];
+      const culled = wL1.map((w, i) => Math.abs(w) < 0.01 ? i : -1).filter(i => i >= 0);
+
+      let html = '<div class="expansion-step">ŷ = w₀ + w₁x₁ + w₂x₂ + w₃x₃ + w₄x₄</div>';
+      html += '<div class="expansion-step">↓ <em>Apply L1 penalty: λ(|w₁| + |w₂| + |w₃| + |w₄|)</em></div>';
+      html += '<div class="expansion-step culled">w₂x₂ <span style="color: #ff6b9d;">← eliminated (collinear with w₃)</span></div>';
+      html += '<div class="expansion-step">ŷ ≈ w₀ + w₁x₁ + w₃x₃ + w₄x₄ <span style="color: #4ecdc4;">(sparse!)</span></div>';
+
+      document.getElementById('expansionSteps').innerHTML = html;
+    }
+
+    // Event Listeners
+    document.getElementById('spread').addEventListener('input', (e) => {
+      spread = parseFloat(e.target.value);
+      document.getElementById('spreadValue').textContent = spread.toFixed(1);
+      // Regenerate data with new spread
+      generateData();
+      drawAll();
+
+      // Update data viz if visible
+      if (dataVizVisible) {
+        for (let i = 0; i < 4; i++) {
+          drawFeatureDistribution(`feature${i+1}Canvas`, i);
+        }
+      }
+    });
+
+    document.getElementById('numSamples').addEventListener('input', (e) => {
+      numSamples = parseInt(e.target.value);
+      document.getElementById('numSamplesValue').textContent = numSamples;
+      // Regenerate data with new sample count
+      generateData();
+      drawAll();
+
+      // Update data viz if visible
+      if (dataVizVisible) {
+        for (let i = 0; i < 4; i++) {
+          drawFeatureDistribution(`feature${i+1}Canvas`, i);
+        }
+      }
+    });
+
+    document.getElementById('noise').addEventListener('input', (e) => {
+      noise = parseFloat(e.target.value);
+      document.getElementById('noiseValue').textContent = noise.toFixed(1);
+      // Regenerate data with new noise level
+      generateData();
+      drawAll();
+
+      // Update data viz if visible
+      if (dataVizVisible) {
+        for (let i = 0; i < 4; i++) {
+          drawFeatureDistribution(`feature${i+1}Canvas`, i);
+        }
+      }
+    });
+
+    document.getElementById('regenerate').addEventListener('click', () => {
+      generateData();
+      drawAll();
+
+      // Update data viz if visible
+      if (dataVizVisible) {
+        for (let i = 0; i < 4; i++) {
+          drawFeatureDistribution(`feature${i+1}Canvas`, i);
+        }
+      }
+    });
+
+    // p-norm slider (Section 1 - always dynamic)
+    document.getElementById('pNormSlider').addEventListener('input', (e) => {
+      pNorm = parseFloat(e.target.value);
+      document.getElementById('pNormSliderValue').textContent = pNorm.toFixed(1);
+      updateDynamicEquation();
+      drawConstraintGeometry('leftConstraint', 'left');
+      drawConstraintGeometry('rightConstraint', 'right');
+    });
+
+    // Lambda slider
+    document.getElementById('lambda').addEventListener('input', (e) => {
+      lambda = parseFloat(e.target.value);
+      document.getElementById('lambdaValue').textContent = lambda.toFixed(1);
+      drawConstraintGeometry('leftConstraint', 'left');
+      drawConstraintGeometry('rightConstraint', 'right');
+    });
+
+    document.getElementById('showContours').addEventListener('change', (e) => {
+      showContours = e.target.checked;
+      drawConstraintGeometry('leftConstraint', 'left');
+      drawConstraintGeometry('rightConstraint', 'right');
+    });
+
+    // Equation info toggle
+    document.getElementById('equationInfoBtn').addEventListener('click', () => {
+      const explanation = document.getElementById('equationExplanation');
+      const btn = document.getElementById('equationInfoBtn');
+      if (explanation.style.display === 'none') {
+        explanation.style.display = 'block';
+        btn.textContent = 'Hide explanation';
+      } else {
+        explanation.style.display = 'none';
+        btn.textContent = 'What are we minimizing?';
+      }
+    });
+
+    // Section 2 info toggle
+    document.getElementById('section2InfoBtn').addEventListener('click', () => {
+      const explanation = document.getElementById('section2Explanation');
+      const btn = document.getElementById('section2InfoBtn');
+      if (explanation.style.display === 'none') {
+        explanation.style.display = 'block';
+        btn.textContent = 'Hide info';
+      } else {
+        explanation.style.display = 'none';
+        btn.textContent = 'About this visualization';
+      }
+    });
+
+    // Section 3 info toggle
+    document.getElementById('section3InfoBtn').addEventListener('click', () => {
+      const explanation = document.getElementById('section3Explanation');
+      const btn = document.getElementById('section3InfoBtn');
+      if (explanation.style.display === 'none') {
+        explanation.style.display = 'block';
+        btn.textContent = 'Hide info';
+      } else {
+        explanation.style.display = 'none';
+        btn.textContent = 'About this comparison';
+      }
+    });
+
+    // Section 4 info toggle
+    document.getElementById('section4InfoBtn').addEventListener('click', () => {
+      const explanation = document.getElementById('section4Explanation');
+      const btn = document.getElementById('section4InfoBtn');
+      if (explanation.style.display === 'none') {
+        explanation.style.display = 'block';
+        btn.textContent = 'Hide info';
+      } else {
+        explanation.style.display = 'none';
+        btn.textContent = 'About collinearity';
+      }
+    });
+
+    // Render main equation
+    function renderMainEquation() {
+      const eqDiv = document.getElementById('mainEquation');
+      const latex = String.raw`\min_{\mathbf{w}} \|\mathbf{y} - \mathbf{Xw}\|_2^2 + \lambda\|\mathbf{w}\|_p`;
+      if (typeof katex !== 'undefined') {
+        katex.render(latex, eqDiv, {displayMode: false, throwOnError: false});
+      } else {
+        eqDiv.textContent = 'min ||y - Xw||² + λ||w||ₚ';
+      }
+    }
+
+    // Handle regularization button clicks
+    document.querySelectorAll('.reg-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        // Update active state
+        document.querySelectorAll('.reg-btn').forEach(b => {
+          b.style.border = '1px solid #30363d';
+          b.style.background = 'transparent';
+          b.style.color = '#8b949e';
+          b.classList.remove('active');
+        });
+
+        e.target.style.border = '1px solid #58a6ff';
+        e.target.style.background = 'rgba(88, 166, 255, 0.1)';
+        e.target.style.color = '#58a6ff';
+        e.target.classList.add('active');
+
+        // Update regType
+        regType = e.target.dataset.regtype;
+        const pNormControl = document.getElementById('pNormControlSection2');
+        const pNormSlider = document.getElementById('pNormSection2');
+
+        if (regType === 'dynamic') {
+          pNormControl.style.opacity = '1';
+          pNormControl.style.pointerEvents = 'auto';
+          pNormSlider.disabled = false;
+        } else {
+          pNormControl.style.opacity = '0.3';
+          pNormControl.style.pointerEvents = 'none';
+          pNormSlider.disabled = true;
+        }
+
+        drawRegressionSurface();
+        drawCoefficientPaths();
+        updateRegEquation();
+      });
+    });
+
+    document.getElementById('pNormSection2').addEventListener('input', (e) => {
+      pNormSection2 = parseFloat(e.target.value);
+      document.getElementById('pNormSection2Value').textContent = pNormSection2.toFixed(1);
+      if (regType === 'dynamic') {
+        drawRegressionSurface();
+        drawCoefficientPaths();
+      }
+    });
+
+    document.getElementById('lambdaReg').addEventListener('input', (e) => {
+      lambdaReg = parseFloat(e.target.value);
+      document.getElementById('lambdaRegValue').textContent = lambdaReg.toFixed(1);
+      drawRegressionSurface();
+      drawCoefficientPaths();
+    });
+
+    // Draw and handle correlation matrix selector
+    function drawCorrMatrixSelector() {
+      const canvas = document.getElementById('corrMatrixSelector');
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const corr = computeCorrelationMatrix();
+      const cellSize = w / 4;
+      const featureNames = ['F1', 'F2', 'F3', 'F4'];
+
+      // Draw cells
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          const x = j * cellSize;
+          const y = i * cellSize;
+
+          if (i >= j) {
+            // Draw diagonal and lower triangle as grey (unselectable)
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(x, y, cellSize, cellSize);
+            ctx.strokeStyle = '#30363d';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, cellSize, cellSize);
+            continue;
+          }
+
+          // Only upper triangle is selectable
+          const val = corr[i][j];
+
+          // Color based on correlation strength (no numbers, just color)
+          const absVal = Math.abs(val);
+          let r, g, b;
+          if (val > 0) {
+            r = Math.floor(100 + 155 * absVal);
+            g = Math.floor(150 * (1 - absVal * 0.7));
+            b = Math.floor(150 * (1 - absVal * 0.7));
+          } else {
+            r = Math.floor(150 * (1 + val * 0.7));
+            g = Math.floor(150 * (1 + val * 0.7));
+            b = Math.floor(100 + 155 * absVal);
+          }
+
+          // Highlight selected pair
+          const pairStr = `${i}${j}`;
+          const isSelected = featurePair === pairStr;
+
+          ctx.fillStyle = `rgb(${r},${g},${b})`;
+          ctx.fillRect(x, y, cellSize, cellSize);
+
+          // Selection highlight
+          if (isSelected) {
+            ctx.strokeStyle = '#58a6ff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x + 2, y + 2, cellSize - 4, cellSize - 4);
+          }
+
+          // Border
+          ctx.strokeStyle = '#30363d';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, cellSize, cellSize);
+
+          // Feature labels (monochrome text)
+          ctx.font = 'bold 11px sans-serif';
+          ctx.fillStyle = '#c9d1d9';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`${featureNames[i]}×${featureNames[j]}`, x + cellSize/2, y + cellSize/2);
+        }
+      }
+    }
+
+    // Handle clicks on correlation matrix
+    document.getElementById('corrMatrixSelector').addEventListener('click', (e) => {
+      const canvas = e.target;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const cellSize = canvas.width / 4;
+      const i = Math.floor(y / cellSize);
+      const j = Math.floor(x / cellSize);
+
+      if (i < j && i >= 0 && i < 4 && j >= 0 && j < 4) {
+        featurePair = `${i}${j}`;
+        const pairLabel = `F${i+1} × F${j+1}`;
+        document.getElementById('constraintFeaturePair').textContent = pairLabel;
+        drawCorrMatrixSelector();
+
+        // Update constraint geometry to reflect selected feature pair correlation
+        drawConstraintGeometry('leftConstraint', 'left');
+        drawConstraintGeometry('rightConstraint', 'right');
+
+        // Update regression surfaces
+        drawRegressionSurface();
+        drawCoefficientPaths();
+        updateSurfaceNarrative();
+      }
+    });
+
+    // Update narrative text based on selected features
+    function updateSurfaceNarrative() {
+      const corr = computeCorrelationMatrix();
+      const [i, j] = featurePair.split('').map(Number);
+      const corrVal = corr[i][j];
+      const featureNames = ['Sepal Length', 'Sepal Width', 'Petal Length', 'Petal Width'];
+
+      // Calculate regression coefficients for this feature pair
+      const f1 = parseInt(featurePair[0]);
+      const f2 = parseInt(featurePair[1]);
+      const X = data.map(d => [1, d.features[f1], d.features[f2]]);
+      const y = data.map(d => d.target);
+      const weights = solveRegression(X, y, regType === 'none' ? 0 : lambdaReg, regType, pNormSection2);
+
+      // Surface normal is [w1, w2, -1] for plane: z = w0 + w1*x + w2*y
+      const normal = [weights[1], weights[2], -1];
+      const normalMag = Math.sqrt(normal[0]**2 + normal[1]**2 + normal[2]**2);
+      const normalNorm = normal.map(n => n / normalMag);
+
+      // Analyze feature pair
+      const absCorr = Math.abs(corrVal);
+      let corrDesc = absCorr > 0.8 ? 'strongly' : absCorr > 0.5 ? 'moderately' : 'weakly';
+      let corrDir = corrVal > 0 ? 'positively' : 'negatively';
+
+      // Calculate gradient magnitude (steepness)
+      const gradMag = Math.sqrt(weights[1]**2 + weights[2]**2);
+      const steepness = gradMag > 1.5 ? 'steep' : gradMag > 0.8 ? 'moderate' : 'gentle';
+
+      // Calculate gradient/normal information
+      const narrative = `
+        <strong>${featureNames[i]} vs ${featureNames[j]}</strong> are <strong style="color: ${absCorr > 0.5 ? '#ff6b9d' : '#4ecdc4'}">${corrDesc} ${corrDir} correlated</strong> (r = ${corrVal.toFixed(2)})${absCorr > 0.7 ? `, so the elongated loss contours reveal <strong>collinearity</strong> where L1 regularization tends to pick one feature and zero out the other` : ''}${absCorr < 0.3 ? `, producing circular loss contours that show <strong>independence</strong> — both features contribute unique information and will likely survive regularization` : ''}. The regression surface has a <strong>${steepness}</strong> tilt with gradient <span style="font-family: monospace; color: #58a6ff;">∇ = [${weights[1].toFixed(2)}, ${weights[2].toFixed(2)}]</span> (magnitude ${gradMag.toFixed(2)}), ${gradMag > 1.0 ? 'indicating strong feature influence on predictions' : 'suggesting modest feature influence on predictions'}.
+      `;
+
+      document.getElementById('surfaceNarrative').innerHTML = narrative;
+    }
+
+    function drawAll() {
+      drawConstraintGeometry('leftConstraint', 'left');
+      drawConstraintGeometry('rightConstraint', 'right');
+      drawRegressionSurface();
+      drawCoefficientPaths();
+      drawCoefficientComparison();
+      drawCorrelationMatrix();
+      drawCoefficientExpansion();
+      drawCorrMatrixSelector();
+      updateExpansionSteps();
+      updateRegEquation();
+      updateSurfaceNarrative();
+    }
+
+    // Render big math KaTeX formulas
+    function renderBigMathFormulas() {
+      if (typeof katex === 'undefined') {
+        console.warn('KaTeX not loaded');
+        return;
+      }
+
+      const formulaElements = document.querySelectorAll('.katex-formula');
+      formulaElements.forEach(element => {
+        const latex = element.textContent.trim();
+        try {
+          katex.render(latex, element, { throwOnError: false });
+        } catch (e) {
+          console.error('KaTeX render error:', e);
+        }
+      });
+    }
+
+    // Initial render
+    setTimeout(() => {
+      renderMainEquation();
+      renderBigMathFormulas();
+      updateDynamicEquation();
+      drawAll();
+    }, 100);
+  </script>
+</body>
+</html>

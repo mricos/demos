@@ -1,0 +1,44 @@
+svg {
+  font-family: Arial, sans-serif;
+}
+
+.title {
+  font-size: 28px;
+  fill: black;
+  text-anchor: middle;
+}
+
+.subtitle {
+  font-size: 16px;
+  fill: #003366;
+  text-anchor: middle;
+}
+
+.pill {
+  cursor: pointer;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.pill.faded {
+  opacity: 0.3;
+}
+
+.popup {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.popup.show {
+  opacity: 1;
+}
+
+.popup rect {
+  rx: 10;
+}
+
+.popup text {
+  font-size: 0.8em;
+  fill: #000;
+  white-space: pre-line; /* Preserve line breaks */
+}

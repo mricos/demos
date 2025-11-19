@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bayesian TVAR Interactive</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Bayesian Time-Varying Modeling</h1>
+        <h2>Analysis of U.S. 3-Year Treasury Interest Rates</h2>
+
+        <div class="model-section">
+            <button id="abstract-btn">Abstract & Gist</button>
+            <button id="static-model-btn">1. Static AR(3)</button>
+            <button id="dynamic-model-btn">2. Dynamic TVAR</button>
+            <button id="outlier-model-btn">3. Outlier Detection</button>
+            <button id="interact-btn" class="interactive-btn">4. Simulation Lab</button>
+        </div>
+
+        <div id="explanation-box" class="explanation-box">
+            </div>
+
+        <div id="controls-area" class="controls-area hidden">
+            <label for="delta-slider"><strong>Discount Factor ($\delta$): <span id="delta-value">0.95</span></strong></label>
+            <input type="range" id="delta-slider" min="0.80" max="0.999" step="0.001" value="0.95">
+            <p class="small-text">
+                High $\delta$ (near 1.0) = Smooth, relies on history. <br>
+                Low $\delta$ (near 0.8) = Volatile, adapts quickly to new data.
+            </p>
+        </div>
+
+        <div class="figure-section">
+            <div class="chart-container">
+                <canvas id="myChart"></canvas>
+            </div>
+            <p id="figure-caption"></p>
+        </div>
+    </div>
+
+    <script>
+    window.MathJax = {
+        tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
+    };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script src="script.js"></script>
+</body>
+</html>

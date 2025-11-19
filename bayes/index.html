@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bayesian Linear Regression</title>
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- KaTeX for math rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>Bayesian Linear Regression</h1>
+        <p>Interactive exploration of regularization and Bayesian inference</p>
+    </div>
+
+    <!-- Section 1: Linear Regression Basics -->
+    <div class="section">
+        <div class="section-title">Linear Regression Fundamentals</div>
+        <div class="explanation">
+            Linear regression finds the best-fit line through data points by minimizing the error between predictions and observations. The model is: <strong>y = w₀ + w₁x</strong>, where w₀ is the intercept and w₁ is the slope.
+        </div>
+        <canvas id="basicRegression" width="800" height="400"></canvas>
+        <div class="explanation">
+            <strong>Loss Function (Mean Squared Error):</strong> L = (1/N) Σ(yᵢ - ŷᵢ)² — measures how far predictions are from actual values.
+        </div>
+    </div>
+
+    <!-- Section 2: Regularization (L1 vs L2) -->
+    <div class="section">
+        <div class="section-title">Regularization: L1 (Lasso) vs L2 (Ridge)</div>
+        
+        <div class="controls">
+            <label>
+                <span>Regularization Type:</span>
+                <select id="regType">
+                    <option value="none">None</option>
+                    <option value="l1">L1 (Lasso)</option>
+                    <option value="l2" selected>L2 (Ridge)</option>
+                </select>
+            </label>
+            <label>
+                <span>λ (strength):</span>
+                <input type="range" id="lambdaSlider" min="0" max="10" step="0.1" value="1">
+                <span id="lambdaValue" class="value-display">1.0</span>
+            </label>
+            <label>
+                <span>Noise:</span>
+                <input type="range" id="noiseSlider" min="0" max="5" step="0.1" value="1">
+                <span id="noiseValue" class="value-display">1.0</span>
+            </label>
+            <button id="regenerateData">Regenerate Data</button>
+        </div>
+
+        <div class="grid-2">
+            <div class="plot-wrapper">
+                <canvas id="regularizationPlot" width="600" height="500"></canvas>
+                <div class="plot-caption">Regression fit with regularization</div>
+            </div>
+            <div class="plot-wrapper">
+                <canvas id="coefficientPath" width="600" height="500"></canvas>
+                <div class="plot-caption">Coefficient path vs λ</div>
+            </div>
+        </div>
+
+        <div class="math-box">
+            <div id="regEquation"></div>
+        </div>
+
+        <div class="explanation">
+            <strong>L2 (Ridge):</strong> Penalizes the sum of squared coefficients (λΣwᵢ²). Shrinks all coefficients smoothly toward zero.<br>
+            <strong>L1 (Lasso):</strong> Penalizes the sum of absolute coefficients (λΣ|wᵢ|). Can drive coefficients exactly to zero (feature selection).<br>
+            <strong>Parameter λ:</strong> Controls regularization strength. Higher λ = more shrinkage.
+        </div>
+    </div>
+
+    <!-- Section 3: Bayesian Formulation -->
+    <div class="section">
+        <div class="section-title">Bayesian Linear Regression</div>
+        
+        <div class="explanation">
+            In the Bayesian approach, we don't find a single "best" set of weights. Instead, we compute a <strong>probability distribution</strong> over all possible weights given the data.
+        </div>
+
+        <div class="math-box">
+            <div id="bayesEquation"></div>
+        </div>
+
+        <div class="controls">
+            <label>
+                <span>Prior σ:</span>
+                <input type="range" id="priorSigma" min="0.1" max="5" step="0.1" value="1">
+                <span id="priorSigmaValue" class="value-display">1.0</span>
+            </label>
+            <label>
+                <span>Likelihood σ:</span>
+                <input type="range" id="likelihoodSigma" min="0.1" max="3" step="0.1" value="0.5">
+                <span id="likelihoodSigmaValue" class="value-display">0.5</span>
+            </label>
+            <label>
+                <span>Samples:</span>
+                <input type="range" id="numSamples" min="10" max="200" step="10" value="50">
+                <span id="numSamplesValue" class="value-display">50</span>
+            </label>
+            <button id="resample">Resample</button>
+        </div>
+
+        <div class="grid-2">
+            <div class="plot-wrapper">
+                <canvas id="bayesianFit" width="600" height="500"></canvas>
+                <div class="plot-caption">
+                    Posterior Predictive Distribution ("Hairy Caterpillar")
+                </div>
+            </div>
+            <div class="plot-wrapper">
+                <canvas id="distributionEvolution" width="600" height="500"></canvas>
+                <div class="plot-caption">
+                    Prior → Likelihood → Posterior Evolution
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Components Breakdown -->
+    <div class="section">
+        <div class="section-title">Bayesian Components: Prior, Likelihood, Posterior</div>
+        
+        <div class="explanation">
+            <strong>Prior P(w):</strong> Our initial belief about the weights before seeing data<br>
+            <strong>Likelihood P(D|w):</strong> How well the data fits for given weights<br>
+            <strong>Posterior P(w|D):</strong> Updated belief after seeing data<br>
+            <strong>Evidence P(D):</strong> Normalizing constant (often intractable)
+        </div>
+
+        <canvas id="componentsViz" width="1200" height="400"></canvas>
+    </div>
+
+    <!-- Section 5: Embedded Iris Dataset -->
+    <div class="section">
+        <div class="section-title">Related: Gaussian Mixture Model (Iris Dataset)</div>
+        <div class="explanation">
+            The Iris dataset visualization below demonstrates multivariate Gaussian distributions, which form the basis for Bayesian linear regression's probabilistic framework.
+        </div>
+        <div class="iframe-container">
+            <iframe src="data:text/html;charset=utf-8,%3C%21DOCTYPE%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22UTF-8%22%3E%3Ctitle%3EIris%20Data%3C%2Ftitle%3E%3C%2Fhead%3E%3Cbody%20style%3D%22margin%3A0%3Bpadding%3A20px%3Bfont-family%3Asans-serif%3Bbackground%3A%230d1117%3Bcolor%3A%23e6edf3%3B%22%3E%3Ch3%3EIris%20Dataset%20-%20Gaussian%20Mixture%20Model%3C%2Fh3%3E%3Cp%3EOpen%20the%20full%20visualization%20in%20a%20new%20tab%20to%20explore%20multivariate%20Gaussian%20distributions%2C%20covariance%20matrices%2C%20and%20the%20mathematical%20foundations%20that%20underpin%20Bayesian%20inference.%3C%2Fp%3E%3Cp%3E%3Ca%20href%3D%22about%3Ablank%22%20style%3D%22color%3A%2358a6ff%3B%22%3EClick%20to%20open%20full%20Iris%20dataset%20visualization%3C%2Fa%3E%3C%2Fp%3E%3C%2Fbody%3E%3C%2Fhtml%3E"></iframe>
+        </div>
+    </div>
+
+    <script>
+        // Utility: Gaussian random number generator
+        function gaussianRandom(mean = 0, std = 1) {
+            let u = 0, v = 0;
+            while(u === 0) u = Math.random();
+            while(v === 0) v = Math.random();
+            return mean + std * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        // Generate synthetic data
+        let dataPoints = [];
+        function generateData(noise = 1.0) {
+            dataPoints = [];
+            const trueW0 = 2;
+            const trueW1 = 1.5;
+            for (let i = 0; i < 50; i++) {
+                const x = (Math.random() - 0.5) * 10;
+                const y = trueW0 + trueW1 * x + gaussianRandom(0, noise);
+                dataPoints.push({x, y});
+            }
+        }
+        generateData(1.0);
+
+        // Section 1: Basic Linear Regression
+        function drawBasicRegression() {
+            const canvas = document.getElementById('basicRegression');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const pad = 60;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Compute simple linear regression
+            const n = dataPoints.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+            for (const p of dataPoints) {
+                sumX += p.x;
+                sumY += p.y;
+                sumXY += p.x * p.y;
+                sumXX += p.x * p.x;
+            }
+            const w1 = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            const w0 = (sumY - w1 * sumX) / n;
+
+            // Find data range
+            const xs = dataPoints.map(p => p.x);
+            const ys = dataPoints.map(p => p.y);
+            const minX = Math.min(...xs) - 1;
+            const maxX = Math.max(...xs) + 1;
+            const minY = Math.min(...ys) - 2;
+            const maxY = Math.max(...ys) + 2;
+
+            const scaleX = (w - 2 * pad) / (maxX - minX);
+            const scaleY = (h - 2 * pad) / (maxY - minY);
+
+            function toCanvasX(x) { return pad + (x - minX) * scaleX; }
+            function toCanvasY(y) { return h - pad - (y - minY) * scaleY; }
+
+            // Draw axes
+            ctx.strokeStyle = '#30363d';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(pad, h - pad);
+            ctx.lineTo(w - pad, h - pad);
+            ctx.moveTo(pad, pad);
+            ctx.lineTo(pad, h - pad);
+            ctx.stroke();
+
+            // Draw regression line
+            ctx.strokeStyle = '#58a6ff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(minX), toCanvasY(w0 + w1 * minX));
+            ctx.lineTo(toCanvasX(maxX), toCanvasY(w0 + w1 * maxX));
+            ctx.stroke();
+
+            // Draw points
+            for (const p of dataPoints) {
+                ctx.fillStyle = '#f78166';
+                ctx.beginPath();
+                ctx.arc(toCanvasX(p.x), toCanvasY(p.y), 4, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Draw residual line
+                const pred = w0 + w1 * p.x;
+                ctx.strokeStyle = 'rgba(247, 129, 102, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(p.x), toCanvasY(p.y));
+                ctx.lineTo(toCanvasX(p.x), toCanvasY(pred));
+                ctx.stroke();
+            }
+
+            // Labels
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '12px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`w₀ = ${w0.toFixed(2)}, w₁ = ${w1.toFixed(2)}`, w / 2, 30);
+        }
+
+        // Section 2: Regularization
+        let regType = 'l2';
+        let lambda = 1.0;
+        let noise = 1.0;
+
+        function solveRegularized(lambda, type) {
+            const n = dataPoints.length;
+            
+            // Build design matrix X and target vector y
+            const X = dataPoints.map(p => [1, p.x]);
+            const y = dataPoints.map(p => p.y);
+
+            if (type === 'none') {
+                // Ordinary least squares: w = (X^T X)^{-1} X^T y
+                const XtX = [[0, 0], [0, 0]];
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < 2; j++) {
+                        for (let k = 0; k < 2; k++) {
+                            XtX[j][k] += X[i][j] * X[i][k];
+                        }
+                    }
+                }
+                
+                const Xty = [0, 0];
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < 2; j++) {
+                        Xty[j] += X[i][j] * y[i];
+                    }
+                }
+
+                const det = XtX[0][0] * XtX[1][1] - XtX[0][1] * XtX[1][0];
+                const XtXinv = [
+                    [XtX[1][1] / det, -XtX[0][1] / det],
+                    [-XtX[1][0] / det, XtX[0][0] / det]
+                ];
+
+                const w = [0, 0];
+                for (let i = 0; i < 2; i++) {
+                    for (let j = 0; j < 2; j++) {
+                        w[i] += XtXinv[i][j] * Xty[j];
+                    }
+                }
+                return w;
+            } else if (type === 'l2') {
+                // Ridge: w = (X^T X + λI)^{-1} X^T y
+                const XtX = [[0, 0], [0, 0]];
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < 2; j++) {
+                        for (let k = 0; k < 2; k++) {
+                            XtX[j][k] += X[i][j] * X[i][k];
+                        }
+                    }
+                }
+                XtX[0][0] += lambda;
+                XtX[1][1] += lambda;
+
+                const Xty = [0, 0];
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < 2; j++) {
+                        Xty[j] += X[i][j] * y[i];
+                    }
+                }
+
+                const det = XtX[0][0] * XtX[1][1] - XtX[0][1] * XtX[1][0];
+                const XtXinv = [
+                    [XtX[1][1] / det, -XtX[0][1] / det],
+                    [-XtX[1][0] / det, XtX[0][0] / det]
+                ];
+
+                const w = [0, 0];
+                for (let i = 0; i < 2; i++) {
+                    for (let j = 0; j < 2; j++) {
+                        w[i] += XtXinv[i][j] * Xty[j];
+                    }
+                }
+                return w;
+            } else {
+                // L1 (Lasso) - use coordinate descent
+                let w = [0, 0];
+                for (let iter = 0; iter < 1000; iter++) {
+                    for (let j = 0; j < 2; j++) {
+                        let rho = 0;
+                        for (let i = 0; i < n; i++) {
+                            let pred = 0;
+                            for (let k = 0; k < 2; k++) {
+                                if (k !== j) pred += w[k] * X[i][k];
+                            }
+                            rho += X[i][j] * (y[i] - pred);
+                        }
+                        
+                        let z = 0;
+                        for (let i = 0; i < n; i++) {
+                            z += X[i][j] * X[i][j];
+                        }
+
+                        if (rho < -lambda / 2) {
+                            w[j] = (rho + lambda / 2) / z;
+                        } else if (rho > lambda / 2) {
+                            w[j] = (rho - lambda / 2) / z;
+                        } else {
+                            w[j] = 0;
+                        }
+                    }
+                }
+                return w;
+            }
+        }
+
+        function drawRegularization() {
+            const canvas = document.getElementById('regularizationPlot');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const pad = 60;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const weights = solveRegularized(lambda, regType);
+
+            // Data range
+            const xs = dataPoints.map(p => p.x);
+            const ys = dataPoints.map(p => p.y);
+            const minX = Math.min(...xs) - 1;
+            const maxX = Math.max(...xs) + 1;
+            const minY = Math.min(...ys) - 2;
+            const maxY = Math.max(...ys) + 2;
+
+            const scaleX = (w - 2 * pad) / (maxX - minX);
+            const scaleY = (h - 2 * pad) / (maxY - minY);
+
+            function toCanvasX(x) { return pad + (x - minX) * scaleX; }
+            function toCanvasY(y) { return h - pad - (y - minY) * scaleY; }
+
+            // Draw axes
+            ctx.strokeStyle = '#30363d';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(pad, h - pad);
+            ctx.lineTo(w - pad, h - pad);
+            ctx.moveTo(pad, pad);
+            ctx.lineTo(pad, h - pad);
+            ctx.stroke();
+
+            // Draw regression line
+            ctx.strokeStyle = '#4ecdc4';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(minX), toCanvasY(weights[0] + weights[1] * minX));
+            ctx.lineTo(toCanvasX(maxX), toCanvasY(weights[0] + weights[1] * maxX));
+            ctx.stroke();
+
+            // Draw points
+            for (const p of dataPoints) {
+                ctx.fillStyle = '#ffe66d';
+                ctx.beginPath();
+                ctx.arc(toCanvasX(p.x), toCanvasY(p.y), 4, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+
+            // Labels
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '12px monospace';
+            ctx.textAlign = 'center';
+            const typeLabel = regType === 'none' ? 'OLS' : regType === 'l1' ? 'Lasso' : 'Ridge';
+            ctx.fillText(`${typeLabel}: w₀ = ${weights[0].toFixed(2)}, w₁ = ${weights[1].toFixed(2)}`, w / 2, 30);
+        }
+
+        function drawCoefficientPath() {
+            const canvas = document.getElementById('coefficientPath');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const pad = 60;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Compute weights for different lambda values
+            const lambdas = [];
+            const w0s = [];
+            const w1s = [];
+            
+            for (let i = 0; i <= 100; i++) {
+                const lam = i * 0.1;
+                lambdas.push(lam);
+                const weights = solveRegularized(lam, regType);
+                w0s.push(weights[0]);
+                w1s.push(weights[1]);
+            }
+
+            const maxLambda = 10;
+            const minW = Math.min(...w0s, ...w1s) - 0.5;
+            const maxW = Math.max(...w0s, ...w1s) + 0.5;
+
+            const scaleX = (w - 2 * pad) / maxLambda;
+            const scaleY = (h - 2 * pad) / (maxW - minW);
+
+            function toCanvasX(lam) { return pad + lam * scaleX; }
+            function toCanvasY(weight) { return h - pad - (weight - minW) * scaleY; }
+
+            // Draw axes
+            ctx.strokeStyle = '#30363d';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(pad, h - pad);
+            ctx.lineTo(w - pad, h - pad);
+            ctx.moveTo(pad, pad);
+            ctx.lineTo(pad, h - pad);
+            ctx.stroke();
+
+            // Draw w0 path
+            ctx.strokeStyle = '#ff6b6b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < lambdas.length; i++) {
+                const x = toCanvasX(lambdas[i]);
+                const y = toCanvasY(w0s[i]);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Draw w1 path
+            ctx.strokeStyle = '#4ecdc4';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < lambdas.length; i++) {
+                const x = toCanvasX(lambdas[i]);
+                const y = toCanvasY(w1s[i]);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Mark current lambda
+            ctx.strokeStyle = '#ffe66d';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(lambda), pad);
+            ctx.lineTo(toCanvasX(lambda), h - pad);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Labels
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('λ (regularization strength)', w / 2, h - 20);
+            ctx.save();
+            ctx.translate(20, h / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('Coefficient Value', 0, 0);
+            ctx.restore();
+
+            // Legend
+            ctx.fillStyle = '#ff6b6b';
+            ctx.fillText('■ w₀', w - 100, 30);
+            ctx.fillStyle = '#4ecdc4';
+            ctx.fillText('■ w₁', w - 50, 30);
+        }
+
+        // Section 3: Bayesian Linear Regression
+        let priorSigma = 1.0;
+        let likelihoodSigma = 0.5;
+        let numSamples = 50;
+        let sampledWeights = [];
+
+        function samplePosterior() {
+            sampledWeights = [];
+            
+            // For simplicity, use Gaussian approximation to posterior
+            // True posterior is p(w|D) ∝ p(D|w) * p(w)
+            // With Gaussian prior and likelihood, posterior is also Gaussian
+            
+            // Prior: w ~ N(0, priorSigma^2 I)
+            // Likelihood: y|X,w ~ N(Xw, likelihoodSigma^2 I)
+            // Posterior: w|D ~ N(μ_post, Σ_post)
+            
+            const n = dataPoints.length;
+            const X = dataPoints.map(p => [1, p.x]);
+            const y = dataPoints.map(p => p.y);
+
+            // Compute posterior mean and covariance
+            // Σ_post^{-1} = X^T X / σ_noise^2 + I / σ_prior^2
+            // μ_post = Σ_post X^T y / σ_noise^2
+
+            const sigma2Prior = priorSigma * priorSigma;
+            const sigma2Noise = likelihoodSigma * likelihoodSigma;
+
+            // XtX
+            const XtX = [[0, 0], [0, 0]];
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < 2; j++) {
+                    for (let k = 0; k < 2; k++) {
+                        XtX[j][k] += X[i][j] * X[i][k];
+                    }
+                }
+            }
+
+            // Sigma_post^{-1}
+            const SigmaPostInv = [
+                [XtX[0][0] / sigma2Noise + 1 / sigma2Prior, XtX[0][1] / sigma2Noise],
+                [XtX[1][0] / sigma2Noise, XtX[1][1] / sigma2Noise + 1 / sigma2Prior]
+            ];
+
+            // Invert to get Sigma_post
+            const det = SigmaPostInv[0][0] * SigmaPostInv[1][1] - SigmaPostInv[0][1] * SigmaPostInv[1][0];
+            const SigmaPost = [
+                [SigmaPostInv[1][1] / det, -SigmaPostInv[0][1] / det],
+                [-SigmaPostInv[1][0] / det, SigmaPostInv[0][0] / det]
+            ];
+
+            // X^T y
+            const Xty = [0, 0];
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < 2; j++) {
+                    Xty[j] += X[i][j] * y[i];
+                }
+            }
+
+            // μ_post
+            const muPost = [0, 0];
+            for (let i = 0; i < 2; i++) {
+                for (let j = 0; j < 2; j++) {
+                    muPost[i] += SigmaPost[i][j] * Xty[j] / sigma2Noise;
+                }
+            }
+
+            // Cholesky decomposition of SigmaPost for sampling
+            const L = [[0, 0], [0, 0]];
+            L[0][0] = Math.sqrt(SigmaPost[0][0]);
+            L[1][0] = SigmaPost[1][0] / L[0][0];
+            L[1][1] = Math.sqrt(SigmaPost[1][1] - L[1][0] * L[1][0]);
+
+            // Sample from posterior
+            for (let s = 0; s < numSamples; s++) {
+                const z = [gaussianRandom(), gaussianRandom()];
+                const w = [
+                    muPost[0] + L[0][0] * z[0],
+                    muPost[1] + L[1][0] * z[0] + L[1][1] * z[1]
+                ];
+                sampledWeights.push(w);
+            }
+
+            return {muPost, SigmaPost};
+        }
+
+        function drawBayesianFit() {
+            const canvas = document.getElementById('bayesianFit');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const pad = 60;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const {muPost} = samplePosterior();
+
+            // Data range
+            const xs = dataPoints.map(p => p.x);
+            const ys = dataPoints.map(p => p.y);
+            const minX = Math.min(...xs) - 1;
+            const maxX = Math.max(...xs) + 1;
+            const minY = Math.min(...ys) - 5;
+            const maxY = Math.max(...ys) + 5;
+
+            const scaleX = (w - 2 * pad) / (maxX - minX);
+            const scaleY = (h - 2 * pad) / (maxY - minY);
+
+            function toCanvasX(x) { return pad + (x - minX) * scaleX; }
+            function toCanvasY(y) { return h - pad - (y - minY) * scaleY; }
+
+            // Draw axes
+            ctx.strokeStyle = '#30363d';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(pad, h - pad);
+            ctx.lineTo(w - pad, h - pad);
+            ctx.moveTo(pad, pad);
+            ctx.lineTo(pad, h - pad);
+            ctx.stroke();
+
+            // Draw "hairy caterpillar" - samples from posterior
+            ctx.globalAlpha = 0.1;
+            for (const weights of sampledWeights) {
+                ctx.strokeStyle = '#58a6ff';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(minX), toCanvasY(weights[0] + weights[1] * minX));
+                ctx.lineTo(toCanvasX(maxX), toCanvasY(weights[0] + weights[1] * maxX));
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1.0;
+
+            // Draw posterior mean
+            ctx.strokeStyle = '#4ecdc4';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(minX), toCanvasY(muPost[0] + muPost[1] * minX));
+            ctx.lineTo(toCanvasX(maxX), toCanvasY(muPost[0] + muPost[1] * maxX));
+            ctx.stroke();
+
+            // Draw points
+            for (const p of dataPoints) {
+                ctx.fillStyle = '#ffe66d';
+                ctx.beginPath();
+                ctx.arc(toCanvasX(p.x), toCanvasY(p.y), 4, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+
+            // Labels
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '12px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`Posterior Mean: w₀ = ${muPost[0].toFixed(2)}, w₁ = ${muPost[1].toFixed(2)}`, w / 2, 30);
+        }
+
+        function drawDistributionEvolution() {
+            const canvas = document.getElementById('distributionEvolution');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const pad = 40;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw three panels: Prior, Likelihood, Posterior
+            const panelW = (w - 4 * pad) / 3;
+            const panelH = h - 2 * pad;
+
+            const panels = [
+                {x: pad, label: 'Prior P(w)'},
+                {x: pad * 2 + panelW, label: 'Likelihood P(D|w)'},
+                {x: pad * 3 + panelW * 2, label: 'Posterior P(w|D)'}
+            ];
+
+            // Get posterior stats
+            const {muPost, SigmaPost} = samplePosterior();
+
+            for (let i = 0; i < 3; i++) {
+                const px = panels[i].x;
+                const py = pad;
+
+                // Draw panel border
+                ctx.strokeStyle = '#30363d';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(px, py, panelW, panelH);
+
+                // Draw label
+                ctx.fillStyle = '#8b949e';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(panels[i].label, px + panelW / 2, py - 10);
+
+                // Draw 2D Gaussian
+                const centerX = px + panelW / 2;
+                const centerY = py + panelH / 2;
+
+                let sigma, mu;
+                if (i === 0) {
+                    // Prior: N(0, priorSigma^2 I)
+                    mu = [0, 0];
+                    sigma = [[priorSigma * priorSigma, 0], [0, priorSigma * priorSigma]];
+                } else if (i === 1) {
+                    // Likelihood (approximated as Gaussian in weight space)
+                    // For visualization, show OLS solution with high uncertainty
+                    const ols = solveRegularized(0, 'none');
+                    mu = ols;
+                    const s = likelihoodSigma * 3;
+                    sigma = [[s * s, 0], [0, s * s]];
+                } else {
+                    // Posterior
+                    mu = muPost;
+                    sigma = SigmaPost;
+                }
+
+                // Draw ellipse (2σ contour)
+                const eigenDecomp = (S) => {
+                    const a = S[0][0], b = S[0][1], d = S[1][1];
+                    const trace = a + d;
+                    const det = a * d - b * b;
+                    const lambda1 = trace / 2 + Math.sqrt(trace * trace / 4 - det);
+                    const lambda2 = trace / 2 - Math.sqrt(trace * trace / 4 - det);
+                    const angle = b === 0 ? 0 : Math.atan2(lambda1 - a, b);
+                    return {lambda1, lambda2, angle};
+                };
+
+                const {lambda1, lambda2, angle} = eigenDecomp(sigma);
+                const scale = 30; // Visualization scale
+                const rx = 2 * Math.sqrt(lambda1) * scale;
+                const ry = 2 * Math.sqrt(lambda2) * scale;
+
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(angle);
+                
+                // Fill
+                ctx.fillStyle = i === 0 ? 'rgba(255, 107, 107, 0.2)' : i === 1 ? 'rgba(88, 166, 255, 0.2)' : 'rgba(78, 205, 196, 0.2)';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, rx, ry, 0, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Stroke
+                ctx.strokeStyle = i === 0 ? '#ff6b6b' : i === 1 ? '#58a6ff' : '#4ecdc4';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                ctx.restore();
+
+                // Draw mean point
+                ctx.fillStyle = i === 0 ? '#ff6b6b' : i === 1 ? '#58a6ff' : '#4ecdc4';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 4, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Label mean
+                ctx.fillStyle = '#8b949e';
+                ctx.font = '9px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(`μ=(${mu[0].toFixed(1)},${mu[1].toFixed(1)})`, centerX, py + panelH - 5);
+            }
+        }
+
+        function drawComponentsViz() {
+            const canvas = document.getElementById('componentsViz');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw simplified 1D visualization of components
+            const sections = [
+                {label: 'Prior P(w₁)', color: '#ff6b6b', mu: 0, sigma: priorSigma},
+                {label: 'Likelihood P(D|w₁)', color: '#58a6ff', mu: 1.5, sigma: likelihoodSigma},
+                {label: 'Posterior P(w₁|D)', color: '#4ecdc4', mu: 1.2, sigma: 0.3}
+            ];
+
+            const panelW = w / 3 - 20;
+            const panelH = h - 60;
+            const pad = 30;
+
+            for (let i = 0; i < 3; i++) {
+                const px = 10 + i * (panelW + 20);
+                const py = 40;
+                const sec = sections[i];
+
+                // Draw Gaussian curve
+                const xRange = 10;
+                const yScale = panelH * 0.6;
+                
+                ctx.strokeStyle = sec.color;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+
+                for (let x = -xRange; x <= xRange; x += 0.1) {
+                    const canvasX = px + panelW / 2 + (x / xRange) * panelW / 2;
+                    const gaussVal = Math.exp(-0.5 * Math.pow((x - sec.mu) / sec.sigma, 2));
+                    const canvasY = py + panelH - gaussVal * yScale;
+                    
+                    if (x === -xRange) ctx.moveTo(canvasX, canvasY);
+                    else ctx.lineTo(canvasX, canvasY);
+                }
+                ctx.stroke();
+
+                // Fill under curve
+                ctx.lineTo(px + panelW, py + panelH);
+                ctx.lineTo(px, py + panelH);
+                ctx.closePath();
+                ctx.fillStyle = sec.color + '30';
+                ctx.fill();
+
+                // Label
+                ctx.fillStyle = sec.color;
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(sec.label, px + panelW / 2, py - 10);
+
+                // Draw vertical line at mean
+                ctx.strokeStyle = sec.color;
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                const meanX = px + panelW / 2 + (sec.mu / xRange) * panelW / 2;
+                ctx.moveTo(meanX, py);
+                ctx.lineTo(meanX, py + panelH);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Axis
+                ctx.strokeStyle = '#30363d';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(px, py + panelH);
+                ctx.lineTo(px + panelW, py + panelH);
+                ctx.stroke();
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('regType').addEventListener('change', (e) => {
+            regType = e.target.value;
+            drawRegularization();
+            drawCoefficientPath();
+            updateRegEquation();
+        });
+
+        document.getElementById('lambdaSlider').addEventListener('input', (e) => {
+            lambda = parseFloat(e.target.value);
+            document.getElementById('lambdaValue').textContent = lambda.toFixed(1);
+            drawRegularization();
+            drawCoefficientPath();
+        });
+
+        document.getElementById('noiseSlider').addEventListener('input', (e) => {
+            noise = parseFloat(e.target.value);
+            document.getElementById('noiseValue').textContent = noise.toFixed(1);
+        });
+
+        document.getElementById('regenerateData').addEventListener('click', () => {
+            generateData(noise);
+            drawBasicRegression();
+            drawRegularization();
+            drawCoefficientPath();
+            drawBayesianFit();
+            drawDistributionEvolution();
+            drawComponentsViz();
+        });
+
+        document.getElementById('priorSigma').addEventListener('input', (e) => {
+            priorSigma = parseFloat(e.target.value);
+            document.getElementById('priorSigmaValue').textContent = priorSigma.toFixed(1);
+        });
+
+        document.getElementById('likelihoodSigma').addEventListener('input', (e) => {
+            likelihoodSigma = parseFloat(e.target.value);
+            document.getElementById('likelihoodSigmaValue').textContent = likelihoodSigma.toFixed(1);
+        });
+
+        document.getElementById('numSamples').addEventListener('input', (e) => {
+            numSamples = parseInt(e.target.value);
+            document.getElementById('numSamplesValue').textContent = numSamples;
+        });
+
+        document.getElementById('resample').addEventListener('click', () => {
+            drawBayesianFit();
+            drawDistributionEvolution();
+            drawComponentsViz();
+        });
+
+        // Render equations with KaTeX
+        function updateRegEquation() {
+            const eqDiv = document.getElementById('regEquation');
+            let latex;
+            if (regType === 'none') {
+                latex = String.raw`\text{Loss} = \frac{1}{N}\sum_{i=1}^{N}(y_i - \hat{y}_i)^2`;
+            } else if (regType === 'l2') {
+                latex = String.raw`\text{Loss} = \frac{1}{N}\sum_{i=1}^{N}(y_i - \hat{y}_i)^2 + \lambda\sum_{j}w_j^2`;
+            } else {
+                latex = String.raw`\text{Loss} = \frac{1}{N}\sum_{i=1}^{N}(y_i - \hat{y}_i)^2 + \lambda\sum_{j}|w_j|`;
+            }
+            
+            if (typeof katex !== 'undefined') {
+                katex.render(latex, eqDiv, {displayMode: true, throwOnError: false});
+            }
+        }
+
+        function renderBayesEquation() {
+            const eqDiv = document.getElementById('bayesEquation');
+            const latex = String.raw`P(\mathbf{w}|\mathcal{D}) = \frac{P(\mathcal{D}|\mathbf{w})P(\mathbf{w})}{P(\mathcal{D})} = \frac{\text{Likelihood} \times \text{Prior}}{\text{Evidence}}`;
+            
+            if (typeof katex !== 'undefined') {
+                katex.render(latex, eqDiv, {displayMode: true, throwOnError: false});
+            } else {
+                setTimeout(renderBayesEquation, 100);
+            }
+        }
+
+        // Initial render
+        setTimeout(() => {
+            drawBasicRegression();
+            drawRegularization();
+            drawCoefficientPath();
+            updateRegEquation();
+            renderBayesEquation();
+            drawBayesianFit();
+            drawDistributionEvolution();
+            drawComponentsViz();
+        }, 100);
+    </script>
+</body>
+</html>
