@@ -1,0 +1,14 @@
+{
+  "timestamp": 1763714656,
+  "audio_file": null,
+  "data_file": null,
+  "position": 0.0,
+  "markers": [],
+  "kernel_params": {
+    "tau_a": 0.001,
+    "tau_r": 0.005,
+    "threshold": 3.0,
+    "refractory": 0.015
+  },
+  "display_mode": "envelope"
+}

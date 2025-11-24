@@ -1,8 +1,8 @@
 {
-  "timestamp": 1763055791,
+  "timestamp": 1763634844,
   "audio_file": "/Users/mricos/src/mricos/demos/tscale/audio.wav",
   "data_file": "/Users/mricos/src/mricos/demos/tscale/db/1762305205.data.raw.audio.tsv",
-  "position": 26.872429940414463,
+  "position": 43.746375,
   "markers": [],
   "kernel_params": {
     "tau_a": 0.001,
