@@ -1,0 +1,304 @@
+#!/usr/bin/env bash
+# av - asciivision CLI wrapper with config management
+# Config: ~/.config/asciivision/config.sh
+
+# Require bash 5.2+ for associative arrays
+if ((BASH_VERSINFO[0] < 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] < 2))); then
+    echo "Error: bash 5.2+ required (found ${BASH_VERSION})"
+    echo "On macOS: brew install bash"
+    exit 1
+fi
+
+set -euo pipefail
+
+AV_SRC="${AV_SRC:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+AV_CONFIG_DIR="${HOME}/.config/asciivision"
+AV_CONFIG_FILE="${AV_CONFIG_DIR}/config.sh"
+
+# Default options (can be overridden by config)
+AV_WIDTH="${AV_WIDTH:-0}"           # 0 = auto (terminal size)
+AV_HEIGHT="${AV_HEIGHT:-0}"         # 0 = auto (terminal size)
+AV_PALETTE="${AV_PALETTE:-extended}" # simple | extended | braille | blocks
+AV_INVERT="${AV_INVERT:-0}"         # 0 | 1
+AV_BRIGHTNESS="${AV_BRIGHTNESS:-0}" # -1.0 to 1.0
+AV_CONTRAST="${AV_CONTRAST:-1.0}"   # 0.1 to 3.0
+AV_DITHER="${AV_DITHER:-0}"         # 0 | 1 (Floyd-Steinberg dithering)
+AV_CAMERA="${AV_CAMERA:-0}"         # Camera device index
+
+# Load user config if exists
+[[ -f "$AV_CONFIG_FILE" ]] && source "$AV_CONFIG_FILE"
+
+# Available options with descriptions
+declare -A AV_OPTIONS
+AV_OPTIONS[width]="Output width (0=auto, or positive integer)"
+AV_OPTIONS[height]="Output height (0=auto, or positive integer)"
+AV_OPTIONS[palette]="ASCII palette (simple|extended|braille|blocks)"
+AV_OPTIONS[invert]="Invert colors (0|1)"
+AV_OPTIONS[brightness]="Brightness adjustment (-1.0 to 1.0)"
+AV_OPTIONS[contrast]="Contrast multiplier (0.1 to 3.0)"
+AV_OPTIONS[dither]="Floyd-Steinberg dithering (0|1)"
+AV_OPTIONS[camera]="Camera device index (0=default)"
+
+av_config_show() {
+    echo "asciivision configuration"
+    echo "Config file: $AV_CONFIG_FILE"
+    echo ""
+    echo "Current settings:"
+    printf "  %-12s = %-12s  # %s\n" "width" "$AV_WIDTH" "${AV_OPTIONS[width]}"
+    printf "  %-12s = %-12s  # %s\n" "height" "$AV_HEIGHT" "${AV_OPTIONS[height]}"
+    printf "  %-12s = %-12s  # %s\n" "palette" "$AV_PALETTE" "${AV_OPTIONS[palette]}"
+    printf "  %-12s = %-12s  # %s\n" "invert" "$AV_INVERT" "${AV_OPTIONS[invert]}"
+    printf "  %-12s = %-12s  # %s\n" "brightness" "$AV_BRIGHTNESS" "${AV_OPTIONS[brightness]}"
+    printf "  %-12s = %-12s  # %s\n" "contrast" "$AV_CONTRAST" "${AV_OPTIONS[contrast]}"
+    printf "  %-12s = %-12s  # %s\n" "dither" "$AV_DITHER" "${AV_OPTIONS[dither]}"
+    printf "  %-12s = %-12s  # %s\n" "camera" "$AV_CAMERA" "${AV_OPTIONS[camera]}"
+}
+
+av_config_set() {
+    local key="${1:-}"
+    local value="${2:-}"
+
+    if [[ -z "$key" || -z "$value" ]]; then
+        echo "Usage: av config set <key> <value>"
+        echo ""
+        echo "Available keys:"
+        for k in "${!AV_OPTIONS[@]}"; do
+            echo "  $k - ${AV_OPTIONS[$k]}"
+        done
+        return 1
+    fi
+
+    # Validate key
+    if [[ -z "${AV_OPTIONS[$key]:-}" ]]; then
+        echo "Error: Unknown option '$key'"
+        echo "Run 'av config show' to see available options"
+        return 1
+    fi
+
+    # Validate values
+    case "$key" in
+        width|height|camera)
+            if ! [[ "$value" =~ ^[0-9]+$ ]]; then
+                echo "Error: $key must be a non-negative integer"
+                return 1
+            fi
+            ;;
+        palette)
+            if [[ "$value" != "simple" && "$value" != "extended" && "$value" != "braille" && "$value" != "blocks" ]]; then
+                echo "Error: palette must be one of: simple, extended, braille, blocks"
+                return 1
+            fi
+            ;;
+        invert|dither)
+            if [[ "$value" != "0" && "$value" != "1" ]]; then
+                echo "Error: $key must be 0 or 1"
+                return 1
+            fi
+            ;;
+        brightness)
+            if ! [[ "$value" =~ ^-?[0-9]*\.?[0-9]+$ ]]; then
+                echo "Error: brightness must be a number (-1.0 to 1.0)"
+                return 1
+            fi
+            ;;
+        contrast)
+            if ! [[ "$value" =~ ^[0-9]*\.?[0-9]+$ ]]; then
+                echo "Error: contrast must be a positive number (0.1 to 3.0)"
+                return 1
+            fi
+            ;;
+    esac
+
+    # Create config dir if needed
+    mkdir -p "$AV_CONFIG_DIR"
+
+    # Convert to env var name
+    local var_name="AV_${key^^}"
+
+    # Update or add to config file
+    if [[ -f "$AV_CONFIG_FILE" ]] && grep -q "^export $var_name=" "$AV_CONFIG_FILE"; then
+        # Update existing
+        sed -i '' "s/^export $var_name=.*/export $var_name=\"$value\"/" "$AV_CONFIG_FILE"
+    else
+        # Add new
+        echo "export $var_name=\"$value\"" >> "$AV_CONFIG_FILE"
+    fi
+
+    echo "Set $key=$value"
+    echo "Saved to $AV_CONFIG_FILE"
+}
+
+av_config_reset() {
+    if [[ -f "$AV_CONFIG_FILE" ]]; then
+        rm "$AV_CONFIG_FILE"
+        echo "Config reset (removed $AV_CONFIG_FILE)"
+    else
+        echo "No config file to reset"
+    fi
+}
+
+av_options() {
+    cat <<'EOF'
+asciivision video options
+
+PALETTES
+  ASCII palettes for video rendering. Each provides different tradeoffs:
+
+  simple   - Basic 10-character ramp (fastest)
+             Characters: " .:-=+*#%@"
+
+  extended - 70-character ramp with good detail (default)
+             Characters: " .'`^":;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
+
+  braille  - UTF-8 Braille patterns (2x4 subpixel resolution)
+             Uses Unicode U+2800-U+28FF block for 8-dot patterns
+             Each character represents a 2x4 pixel grid
+
+  blocks   - UTF-8 block elements (best contrast)
+             Characters: " ░▒▓█" (shaded blocks)
+
+RESOLUTION PRESETS
+  auto     - Match terminal size (default)
+  small    - 80x24
+  medium   - 120x40
+  large    - 160x50
+
+IMAGE ADJUSTMENTS
+  brightness  -1.0 to 1.0   Darker to brighter (0 = no change)
+  contrast    0.1 to 3.0    Less to more contrast (1.0 = no change)
+  dither      0 or 1        Floyd-Steinberg dithering (extended palette)
+  invert      0 or 1        Invert brightness values
+
+EXAMPLES
+  av config set palette braille     # High-res braille mode
+  av config set palette blocks      # High-contrast blocks
+  av config set brightness 0.2      # Brighten output
+  av config set contrast 1.5        # Increase contrast
+  av config set dither 1            # Enable dithering
+EOF
+}
+
+av_devices() {
+    echo "Available video capture devices:"
+    echo ""
+    # Use system_profiler to list cameras on macOS
+    system_profiler SPCameraDataType 2>/dev/null | grep -E "^    |Model ID:" | head -20
+    echo ""
+    echo "Note: Use device index with 'av config set camera <index>'"
+    echo "Default camera is index 0"
+}
+
+av_run() {
+    local args=()
+
+    # Add config-based args for the native binary
+    [[ "$AV_WIDTH" != "0" ]] && args+=(-w "$AV_WIDTH")
+    [[ "$AV_HEIGHT" != "0" ]] && args+=(-h "$AV_HEIGHT")
+    [[ "$AV_PALETTE" == "simple" ]] && args+=(-s)
+    [[ "$AV_INVERT" == "1" ]] && args+=(-i)
+    [[ "$AV_BRIGHTNESS" != "0" ]] && args+=(-b "$AV_BRIGHTNESS")
+    [[ "$AV_CONTRAST" != "1.0" ]] && args+=(-c "$AV_CONTRAST")
+
+    # Add any passed args (override config)
+    args+=("$@")
+
+    exec "$AV_SRC/asciivision" "${args[@]}"
+}
+
+av_env() {
+    # Export all config as environment variables for Python renderer
+    echo "# asciivision environment (source this or use: eval \$(av env))"
+    echo "export AV_WIDTH=\"$AV_WIDTH\""
+    echo "export AV_HEIGHT=\"$AV_HEIGHT\""
+    echo "export AV_PALETTE=\"$AV_PALETTE\""
+    echo "export AV_INVERT=\"$AV_INVERT\""
+    echo "export AV_BRIGHTNESS=\"$AV_BRIGHTNESS\""
+    echo "export AV_CONTRAST=\"$AV_CONTRAST\""
+    echo "export AV_DITHER=\"$AV_DITHER\""
+    echo "export AV_CAMERA=\"$AV_CAMERA\""
+}
+
+av_help() {
+    cat <<EOF
+av - asciivision command-line interface
+
+Usage: av <command> [args]
+
+Commands:
+  run [args]         Run asciivision (default if no command given)
+  config show        Show current configuration
+  config set <k> <v> Set a configuration value
+  config reset       Reset to defaults (remove config file)
+  options            Show available video options (palettes, adjustments)
+  devices            List available cameras
+  env                Export config as environment variables
+  help               Show this help
+
+Configuration keys:
+  width, height      Output dimensions (0=auto)
+  palette            simple | extended | braille | blocks
+  invert             0 | 1
+  brightness         -1.0 to 1.0
+  contrast           0.1 to 3.0
+  dither             0 | 1
+  camera             Device index
+
+Examples:
+  av                              # Run with current config
+  av run -w 100 -h 30             # Run with custom size
+  av config show                  # Show settings
+  av config set palette braille   # Use braille subpixel mode
+  av config set brightness 0.2    # Brighten output
+  av options                      # See all palette options
+
+Runtime controls:
+  b/B   Decrease/increase brightness
+  c/C   Decrease/increase contrast
+  r     Toggle detailed/simple ramp
+  i     Toggle color inversion
+  +/-   Increase/decrease size
+  0     Reset all to defaults
+  q     Quit
+EOF
+}
+
+# Main command router
+main() {
+    local cmd="${1:-run}"
+    shift 2>/dev/null || true
+
+    case "$cmd" in
+        run)
+            av_run "$@"
+            ;;
+        config)
+            local subcmd="${1:-show}"
+            shift 2>/dev/null || true
+            case "$subcmd" in
+                show)   av_config_show ;;
+                set)    av_config_set "$@" ;;
+                reset)  av_config_reset ;;
+                *)      echo "Unknown config command: $subcmd"; av_help ;;
+            esac
+            ;;
+        options)
+            av_options
+            ;;
+        devices)
+            av_devices
+            ;;
+        env)
+            av_env
+            ;;
+        help|--help|-h)
+            av_help
+            ;;
+        *)
+            echo "Unknown command: $cmd"
+            av_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
