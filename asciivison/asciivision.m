@@ -23,6 +23,9 @@ static int use_detailed_ramp = 1;
 static int invert_colors = 0;
 static int target_width = 0;   // 0 means auto (terminal size)
 static int target_height = 0;
+static float brightness = 0.0f;   // -1.0 to 1.0
+static float contrast = 1.0f;     // 0.1 to 3.0
+static int camera_index = 0;      // Camera device index
 
 // Terminal handling
 static struct termios orig_termios;
@@ -64,9 +67,26 @@ void signal_handler(int sig) {
     running = 0;
 }
 
+uint8_t apply_brightness_contrast(uint8_t gray) {
+    // Apply contrast (around midpoint 127.5)
+    float adjusted = ((float)gray - 127.5f) * contrast + 127.5f;
+
+    // Apply brightness (-1.0 to 1.0 maps to -255 to +255)
+    adjusted += brightness * 255.0f;
+
+    // Clamp to valid range
+    if (adjusted < 0.0f) adjusted = 0.0f;
+    if (adjusted > 255.0f) adjusted = 255.0f;
+
+    return (uint8_t)adjusted;
+}
+
 char pixel_to_ascii(uint8_t gray) {
     const char* ramp = use_detailed_ramp ? ASCII_RAMP_DETAILED : ASCII_RAMP_SIMPLE;
     size_t ramp_len = strlen(ramp);
+
+    // Apply brightness/contrast adjustments
+    gray = apply_brightness_contrast(gray);
 
     if (invert_colors) {
         gray = 255 - gray;
@@ -104,12 +124,36 @@ char pixel_to_ascii(uint8_t gray) {
         self.session.sessionPreset = AVCaptureSessionPresetHigh;
     }
 
-    // Get default video device
-    AVCaptureDevice *device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
-    if (!device) {
-        fprintf(stderr, "Error: No camera found\n");
+    // Get video device by index using modern discovery session
+    AVCaptureDevice *device = nil;
+    AVCaptureDeviceDiscoverySession *discoverySession = [AVCaptureDeviceDiscoverySession
+        discoverySessionWithDeviceTypes:@[
+            AVCaptureDeviceTypeBuiltInWideAngleCamera,
+            AVCaptureDeviceTypeExternal
+        ]
+        mediaType:AVMediaTypeVideo
+        position:AVCaptureDevicePositionUnspecified];
+
+    NSArray *devices = discoverySession.devices;
+
+    if (devices.count == 0) {
+        fprintf(stderr, "Error: No cameras found\n");
         exit(1);
     }
+
+    if (camera_index >= (int)devices.count) {
+        fprintf(stderr, "Error: Camera index %d out of range (have %lu cameras)\n",
+                camera_index, (unsigned long)devices.count);
+        fprintf(stderr, "Available cameras:\n");
+        for (int i = 0; i < (int)devices.count; i++) {
+            AVCaptureDevice *d = devices[i];
+            fprintf(stderr, "  %d: %s\n", i, [[d localizedName] UTF8String]);
+        }
+        exit(1);
+    }
+
+    device = devices[camera_index];
+    fprintf(stderr, "Using camera %d: %s\n", camera_index, [[device localizedName] UTF8String]);
 
     NSError *error = nil;
     AVCaptureDeviceInput *input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
@@ -210,8 +254,8 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
 
     // Move cursor to top-left and print frame
     printf("\033[H%s", buffer);
-    printf("\033[K[%dx%d] src:%zux%zu | r:ramp i:invert +/-:size q:quit",
-           termWidth, termHeight, width, height);
+    printf("\033[K[%dx%d] B:%.1f C:%.1f | b/B:bright c/C:contrast r:ramp i:inv q:quit",
+           termWidth, termHeight, brightness, contrast);
     fflush(stdout);
 
     free(buffer);
@@ -222,17 +266,22 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
 void print_usage(const char *progname) {
     fprintf(stderr, "Usage: %s [options]\n", progname);
     fprintf(stderr, "Options:\n");
-    fprintf(stderr, "  -w WIDTH   Set output width (default: terminal width)\n");
-    fprintf(stderr, "  -h HEIGHT  Set output height (default: terminal height)\n");
-    fprintf(stderr, "  -s         Use simple ASCII ramp (fewer characters)\n");
-    fprintf(stderr, "  -i         Invert colors\n");
-    fprintf(stderr, "  --help     Show this help\n");
+    fprintf(stderr, "  -d INDEX      Camera device index (default: 0)\n");
+    fprintf(stderr, "  -w WIDTH      Set output width (default: terminal width)\n");
+    fprintf(stderr, "  -h HEIGHT     Set output height (default: terminal height)\n");
+    fprintf(stderr, "  -b BRIGHT     Set brightness -1.0 to 1.0 (default: 0)\n");
+    fprintf(stderr, "  -c CONTRAST   Set contrast 0.1 to 3.0 (default: 1.0)\n");
+    fprintf(stderr, "  -s            Use simple ASCII ramp (fewer characters)\n");
+    fprintf(stderr, "  -i            Invert colors\n");
+    fprintf(stderr, "  --help        Show this help\n");
     fprintf(stderr, "\nControls during capture:\n");
+    fprintf(stderr, "  b/B        Decrease/increase brightness\n");
+    fprintf(stderr, "  c/C        Decrease/increase contrast\n");
     fprintf(stderr, "  r          Toggle detailed/simple ASCII ramp\n");
     fprintf(stderr, "  i          Toggle color inversion\n");
     fprintf(stderr, "  +/=        Increase size (if using fixed size)\n");
-    fprintf(stderr, "  -          Decrease size\n");
-    fprintf(stderr, "  0          Reset to auto (terminal) size\n");
+    fprintf(stderr, "  -/_        Decrease size\n");
+    fprintf(stderr, "  0          Reset to defaults (size, brightness, contrast)\n");
     fprintf(stderr, "  q/ESC      Quit\n");
 }
 
@@ -240,10 +289,20 @@ int main(int argc, char *argv[]) {
     @autoreleasepool {
         // Parse arguments
         for (int i = 1; i < argc; i++) {
-            if (strcmp(argv[i], "-w") == 0 && i + 1 < argc) {
+            if (strcmp(argv[i], "-d") == 0 && i + 1 < argc) {
+                camera_index = atoi(argv[++i]);
+            } else if (strcmp(argv[i], "-w") == 0 && i + 1 < argc) {
                 target_width = atoi(argv[++i]);
             } else if (strcmp(argv[i], "-h") == 0 && i + 1 < argc) {
                 target_height = atoi(argv[++i]);
+            } else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
+                brightness = atof(argv[++i]);
+                if (brightness < -1.0f) brightness = -1.0f;
+                if (brightness > 1.0f) brightness = 1.0f;
+            } else if (strcmp(argv[i], "-c") == 0 && i + 1 < argc) {
+                contrast = atof(argv[++i]);
+                if (contrast < 0.1f) contrast = 0.1f;
+                if (contrast > 3.0f) contrast = 3.0f;
             } else if (strcmp(argv[i], "-s") == 0) {
                 use_detailed_ramp = 0;
             } else if (strcmp(argv[i], "-i") == 0) {
@@ -284,6 +343,22 @@ int main(int argc, char *argv[]) {
                     case 'I':
                         invert_colors = !invert_colors;
                         break;
+                    case 'b':  // Decrease brightness
+                        brightness -= 0.1f;
+                        if (brightness < -1.0f) brightness = -1.0f;
+                        break;
+                    case 'B':  // Increase brightness
+                        brightness += 0.1f;
+                        if (brightness > 1.0f) brightness = 1.0f;
+                        break;
+                    case 'c':  // Decrease contrast
+                        contrast -= 0.1f;
+                        if (contrast < 0.1f) contrast = 0.1f;
+                        break;
+                    case 'C':  // Increase contrast
+                        contrast += 0.1f;
+                        if (contrast > 3.0f) contrast = 3.0f;
+                        break;
                     case '+':
                     case '=':
                         if (target_width == 0) {
@@ -302,9 +377,11 @@ int main(int argc, char *argv[]) {
                         if (target_width < 20) target_width = 20;
                         if (target_height < 10) target_height = 10;
                         break;
-                    case '0':
+                    case '0':  // Reset all to defaults
                         target_width = 0;
                         target_height = 0;
+                        brightness = 0.0f;
+                        contrast = 1.0f;
                         break;
                 }
             }

@@ -15,7 +15,10 @@ AV_SRC="${AV_SRC:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 AV_CONFIG_DIR="${HOME}/.config/asciivision"
 AV_CONFIG_FILE="${AV_CONFIG_DIR}/config.sh"
 
-# Default options (can be overridden by config)
+# Load user config if exists (before defaults so config takes precedence)
+[[ -f "$AV_CONFIG_FILE" ]] && source "$AV_CONFIG_FILE"
+
+# Default options (only set if not already set by config or environment)
 AV_WIDTH="${AV_WIDTH:-0}"           # 0 = auto (terminal size)
 AV_HEIGHT="${AV_HEIGHT:-0}"         # 0 = auto (terminal size)
 AV_PALETTE="${AV_PALETTE:-extended}" # simple | extended | braille | blocks
@@ -24,9 +27,6 @@ AV_BRIGHTNESS="${AV_BRIGHTNESS:-0}" # -1.0 to 1.0
 AV_CONTRAST="${AV_CONTRAST:-1.0}"   # 0.1 to 3.0
 AV_DITHER="${AV_DITHER:-0}"         # 0 | 1 (Floyd-Steinberg dithering)
 AV_CAMERA="${AV_CAMERA:-0}"         # Camera device index
-
-# Load user config if exists
-[[ -f "$AV_CONFIG_FILE" ]] && source "$AV_CONFIG_FILE"
 
 # Available options with descriptions
 declare -A AV_OPTIONS
@@ -198,6 +198,7 @@ av_run() {
     [[ "$AV_INVERT" == "1" ]] && args+=(-i)
     [[ "$AV_BRIGHTNESS" != "0" ]] && args+=(-b "$AV_BRIGHTNESS")
     [[ "$AV_CONTRAST" != "1.0" ]] && args+=(-c "$AV_CONTRAST")
+    [[ "$AV_CAMERA" != "0" ]] && args+=(-d "$AV_CAMERA")
 
     # Add any passed args (override config)
     args+=("$@")
