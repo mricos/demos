@@ -25,7 +25,7 @@ window.APP = window.APP || {};
 (function(APP) {
     'use strict';
 
-    APP.init = function() {
+    APP.init = async function() {
         // 1. Hydrate state from localStorage
         APP.Persistence.init();
 
@@ -39,7 +39,19 @@ window.APP = window.APP || {};
         // 4. Bind UI controls (with restore)
         APP.UI.init();
 
-        // 5. Welcome message
+        // 5. Initialize input system
+        APP.ParameterRegistry.init();
+        APP.InputHub.init();
+        APP.InputLearnUI.init();
+
+        // 6. Initialize hardware controllers
+        const midiReady = await APP.MIDI.init();
+        if (midiReady) APP.MIDI.UI.init();
+
+        APP.Gamepad.init();
+        APP.Gamepad.UI.init();
+
+        // 7. Welcome message
         APP.Toast.success('DivGraphics loaded');
     };
 

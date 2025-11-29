@@ -2,9 +2,10 @@
  * DivGraphics MIDI Integration
  *
  * Structure:
- *   APP.MIDI       - Web MIDI API wrapper (hardware layer)
- *   APP.MIDI.Learn - CC/Note binding logic (business logic)
- *   APP.MIDI.UI    - DOM controls (presentation layer)
+ *   APP.MIDI    - Web MIDI API wrapper (hardware layer)
+ *   APP.MIDI.UI - DOM controls (presentation layer)
+ *
+ * Note: Binding logic now handled by InputHub
  */
 window.APP = window.APP || {};
 
@@ -41,6 +42,9 @@ window.APP = window.APP || {};
                         APP.Toast.info(`MIDI: ${e.port.name} disconnected`);
                     }
                 };
+
+                // Setup handlers to emit to InputHub
+                this._setupInputHubBridge();
 
                 return true;
             } catch (err) {
@@ -97,6 +101,35 @@ window.APP = window.APP || {};
             }
         },
 
+        /**
+         * Bridge MIDI events to InputHub
+         * Note: No throttling - MIDI hardware already rate-limits,
+         * and shared throttle state can cross-contaminate controller values
+         */
+        _setupInputHubBridge() {
+            this.on('cc', (data) => {
+                const key = `cc:${data.channel}:${data.controller}`;
+                APP.InputHub.emit('midi', 'continuous', key, data.value, {
+                    channel: data.channel,
+                    controller: data.controller
+                });
+
+                if (APP.State.select('display.midiToasts')) {
+                    APP.Toast.midi(`CC ${data.controller}: ${data.value}`);
+                }
+            });
+
+            this.on('note', (data) => {
+                if (data.type !== 'on') return;
+                const key = `note:${data.channel}:${data.note}`;
+                APP.InputHub.emit('midi', 'discrete', key, data.velocity, {
+                    channel: data.channel,
+                    note: data.note,
+                    velocity: data.velocity
+                });
+            });
+        },
+
         on(event, handler) {
             if (!this.handlers[event]) this.handlers[event] = [];
             this.handlers[event].push(handler);
@@ -120,232 +153,7 @@ window.APP = window.APP || {};
 })(window.APP);
 
 // ============================================================================
-// MIDI.Learn - CC/Note binding logic
-// ============================================================================
-(function(APP) {
-    'use strict';
-
-    APP.MIDI.Learn = {
-        targetElement: null,
-
-        // Element ID → State path mapping
-        pathMap: {
-            outerRadius: 'outer.radius',
-            outerHeight: 'outer.height',
-            outerRadialSegments: 'outer.radialSegments',
-            outerHeightSegments: 'outer.heightSegments',
-            outerColor: 'outer.color',
-            outerColorSecondary: 'outer.colorSecondary',
-            outerWireframe: 'outer.wireframe',
-            innerRadius: 'inner.radius',
-            innerHeight: 'inner.height',
-            innerRadialSegments: 'inner.radialSegments',
-            innerHeightSegments: 'inner.heightSegments',
-            innerColor: 'inner.color',
-            innerColorSecondary: 'inner.colorSecondary',
-            innerWireframe: 'inner.wireframe',
-            innerEnabled: 'inner.enabled',
-            autoRotate: 'scene.autoRotate'
-        },
-
-        init() {
-            this._setupMIDIHandlers();
-            this._setupClickHandler();
-            this._subscribe();
-            this._render();
-        },
-
-        // ================================================================
-        // RENDER
-        // ================================================================
-        _render() {
-            this._renderLearnModeState();
-            this._renderBoundControls();
-            this._renderBindingCount();
-        },
-
-        _renderLearnModeState() {
-            const learnMode = APP.State.select('midi.learnMode');
-            document.body.classList.toggle('learn-mode-active', learnMode);
-        },
-
-        _renderBoundControls() {
-            document.querySelectorAll('.bound').forEach(el => el.classList.remove('bound'));
-            const bindings = APP.State.select('midi.bindings') || {};
-            Object.values(bindings).forEach(binding => {
-                const el = document.getElementById(binding.elementId);
-                if (el) el.closest('.control-group')?.classList.add('bound');
-            });
-        },
-
-        _renderBindingCount() {
-            const bindings = APP.State.select('midi.bindings') || {};
-            const countEl = document.getElementById('bindingCount');
-            if (countEl) countEl.textContent = Object.keys(bindings).length;
-        },
-
-        // ================================================================
-        // MIDI MESSAGE HANDLERS
-        // ================================================================
-        _setupMIDIHandlers() {
-            const throttledApply = APP.Utils.throttle((key, value) => {
-                this._applyBinding(key, value);
-            }, 16);
-
-            APP.MIDI.on('cc', (data) => {
-                const key = `cc:${data.channel}:${data.controller}`;
-                const learnMode = APP.State.select('midi.learnMode');
-
-                if (learnMode && this.targetElement) {
-                    this._createBinding(key, data);
-                } else {
-                    throttledApply(key, data.value);
-                }
-
-                if (APP.State.select('display.midiToasts')) {
-                    APP.Toast.midi(`CC ${data.controller}: ${data.value}`);
-                }
-            });
-
-            APP.MIDI.on('note', (data) => {
-                if (data.type !== 'on') return;
-                const key = `note:${data.channel}:${data.note}`;
-                const learnMode = APP.State.select('midi.learnMode');
-
-                if (learnMode && this.targetElement) {
-                    this._createBinding(key, { value: data.velocity });
-                } else {
-                    this._applyBinding(key, data.velocity);
-                }
-            });
-        },
-
-        // ================================================================
-        // CLICK HANDLER (Learn target selection)
-        // ================================================================
-        _setupClickHandler() {
-            document.addEventListener('click', (e) => {
-                if (!APP.State.select('midi.learnMode')) return;
-
-                const controlGroup = e.target.closest('.control-group');
-                if (!controlGroup) return;
-
-                const input = controlGroup.querySelector('input:not([type="checkbox"]), input[type="range"], input[type="color"]');
-                if (!input) return;
-
-                document.querySelectorAll('.learn-target').forEach(el => el.classList.remove('learn-target'));
-
-                this.targetElement = input;
-                controlGroup.classList.add('learn-target');
-                APP.Toast.info(`Move MIDI control for: ${input.id}`);
-
-                e.preventDefault();
-                e.stopPropagation();
-            });
-        },
-
-        // ================================================================
-        // SUBSCRIBE
-        // ================================================================
-        _subscribe() {
-            APP.State.subscribe('midi.learnMode', (enabled) => {
-                this._renderLearnModeState();
-                if (!enabled && this.targetElement) {
-                    this.targetElement.closest('.control-group')?.classList.remove('learn-target');
-                    this.targetElement = null;
-                }
-                if (enabled) {
-                    APP.Toast.info('Learn mode: click a control');
-                }
-            });
-
-            APP.State.subscribe('midi.bindings', () => {
-                this._renderBoundControls();
-                this._renderBindingCount();
-            });
-        },
-
-        // ================================================================
-        // BINDING LOGIC
-        // ================================================================
-        _createBinding(midiKey, data) {
-            const element = this.targetElement;
-            const controlGroup = element.closest('.control-group');
-
-            const path = this.pathMap[element.id];
-            if (!path) {
-                APP.Toast.info(`Cannot bind: ${element.id}`);
-                return;
-            }
-
-            const binding = {
-                path,
-                elementId: element.id,
-                elementType: element.type,
-                min: parseFloat(element.min) || 0,
-                max: parseFloat(element.max) || 1
-            };
-
-            const bindings = { ...APP.State.select('midi.bindings') };
-
-            // Remove existing binding for this element
-            Object.keys(bindings).forEach(key => {
-                if (bindings[key]?.elementId === element.id) {
-                    delete bindings[key];
-                }
-            });
-
-            bindings[midiKey] = binding;
-            APP.State.dispatch({ type: 'midi.bindings', payload: bindings });
-
-            controlGroup.classList.remove('learn-target');
-            controlGroup.classList.add('learn-success');
-            setTimeout(() => controlGroup.classList.remove('learn-success'), 300);
-
-            this.targetElement = null;
-            APP.Toast.success(`Bound: ${midiKey} → ${path}`);
-        },
-
-        _applyBinding(midiKey, value) {
-            const bindings = APP.State.select('midi.bindings');
-            const binding = bindings?.[midiKey];
-            if (!binding) return;
-
-            let dispatchValue;
-
-            switch (binding.elementType) {
-                case 'range':
-                    dispatchValue = Math.round(binding.min + (value / 127) * (binding.max - binding.min));
-                    break;
-                case 'checkbox':
-                    dispatchValue = value > 64;
-                    break;
-                case 'color':
-                    dispatchValue = this._hslToHex((value / 127) * 360, 100, 50);
-                    break;
-                default:
-                    dispatchValue = value;
-            }
-
-            APP.State.dispatch({ type: binding.path, payload: dispatchValue });
-        },
-
-        _hslToHex(h, s, l) {
-            s /= 100; l /= 100;
-            const a = s * Math.min(l, 1 - l);
-            const f = n => {
-                const k = (n + h / 30) % 12;
-                const c = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-                return Math.round(255 * c).toString(16).padStart(2, '0');
-            };
-            return `#${f(0)}${f(8)}${f(4)}`;
-        }
-    };
-
-})(window.APP);
-
-// ============================================================================
-// MIDI.UI - DOM controls (Strict Unidirectional Data Flow)
+// MIDI.UI - DOM controls
 // ============================================================================
 (function(APP) {
     'use strict';
@@ -356,7 +164,6 @@ window.APP = window.APP || {};
         init() {
             this.elements = {
                 deviceSelect: document.getElementById('midiDevice'),
-                learnCheckbox: document.getElementById('learnMode'),
                 clearBtn: document.getElementById('clearBindingsBtn'),
                 midiToastsCheckbox: document.getElementById('midiToastsEnabled'),
                 statusIndicator: document.querySelector('.midi-status-indicator'),
@@ -370,12 +177,11 @@ window.APP = window.APP || {};
         },
 
         // ================================================================
-        // RENDER - Single place that updates DOM from state
+        // RENDER
         // ================================================================
         _render() {
             this._renderDeviceList();
             this._renderDeviceStatus();
-            this._renderLearnMode();
             this._renderMidiToasts();
         },
 
@@ -408,14 +214,6 @@ window.APP = window.APP || {};
             if (statusText) statusText.textContent = isConnected ? 'Connected' : 'Disconnected';
         },
 
-        _renderLearnMode() {
-            const { learnCheckbox } = this.elements;
-            if (!learnCheckbox) return;
-
-            learnCheckbox.checked = APP.State.select('midi.learnMode');
-            learnCheckbox.disabled = !APP.MIDI.activeInput;
-        },
-
         _renderMidiToasts() {
             const { midiToastsCheckbox } = this.elements;
             if (!midiToastsCheckbox) return;
@@ -423,10 +221,10 @@ window.APP = window.APP || {};
         },
 
         // ================================================================
-        // EVENTS - Dispatch only, no DOM manipulation
+        // EVENTS
         // ================================================================
         _bindEvents() {
-            const { deviceSelect, learnCheckbox, clearBtn, midiToastsCheckbox } = this.elements;
+            const { deviceSelect, clearBtn, midiToastsCheckbox } = this.elements;
 
             if (deviceSelect) {
                 deviceSelect.addEventListener('change', () => {
@@ -438,16 +236,9 @@ window.APP = window.APP || {};
                 });
             }
 
-            if (learnCheckbox) {
-                learnCheckbox.addEventListener('change', () => {
-                    APP.State.dispatch({ type: 'midi.learnMode', payload: learnCheckbox.checked });
-                });
-            }
-
             if (clearBtn) {
                 clearBtn.addEventListener('click', () => {
-                    APP.State.dispatch({ type: 'midi.bindings', payload: {} });
-                    APP.Toast.info('Bindings cleared');
+                    APP.InputHub.clearMapsForSource('midi');
                 });
             }
 
@@ -462,7 +253,7 @@ window.APP = window.APP || {};
         },
 
         // ================================================================
-        // SUBSCRIBE - Re-render when relevant state changes
+        // SUBSCRIBE
         // ================================================================
         _subscribe() {
             APP.State.subscribe('midi.*', () => this._render());
@@ -483,16 +274,5 @@ window.APP = window.APP || {};
             }
         }
     };
-
-    // Auto-init after main app
-    document.addEventListener('DOMContentLoaded', async () => {
-        setTimeout(async () => {
-            const success = await APP.MIDI.init();
-            if (success) {
-                APP.MIDI.Learn.init();
-                APP.MIDI.UI.init();
-            }
-        }, 100);
-    });
 
 })(window.APP);

@@ -50,11 +50,6 @@
                         </div>
 
                         <div class="control-group checkbox-group">
-                            <input type="checkbox" id="learnMode" disabled>
-                            <label>Learn Mode</label>
-                        </div>
-
-                        <div class="control-group checkbox-group">
                             <input type="checkbox" id="midiToastsEnabled" checked>
                             <label>Show MIDI Toasts</label>
                         </div>
@@ -65,6 +60,41 @@
                         </div>
 
                         <button class="btn btn-secondary" id="clearBindingsBtn">Clear Bindings</button>
+                    </div>
+                </div>
+
+                <!-- Gamepad Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <span class="section-title">Gamepad</span>
+                        <span class="section-toggle"></span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <div class="gamepad-status">
+                                <span class="gamepad-status-indicator"></span>
+                                <span class="gamepad-status-text">Disconnected</span>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Device</label>
+                            <select id="gamepadDevice">
+                                <option value="">Select gamepad...</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="gamepadToastsEnabled" checked>
+                            <label>Show Gamepad Toasts</label>
+                        </div>
+
+                        <div class="stat-item">
+                            <span>Bindings:</span>
+                            <span id="gamepadBindingCount">0</span>
+                        </div>
+
+                        <button class="btn btn-secondary" id="clearGamepadBindingsBtn">Clear Bindings</button>
                     </div>
                 </div>
 
@@ -209,14 +239,21 @@
     <script src="js/defaults.js"></script>
     <script src="js/utils.js"></script>
 
+    <!-- Input System -->
+    <script src="js/input/ParameterRegistry.js"></script>
+    <script src="js/input/InputMap.js"></script>
+    <script src="js/input/InputHub.js"></script>
+    <script src="js/input/InputLearnUI.js"></script>
+
     <!-- Modules -->
     <script src="js/cylinder.js"></script>
     <script src="js/display.js"></script>
     <script src="js/scene.js"></script>
     <script src="js/ui.js"></script>
 
-    <!-- App + MIDI -->
+    <!-- App + Input Controllers -->
     <script src="js/app.js"></script>
     <script src="js/midi.js"></script>
+    <script src="js/gamepad.js"></script>
 </body>
 </html>

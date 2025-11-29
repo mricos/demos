@@ -36,12 +36,19 @@ window.APP = window.APP || {};
         display: {
             toasts: true,
             stats: true,
-            midiToasts: true
+            midiToasts: true,
+            gamepadToasts: true
         },
         midi: {
-            bindings: {},
             device: null,
             learnMode: false
+        },
+        gamepad: {
+            device: null,
+            learnMode: false
+        },
+        input: {
+            maps: {}    // All bindings stored here as { [id]: InputMap }
         }
     };
 

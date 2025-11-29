@@ -67,8 +67,14 @@ window.APP = window.APP || {};
         info(msg) { this.show(msg, 'info'); },
         success(msg) { this.show(msg, 'success'); },
         midi(msg) {
-            const midiToasts = APP.State.select('display.midiToasts');
-            if (midiToasts) this.show(msg, 'midi');
+            if (APP.State.select('display.midiToasts')) {
+                this.show(msg, 'midi');
+            }
+        },
+        gamepad(msg) {
+            if (APP.State.select('display.gamepadToasts')) {
+                this.show(msg, 'gamepad');
+            }
         }
     };
 
