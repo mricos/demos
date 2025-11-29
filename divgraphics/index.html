@@ -3,10 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DivGraphics - 3D Tube</title>
+    <title>DivGraphics - 3D Cylinders</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Toast Container (left side) -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Stats Toast (floating) -->
+    <div id="statsToast" class="stats-toast">
+        <div class="stats-row"><span>FPS</span><span id="statFps">0</span></div>
+        <div class="stats-row"><span>Divs</span><span id="statDivs">0</span></div>
+        <div class="stats-row"><span>Faces</span><span id="statFaces">0</span></div>
+    </div>
+
     <div class="app-container">
         <header>
             <h1><span>Div</span>Graphics</h1>
@@ -18,72 +28,172 @@
             </div>
 
             <div class="controls">
-                <div class="control-group">
-                    <label>Radius</label>
-                    <input type="range" id="radius" min="30" max="150" value="80">
-                    <div class="control-value" id="radiusValue">80</div>
-                </div>
-
-                <div class="control-group">
-                    <label>Height</label>
-                    <input type="range" id="height" min="50" max="400" value="200">
-                    <div class="control-value" id="heightValue">200</div>
-                </div>
-
-                <div class="control-group">
-                    <label>Segments (Radial)</label>
-                    <input type="range" id="radialSegments" min="6" max="48" value="24">
-                    <div class="control-value" id="radialSegmentsValue">24</div>
-                </div>
-
-                <div class="control-group">
-                    <label>Segments (Height)</label>
-                    <input type="range" id="heightSegments" min="1" max="20" value="8">
-                    <div class="control-value" id="heightSegmentsValue">8</div>
-                </div>
-
-                <div class="control-group">
-                    <label>Inner Radius (Hollow)</label>
-                    <input type="range" id="innerRadius" min="0" max="140" value="50">
-                    <div class="control-value" id="innerRadiusValue">50</div>
-                </div>
-
-                <div class="control-group">
-                    <label>Primary Color</label>
-                    <input type="color" id="color" value="#00d4ff">
-                </div>
-
-                <div class="control-group">
-                    <label>Secondary Color</label>
-                    <input type="color" id="colorSecondary" value="#ff00aa">
-                </div>
-
-                <div class="control-group checkbox-group">
-                    <input type="checkbox" id="wireframe">
-                    <label style="margin: 0;">Wireframe Mode</label>
-                </div>
-
-                <div class="control-group checkbox-group">
-                    <input type="checkbox" id="autoRotate" checked>
-                    <label style="margin: 0;">Auto Rotate</label>
-                </div>
-
-                <div class="control-group checkbox-group">
-                    <input type="checkbox" id="showCaps" checked>
-                    <label style="margin: 0;">Show End Caps</label>
-                </div>
-
-                <button class="btn" id="resetBtn">Reset View</button>
-
-                <div class="stats">
-                    <h3>Statistics</h3>
-                    <div class="stat-item">
-                        <span>Total Divs:</span>
-                        <span id="statDivs">0</span>
+                <!-- MIDI Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <span class="section-title">MIDI</span>
+                        <span class="section-toggle"></span>
                     </div>
-                    <div class="stat-item">
-                        <span>Faces:</span>
-                        <span id="statFaces">0</span>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <div class="midi-status">
+                                <span class="midi-status-indicator"></span>
+                                <span class="midi-status-text">Disconnected</span>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Device</label>
+                            <select id="midiDevice">
+                                <option value="">Select device...</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="learnMode" disabled>
+                            <label>Learn Mode</label>
+                        </div>
+
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="midiToastsEnabled" checked>
+                            <label>Show MIDI Toasts</label>
+                        </div>
+
+                        <div class="stat-item">
+                            <span>Bindings:</span>
+                            <span id="bindingCount">0</span>
+                        </div>
+
+                        <button class="btn btn-secondary" id="clearBindingsBtn">Clear Bindings</button>
+                    </div>
+                </div>
+
+                <!-- Display Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <span class="section-title">Display</span>
+                        <span class="section-toggle"></span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="toastsEnabled" checked>
+                            <label>Show Toasts</label>
+                        </div>
+
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="statsEnabled" checked>
+                            <label>Show Stats</label>
+                        </div>
+
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="autoRotate" checked>
+                            <label>Auto Rotate</label>
+                        </div>
+
+                        <button class="btn" id="resetBtn">Reset View</button>
+                    </div>
+                </div>
+
+                <!-- Outer Cylinder Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <span class="section-title">Outer Cylinder</span>
+                        <span class="section-toggle"></span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <label>Radius</label>
+                            <input type="range" id="outerRadius" min="30" max="150" value="80">
+                            <div class="control-value" id="outerRadiusValue">80</div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Height</label>
+                            <input type="range" id="outerHeight" min="50" max="400" value="200">
+                            <div class="control-value" id="outerHeightValue">200</div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Radial Segments</label>
+                            <input type="range" id="outerRadialSegments" min="6" max="48" value="24">
+                            <div class="control-value" id="outerRadialSegmentsValue">24</div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Height Segments</label>
+                            <input type="range" id="outerHeightSegments" min="1" max="20" value="8">
+                            <div class="control-value" id="outerHeightSegmentsValue">8</div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Primary Color</label>
+                            <input type="color" id="outerColor" value="#00d4ff">
+                        </div>
+
+                        <div class="control-group">
+                            <label>Secondary Color</label>
+                            <input type="color" id="outerColorSecondary" value="#ff00aa">
+                        </div>
+
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="outerWireframe">
+                            <label>Wireframe</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inner Cylinder Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <span class="section-title">Inner Cylinder</span>
+                        <span class="section-toggle"></span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="innerEnabled" checked>
+                            <label>Enabled</label>
+                        </div>
+
+                        <div id="innerControls">
+                            <div class="control-group">
+                                <label>Radius</label>
+                                <input type="range" id="innerRadius" min="10" max="140" value="50">
+                                <div class="control-value" id="innerRadiusValue">50</div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Height</label>
+                                <input type="range" id="innerHeight" min="50" max="400" value="200">
+                                <div class="control-value" id="innerHeightValue">200</div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Radial Segments</label>
+                                <input type="range" id="innerRadialSegments" min="6" max="48" value="24">
+                                <div class="control-value" id="innerRadialSegmentsValue">24</div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Height Segments</label>
+                                <input type="range" id="innerHeightSegments" min="1" max="20" value="8">
+                                <div class="control-value" id="innerHeightSegmentsValue">8</div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Primary Color</label>
+                                <input type="color" id="innerColor" value="#ff00aa">
+                            </div>
+
+                            <div class="control-group">
+                                <label>Secondary Color</label>
+                                <input type="color" id="innerColorSecondary" value="#00d4ff">
+                            </div>
+
+                            <div class="control-group checkbox-group">
+                                <input type="checkbox" id="innerWireframe">
+                                <label>Wireframe</label>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -91,9 +201,11 @@
     </div>
 
     <div class="instructions">
-        Click and drag to rotate • Scroll to zoom
+        Drag to rotate • Scroll to zoom
     </div>
 
+    <script src="pstate.js"></script>
     <script src="script.js"></script>
+    <script src="midi.js"></script>
 </body>
 </html>

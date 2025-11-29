@@ -53,150 +53,375 @@ header h1 span {
 .scene {
     position: relative;
     transform-style: preserve-3d;
-    transition: transform 0.05s linear;
 }
 
 .controls {
-    width: 320px;
-    padding: 30px;
+    width: 300px;
+    padding: 15px;
     background: rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(10px);
     border-left: 1px solid rgba(255, 255, 255, 0.1);
     overflow-y: auto;
 }
 
+/* Collapsible Sections */
+.control-section {
+    margin-bottom: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    user-select: none;
+}
+
+.section-header:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.section-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #00d4ff;
+}
+
+.section-toggle {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid rgba(255, 255, 255, 0.5);
+    transition: transform 0.2s ease;
+}
+
+.control-section.collapsed .section-toggle {
+    transform: rotate(-90deg);
+}
+
+.section-content {
+    padding: 12px;
+    max-height: 800px;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.control-section.collapsed .section-content {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+/* Control Groups */
 .control-group {
-    margin-bottom: 25px;
+    margin-bottom: 14px;
+}
+
+.control-group:last-child {
+    margin-bottom: 0;
 }
 
 .control-group label {
     display: block;
-    margin-bottom: 8px;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 5px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
 }
 
 .control-group input[type="range"] {
     width: 100%;
-    height: 6px;
+    height: 4px;
     -webkit-appearance: none;
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    border-radius: 2px;
     outline: none;
 }
 
 .control-group input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     background: #00d4ff;
     border-radius: 50%;
     cursor: pointer;
-    box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+    box-shadow: 0 0 6px rgba(0, 212, 255, 0.5);
 }
 
 .control-group input[type="color"] {
     width: 100%;
-    height: 40px;
+    height: 32px;
     border: none;
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
     background: transparent;
 }
 
 .control-value {
     text-align: right;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     color: #00d4ff;
-    margin-top: 5px;
+    margin-top: 3px;
 }
 
 .checkbox-group {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+}
+
+.checkbox-group label {
+    margin: 0;
+    text-transform: none;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
 }
 
 .checkbox-group input[type="checkbox"] {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     accent-color: #00d4ff;
 }
 
 .btn {
     width: 100%;
-    padding: 12px 20px;
+    padding: 8px 14px;
     background: linear-gradient(135deg, #00d4ff, #0099cc);
     border: none;
-    border-radius: 6px;
+    border-radius: 4px;
     color: #fff;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }
 
 .btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 12px rgba(0, 212, 255, 0.4);
 }
 
-.stats {
-    margin-top: 30px;
-    padding: 15px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    margin-top: 8px;
 }
 
-.stats h3 {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.5);
-    margin-bottom: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: none;
+    transform: none;
 }
 
+/* Stats */
 .stat-item {
     display: flex;
     justify-content: space-between;
-    padding: 5px 0;
-    font-size: 0.9rem;
+    padding: 4px 0;
+    font-size: 0.85rem;
 }
 
 .stat-item span:last-child {
     color: #00d4ff;
+    font-weight: 500;
 }
 
-/* Tube segment styling */
-.tube-segment {
-    position: absolute;
-    transform-style: preserve-3d;
-    backface-visibility: visible;
-}
-
-.tube-ring {
+/* Cylinder styling */
+.cylinder-ring {
     position: absolute;
     transform-style: preserve-3d;
 }
 
-.tube-face {
+.cylinder-face {
     position: absolute;
     transform-origin: center center;
     backface-visibility: visible;
 }
 
+/* Instructions */
 .instructions {
     position: fixed;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.5);
-    padding: 10px 20px;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.7);
+    padding: 8px 16px;
+    border-radius: 16px;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* ============================================================================
+   Toast System
+   ============================================================================ */
+.toast-container {
+    position: fixed;
+    left: 20px;
+    top: 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.toast {
+    padding: 8px 14px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.9);
+    border-left: 3px solid #00d4ff;
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: all 0.3s ease;
+    max-width: 250px;
+    word-wrap: break-word;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast-info {
+    border-left-color: #00d4ff;
+}
+
+.toast-success {
+    border-left-color: #00ff88;
+}
+
+.toast-midi {
+    border-left-color: #ff00aa;
+    font-family: monospace;
+    font-size: 0.75rem;
+}
+
+/* ============================================================================
+   Stats Toast (floating panel)
+   ============================================================================ */
+.stats-toast {
+    position: fixed;
+    left: 20px;
+    bottom: 60px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.75rem;
+    z-index: 100;
+    min-width: 90px;
+}
+
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+    gap: 12px;
+}
+
+.stats-row span:first-child {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.stats-row span:last-child {
+    color: #00d4ff;
+    font-weight: 600;
+    font-family: monospace;
+}
+
+/* ============================================================================
+   MIDI Section
+   ============================================================================ */
+.midi-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.midi-status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff4444;
+    transition: all 0.3s ease;
+}
+
+.midi-status-indicator.connected {
+    background: #00ff88;
+    box-shadow: 0 0 6px rgba(0, 255, 136, 0.5);
+}
+
+.midi-status-text {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.control-group select {
+    width: 100%;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #fff;
+    font-size: 0.8rem;
+    cursor: pointer;
+    outline: none;
+}
+
+.control-group select:focus {
+    border-color: #00d4ff;
+}
+
+.control-group select option {
+    background: #1a1a2e;
+    color: #fff;
+}
+
+/* ============================================================================
+   MIDI Learn Mode
+   ============================================================================ */
+.learn-mode-active .control-group:not(.checkbox-group):hover {
+    cursor: crosshair;
+    outline: 2px dashed rgba(0, 212, 255, 0.5);
+    outline-offset: 2px;
+}
+
+.control-group.learn-target {
+    outline: 2px solid #00d4ff !important;
+    outline-offset: 2px;
+    background: rgba(0, 212, 255, 0.1);
+    animation: learn-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes learn-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.4); }
+    50% { box-shadow: 0 0 12px 3px rgba(0, 212, 255, 0.2); }
+}
+
+.control-group.learn-success {
+    animation: learn-flash 0.3s ease;
+}
+
+@keyframes learn-flash {
+    0% { background: rgba(0, 255, 136, 0.3); }
+    100% { background: transparent; }
+}
+
+.control-group.bound {
+    border-left: 2px solid #00d4ff;
+    padding-left: 10px;
+    margin-left: -2px;
 }
