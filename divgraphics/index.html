@@ -42,6 +42,14 @@
                     </div>
                 </div>
                 <div class="sidebar-content">
+                <!-- Bank Selector -->
+                <div class="bank-selector">
+                    <button class="bank-btn active" data-bank="A" title="Long-press to learn bank switch CC">A</button>
+                    <button class="bank-btn" data-bank="B" title="Long-press to learn bank switch CC">B</button>
+                    <button class="bank-btn" data-bank="C" title="Long-press to learn bank switch CC">C</button>
+                    <button class="bank-btn" data-bank="D" title="Long-press to learn bank switch CC">D</button>
+                </div>
+
                 <!-- MIDI Section -->
                 <div class="control-section">
                     <div class="section-header">
@@ -172,8 +180,8 @@
 
                         <div class="control-group">
                             <label>FOV (Perspective)</label>
-                            <input type="range" id="cameraFov" min="400" max="2000" value="1200">
-                            <div class="control-value" id="cameraFovValue">1200</div>
+                            <input type="range" id="cameraFov" min="0" max="100" value="50">
+                            <div class="control-value" id="cameraFovValue">800</div>
                         </div>
 
                         <div class="control-group">
@@ -220,6 +228,39 @@
                     </div>
                 </div>
 
+                <!-- Animation Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <span class="section-title">Animation</span>
+                        <button class="info-btn" id="animationInfoBtn" title="Animation System Info">A</button>
+                        <span class="section-toggle"></span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="animationPlaying">
+                            <label>Play</label>
+                        </div>
+
+                        <div class="control-group">
+                            <label>BPM</label>
+                            <input type="range" id="animationBpm" min="0" max="100" step="1" value="67">
+                            <div class="control-value" id="animationBpmValue">120</div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>PPS (=BPM÷60)</label>
+                            <input type="range" id="animationPps" min="0" max="100" step="1" value="67">
+                            <div class="control-value" id="animationPpsValue">2.00</div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>RPP (Rev/Pulse)</label>
+                            <input type="range" id="animationRpb" min="0" max="1" step="0.00625" value="0.00625">
+                            <div class="control-value" id="animationRpbValue">0.00625</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Outer Cylinder Section -->
                 <div class="control-section">
                     <div class="section-header">
@@ -227,6 +268,12 @@
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="outerEnabled" checked>
+                            <label>Enabled</label>
+                        </div>
+
+                        <div id="outerControls">
                         <div class="control-group">
                             <label>Radius</label>
                             <input type="range" id="outerRadius" min="30" max="150" value="80">
@@ -265,6 +312,7 @@
                             <input type="checkbox" id="outerWireframe">
                             <label>Wireframe</label>
                         </div>
+                        </div><!-- /#outerControls -->
                     </div>
                 </div>
 
@@ -430,6 +478,202 @@
                     </div>
                 </div>
 
+                <!-- Track Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <span class="section-title">Track</span>
+                        <span class="section-toggle"></span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="trackEnabled">
+                            <label>Enabled</label>
+                        </div>
+
+                        <div id="trackControls">
+                            <div class="control-group">
+                                <label>Preset</label>
+                                <select id="trackPreset">
+                                    <option value="GENTLE_TURNS">Gentle Turns</option>
+                                    <option value="SPIRAL_CLIMB">Spiral Climb</option>
+                                    <option value="OVAL_LOOP">Oval Loop (closed)</option>
+                                    <option value="FIGURE_EIGHT">Figure 8 (closed)</option>
+                                </select>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Tube Radius</label>
+                                <input type="range" id="trackRadius" min="5" max="40" value="15">
+                                <div class="control-value" id="trackRadiusValue">15</div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Segments/Span</label>
+                                <input type="range" id="trackSegmentsPerSpan" min="2" max="12" value="6">
+                                <div class="control-value" id="trackSegmentsPerSpanValue">6</div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Tension</label>
+                                <input type="range" id="trackTension" min="0" max="100" value="50">
+                                <div class="control-value" id="trackTensionValue">0.5</div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Primary Color</label>
+                                <input type="color" id="trackColor" value="#00ff88">
+                            </div>
+
+                            <div class="control-group">
+                                <label>Secondary Color</label>
+                                <input type="color" id="trackColorSecondary" value="#0088ff">
+                            </div>
+
+                            <div class="control-group checkbox-group">
+                                <input type="checkbox" id="trackWireframe">
+                                <label>Wireframe</label>
+                            </div>
+
+                            <!-- Normals (point radially outward) -->
+                            <div class="control-subsection">
+                                <label class="subsection-label">Normals</label>
+                                <div class="control-group checkbox-group">
+                                    <input type="checkbox" id="trackRadialsEnabled" checked>
+                                    <label>Enabled</label>
+                                </div>
+                                <div class="control-group">
+                                    <label>Roundness</label>
+                                    <input type="range" id="trackRadialsRoundness" min="0" max="100" value="0">
+                                    <div class="control-value" id="trackRadialsRoundnessValue">0</div>
+                                </div>
+                                <div class="control-group">
+                                    <label>Size %</label>
+                                    <input type="range" id="trackRadialsSize" min="10" max="200" value="100">
+                                    <div class="control-value" id="trackRadialsSizeValue">100</div>
+                                </div>
+                                <div class="control-group">
+                                    <label>Spin</label>
+                                    <input type="range" id="trackRadialsTwist" min="-180" max="180" value="0">
+                                    <div class="control-value" id="trackRadialsTwistValue">0°</div>
+                                </div>
+                            </div>
+
+                            <!-- Tangents (point along curve) -->
+                            <div class="control-subsection">
+                                <label class="subsection-label">Tangents</label>
+                                <div class="control-group checkbox-group">
+                                    <input type="checkbox" id="trackRadialsOutward">
+                                    <label>Enabled</label>
+                                </div>
+                            </div>
+
+                            <!-- Circle (reference ring) -->
+                            <div class="control-subsection">
+                                <label class="subsection-label">Circle</label>
+                                <div class="control-group checkbox-group">
+                                    <input type="checkbox" id="trackCircleEnabled">
+                                    <label>Enabled</label>
+                                </div>
+                                <div class="control-group">
+                                    <label>Border Width</label>
+                                    <input type="range" id="trackCircleBorderWidth" min="1" max="10" value="2">
+                                    <div class="control-value" id="trackCircleBorderWidthValue">2</div>
+                                </div>
+                                <div class="control-group checkbox-group">
+                                    <input type="checkbox" id="trackCircleFill">
+                                    <label>Fill</label>
+                                </div>
+                                <div class="control-group">
+                                    <label>Color</label>
+                                    <input type="color" id="trackCircleColor" value="#ffffff">
+                                </div>
+                                <div class="control-group">
+                                    <label>Skip (every Nth)</label>
+                                    <input type="range" id="trackCircleSkip" min="1" max="10" value="1">
+                                    <div class="control-value" id="trackCircleSkipValue">1</div>
+                                </div>
+                                <div class="control-group">
+                                    <label>Opacity</label>
+                                    <input type="range" id="trackCircleOpacity" min="0" max="100" value="100">
+                                    <div class="control-value" id="trackCircleOpacityValue">1</div>
+                                </div>
+                            </div>
+
+                            <div class="control-subsection">
+                                <label class="subsection-label">Endless Mode</label>
+                                <div class="control-group checkbox-group">
+                                    <input type="checkbox" id="trackEndless">
+                                    <label>Endless Generation</label>
+                                </div>
+
+                                <div class="control-group">
+                                    <label>Variation</label>
+                                    <select id="trackVariationSource">
+                                        <option value="none">None</option>
+                                        <option value="perlin">Perlin Noise</option>
+                                        <option value="random">Random</option>
+                                    </select>
+                                </div>
+
+                                <div class="control-group">
+                                    <label>Intensity</label>
+                                    <input type="range" id="trackVariationIntensity" min="0" max="100" value="50">
+                                    <div class="control-value" id="trackVariationIntensityValue">50</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chaser Particle Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <span class="section-title">Chaser</span>
+                        <span class="section-toggle"></span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="chaserEnabled">
+                            <label>Enabled</label>
+                        </div>
+
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="chaserFollow">
+                            <label>Follow Cam (ride along)</label>
+                        </div>
+
+                        <div id="chaserControls">
+                            <div class="control-group">
+                                <label>Speed (BPM sync)</label>
+                                <input type="range" id="chaserSpeed" min="1" max="100" value="50">
+                                <div class="control-value" id="chaserSpeedValue">50</div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Head Size</label>
+                                <input type="range" id="chaserSize" min="5" max="50" value="20">
+                                <div class="control-value" id="chaserSizeValue">20</div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Tail Length</label>
+                                <input type="range" id="chaserTailLength" min="20" max="150" value="60">
+                                <div class="control-value" id="chaserTailLengthValue">60</div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Primary Color</label>
+                                <input type="color" id="chaserColor" value="#b34233">
+                            </div>
+
+                            <div class="control-group">
+                                <label>Secondary Color</label>
+                                <input type="color" id="chaserColorSecondary" value="#8b2500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 </div><!-- /.sidebar-content -->
             </div>
         </div>
@@ -446,16 +690,28 @@
     <script src="js/input/InputMap.js"></script>
     <script src="js/input/InputHub.js"></script>
     <script src="js/input/InputLearnUI.js"></script>
+    <script src="js/input/BankSelectorUI.js"></script>
 
     <!-- Geometry -->
     <script src="js/geometry.js"></script>
     <script src="js/cylinder.js"></script>
     <script src="js/curve.js"></script>
 
+    <!-- Track System -->
+    <script src="js/track/TrackBase.js"></script>
+    <script src="js/track/CatmullRomTrack.js"></script>
+    <script src="js/track/RingPool.js"></script>
+    <script src="js/track/presets.js"></script>
+    <script src="js/track/WaypointManager.js"></script>
+    <script src="js/variation/PerlinSource.js"></script>
+    <script src="js/variation/RandomSource.js"></script>
+
     <!-- Scene -->
     <script src="js/camera.js"></script>
     <script src="js/scene-manager.js"></script>
     <script src="js/scene.js"></script>
+    <script src="js/timing.js"></script>
+    <script src="js/particle-chaser.js"></script>
 
     <!-- UI -->
     <script src="js/display.js"></script>
@@ -465,6 +721,7 @@
     <script src="js/curve-info.js"></script>
     <script src="js/frustum-info.js"></script>
     <script src="js/camera-info.js"></script>
+    <script src="js/animation-info.js"></script>
     <script src="js/code-stats.js"></script>
     <script src="js/axis-indicator.js"></script>
 

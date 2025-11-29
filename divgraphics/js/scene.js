@@ -14,6 +14,8 @@ window.APP = window.APP || {};
         outerCylinder: null,
         innerCylinder: null,
         curve: null,
+        track: null,
+        ringPool: null,
 
         init() {
             this.container = document.getElementById('scene');
@@ -34,6 +36,7 @@ window.APP = window.APP || {};
             this._rebuildCylinder('outer', false);
             this._rebuildCylinder('inner', true);
             this._rebuildCurve();
+            this._rebuildTrack();
             // Camera handles its own state restoration
         },
 
@@ -43,10 +46,12 @@ window.APP = window.APP || {};
             const throttledRebuildOuter = APP.Utils.throttle(() => this._rebuildCylinder('outer', false), config.throttleMs);
             const throttledRebuildInner = APP.Utils.throttle(() => this._rebuildCylinder('inner', true), config.throttleMs);
             const throttledRebuildCurve = APP.Utils.throttle(() => this._rebuildCurve(), config.throttleMs);
+            const throttledRebuildTrack = APP.Utils.throttle(() => this._rebuildTrack(), config.throttleMs);
 
             APP.State.subscribe('outer.*', throttledRebuildOuter);
             APP.State.subscribe('inner.*', throttledRebuildInner);
             APP.State.subscribe('curve.*', throttledRebuildCurve);
+            APP.State.subscribe('track.*', throttledRebuildTrack);
             // Haze is now view-space, updated in animation loop - no rebuild needed
         },
 
@@ -62,8 +67,8 @@ window.APP = window.APP || {};
                 this[propName].container.parentNode.removeChild(this[propName].container);
             }
 
-            // Handle disabled inner cylinder
-            if (key === 'inner' && !state.enabled) {
+            // Handle disabled cylinders (both outer and inner have enabled toggle)
+            if (state.enabled === false) {
                 this[propName] = null;
                 APP.Stats.updateCounts();
                 return;
@@ -116,6 +121,109 @@ window.APP = window.APP || {};
 
             this.container.appendChild(this.curve.generate());
             APP.Stats.updateCounts();
+        },
+
+        _rebuildTrack() {
+            const state = APP.State.state.track;
+            const config = APP.State.defaults.config;
+            if (!state) return;
+
+            // Destroy existing track
+            if (this.track) {
+                this.track.destroy();
+                this.track = null;
+            }
+
+            if (!state.enabled) {
+                APP.Stats.updateCounts();
+                return;
+            }
+
+            // Initialize ring pool if needed
+            if (!this.ringPool && APP.RingPool) {
+                this.ringPool = new APP.RingPool(config.trackRingPoolSize || 200);
+            }
+
+            // Get waypoints from preset or endless generation
+            let waypoints;
+            let closed = false;
+            if (state.endless && APP.WaypointManager) {
+                waypoints = APP.WaypointManager.generateInitial(config.trackLookAhead * 2);
+            } else if (APP.TrackPresets) {
+                waypoints = APP.TrackPresets.get(state.preset);
+                closed = APP.TrackPresets.isClosed(state.preset);
+            } else {
+                // Fallback: simple straight track
+                waypoints = [
+                    { x: 0, y: 0, z: 0 },
+                    { x: 0, y: 0, z: 500 }
+                ];
+            }
+
+            // Create track
+            if (APP.CatmullRomTrack) {
+                this.track = new APP.CatmullRomTrack({
+                    waypoints,
+                    radius: state.radius,
+                    radialSegments: state.radialSegments,  // 0 = centerline only, 1+ = tube
+                    segmentsPerSpan: state.segmentsPerSpan,
+                    color: state.color,
+                    colorSecondary: state.colorSecondary,
+                    wireframe: state.wireframe,
+                    tension: state.tension,
+                    closed,
+                    ringPool: this.ringPool,
+                    centerlineWidth: state.centerlineWidth,
+                    centerlineColor: state.centerlineColor,
+                    widthZScale: state.widthZScale,
+                    radialWidthScale: state.radialWidthScale,
+                    circle: state.circle,
+                    normals: state.normals,
+                    tangents: state.tangents
+                });
+
+                this.container.appendChild(this.track.generate());
+
+                // Initialize waypoint manager for endless mode
+                if (state.endless && APP.WaypointManager) {
+                    APP.WaypointManager.init(this.track);
+                    this._setupVariationSource(state);
+                }
+            }
+
+            APP.Stats.updateCounts();
+        },
+
+        _setupVariationSource(state) {
+            if (!APP.WaypointManager) return;
+
+            let source = null;
+
+            switch (state.variationSource) {
+                case 'perlin':
+                    if (APP.PerlinSource) {
+                        source = new APP.PerlinSource({
+                            intensity: state.variationIntensity / 100
+                        });
+                    }
+                    break;
+                case 'random':
+                    if (APP.RandomSource) {
+                        source = new APP.RandomSource({
+                            intensity: state.variationIntensity / 100
+                        });
+                    }
+                    break;
+                case 'music':
+                    if (APP.MusicSource) {
+                        source = new APP.MusicSource({
+                            intensity: state.variationIntensity / 100
+                        });
+                    }
+                    break;
+            }
+
+            APP.WaypointManager.setVariationSource(source);
         },
 
         resetView() {

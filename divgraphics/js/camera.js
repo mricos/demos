@@ -31,6 +31,15 @@ window.APP = window.APP || {};
         _lastHaze: 0,
         _lastHazeRotX: null,
         _lastHazeRotY: null,
+        _lastTrackHazeTime: 0,
+
+        // Follow cam smoothing
+        _followPos: { x: 0, y: 0, z: 0 },
+        _followYaw: 0,
+        _followPitch: 0,
+
+        // Follow mode look-around offset (resets when not dragging)
+        _lookOffset: { yaw: 0, pitch: 0 },
 
         init(container, viewport) {
             this.container = container;
@@ -99,14 +108,22 @@ window.APP = window.APP || {};
             const dx = (clientX - this.lastMouse.x) * this.sensitivity;
             const dy = (clientY - this.lastMouse.y) * this.sensitivity;
 
-            this.targetRotation.y += dx;
-            if (this.pitchClamp) {
-                this.targetRotation.x = Math.max(
-                    config.pitchClampMin,
-                    Math.min(config.pitchClampMax, this.targetRotation.x + dy)
-                );
+            // In follow mode, update look offset instead of global rotation
+            const followMode = APP.State?.select('chaser.follow');
+            if (followMode) {
+                // Clamp look offset to reasonable range
+                this._lookOffset.yaw = Math.max(-120, Math.min(120, this._lookOffset.yaw + dx));
+                this._lookOffset.pitch = Math.max(-60, Math.min(60, this._lookOffset.pitch + dy));
             } else {
-                this.targetRotation.x += dy;
+                this.targetRotation.y += dx;
+                if (this.pitchClamp) {
+                    this.targetRotation.x = Math.max(
+                        config.pitchClampMin,
+                        Math.min(config.pitchClampMax, this.targetRotation.x + dy)
+                    );
+                } else {
+                    this.targetRotation.x += dy;
+                }
             }
             this.lastMouse = { x: clientX, y: clientY };
         },
@@ -187,12 +204,30 @@ window.APP = window.APP || {};
 
         _startAnimationLoop() {
             const config = APP.State.defaults.config;
-            const animate = () => {
+            let lastTime = performance.now();
+
+            const animate = (currentTime) => {
+                const deltaMs = currentTime - lastTime;
+                lastTime = currentTime;
+
                 APP.Stats?.beginFrame();
                 try {
-                    const autoRotate = APP.State.select('scene.autoRotate');
-                    if (autoRotate && !this.isDragging) {
-                        this.targetRotation.y += config.autoRotateSpeed;
+                    // Update timing system
+                    APP.Timing?.tick(deltaMs);
+
+                    // Update particle chaser
+                    APP.ParticleChaser?.update(deltaMs);
+
+                    // BPM-driven rotation when playing, otherwise use autoRotate
+                    const playing = APP.State.select('animation.playing');
+                    if (playing && !this.isDragging) {
+                        const rotRate = APP.Timing?.getRotationRate() || 0;
+                        this.targetRotation.y += rotRate * deltaMs;
+                    } else {
+                        const autoRotate = APP.State.select('scene.autoRotate');
+                        if (autoRotate && !this.isDragging) {
+                            this.targetRotation.y += config.autoRotateSpeed;
+                        }
                     }
 
                     // Smooth interpolation
@@ -203,29 +238,57 @@ window.APP = window.APP || {};
                     this.pan.x += (this.targetPan.x - this.pan.x) * lerp;
                     this.pan.y += (this.targetPan.y - this.pan.y) * lerp;
 
+                    // In follow mode, lerp look offset back to zero when not dragging
+                    const followMode = APP.State?.select('chaser.follow');
+                    if (followMode && !this.isDragging) {
+                        const returnLerp = lerp * 0.5; // Slower return for smoother feel
+                        this._lookOffset.yaw *= (1 - returnLerp);
+                        this._lookOffset.pitch *= (1 - returnLerp);
+                        // Snap to zero when close enough
+                        if (Math.abs(this._lookOffset.yaw) < 0.1) this._lookOffset.yaw = 0;
+                        if (Math.abs(this._lookOffset.pitch) < 0.1) this._lookOffset.pitch = 0;
+                    }
+
                     this.applyTransform();
 
                     // Update view-space haze on geometry (only when rotation changed)
                     const hazeIntensity = APP.State?.select('display.haze') || 0;
                     const hazeChanged = hazeIntensity !== this._lastHaze;
-                    const rotChanged = this._lastHazeRotX === null ||
-                        Math.abs(this.rotation.x - this._lastHazeRotX) > 0.5 ||
-                        Math.abs(this.rotation.y - this._lastHazeRotY) > 0.5;
 
-                    if ((hazeIntensity > 0 && rotChanged) || hazeChanged) {
+                    // Use follow camera rotation when in follow mode
+                    const effectiveRotX = followMode ? this._followPitch : this.rotation.x;
+                    const effectiveRotY = followMode ? this._followYaw : this.rotation.y;
+                    const effectiveRotZ = followMode ? 0 : this.rotation.z;
+
+                    const rotChanged = this._lastHazeRotX === null ||
+                        Math.abs(effectiveRotX - this._lastHazeRotX) > 0.5 ||
+                        Math.abs(effectiveRotY - this._lastHazeRotY) > 0.5;
+
+                    // In follow mode, always update haze (camera moves constantly)
+                    if ((hazeIntensity > 0 && (rotChanged || followMode)) || hazeChanged) {
                         const hazeOpts = {
-                            rotX: this.rotation.x,
-                            rotY: this.rotation.y,
-                            rotZ: this.rotation.z,
+                            rotX: effectiveRotX,
+                            rotY: effectiveRotY,
+                            rotZ: effectiveRotZ,
                             intensity: hazeIntensity,
-                            rollMode: this.rollMode
+                            rollMode: this.rollMode,
+                            // In follow mode, pass camera position for relative depth calc
+                            camPos: followMode ? this._followPos : null
                         };
                         APP.Scene?.outerCylinder?.updateHaze(hazeOpts);
                         APP.Scene?.innerCylinder?.updateHaze(hazeOpts);
                         APP.Scene?.curve?.updateHaze(hazeOpts);
+
+                        // Throttle track haze more aggressively (every 50ms)
+                        const now = currentTime;
+                        if (now - this._lastTrackHazeTime > 50) {
+                            APP.Scene?.track?.updateHaze(hazeOpts);
+                            this._lastTrackHazeTime = now;
+                        }
+
                         this._lastHaze = hazeIntensity;
-                        this._lastHazeRotX = this.rotation.x;
-                        this._lastHazeRotY = this.rotation.y;
+                        this._lastHazeRotX = effectiveRotX;
+                        this._lastHazeRotY = effectiveRotY;
                     }
                 } catch (e) {
                     console.error('Animation error:', e);
@@ -238,6 +301,20 @@ window.APP = window.APP || {};
 
         applyTransform() {
             if (!this.container) return;
+
+            // Check for follow cam mode
+            const followMode = APP.State?.select('chaser.follow');
+            const chaser = APP.ParticleChaser;
+
+            if (followMode && chaser?.currentPos && chaser?.currentFrame) {
+                this._applyFollowTransform(chaser.currentPos, chaser.currentFrame);
+                return;
+            }
+
+            // Reset follow cam smoothing when not in follow mode
+            if (!followMode && chaser?.currentPos) {
+                this._followPos = { ...chaser.currentPos };
+            }
 
             const base = `translate(${this.pan.x}px, ${this.pan.y}px) scale(${this.zoom}) `;
 
@@ -255,6 +332,54 @@ window.APP = window.APP || {};
                     `rotateY(${this.rotation.y}deg) ` +
                     `rotateZ(${this.rotation.z}deg)`;
             }
+        },
+
+        /**
+         * Apply first-person follow camera transform
+         * Positions camera at chaser location, looking along tangent
+         * Keeps horizon level (no roll) for stability
+         * Uses smoothing for fluid motion
+         */
+        _applyFollowTransform(pos, frame) {
+            const t = frame.tangent;
+            const config = APP.State.defaults.config;
+            const lerp = config.lerpFactor * 2; // Slightly faster follow
+
+            // Calculate target yaw and pitch - look along tangent
+            // (chaser moves in -t direction, looking along +t = looking backward at oncoming track)
+            let targetYaw = Math.atan2(t.x, t.z) * 180 / Math.PI;
+            const targetPitch = Math.asin(Math.max(-1, Math.min(1, -t.y))) * 180 / Math.PI;
+
+            // Handle yaw wraparound (avoid spinning 360 when crossing -180/180)
+            let yawDiff = targetYaw - this._followYaw;
+            if (yawDiff > 180) yawDiff -= 360;
+            if (yawDiff < -180) yawDiff += 360;
+
+            // Smooth interpolation
+            this._followPos.x += (pos.x - this._followPos.x) * lerp;
+            this._followPos.y += (pos.y - this._followPos.y) * lerp;
+            this._followPos.z += (pos.z - this._followPos.z) * lerp;
+            this._followYaw += yawDiff * lerp;
+            this._followPitch += (targetPitch - this._followPitch) * lerp;
+
+            // Normalize yaw to -180 to 180
+            while (this._followYaw > 180) this._followYaw -= 360;
+            while (this._followYaw < -180) this._followYaw += 360;
+
+            // Apply transform with smoothed values
+            // translateZ pulls camera forward, zoom still works for user control
+            const cameraOffset = 500;
+
+            // Add look offset for mouse look-around
+            const finalPitch = this._followPitch + this._lookOffset.pitch;
+            const finalYaw = this._followYaw + this._lookOffset.yaw;
+
+            this.container.style.transform =
+                `translateZ(${cameraOffset}px) ` +
+                `scale(${this.zoom}) ` +
+                `rotateX(${-finalPitch}deg) ` +
+                `rotateY(${-finalYaw}deg) ` +
+                `translate3d(${-this._followPos.x}px, ${-this._followPos.y}px, ${-this._followPos.z}px)`;
         },
 
         setRotation(x, y, z) {

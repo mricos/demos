@@ -64,7 +64,21 @@ window.APP = window.APP || {};
 
         _startUpdateLoop() {
             const update = () => {
-                const rot = APP.Camera?.rotation || { x: 0, y: 0, z: 0 };
+                const followMode = APP.State?.select('chaser.follow');
+                const cam = APP.Camera;
+
+                // In follow mode, use follow camera orientation + look offset
+                let rot;
+                if (followMode && cam) {
+                    const lookOffset = cam._lookOffset || { yaw: 0, pitch: 0 };
+                    rot = {
+                        x: (cam._followPitch || 0) + lookOffset.pitch,
+                        y: (cam._followYaw || 0) + lookOffset.yaw,
+                        z: 0  // No roll in follow mode
+                    };
+                } else {
+                    rot = cam?.rotation || { x: 0, y: 0, z: 0 };
+                }
 
                 // World gizmo: inverse rotation shows where world axes are
                 if (this.worldGizmo && this.gizmoVisible) {

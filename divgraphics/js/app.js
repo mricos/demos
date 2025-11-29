@@ -58,10 +58,18 @@ window.APP = window.APP || {};
         // 7c. Initialize orientation display
         APP.AxisIndicator?.init();
 
+        // 7d. Initialize timing and animation info
+        APP.Timing?.init();
+        APP.AnimationInfo?.init();
+
+        // 7e. Initialize particle chaser
+        APP.ParticleChaser?.init();
+
         // 8. Initialize input system
         APP.ParameterRegistry.init();
         APP.InputHub.init();
         APP.InputLearnUI.init();
+        APP.BankSelectorUI.init();
 
         // 9. Initialize hardware controllers
         const midiReady = await APP.MIDI.init();

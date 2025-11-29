@@ -231,6 +231,11 @@ window.APP = window.APP || {};
                 divs += s.divCount;
                 faces += s.faceCount;
             }
+            if (APP.Scene?.track) {
+                const s = APP.Scene.track.getStats();
+                divs += s.divCount;
+                faces += s.faceCount + (s.centerlineCount || 0);
+            }
 
             // Also count SceneManager objects if available
             if (APP.SceneManager?.objects) {

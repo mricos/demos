@@ -125,6 +125,40 @@ window.APP = window.APP || {};
                     this.state = this._deepClone(this.defaults);
                 }
             }
+            // Migrate old schema to new bank-based structure
+            this._migrateSchema();
+        },
+
+        /**
+         * Migrate old input.maps structure to bank-based structure
+         */
+        _migrateSchema() {
+            // Check if old schema: input.maps exists at root (not inside banks)
+            if (this.state.input?.maps && !this.state.input?.banks) {
+                console.log('State: Migrating input bindings to bank schema...');
+                const oldMaps = this.state.input.maps;
+                const mapCount = Object.keys(oldMaps).length;
+
+                this.state.input = {
+                    activeBank: 'A',
+                    banks: {
+                        A: { maps: oldMaps },
+                        B: { maps: {} },
+                        C: { maps: {} },
+                        D: { maps: {} }
+                    },
+                    bankSwitchMaps: {
+                        A: null,
+                        B: null,
+                        C: null,
+                        D: null
+                    }
+                };
+
+                if (mapCount > 0) {
+                    console.log(`State: Migrated ${mapCount} bindings to Bank A`);
+                }
+            }
         },
 
         /**
