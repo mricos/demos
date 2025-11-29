@@ -49,9 +49,14 @@ window.APP = window.APP || {};
         // 7. Bind UI controls (with restore)
         APP.UI.init();
 
-        // 7b. Initialize info toasts
+        // 7b. Initialize info popups
         APP.CurveInfo.init();
         APP.FrustumInfo.init();
+        APP.CameraInfo.init();
+        APP.CodeStats.init();
+
+        // 7c. Initialize orientation display
+        APP.AxisIndicator?.init();
 
         // 8. Initialize input system
         APP.ParameterRegistry.init();

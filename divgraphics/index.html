@@ -134,6 +134,16 @@
                             <label>Show Header</label>
                         </div>
 
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="uiHud" checked>
+                            <label>Show HUD</label>
+                        </div>
+
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="uiGizmo" checked>
+                            <label>Show 3D Gizmo</label>
+                        </div>
+
                         <div class="control-group">
                             <label>Z-Haze</label>
                             <input type="range" id="displayHaze" min="0" max="100" value="0">
@@ -141,6 +151,7 @@
                         </div>
 
                         <button class="btn" id="resetBtn">Reset View</button>
+                        <button class="btn btn-secondary" id="codeStatsBtn">Code Stats</button>
                     </div>
                 </div>
 
@@ -148,7 +159,8 @@
                 <div class="control-section">
                     <div class="section-header">
                         <span class="section-title">Camera</span>
-                        <button class="info-btn" id="frustumInfoBtn" title="Show Perspective & Culling Info">?</button>
+                        <button class="info-btn" id="cameraInfoBtn" title="Camera & Rotation Info">R</button>
+                        <button class="info-btn" id="frustumInfoBtn" title="Perspective & FOV Info" style="background: rgba(0, 212, 255, 0.15); border-color: rgba(0, 212, 255, 0.4); color: #00d4ff;">P</button>
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
@@ -196,6 +208,14 @@
                         <div class="control-group checkbox-group">
                             <input type="checkbox" id="autoRotate" checked>
                             <label>Auto Rotate</label>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Z Roll Mode</label>
+                            <select id="cameraRollMode">
+                                <option value="view">View-space (roll horizon)</option>
+                                <option value="world">World-space (rotate axes)</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -409,6 +429,7 @@
                         </div>
                     </div>
                 </div>
+
                 </div><!-- /.sidebar-content -->
             </div>
         </div>
@@ -440,8 +461,12 @@
     <script src="js/display.js"></script>
     <script src="js/sidebar.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/draggable-popup.js"></script>
     <script src="js/curve-info.js"></script>
     <script src="js/frustum-info.js"></script>
+    <script src="js/camera-info.js"></script>
+    <script src="js/code-stats.js"></script>
+    <script src="js/axis-indicator.js"></script>
 
     <!-- App + Input Controllers -->
     <script src="js/app.js"></script>

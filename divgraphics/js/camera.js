@@ -27,6 +27,7 @@ window.APP = window.APP || {};
         // Cached from State
         sensitivity: 0.5,
         pitchClamp: false,
+        rollMode: 'view',
         _lastHaze: 0,
         _lastHazeRotX: null,
         _lastHazeRotY: null,
@@ -54,6 +55,7 @@ window.APP = window.APP || {};
                 this.pan.y = cam.panY;
                 this.sensitivity = cam.sensitivity / config.sensitivityScale;
                 this.pitchClamp = cam.pitchClamp;
+                this.rollMode = cam.rollMode || 'view';
                 // Apply FOV to viewport
                 if (this.viewport && cam.fov) {
                     this.viewport.style.perspective = cam.fov + 'px';
@@ -81,6 +83,9 @@ window.APP = window.APP || {};
             });
             APP.State.subscribe('camera.pitchClamp', (val) => {
                 this.pitchClamp = val;
+            });
+            APP.State.subscribe('camera.rollMode', (val) => {
+                this.rollMode = val || 'view';
             });
             APP.State.subscribe('camera.fov', (val) => {
                 if (this.viewport) {
@@ -110,15 +115,17 @@ window.APP = window.APP || {};
             const vp = this.viewport;
             const config = APP.State.defaults.config;
 
-            // Disable context menu for right-click panning
-            vp.addEventListener('contextmenu', (e) => e.preventDefault());
+            // Disable context menu for right-click panning (Shift+Right-click allows context menu)
+            vp.addEventListener('contextmenu', (e) => {
+                if (!e.shiftKey) e.preventDefault();
+            });
 
-            // Mouse drag: left = rotate, right = pan
+            // Mouse drag: left = rotate, right = pan (Shift+right = context menu)
             vp.addEventListener('mousedown', (e) => {
                 this.lastMouse = { x: e.clientX, y: e.clientY };
                 if (e.button === 0) {
                     this.isDragging = true;
-                } else if (e.button === 2) {
+                } else if (e.button === 2 && !e.shiftKey) {
                     this.isPanning = true;
                 }
             });
@@ -206,9 +213,16 @@ window.APP = window.APP || {};
                         Math.abs(this.rotation.y - this._lastHazeRotY) > 0.5;
 
                     if ((hazeIntensity > 0 && rotChanged) || hazeChanged) {
-                        APP.Scene?.outerCylinder?.updateHaze(this.rotation.x, this.rotation.y, hazeIntensity);
-                        APP.Scene?.innerCylinder?.updateHaze(this.rotation.x, this.rotation.y, hazeIntensity);
-                        APP.Scene?.curve?.updateHaze(this.rotation.x, this.rotation.y, hazeIntensity);
+                        const hazeOpts = {
+                            rotX: this.rotation.x,
+                            rotY: this.rotation.y,
+                            rotZ: this.rotation.z,
+                            intensity: hazeIntensity,
+                            rollMode: this.rollMode
+                        };
+                        APP.Scene?.outerCylinder?.updateHaze(hazeOpts);
+                        APP.Scene?.innerCylinder?.updateHaze(hazeOpts);
+                        APP.Scene?.curve?.updateHaze(hazeOpts);
                         this._lastHaze = hazeIntensity;
                         this._lastHazeRotX = this.rotation.x;
                         this._lastHazeRotY = this.rotation.y;
@@ -224,12 +238,23 @@ window.APP = window.APP || {};
 
         applyTransform() {
             if (!this.container) return;
-            this.container.style.transform =
-                `translate(${this.pan.x}px, ${this.pan.y}px) ` +
-                `scale(${this.zoom}) ` +
-                `rotateX(${this.rotation.x}deg) ` +
-                `rotateY(${this.rotation.y}deg) ` +
-                `rotateZ(${this.rotation.z}deg)`;
+
+            const base = `translate(${this.pan.x}px, ${this.pan.y}px) scale(${this.zoom}) `;
+
+            if (this.rollMode === 'view') {
+                // VIEW mode: Z → X → Y (Z is view-space roll, applied last)
+                // CSS applies right-to-left, so Z on left = applied last
+                this.container.style.transform = base +
+                    `rotateZ(${this.rotation.z}deg) ` +
+                    `rotateX(${this.rotation.x}deg) ` +
+                    `rotateY(${this.rotation.y}deg)`;
+            } else {
+                // WORLD mode: X → Y → Z (Z is world-space roll, applied first)
+                this.container.style.transform = base +
+                    `rotateX(${this.rotation.x}deg) ` +
+                    `rotateY(${this.rotation.y}deg) ` +
+                    `rotateZ(${this.rotation.z}deg)`;
+            }
         },
 
         setRotation(x, y, z) {

@@ -83,33 +83,53 @@ window.APP = window.APP || {};
         }
 
         // Update haze based on camera rotation (view-space z)
-        updateHaze(rotX, rotY, hazeIntensity) {
-            if (!this._faces.length || hazeIntensity <= 0) {
-                // Reset to base opacity when haze is off
-                if (hazeIntensity <= 0) {
+        // opts: { rotX, rotY, rotZ, intensity, rollMode }
+        updateHaze(opts) {
+            const { rotX, rotY, rotZ, intensity, rollMode } = opts;
+
+            if (!this._faces.length || intensity <= 0) {
+                if (intensity <= 0) {
                     this._faces.forEach(f => f.el.style.opacity = this.opacity);
                 }
                 return;
             }
 
-            const hazeFactor = hazeIntensity / 100;
+            const hazeFactor = intensity / 100;
 
             // Convert degrees to radians
             const rx = rotX * Math.PI / 180;
             const ry = rotY * Math.PI / 180;
+            const rz = rotZ * Math.PI / 180;
 
             // Precompute trig
             const cosX = Math.cos(rx), sinX = Math.sin(rx);
             const cosY = Math.cos(ry), sinY = Math.sin(ry);
+            const cosZ = Math.cos(rz), sinZ = Math.sin(rz);
 
             // Find z range after rotation
             let zMin = Infinity, zMax = -Infinity;
             const viewZs = [];
 
             for (const face of this._faces) {
-                // Apply Y rotation then X rotation to get view-space z
-                const z1 = face.x * sinY + face.z * cosY;
-                const viewZ = face.y * sinX + z1 * cosX;
+                let viewZ;
+
+                if (rollMode === 'world') {
+                    // WORLD mode: Z → Y → X (Z first in world space)
+                    // Apply Z rotation first (rotates in XY plane)
+                    const xz = face.x * cosZ - face.y * sinZ;
+                    const yz = face.x * sinZ + face.y * cosZ;
+                    // Then Y rotation: z' = -x'*sinY + z*cosY
+                    const zy = -xz * sinY + face.z * cosY;
+                    // Then X rotation: z'' = y'*sinX + z'*cosX
+                    viewZ = yz * sinX + zy * cosX;
+                } else {
+                    // VIEW mode: Y → X (Z is roll at end, doesn't affect depth)
+                    // Y rotation: z' = -x*sinY + z*cosY
+                    const z1 = -face.x * sinY + face.z * cosY;
+                    // X rotation: z'' = y*sinX + z'*cosX
+                    viewZ = face.y * sinX + z1 * cosX;
+                }
+
                 viewZs.push(viewZ);
                 zMin = Math.min(zMin, viewZ);
                 zMax = Math.max(zMax, viewZ);

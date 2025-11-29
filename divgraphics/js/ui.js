@@ -47,6 +47,7 @@ window.APP = window.APP || {};
             this._syncFromState('scene');
             this._syncFromState('camera');
             this._syncFromState('display');
+            this._syncFromState('ui');
 
             // Inner controls visibility
             const innerEnabled = APP.State.select('inner.enabled');
@@ -116,6 +117,8 @@ window.APP = window.APP || {};
             this._bindCheckbox('toastsEnabled', 'display.toasts');
             this._bindCheckbox('statsEnabled', 'display.stats');
             this._bindCheckbox('headerEnabled', 'display.header');
+            this._bindCheckbox('uiHud', 'ui.hud');
+            this._bindCheckbox('uiGizmo', 'ui.gizmo');
         },
 
         _subscribe() {
@@ -126,6 +129,7 @@ window.APP = window.APP || {};
             APP.State.subscribe('scene.*', () => this._syncFromState('scene'));
             APP.State.subscribe('camera.*', () => this._syncFromState('camera'));
             APP.State.subscribe('display.*', () => this._syncFromState('display'));
+            APP.State.subscribe('ui.*', () => this._syncFromState('ui'));
 
             // Inner controls visibility
             APP.State.subscribe('inner.enabled', (enabled) => {
@@ -157,12 +161,46 @@ window.APP = window.APP || {};
                 });
             }
 
-            // Frustum info button
+            // Camera info button - rotation semantics (R)
+            const cameraInfoBtn = document.getElementById('cameraInfoBtn');
+            if (cameraInfoBtn) {
+                cameraInfoBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    APP.CameraInfo?.toggle();
+                });
+            }
+
+            // Frustum info button - perspective/FOV (P)
             const frustumInfoBtn = document.getElementById('frustumInfoBtn');
             if (frustumInfoBtn) {
                 frustumInfoBtn.addEventListener('click', (e) => {
-                    e.stopPropagation(); // Don't toggle section
+                    e.stopPropagation();
                     APP.FrustumInfo?.toggle();
+                });
+            }
+
+            // Code stats button
+            const codeStatsBtn = document.getElementById('codeStatsBtn');
+            if (codeStatsBtn) {
+                codeStatsBtn.addEventListener('click', () => {
+                    APP.CodeStats?.toggle();
+                });
+            }
+
+            // Roll mode select
+            const rollModeSelect = document.getElementById('cameraRollMode');
+            if (rollModeSelect) {
+                // Restore from state
+                const saved = APP.State.select('camera.rollMode');
+                if (saved) rollModeSelect.value = saved;
+
+                rollModeSelect.addEventListener('change', () => {
+                    APP.State.dispatch({ type: 'camera.rollMode', payload: rollModeSelect.value });
+                });
+
+                // Sync from state
+                APP.State.subscribe('camera.rollMode', (val) => {
+                    rollModeSelect.value = val || 'view';
                 });
             }
 

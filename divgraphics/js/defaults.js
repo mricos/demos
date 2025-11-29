@@ -50,7 +50,8 @@ window.APP = window.APP || {};
             panX: 0,            // -200 to 200
             panY: 0,            // -200 to 200
             sensitivity: 5,     // 1-20, displayed as 0.1-2.0
-            pitchClamp: false
+            pitchClamp: false,
+            rollMode: 'view'    // 'view' = roll around view axis, 'world' = roll around world Z
         },
         display: {
             toasts: true,
@@ -70,6 +71,11 @@ window.APP = window.APP || {};
         },
         input: {
             maps: {}    // All bindings stored here as { [id]: InputMap }
+        },
+        ui: {
+            popups: {},              // Position persistence: { 'popup-id': { left, top } }
+            hud: true,               // Camera direction HUD (bottom center)
+            gizmo: true              // 3D axis gizmo (bottom right corner)
         },
 
         // Runtime configuration constants (not persisted)

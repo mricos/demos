@@ -1,6 +1,7 @@
 /**
  * DivGraphics - Frustum Info Module
  * Educational toast explaining perspective, FOV, zoom, and culling
+ * Uses DraggablePopup for draggable/resizable/storable UI
  */
 window.APP = window.APP || {};
 
@@ -8,51 +9,34 @@ window.APP = window.APP || {};
     'use strict';
 
     APP.FrustumInfo = {
-        element: null,
-        visible: false,
+        popup: null,
         _liveEls: {},
 
+        get visible() {
+            return this.popup?.visible || false;
+        },
+
         init() {
-            this._createToast();
+            this._createPopup();
             this._subscribe();
         },
 
         toggle() {
-            this.visible = !this.visible;
-            if (this.element) {
-                this.element.style.display = this.visible ? 'block' : 'none';
-                if (this.visible) {
-                    this._updateLiveValues();
-                }
-            }
+            this.popup?.toggle();
+            if (this.visible) this._updateLiveValues();
         },
 
         show() {
-            this.visible = true;
-            if (this.element) {
-                this.element.style.display = 'block';
-                this._updateLiveValues();
-            }
+            this.popup?.show();
+            this._updateLiveValues();
         },
 
         hide() {
-            this.visible = false;
-            if (this.element) {
-                this.element.style.display = 'none';
-            }
+            this.popup?.hide();
         },
 
-        _createToast() {
-            const toast = document.createElement('div');
-            toast.className = 'frustum-info-toast';
-            toast.style.display = 'none';
-
-            toast.innerHTML = `
-                <div class="frustum-info-header">
-                    <span class="frustum-info-title">PERSPECTIVE & CULLING</span>
-                    <button class="frustum-info-close" title="Close">&times;</button>
-                </div>
-
+        _createPopup() {
+            const contentHtml = `
                 <div class="frustum-info-section">
                     <div class="frustum-info-label">FOV vs ZOOM</div>
                     <pre class="frustum-info-diagram">FOV (Field of View)       ZOOM (Scale)
@@ -145,8 +129,14 @@ near (bright)         far (dim)
                 </div>
             `;
 
-            document.body.appendChild(toast);
-            this.element = toast;
+            this.popup = APP.DraggablePopup.create({
+                id: 'frustum-info',
+                title: 'PERSPECTIVE & CULLING',
+                accentColor: '#00d4ff',
+                initialPosition: { right: 330, bottom: 20 },
+                initialSize: { width: 360, height: null },
+                minSize: { width: 300, height: 200 }
+            }).init(contentHtml);
 
             // Cache live value elements
             this._liveEls = {
@@ -157,12 +147,6 @@ near (bright)         far (dim)
                 pitch: document.getElementById('frustumPitch'),
                 yaw: document.getElementById('frustumYaw')
             };
-
-            // Close button
-            const closeBtn = toast.querySelector('.frustum-info-close');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => this.hide());
-            }
         },
 
         _subscribe() {

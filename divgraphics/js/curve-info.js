@@ -1,6 +1,7 @@
 /**
  * DivGraphics - Curve Info Module
  * Educational toast showing curve mathematics with live values
+ * Uses DraggablePopup for draggable/resizable/storable UI
  */
 window.APP = window.APP || {};
 
@@ -8,53 +9,34 @@ window.APP = window.APP || {};
     'use strict';
 
     APP.CurveInfo = {
-        element: null,
-        visible: false,
-
-        // DOM references for live updates
+        popup: null,
         _liveEls: {},
 
+        get visible() {
+            return this.popup?.visible || false;
+        },
+
         init() {
-            this._createToast();
+            this._createPopup();
             this._subscribe();
         },
 
         toggle() {
-            this.visible = !this.visible;
-            if (this.element) {
-                this.element.style.display = this.visible ? 'block' : 'none';
-                if (this.visible) {
-                    this._updateLiveValues();
-                }
-            }
+            this.popup?.toggle();
+            if (this.visible) this._updateLiveValues();
         },
 
         show() {
-            this.visible = true;
-            if (this.element) {
-                this.element.style.display = 'block';
-                this._updateLiveValues();
-            }
+            this.popup?.show();
+            this._updateLiveValues();
         },
 
         hide() {
-            this.visible = false;
-            if (this.element) {
-                this.element.style.display = 'none';
-            }
+            this.popup?.hide();
         },
 
-        _createToast() {
-            const toast = document.createElement('div');
-            toast.className = 'curve-info-toast';
-            toast.style.display = 'none';
-
-            toast.innerHTML = `
-                <div class="curve-info-header">
-                    <span class="curve-info-title">CURVE MATH</span>
-                    <button class="curve-info-close" title="Close">&times;</button>
-                </div>
-
+        _createPopup() {
+            const contentHtml = `
                 <div class="curve-info-section">
                     <div class="curve-info-label">QUADRATIC BEZIER</div>
                     <pre class="curve-info-formula">B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂</pre>
@@ -125,8 +107,14 @@ rotZ = atan2(Ny, By)</pre>
                 </button>
             `;
 
-            document.body.appendChild(toast);
-            this.element = toast;
+            this.popup = APP.DraggablePopup.create({
+                id: 'curve-info',
+                title: 'CURVE MATH',
+                accentColor: '#00ff88',
+                initialPosition: { left: 20, bottom: 20 },
+                initialSize: { width: 320, height: null },
+                minSize: { width: 280, height: 200 }
+            }).init(contentHtml);
 
             // Cache live value elements
             this._liveEls = {
@@ -137,12 +125,6 @@ rotZ = atan2(Ny, By)</pre>
                 tan: document.getElementById('curveInfoTan'),
                 euler: document.getElementById('curveInfoEuler')
             };
-
-            // Close button
-            const closeBtn = toast.querySelector('.curve-info-close');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => this.hide());
-            }
         },
 
         _subscribe() {
