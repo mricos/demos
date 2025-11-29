@@ -1,13 +1,18 @@
 /**
- * PState - Centralized State Management
+ * State - Centralized State Management
  * One-way data flow with localStorage persistence
+ *
+ * Module Lifecycle:
+ *   1. State.hydrate() - load from localStorage
+ *   2. Module.init() - each module calls _restoreFromState() then subscribes
+ *   3. Subscribers handle ongoing changes
  */
 window.APP = window.APP || {};
 
 (function(APP) {
     'use strict';
 
-    APP.PState = {
+    APP.State = {
         state: {},
         defaults: {},
         subscribers: [],
@@ -15,7 +20,7 @@ window.APP = window.APP || {};
 
         config: {
             transitionLimit: 500,
-            storageKey: 'APP_PSTATE_V1',
+            storageKey: 'APP_STATE_V1',
             persistDebounce: 100
         },
 
@@ -47,7 +52,7 @@ window.APP = window.APP || {};
         },
 
         /**
-         * Dispatch multiple actions, notify once
+         * Dispatch multiple actions, notify once per path
          * @param {Array} actions - Array of { type, payload }
          */
         batch(actions) {
@@ -116,7 +121,7 @@ window.APP = window.APP || {};
                         this.state = this._deepClone(this.defaults);
                     }
                 } catch (e) {
-                    console.warn('PState: Failed to hydrate from localStorage', e);
+                    console.warn('State: Failed to hydrate from localStorage', e);
                     this.state = this._deepClone(this.defaults);
                 }
             }
@@ -129,7 +134,7 @@ window.APP = window.APP || {};
             try {
                 localStorage.setItem(this.config.storageKey, JSON.stringify(this.state));
             } catch (e) {
-                console.warn('PState: Failed to persist to localStorage', e);
+                console.warn('State: Failed to persist to localStorage', e);
             }
         },
 
@@ -204,7 +209,7 @@ window.APP = window.APP || {};
                     try {
                         sub.fn(value, this.state, meta);
                     } catch (e) {
-                        console.error('PState: Subscriber error', e);
+                        console.error('State: Subscriber error', e);
                     }
                 }
             });
