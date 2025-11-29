@@ -22,6 +22,9 @@ window.APP = window.APP || {};
             this.container = null;
             this.faceCount = 0;
             this.divCount = 0;
+
+            // Store face references for view-space haze updates
+            this._faces = [];
         }
 
         generate() {
@@ -31,12 +34,14 @@ window.APP = window.APP || {};
 
             this.faceCount = 0;
             this.divCount = 0;
+            this._faces = [];
 
             const segmentAngle = (2 * Math.PI) / this.radialSegments;
             const segmentHeight = this.height / this.heightSegments;
             const faceWidth = 2 * this.radius * Math.sin(segmentAngle / 2) + 0.5;
 
             for (let h = 0; h < this.heightSegments; h++) {
+                const y = h * segmentHeight - this.height / 2 + segmentHeight / 2;
                 const ring = document.createElement('div');
                 ring.className = 'cylinder-ring';
                 ring.style.cssText = `position:absolute;transform-style:preserve-3d;transform:translateY(${h * segmentHeight - this.height / 2}px);`;
@@ -56,9 +61,13 @@ window.APP = window.APP || {};
                     if (this.wireframe) {
                         face.style.cssText = `position:absolute;width:${faceWidth}px;height:${segmentHeight + 0.5}px;transform:translate3d(${x - faceWidth/2}px,${segmentHeight/2 - (segmentHeight + 0.5)/2}px,${z}px) rotateY(${rotY}deg);border:1px solid ${color};background:transparent;opacity:${this.opacity};`;
                     } else {
-                        const darkColor = APP.Utils.lerpColor(color, '#000', 0.3);
+                        const config = APP.State.defaults.config;
+                        const darkColor = APP.Utils.lerpColor(color, '#000', config.darkColorLerp);
                         face.style.cssText = `position:absolute;width:${faceWidth}px;height:${segmentHeight + 0.5}px;transform:translate3d(${x - faceWidth/2}px,${segmentHeight/2 - (segmentHeight + 0.5)/2}px,${z}px) rotateY(${rotY}deg);background:linear-gradient(180deg,${color},${darkColor});opacity:${this.opacity};box-shadow:inset 0 0 20px rgba(255,255,255,0.1);`;
                     }
+
+                    // Store face reference with local position for view-space haze
+                    this._faces.push({ el: face, x, y, z });
 
                     ring.appendChild(face);
                     this.faceCount++;
@@ -71,6 +80,50 @@ window.APP = window.APP || {};
 
             this.container = container;
             return container;
+        }
+
+        // Update haze based on camera rotation (view-space z)
+        updateHaze(rotX, rotY, hazeIntensity) {
+            if (!this._faces.length || hazeIntensity <= 0) {
+                // Reset to base opacity when haze is off
+                if (hazeIntensity <= 0) {
+                    this._faces.forEach(f => f.el.style.opacity = this.opacity);
+                }
+                return;
+            }
+
+            const hazeFactor = hazeIntensity / 100;
+
+            // Convert degrees to radians
+            const rx = rotX * Math.PI / 180;
+            const ry = rotY * Math.PI / 180;
+
+            // Precompute trig
+            const cosX = Math.cos(rx), sinX = Math.sin(rx);
+            const cosY = Math.cos(ry), sinY = Math.sin(ry);
+
+            // Find z range after rotation
+            let zMin = Infinity, zMax = -Infinity;
+            const viewZs = [];
+
+            for (const face of this._faces) {
+                // Apply Y rotation then X rotation to get view-space z
+                const z1 = face.x * sinY + face.z * cosY;
+                const viewZ = face.y * sinX + z1 * cosX;
+                viewZs.push(viewZ);
+                zMin = Math.min(zMin, viewZ);
+                zMax = Math.max(zMax, viewZ);
+            }
+
+            const zRange = zMax - zMin || 1;
+
+            // Apply opacity based on view-space z
+            for (let i = 0; i < this._faces.length; i++) {
+                const zNorm = (viewZs[i] - zMin) / zRange; // 0 = far, 1 = near
+                const hazeAmount = 1 - (1 - zNorm) * hazeFactor;
+                const opacity = this.opacity * Math.max(0.15, hazeAmount);
+                this._faces[i].el.style.opacity = opacity;
+            }
         }
 
         getStats() {

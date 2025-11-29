@@ -32,26 +32,40 @@ window.APP = window.APP || {};
         // 2. Initialize display modules (with restore)
         APP.Toast.init();
         APP.Stats.init();
+        APP.Header.init();
 
-        // 3. Initialize scene (with restore)
+        // 3. Initialize geometry registry
+        APP.initGeometryRegistry();
+
+        // 4. Initialize scene (with restore) - also initializes Camera
         APP.Scene.init();
 
-        // 4. Bind UI controls (with restore)
+        // 5. Initialize SceneManager
+        APP.SceneManager.init(APP.Scene.container);
+
+        // 6. Initialize Sidebar
+        APP.Sidebar.init();
+
+        // 7. Bind UI controls (with restore)
         APP.UI.init();
 
-        // 5. Initialize input system
+        // 7b. Initialize info toasts
+        APP.CurveInfo.init();
+        APP.FrustumInfo.init();
+
+        // 8. Initialize input system
         APP.ParameterRegistry.init();
         APP.InputHub.init();
         APP.InputLearnUI.init();
 
-        // 6. Initialize hardware controllers
+        // 9. Initialize hardware controllers
         const midiReady = await APP.MIDI.init();
         if (midiReady) APP.MIDI.UI.init();
 
         APP.Gamepad.init();
         APP.Gamepad.UI.init();
 
-        // 7. Welcome message
+        // 10. Welcome message
         APP.Toast.success('DivGraphics loaded');
     };
 

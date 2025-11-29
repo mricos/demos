@@ -1,6 +1,7 @@
 /**
  * DivGraphics - Scene Module
- * 3D scene management, cylinder rendering, interaction, and animation
+ * 3D scene management and cylinder rendering
+ * Camera control delegated to APP.Camera
  */
 window.APP = window.APP || {};
 
@@ -12,23 +13,14 @@ window.APP = window.APP || {};
         viewport: null,
         outerCylinder: null,
         innerCylinder: null,
-
-        rotation: { x: -20, y: 0 },
-        targetRotation: { x: -20, y: 0 },
-        zoom: 1,
-        lastZoom: 1,
-        isDragging: false,
-        lastMouse: { x: 0, y: 0 },
-
-        // Cached state for performance
-        autoRotate: true,
+        curve: null,
 
         init() {
             this.container = document.getElementById('scene');
             this.viewport = document.getElementById('viewport');
 
-            this._initInteraction();
-            this._startAnimationLoop();
+            // Initialize camera with scene container
+            APP.Camera.init(this.container, this.viewport);
 
             // 1. Restore from state
             this._restoreFromState();
@@ -38,73 +30,47 @@ window.APP = window.APP || {};
         },
 
         _restoreFromState() {
-            // Build cylinders from current state
-            this._rebuildOuter();
-            this._rebuildInner();
-
-            // Restore scene properties
-            const scene = APP.State.select('scene');
-            if (scene) {
-                this.targetRotation.x = scene.rotationX;
-                this.targetRotation.y = scene.rotationY;
-                this.zoom = scene.zoom;
-                this.autoRotate = scene.autoRotate;
-            }
+            // Build geometry from current state
+            this._rebuildCylinder('outer', false);
+            this._rebuildCylinder('inner', true);
+            this._rebuildCurve();
+            // Camera handles its own state restoration
         },
 
         _subscribe() {
+            const config = APP.State.defaults.config;
             // Throttled rebuilds for performance
-            const throttledRebuildOuter = APP.Utils.throttle(() => this._rebuildOuter(), 16);
-            const throttledRebuildInner = APP.Utils.throttle(() => this._rebuildInner(), 16);
+            const throttledRebuildOuter = APP.Utils.throttle(() => this._rebuildCylinder('outer', false), config.throttleMs);
+            const throttledRebuildInner = APP.Utils.throttle(() => this._rebuildCylinder('inner', true), config.throttleMs);
+            const throttledRebuildCurve = APP.Utils.throttle(() => this._rebuildCurve(), config.throttleMs);
 
             APP.State.subscribe('outer.*', throttledRebuildOuter);
             APP.State.subscribe('inner.*', throttledRebuildInner);
-
-            // Cache autoRotate to avoid state lookup every frame
-            APP.State.subscribe('scene.autoRotate', (value) => {
-                this.autoRotate = value;
-            });
+            APP.State.subscribe('curve.*', throttledRebuildCurve);
+            // Haze is now view-space, updated in animation loop - no rebuild needed
         },
 
-        _rebuildOuter() {
-            const state = APP.State.state.outer;
+        _rebuildCylinder(key, faceInward) {
+            const config = APP.State.defaults.config;
+            const state = APP.State.state[key];
+            const propName = key + 'Cylinder';
+
             if (!state) return;
 
-            if (this.outerCylinder?.container?.parentNode) {
-                this.outerCylinder.container.parentNode.removeChild(this.outerCylinder.container);
+            // Remove existing cylinder if present
+            if (this[propName]?.container?.parentNode) {
+                this[propName].container.parentNode.removeChild(this[propName].container);
             }
 
-            this.outerCylinder = new APP.Cylinder({
-                radius: state.radius,
-                height: state.height,
-                radialSegments: state.radialSegments,
-                heightSegments: state.heightSegments,
-                color: state.color,
-                colorSecondary: state.colorSecondary,
-                wireframe: state.wireframe,
-                faceInward: false,
-                opacity: 0.85
-            });
-
-            this.container.appendChild(this.outerCylinder.generate());
-            APP.Stats.updateCounts();
-        },
-
-        _rebuildInner() {
-            const state = APP.State.state.inner;
-            if (!state) return;
-
-            if (this.innerCylinder?.container?.parentNode) {
-                this.innerCylinder.container.parentNode.removeChild(this.innerCylinder.container);
-            }
-
-            if (!state.enabled) {
-                this.innerCylinder = null;
+            // Handle disabled inner cylinder
+            if (key === 'inner' && !state.enabled) {
+                this[propName] = null;
                 APP.Stats.updateCounts();
                 return;
             }
 
-            this.innerCylinder = new APP.Cylinder({
+            const opacity = faceInward ? config.innerOpacity : config.outerOpacity;
+            this[propName] = new APP.Cylinder({
                 radius: state.radius,
                 height: state.height,
                 radialSegments: state.radialSegments,
@@ -112,89 +78,48 @@ window.APP = window.APP || {};
                 color: state.color,
                 colorSecondary: state.colorSecondary,
                 wireframe: state.wireframe,
-                faceInward: true,
-                opacity: 0.7
+                faceInward,
+                opacity
             });
 
-            this.container.appendChild(this.innerCylinder.generate());
+            this.container.appendChild(this[propName].generate());
             APP.Stats.updateCounts();
         },
 
-        _initInteraction() {
-            const vp = this.viewport;
+        _rebuildCurve() {
+            const state = APP.State.state.curve;
+            if (!state) return;
 
-            vp.addEventListener('mousedown', (e) => {
-                this.isDragging = true;
-                this.lastMouse = { x: e.clientX, y: e.clientY };
+            if (this.curve?.container?.parentNode) {
+                this.curve.container.parentNode.removeChild(this.curve.container);
+            }
+
+            if (!state.enabled) {
+                this.curve = null;
+                APP.Stats.updateCounts();
+                return;
+            }
+
+            this.curve = new APP.Curve({
+                points: [
+                    { x: state.p0x, y: state.p0y, z: state.p0z },
+                    { x: state.p1x, y: state.p1y, z: state.p1z },
+                    { x: state.p2x, y: state.p2y, z: state.p2z }
+                ],
+                radius: state.radius,
+                curveSegments: state.curveSegments,
+                radialSegments: state.radialSegments,
+                color: state.color,
+                colorSecondary: state.colorSecondary,
+                wireframe: state.wireframe
             });
 
-            window.addEventListener('mousemove', (e) => {
-                if (!this.isDragging) return;
-                this.targetRotation.y += (e.clientX - this.lastMouse.x) * 0.5;
-                this.targetRotation.x = Math.max(-90, Math.min(90, this.targetRotation.x + (e.clientY - this.lastMouse.y) * 0.5));
-                this.lastMouse = { x: e.clientX, y: e.clientY };
-            });
-
-            window.addEventListener('mouseup', () => this.isDragging = false);
-
-            vp.addEventListener('touchstart', (e) => {
-                this.isDragging = true;
-                this.lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            });
-
-            vp.addEventListener('touchmove', (e) => {
-                if (!this.isDragging) return;
-                this.targetRotation.y += (e.touches[0].clientX - this.lastMouse.x) * 0.5;
-                this.targetRotation.x = Math.max(-90, Math.min(90, this.targetRotation.x + (e.touches[0].clientY - this.lastMouse.y) * 0.5));
-                this.lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            });
-
-            vp.addEventListener('touchend', () => this.isDragging = false);
-
-            vp.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                this.zoom = Math.max(0.3, Math.min(2.5, this.zoom - e.deltaY * 0.001));
-            }, { passive: false });
-        },
-
-        _startAnimationLoop() {
-            const EPSILON = 0.01;
-
-            const animate = () => {
-                // Auto-rotate when enabled and not dragging
-                if (this.autoRotate && !this.isDragging) {
-                    this.targetRotation.y += 0.3;
-                }
-
-                // Calculate deltas
-                const dx = this.targetRotation.x - this.rotation.x;
-                const dy = this.targetRotation.y - this.rotation.y;
-                const dz = this.zoom - this.lastZoom;
-
-                // Only update if something is changing
-                const isAnimating = Math.abs(dx) > EPSILON ||
-                                    Math.abs(dy) > EPSILON ||
-                                    Math.abs(dz) > EPSILON ||
-                                    this.autoRotate;
-
-                if (isAnimating) {
-                    this.rotation.x += dx * 0.1;
-                    this.rotation.y += dy * 0.1;
-                    this.lastZoom = this.zoom;
-
-                    this.container.style.transform =
-                        `scale(${this.zoom}) rotateX(${this.rotation.x}deg) rotateY(${this.rotation.y}deg)`;
-                }
-
-                APP.Stats.tick();
-                requestAnimationFrame(animate);
-            };
-            requestAnimationFrame(animate);
+            this.container.appendChild(this.curve.generate());
+            APP.Stats.updateCounts();
         },
 
         resetView() {
-            this.targetRotation = { x: -20, y: 0 };
-            this.zoom = 1;
+            APP.Camera.resetView();
         }
     };
 

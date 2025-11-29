@@ -10,9 +10,14 @@
     <!-- Toast Container (left side) -->
     <div id="toastContainer" class="toast-container"></div>
 
+    <!-- FAB Toggle (visible when sidebar collapsed) -->
+    <button class="fab-toggle" id="fabToggle" title="Show Controls">&#9881;</button>
+
     <!-- Stats Toast (floating) -->
     <div id="statsToast" class="stats-toast">
         <div class="stats-row"><span>FPS</span><span id="statFps">0</span></div>
+        <div class="stats-row"><span>Budget</span><span id="statBudget">0%</span></div>
+        <div class="stats-row"><span>Frame</span><span id="statFrameTime">0ms</span></div>
         <div class="stats-row"><span>Divs</span><span id="statDivs">0</span></div>
         <div class="stats-row"><span>Faces</span><span id="statFaces">0</span></div>
     </div>
@@ -27,7 +32,16 @@
                 <div class="scene" id="scene"></div>
             </div>
 
-            <div class="controls">
+            <div class="controls" id="sidebar">
+                <div class="sidebar-header">
+                    <span class="sidebar-header-title">Controls</span>
+                    <div class="sidebar-actions">
+                        <button class="sidebar-btn" id="collapseAllBtn">Collapse</button>
+                        <button class="sidebar-btn" id="expandAllBtn">Expand</button>
+                        <button class="sidebar-btn sidebar-hide" id="sidebarHideBtn" title="Hide sidebar">&times;</button>
+                    </div>
+                </div>
+                <div class="sidebar-content">
                 <!-- MIDI Section -->
                 <div class="control-section">
                     <div class="section-header">
@@ -116,11 +130,73 @@
                         </div>
 
                         <div class="control-group checkbox-group">
-                            <input type="checkbox" id="autoRotate" checked>
-                            <label>Auto Rotate</label>
+                            <input type="checkbox" id="headerEnabled" checked>
+                            <label>Show Header</label>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Z-Haze</label>
+                            <input type="range" id="displayHaze" min="0" max="100" value="0">
+                            <div class="control-value" id="displayHazeValue">Off</div>
                         </div>
 
                         <button class="btn" id="resetBtn">Reset View</button>
+                    </div>
+                </div>
+
+                <!-- Camera Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <span class="section-title">Camera</span>
+                        <button class="info-btn" id="frustumInfoBtn" title="Show Perspective & Culling Info">?</button>
+                        <span class="section-toggle"></span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <label>Zoom</label>
+                            <input type="range" id="cameraZoom" min="30" max="250" value="100">
+                            <div class="control-value" id="cameraZoomValue">1.0</div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>FOV (Perspective)</label>
+                            <input type="range" id="cameraFov" min="400" max="2000" value="1200">
+                            <div class="control-value" id="cameraFovValue">1200</div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Pan X</label>
+                            <input type="range" id="cameraPanX" min="-200" max="200" value="0">
+                            <div class="control-value" id="cameraPanXValue">0</div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Pan Y</label>
+                            <input type="range" id="cameraPanY" min="-200" max="200" value="0">
+                            <div class="control-value" id="cameraPanYValue">0</div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Z Rotation</label>
+                            <input type="range" id="cameraRotationZ" min="-180" max="180" value="0">
+                            <div class="control-value" id="cameraRotationZValue">0</div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Sensitivity</label>
+                            <input type="range" id="cameraSensitivity" min="1" max="20" value="5">
+                            <div class="control-value" id="cameraSensitivityValue">0.5</div>
+                        </div>
+
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="cameraPitchClamp">
+                            <label>Clamp Pitch</label>
+                        </div>
+
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="autoRotate" checked>
+                            <label>Auto Rotate</label>
+                        </div>
                     </div>
                 </div>
 
@@ -226,13 +302,118 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Curve Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <span class="section-title">Curve</span>
+                        <button class="info-btn" id="curveInfoBtn" title="Show Curve Math">?</button>
+                        <span class="section-toggle"></span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="curveEnabled">
+                            <label>Enabled</label>
+                        </div>
+
+                        <div id="curveControls">
+                            <div class="control-group">
+                                <label>Tube Radius</label>
+                                <input type="range" id="curveRadius" min="2" max="30" value="10">
+                                <div class="control-value" id="curveRadiusValue">10</div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Curve Segments</label>
+                                <input type="range" id="curveCurveSegments" min="4" max="32" value="16">
+                                <div class="control-value" id="curveCurveSegmentsValue">16</div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Radial Segments</label>
+                                <input type="range" id="curveRadialSegments" min="3" max="16" value="8">
+                                <div class="control-value" id="curveRadialSegmentsValue">8</div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>Primary Color</label>
+                                <input type="color" id="curveColor" value="#00ff88">
+                            </div>
+
+                            <div class="control-group">
+                                <label>Secondary Color</label>
+                                <input type="color" id="curveColorSecondary" value="#0088ff">
+                            </div>
+
+                            <div class="control-group checkbox-group">
+                                <input type="checkbox" id="curveWireframe">
+                                <label>Wireframe</label>
+                            </div>
+
+                            <div class="control-subsection">
+                                <label class="subsection-label">Start Point (P0)</label>
+                                <div class="control-group">
+                                    <label>X</label>
+                                    <input type="range" id="curveP0x" min="-200" max="200" value="-100">
+                                    <div class="control-value" id="curveP0xValue">-100</div>
+                                </div>
+                                <div class="control-group">
+                                    <label>Y</label>
+                                    <input type="range" id="curveP0y" min="-200" max="200" value="0">
+                                    <div class="control-value" id="curveP0yValue">0</div>
+                                </div>
+                                <div class="control-group">
+                                    <label>Z</label>
+                                    <input type="range" id="curveP0z" min="-200" max="200" value="0">
+                                    <div class="control-value" id="curveP0zValue">0</div>
+                                </div>
+                            </div>
+
+                            <div class="control-subsection">
+                                <label class="subsection-label">Control Point (P1)</label>
+                                <div class="control-group">
+                                    <label>X</label>
+                                    <input type="range" id="curveP1x" min="-200" max="200" value="0">
+                                    <div class="control-value" id="curveP1xValue">0</div>
+                                </div>
+                                <div class="control-group">
+                                    <label>Y</label>
+                                    <input type="range" id="curveP1y" min="-200" max="200" value="-100">
+                                    <div class="control-value" id="curveP1yValue">-100</div>
+                                </div>
+                                <div class="control-group">
+                                    <label>Z</label>
+                                    <input type="range" id="curveP1z" min="-200" max="200" value="50">
+                                    <div class="control-value" id="curveP1zValue">50</div>
+                                </div>
+                            </div>
+
+                            <div class="control-subsection">
+                                <label class="subsection-label">End Point (P2)</label>
+                                <div class="control-group">
+                                    <label>X</label>
+                                    <input type="range" id="curveP2x" min="-200" max="200" value="100">
+                                    <div class="control-value" id="curveP2xValue">100</div>
+                                </div>
+                                <div class="control-group">
+                                    <label>Y</label>
+                                    <input type="range" id="curveP2y" min="-200" max="200" value="0">
+                                    <div class="control-value" id="curveP2yValue">0</div>
+                                </div>
+                                <div class="control-group">
+                                    <label>Z</label>
+                                    <input type="range" id="curveP2z" min="-200" max="200" value="0">
+                                    <div class="control-value" id="curveP2zValue">0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div><!-- /.sidebar-content -->
             </div>
         </div>
     </div>
 
-    <div class="instructions">
-        Drag to rotate • Scroll to zoom
-    </div>
 
     <!-- Core -->
     <script src="js/state.js"></script>
@@ -245,14 +426,27 @@
     <script src="js/input/InputHub.js"></script>
     <script src="js/input/InputLearnUI.js"></script>
 
-    <!-- Modules -->
+    <!-- Geometry -->
+    <script src="js/geometry.js"></script>
     <script src="js/cylinder.js"></script>
-    <script src="js/display.js"></script>
+    <script src="js/curve.js"></script>
+
+    <!-- Scene -->
+    <script src="js/camera.js"></script>
+    <script src="js/scene-manager.js"></script>
     <script src="js/scene.js"></script>
+
+    <!-- UI -->
+    <script src="js/display.js"></script>
+    <script src="js/sidebar.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/curve-info.js"></script>
+    <script src="js/frustum-info.js"></script>
 
     <!-- App + Input Controllers -->
     <script src="js/app.js"></script>
+    <script src="js/input/EventEmitter.js"></script>
+    <script src="js/input/HardwareUI.js"></script>
     <script src="js/midi.js"></script>
     <script src="js/gamepad.js"></script>
 </body>

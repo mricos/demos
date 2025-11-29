@@ -187,7 +187,7 @@ window.APP = window.APP || {};
             if (!isDiscrete) {
                 const domain = APP.InputMap.InputDomains[sourceType];
                 const range = domain.max - domain.min;
-                const threshold = range * 0.3;
+                const threshold = range * APP.State.defaults.config.learnThreshold;
                 if (Math.abs(event.value - domain.min) < threshold &&
                     Math.abs(event.value - domain.max) < threshold) {
                     return true; // Intercept but don't bind yet
@@ -402,10 +402,15 @@ window.APP = window.APP || {};
                     </div>
                     <div class="map-editor-row">
                         <span class="map-editor-label">Range</span>
-                        <span class="map-editor-value ${valueClass}">${map.domain.outputMin} - ${map.domain.outputMax}</span>
+                        <span class="map-editor-range">
+                            <input type="number" class="map-editor-input" id="mapMin" value="${map.domain.outputMin}">
+                            <span class="map-editor-separator">-</span>
+                            <input type="number" class="map-editor-input" id="mapMax" value="${map.domain.outputMax}">
+                        </span>
                     </div>
                     <div class="map-editor-actions">
-                        <button class="map-editor-btn delete">Delete Binding</button>
+                        <button class="map-editor-btn save">Save</button>
+                        <button class="map-editor-btn delete">Delete</button>
                     </div>
                 </div>
             `;
@@ -420,6 +425,19 @@ window.APP = window.APP || {};
                 this._hideMapEditor();
             });
 
+            // Save button
+            overlay.querySelector('.map-editor-btn.save').addEventListener('click', () => {
+                const minInput = overlay.querySelector('#mapMin');
+                const maxInput = overlay.querySelector('#mapMax');
+                const newMin = parseInt(minInput.value, 10);
+                const newMax = parseInt(maxInput.value, 10);
+
+                if (!isNaN(newMin) && !isNaN(newMax)) {
+                    this._saveMap(map.id, newMin, newMax);
+                    this._hideMapEditor();
+                }
+            });
+
             // Delete button
             overlay.querySelector('.map-editor-btn.delete').addEventListener('click', () => {
                 this._deleteMap(map.id);
@@ -431,6 +449,22 @@ window.APP = window.APP || {};
 
         _hideMapEditor() {
             document.querySelectorAll('.map-editor-overlay').forEach(el => el.remove());
+        },
+
+        _saveMap(mapId, newMin, newMax) {
+            const maps = { ...APP.State.select('input.maps') };
+            if (maps[mapId]) {
+                maps[mapId] = {
+                    ...maps[mapId],
+                    domain: {
+                        ...maps[mapId].domain,
+                        outputMin: newMin,
+                        outputMax: newMax
+                    }
+                };
+                APP.State.dispatch({ type: 'input.maps', payload: maps });
+                APP.Toast.success(`Range updated: ${newMin} - ${newMax}`);
+            }
         },
 
         _deleteMap(mapId) {

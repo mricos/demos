@@ -15,6 +15,7 @@ window.APP = window.APP || {};
         'outer': 'outer',
         'inner': 'inner',
         'scene': 'scene',
+        'camera': 'camera',
         'display': 'display'
     };
 

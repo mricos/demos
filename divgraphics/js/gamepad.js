@@ -20,16 +20,19 @@ window.APP = window.APP || {};
         activeGamepad: null,
         polling: false,
         pollInterval: null,
-        handlers: { axis: [], button: [], connect: [], disconnect: [] },
 
-        // Deadzone for analog sticks
-        deadzone: 0.15,
+        // Deadzone for analog sticks (loaded from config)
+        deadzone: null,
 
         // Track previous state for change detection
         prevAxes: [],
         prevButtons: [],
 
         init() {
+            // Initialize event emitter
+            this._initEvents(['axis', 'button', 'connect', 'disconnect']);
+            this.deadzone = APP.State.defaults.config.gamepadDeadzone;
+
             window.addEventListener('gamepadconnected', (e) => {
                 this._updateGamepads();
                 this._emit('connect', e.gamepad);
@@ -187,25 +190,10 @@ window.APP = window.APP || {};
             });
         },
 
-        on(event, handler) {
-            if (!this.handlers[event]) this.handlers[event] = [];
-            this.handlers[event].push(handler);
-            return this;
-        },
-
-        off(event, handler) {
-            if (!this.handlers[event]) return this;
-            const idx = this.handlers[event].indexOf(handler);
-            if (idx > -1) this.handlers[event].splice(idx, 1);
-            return this;
-        },
-
-        _emit(event, data) {
-            if (this.handlers[event]) {
-                this.handlers[event].forEach(h => h(data));
-            }
-        }
     };
+
+    // Mix in EventEmitter methods
+    Object.assign(APP.Gamepad, APP.EventEmitter);
 
 })(window.APP);
 
@@ -243,36 +231,29 @@ window.APP = window.APP || {};
         },
 
         _renderDeviceList() {
-            const { deviceSelect } = this.elements;
-            if (!deviceSelect) return;
-
             APP.Gamepad._updateGamepads();
             const currentDevice = APP.State.select('gamepad.device');
-
-            deviceSelect.innerHTML = '<option value="">Select gamepad...</option>';
-            APP.Gamepad.gamepads.forEach(gp => {
-                const opt = document.createElement('option');
-                opt.value = gp.index;
-                opt.textContent = gp.name;
-                deviceSelect.appendChild(opt);
-            });
-
-            if (currentDevice?.name) {
-                const match = APP.Gamepad.gamepads.find(g => g.name === currentDevice.name);
-                if (match) deviceSelect.value = match.index;
-            }
+            APP.HardwareUI.renderDeviceList(
+                this.elements.deviceSelect,
+                APP.Gamepad.gamepads,
+                currentDevice?.name,
+                'index'
+            );
         },
 
         _renderDeviceStatus() {
-            const { statusIndicator, statusText } = this.elements;
+            const { statusIndicator } = this.elements;
             const device = APP.State.select('gamepad.device');
             const isConnected = device?.name && APP.Gamepad.activeGamepad;
             const wasConnected = statusIndicator?.classList.contains('connected');
 
-            if (statusIndicator) statusIndicator.classList.toggle('connected', isConnected);
-            if (statusText) statusText.textContent = isConnected ? 'Connected' : 'Disconnected';
+            APP.HardwareUI.renderStatus(
+                statusIndicator,
+                this.elements.statusText,
+                isConnected
+            );
 
-            // Trigger burst animation on new connection
+            // Trigger burst animation on new connection (gamepad-specific)
             if (isConnected && !wasConnected) {
                 const statusContainer = statusIndicator?.closest('.gamepad-status');
                 if (statusContainer) {
@@ -283,9 +264,10 @@ window.APP = window.APP || {};
         },
 
         _renderGamepadToasts() {
-            const { gamepadToastsCheckbox } = this.elements;
-            if (!gamepadToastsCheckbox) return;
-            gamepadToastsCheckbox.checked = APP.State.select('display.gamepadToasts');
+            APP.HardwareUI.syncToastsCheckbox(
+                this.elements.gamepadToastsCheckbox,
+                'display.gamepadToasts'
+            );
         },
 
         // ================================================================

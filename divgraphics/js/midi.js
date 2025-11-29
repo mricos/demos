@@ -19,9 +19,10 @@ window.APP = window.APP || {};
         access: null,
         inputs: [],
         activeInput: null,
-        handlers: { cc: [], note: [], connect: [], disconnect: [], error: [] },
 
         async init() {
+            // Initialize event emitter
+            this._initEvents(['cc', 'note', 'connect', 'disconnect', 'error']);
             if (!navigator.requestMIDIAccess) {
                 this._emit('error', 'Web MIDI API not supported');
                 APP.Toast.info('MIDI not supported in this browser');
@@ -130,25 +131,10 @@ window.APP = window.APP || {};
             });
         },
 
-        on(event, handler) {
-            if (!this.handlers[event]) this.handlers[event] = [];
-            this.handlers[event].push(handler);
-            return this;
-        },
-
-        off(event, handler) {
-            if (!this.handlers[event]) return this;
-            const idx = this.handlers[event].indexOf(handler);
-            if (idx > -1) this.handlers[event].splice(idx, 1);
-            return this;
-        },
-
-        _emit(event, data) {
-            if (this.handlers[event]) {
-                this.handlers[event].forEach(h => h(data));
-            }
-        }
     };
+
+    // Mix in EventEmitter methods
+    Object.assign(APP.MIDI, APP.EventEmitter);
 
 })(window.APP);
 
@@ -186,38 +172,30 @@ window.APP = window.APP || {};
         },
 
         _renderDeviceList() {
-            const { deviceSelect } = this.elements;
-            if (!deviceSelect) return;
-
             const currentDevice = APP.State.select('midi.device');
-
-            deviceSelect.innerHTML = '<option value="">Select device...</option>';
-            APP.MIDI.inputs.forEach(input => {
-                const opt = document.createElement('option');
-                opt.value = input.id;
-                opt.textContent = input.name || input.id;
-                deviceSelect.appendChild(opt);
-            });
-
-            if (currentDevice?.name) {
-                const match = APP.MIDI.inputs.find(i => i.name === currentDevice.name);
-                if (match) deviceSelect.value = match.id;
-            }
+            APP.HardwareUI.renderDeviceList(
+                this.elements.deviceSelect,
+                APP.MIDI.inputs,
+                currentDevice?.name,
+                'id'
+            );
         },
 
         _renderDeviceStatus() {
-            const { statusIndicator, statusText } = this.elements;
             const device = APP.State.select('midi.device');
             const isConnected = device?.name && APP.MIDI.activeInput;
-
-            if (statusIndicator) statusIndicator.classList.toggle('connected', isConnected);
-            if (statusText) statusText.textContent = isConnected ? 'Connected' : 'Disconnected';
+            APP.HardwareUI.renderStatus(
+                this.elements.statusIndicator,
+                this.elements.statusText,
+                isConnected
+            );
         },
 
         _renderMidiToasts() {
-            const { midiToastsCheckbox } = this.elements;
-            if (!midiToastsCheckbox) return;
-            midiToastsCheckbox.checked = APP.State.select('display.midiToasts');
+            APP.HardwareUI.syncToastsCheckbox(
+                this.elements.midiToastsCheckbox,
+                'display.midiToasts'
+            );
         },
 
         // ================================================================

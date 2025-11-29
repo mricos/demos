@@ -81,23 +81,39 @@ window.APP = window.APP || {};
 })(window.APP);
 
 // ============================================================================
-// Stats / FPS Module
+// Stats / FPS Module (Enhanced with frame budget tracking)
 // ============================================================================
 (function(APP) {
     'use strict';
 
     APP.Stats = {
-        fps: 0,
-        frames: 0,
-        lastTime: performance.now(),
+        // FPS tracking (simple frame counting)
+        fps: 60,
+        frameCount: 0,
+        lastFpsTime: 0,
+        fpsInterval: 500,        // Update FPS every 500ms
+
+        // Frame budget tracking (JS work time)
+        frameStart: 0,
+        lastWorkTime: 0,
+        smoothWorkTime: 0,
+        workSmoothing: 0.3,      // 30% new, 70% old for stability
+        budgetMs: 16.67,         // Target: 60fps = 1000/60
+        budgetPercent: 0,
+
+        // DOM elements
         element: null,
         fpsEl: null,
+        budgetEl: null,
+        frameTimeEl: null,
         divCountEl: null,
         faceCountEl: null,
 
         init() {
             this.element = document.getElementById('statsToast');
             this.fpsEl = document.getElementById('statFps');
+            this.budgetEl = document.getElementById('statBudget');
+            this.frameTimeEl = document.getElementById('statFrameTime');
             this.divCountEl = document.getElementById('statDivs');
             this.faceCountEl = document.getElementById('statFaces');
 
@@ -111,7 +127,7 @@ window.APP = window.APP || {};
         _restoreFromState() {
             const visible = APP.State.select('display.stats');
             if (this.element) {
-                this.element.style.display = visible ? 'block' : 'none';
+                this.element.style.display = visible !== false ? 'block' : 'none';
             }
         },
 
@@ -123,41 +139,160 @@ window.APP = window.APP || {};
             });
         },
 
-        tick() {
-            this.frames++;
-            const now = performance.now();
-            const delta = now - this.lastTime;
+        // Call at START of animation frame
+        beginFrame() {
+            this.frameStart = performance.now();
+        },
 
-            if (delta >= 1000) {
-                this.fps = Math.round((this.frames * 1000) / delta);
-                this.frames = 0;
-                this.lastTime = now;
+        // Call at END of animation frame
+        endFrame() {
+            const now = performance.now();
+            this.frameCount++;
+
+            // Calculate smoothed work time for budget
+            this.lastWorkTime = now - this.frameStart;
+            this.smoothWorkTime = this.smoothWorkTime * (1 - this.workSmoothing)
+                                + this.lastWorkTime * this.workSmoothing;
+            this.budgetPercent = Math.round((this.smoothWorkTime / this.budgetMs) * 100);
+
+            // Update FPS and display every interval
+            if (this.lastFpsTime === 0) {
+                this.lastFpsTime = now;
+            }
+            const elapsed = now - this.lastFpsTime;
+            if (elapsed >= this.fpsInterval) {
+                this.fps = Math.round((this.frameCount * 1000) / elapsed);
+                this.frameCount = 0;
+                this.lastFpsTime = now;
+                this.updateDisplay();
+            }
+        },
+
+        // Legacy tick - same as endFrame but without work time
+        tick() {
+            const now = performance.now();
+            this.frameCount++;
+
+            if (this.lastFpsTime === 0) {
+                this.lastFpsTime = now;
+            }
+            const elapsed = now - this.lastFpsTime;
+            if (elapsed >= this.fpsInterval) {
+                this.fps = Math.round((this.frameCount * 1000) / elapsed);
+                this.frameCount = 0;
+                this.lastFpsTime = now;
                 this.updateDisplay();
             }
         },
 
         updateDisplay() {
+            // FPS with color coding
             if (this.fpsEl) {
                 this.fpsEl.textContent = this.fps;
+                this.fpsEl.style.color =
+                    this.fps >= 55 ? '#00ff88' :
+                    this.fps >= 30 ? '#ffaa00' : '#ff4444';
+            }
+
+            // Budget percentage
+            if (this.budgetEl) {
+                this.budgetEl.textContent = this.budgetPercent < 1 && this.smoothWorkTime > 0
+                    ? '<1%'
+                    : this.budgetPercent + '%';
+                this.budgetEl.style.color =
+                    this.budgetPercent < 50 ? '#00ff88' :
+                    this.budgetPercent < 80 ? '#ffaa00' : '#ff4444';
+            }
+
+            // Work time in ms (smoothed) - more precision for small values
+            if (this.frameTimeEl) {
+                const ms = this.smoothWorkTime;
+                this.frameTimeEl.textContent = ms < 1
+                    ? ms.toFixed(2) + 'ms'
+                    : ms.toFixed(1) + 'ms';
             }
         },
 
         updateCounts() {
             let divs = 0, faces = 0;
 
-            if (APP.Scene.outerCylinder) {
+            if (APP.Scene?.outerCylinder) {
                 const s = APP.Scene.outerCylinder.getStats();
                 divs += s.divCount;
                 faces += s.faceCount;
             }
-            if (APP.Scene.innerCylinder) {
+            if (APP.Scene?.innerCylinder) {
                 const s = APP.Scene.innerCylinder.getStats();
                 divs += s.divCount;
                 faces += s.faceCount;
             }
+            if (APP.Scene?.curve) {
+                const s = APP.Scene.curve.getStats();
+                divs += s.divCount;
+                faces += s.faceCount;
+            }
+
+            // Also count SceneManager objects if available
+            if (APP.SceneManager?.objects) {
+                for (const obj of APP.SceneManager.objects.values()) {
+                    if (obj.getStats) {
+                        const s = obj.getStats();
+                        divs += s.divCount || 0;
+                        faces += s.faceCount || 0;
+                    }
+                }
+            }
 
             if (this.divCountEl) this.divCountEl.textContent = divs;
             if (this.faceCountEl) this.faceCountEl.textContent = faces;
+        },
+
+        // Get current stats as object
+        getStats() {
+            return {
+                fps: this.fps,
+                budgetPercent: this.budgetPercent,
+                workTime: this.smoothWorkTime,
+                budgetMs: this.budgetMs
+            };
+        },
+
+        // Set target FPS (changes budget calculation)
+        setTargetFps(fps) {
+            this.budgetMs = 1000 / fps;
+        }
+    };
+
+})(window.APP);
+
+// ============================================================================
+// Header Visibility
+// ============================================================================
+(function(APP) {
+    'use strict';
+
+    APP.Header = {
+        element: null,
+
+        init() {
+            this.element = document.querySelector('header');
+            this._restoreFromState();
+            this._subscribe();
+        },
+
+        _restoreFromState() {
+            const visible = APP.State.select('display.header');
+            if (this.element && visible === false) {
+                this.element.style.display = 'none';
+            }
+        },
+
+        _subscribe() {
+            APP.State.subscribe('display.header', (visible) => {
+                if (this.element) {
+                    this.element.style.display = visible ? '' : 'none';
+                }
+            });
         }
     };
 
