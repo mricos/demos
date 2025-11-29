@@ -16,8 +16,12 @@ window.APP = window.APP || {};
         rotation: { x: -20, y: 0 },
         targetRotation: { x: -20, y: 0 },
         zoom: 1,
+        lastZoom: 1,
         isDragging: false,
         lastMouse: { x: 0, y: 0 },
+
+        // Cached state for performance
+        autoRotate: true,
 
         init() {
             this.container = document.getElementById('scene');
@@ -44,6 +48,7 @@ window.APP = window.APP || {};
                 this.targetRotation.x = scene.rotationX;
                 this.targetRotation.y = scene.rotationY;
                 this.zoom = scene.zoom;
+                this.autoRotate = scene.autoRotate;
             }
         },
 
@@ -54,6 +59,11 @@ window.APP = window.APP || {};
 
             APP.State.subscribe('outer.*', throttledRebuildOuter);
             APP.State.subscribe('inner.*', throttledRebuildInner);
+
+            // Cache autoRotate to avoid state lookup every frame
+            APP.State.subscribe('scene.autoRotate', (value) => {
+                this.autoRotate = value;
+            });
         },
 
         _rebuildOuter() {
@@ -148,16 +158,33 @@ window.APP = window.APP || {};
         },
 
         _startAnimationLoop() {
+            const EPSILON = 0.01;
+
             const animate = () => {
-                const autoRotate = APP.State.select('scene.autoRotate');
-                if (autoRotate && !this.isDragging) {
+                // Auto-rotate when enabled and not dragging
+                if (this.autoRotate && !this.isDragging) {
                     this.targetRotation.y += 0.3;
                 }
 
-                this.rotation.x += (this.targetRotation.x - this.rotation.x) * 0.1;
-                this.rotation.y += (this.targetRotation.y - this.rotation.y) * 0.1;
+                // Calculate deltas
+                const dx = this.targetRotation.x - this.rotation.x;
+                const dy = this.targetRotation.y - this.rotation.y;
+                const dz = this.zoom - this.lastZoom;
 
-                this.container.style.transform = `scale(${this.zoom}) rotateX(${this.rotation.x}deg) rotateY(${this.rotation.y}deg)`;
+                // Only update if something is changing
+                const isAnimating = Math.abs(dx) > EPSILON ||
+                                    Math.abs(dy) > EPSILON ||
+                                    Math.abs(dz) > EPSILON ||
+                                    this.autoRotate;
+
+                if (isAnimating) {
+                    this.rotation.x += dx * 0.1;
+                    this.rotation.y += dy * 0.1;
+                    this.lastZoom = this.zoom;
+
+                    this.container.style.transform =
+                        `scale(${this.zoom}) rotateX(${this.rotation.x}deg) rotateY(${this.rotation.y}deg)`;
+                }
 
                 APP.Stats.tick();
                 requestAnimationFrame(animate);
