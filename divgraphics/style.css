@@ -1732,3 +1732,1318 @@ body:not(.sidebar-collapsed) .axis-world-gizmo {
     color: rgba(0, 255, 136, 0.8);
     text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
 }
+
+/* ============================================================================
+   Bank Selector (A/B/C/D banks for MIDI multiplexing)
+   ============================================================================ */
+
+.bank-selector {
+    display: flex;
+    gap: 6px;
+    padding: 10px 15px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bank-btn {
+    flex: 1;
+    padding: 8px 0;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+}
+
+.bank-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.bank-btn.active {
+    background: rgba(0, 212, 255, 0.25);
+    border-color: rgba(0, 212, 255, 0.6);
+    color: #00d4ff;
+}
+
+.bank-btn.learning {
+    border-color: #ff00aa;
+    animation: pulse 0.5s infinite alternate;
+}
+
+.bank-btn .cc-indicator {
+    display: block;
+    font-size: 9px;
+    opacity: 0.6;
+    margin-top: 2px;
+}
+
+/* Ghost buttons in map editor for bank selection */
+.bank-ghost-selector {
+    display: flex;
+    gap: 4px;
+}
+
+.bank-ghost-btn {
+    padding: 4px 8px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.bank-ghost-btn:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.bank-ghost-btn.active {
+    border-color: #00d4ff;
+    color: #00d4ff;
+}
+
+/* ============================================================================
+   Control Indicator (unified C button - inline with label)
+   ============================================================================ */
+
+/* Label layout for indicator */
+.control-group label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.control-indicator {
+    width: 16px;
+    height: 16px;
+    margin-left: auto;
+    background: transparent;
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 9px;
+    font-weight: 500;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Ghost state shows "○" ring icon */
+.control-indicator::before {
+    content: '○';
+    font-size: 10px;
+}
+
+.control-indicator.bound::before {
+    content: none;
+}
+
+.control-group {
+    position: relative;
+}
+
+.control-group:hover .control-indicator {
+    opacity: 1;
+}
+
+.control-indicator:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.3);
+    border-style: solid;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Bound state - solid "C" with theme colors */
+.control-indicator.bound {
+    opacity: 1;
+    background: rgba(0, 212, 255, 0.15);
+    border: 1px solid rgba(0, 212, 255, 0.4);
+    border-style: solid;
+    color: #00d4ff;
+    font-weight: bold;
+    font-size: 9px;
+}
+
+.control-indicator.bound:hover {
+    background: rgba(0, 212, 255, 0.25);
+    border-color: #00d4ff;
+    box-shadow: 0 0 6px rgba(0, 212, 255, 0.3);
+}
+
+/* Gamepad-only binding */
+.control-indicator.bound.gamepad-only {
+    background: rgba(255, 170, 0, 0.15);
+    border-color: rgba(255, 170, 0, 0.4);
+    color: #ffaa00;
+}
+
+.control-indicator.bound.gamepad-only:hover {
+    background: rgba(255, 170, 0, 0.25);
+    border-color: #ffaa00;
+    box-shadow: 0 0 6px rgba(255, 170, 0, 0.3);
+}
+
+/* Both MIDI + Gamepad - split gradient */
+.control-indicator.bound.both {
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.2) 50%, rgba(255, 170, 0, 0.2) 50%);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #fff;
+}
+
+.control-indicator.bound.both:hover {
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.3) 50%, rgba(255, 170, 0, 0.3) 50%);
+    border-color: #fff;
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.25);
+}
+
+/* Learning state - pulsing */
+.control-indicator.learning {
+    opacity: 1;
+    background: rgba(255, 0, 170, 0.2);
+    border: 1px solid #ff00aa;
+    border-style: solid;
+    color: #ff00aa;
+    animation: pulse 0.5s infinite alternate;
+}
+
+/* ============================================================================
+   Enhanced Map Editor
+   ============================================================================ */
+
+.map-editor.gamepad-theme {
+    border-color: rgba(255, 170, 0, 0.3);
+}
+
+.map-editor.gamepad-theme .map-editor-title {
+    color: #ffaa00;
+}
+
+.map-editor-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.map-editor-info {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.7rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-left: auto;
+}
+
+.map-editor-info:hover {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: rgba(0, 212, 255, 0.5);
+    color: #00d4ff;
+}
+
+.map-editor-close {
+    margin-left: 0 !important;
+}
+
+.map-editor-details {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.map-editor-range-section {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.range-header {
+    margin-bottom: 8px;
+}
+
+.range-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.range-input-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.range-input-group label {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+}
+
+.range-arrow {
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 1.2rem;
+}
+
+/* ============================================================================
+   Mapping Function Visualization
+   ============================================================================ */
+
+.map-function-viz {
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    margin-bottom: 4px;
+}
+
+.map-viz-continuous,
+.map-viz-discrete {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.viz-input-block,
+.viz-output-block {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.viz-label {
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.viz-value {
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: monospace;
+}
+
+.map-viz-continuous.midi .viz-value,
+.map-viz-discrete.midi .viz-value {
+    color: #00d4ff;
+}
+
+.map-viz-continuous.gamepad .viz-value,
+.map-viz-discrete.gamepad .viz-value {
+    color: #ffaa00;
+}
+
+.viz-sublabel {
+    font-size: 0.55rem;
+    color: rgba(255, 255, 255, 0.3);
+    margin-top: 2px;
+}
+
+.viz-transform,
+.viz-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.viz-formula {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.viz-fn {
+    font-family: 'Times New Roman', serif;
+    font-style: italic;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.viz-direction {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.viz-direction.inverted {
+    color: #ff6666;
+}
+
+.viz-mode-badge {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+
+.viz-mode-badge.midi {
+    background: rgba(0, 212, 255, 0.2);
+    color: #00d4ff;
+    border: 2px solid rgba(0, 212, 255, 0.4);
+}
+
+.viz-mode-badge.gamepad {
+    background: rgba(255, 170, 0, 0.2);
+    color: #ffaa00;
+    border: 2px solid rgba(255, 170, 0, 0.4);
+}
+
+/* ============================================================================
+   Mapping Info Popup
+   ============================================================================ */
+
+.mapping-info-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.mapping-info-popup {
+    background: rgba(20, 20, 35, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+    max-width: 480px;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.mapping-info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.mapping-info-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.mapping-info-close {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mapping-info-close:hover {
+    background: rgba(255, 68, 68, 0.2);
+    color: #ff6666;
+}
+
+.mapping-info-content {
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(80vh - 60px);
+}
+
+/* Custom scrollbar for mapping info popup */
+.mapping-info-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.mapping-info-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.mapping-info-content::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.3);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.mapping-info-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 212, 255, 0.5);
+}
+
+/* Firefox scrollbar */
+.mapping-info-content {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 212, 255, 0.3) rgba(0, 0, 0, 0.2);
+}
+
+.info-section {
+    margin-bottom: 20px;
+}
+
+.info-section:last-child {
+    margin-bottom: 0;
+}
+
+.info-section h4 {
+    margin: 0 0 12px 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.info-badge {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.info-item.midi .info-badge {
+    background: rgba(0, 212, 255, 0.2);
+    color: #00d4ff;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+}
+
+.info-item.gamepad .info-badge {
+    background: rgba(255, 170, 0, 0.2);
+    color: #ffaa00;
+    border: 1px solid rgba(255, 170, 0, 0.3);
+}
+
+.info-item strong {
+    display: block;
+    font-size: 0.75rem;
+    color: #fff;
+    margin-bottom: 2px;
+}
+
+.info-item p {
+    margin: 0;
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.3;
+}
+
+.formula-box {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 8px;
+}
+
+.formula-box code {
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 0.75rem;
+    color: #00d4ff;
+}
+
+.info-note {
+    margin: 0;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.5);
+    font-style: italic;
+}
+
+.mode-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mode-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+}
+
+.mode-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.mode-badge.absolute {
+    background: rgba(0, 212, 255, 0.2);
+    color: #00d4ff;
+    border: 2px solid rgba(0, 212, 255, 0.4);
+}
+
+.mode-badge.increment {
+    background: rgba(102, 255, 102, 0.2);
+    color: #66ff66;
+    border: 2px solid rgba(102, 255, 102, 0.4);
+}
+
+.mode-badge.decrement {
+    background: rgba(255, 102, 102, 0.2);
+    color: #ff6666;
+    border: 2px solid rgba(255, 102, 102, 0.4);
+}
+
+.mode-badge.toggle {
+    background: rgba(255, 170, 0, 0.2);
+    color: #ffaa00;
+    border: 2px solid rgba(255, 170, 0, 0.4);
+}
+
+.mode-item strong {
+    display: block;
+    font-size: 0.75rem;
+    color: #fff;
+    margin-bottom: 2px;
+}
+
+.mode-item p {
+    margin: 0;
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.tips-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.tips-list li {
+    padding: 8px 0;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.7);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tips-list li:last-child {
+    border-bottom: none;
+}
+
+.tips-list strong {
+    color: #00d4ff;
+}
+
+/* ============================================================================
+   Unified Editor (multiple bindings view)
+   ============================================================================ */
+
+.map-editor.unified {
+    min-width: 320px;
+}
+
+.unified-target {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+.target-label {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+}
+
+.target-path {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: #fff;
+    flex: 1;
+}
+
+.target-bank {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.unified-bindings {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Binding Card */
+.binding-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    transition: all 0.15s ease;
+}
+
+.binding-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.binding-card.midi {
+    border-left: 3px solid #00d4ff;
+}
+
+.binding-card.gamepad {
+    border-left: 3px solid #ffaa00;
+}
+
+.binding-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 80px;
+}
+
+.binding-type-badge {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.binding-type-badge.midi {
+    background: rgba(0, 212, 255, 0.2);
+    color: #00d4ff;
+    border: 1px solid rgba(0, 212, 255, 0.4);
+}
+
+.binding-type-badge.gamepad {
+    background: rgba(255, 170, 0, 0.2);
+    color: #ffaa00;
+    border: 1px solid rgba(255, 170, 0, 0.4);
+}
+
+.binding-type-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.binding-mode-badge {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.binding-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.binding-row {
+    display: flex;
+    align-items: center;
+}
+
+.binding-key {
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.binding-range {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.binding-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.binding-edit-btn,
+.binding-delete-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+}
+
+.binding-edit-btn:hover {
+    background: rgba(0, 212, 255, 0.2);
+    color: #00d4ff;
+}
+
+.binding-delete-btn:hover {
+    background: rgba(255, 68, 68, 0.2);
+    color: #ff6666;
+}
+
+.map-editor-btn.close-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.map-editor-btn.close-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+/* ============================================================================
+   Mode & Polarity Selectors in Map Editor
+   ============================================================================ */
+
+.map-editor-behavior {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.behavior-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+}
+
+.behavior-row.hidden {
+    display: none;
+}
+
+.mode-selector,
+.polarity-selector {
+    display: flex;
+    gap: 4px;
+}
+
+.mode-btn,
+.polarity-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mode-btn:hover,
+.polarity-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.mode-btn.active,
+.polarity-btn.active {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: rgba(0, 212, 255, 0.5);
+    color: #00d4ff;
+}
+
+/* Mode-specific active colors */
+.mode-btn[data-mode="absolute"].active {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: rgba(0, 212, 255, 0.5);
+    color: #00d4ff;
+}
+
+.mode-btn[data-mode="increment"].active {
+    background: rgba(102, 255, 102, 0.2);
+    border-color: rgba(102, 255, 102, 0.5);
+    color: #66ff66;
+}
+
+.mode-btn[data-mode="decrement"].active {
+    background: rgba(255, 102, 102, 0.2);
+    border-color: rgba(255, 102, 102, 0.5);
+    color: #ff6666;
+}
+
+.mode-btn[data-mode="toggle"].active {
+    background: rgba(255, 170, 0, 0.2);
+    border-color: rgba(255, 170, 0, 0.5);
+    color: #ffaa00;
+}
+
+/* Polarity-specific active colors */
+.polarity-btn[data-direction="normal"].active {
+    background: rgba(102, 255, 102, 0.2);
+    border-color: rgba(102, 255, 102, 0.5);
+    color: #66ff66;
+}
+
+.polarity-btn[data-direction="inverted"].active {
+    background: rgba(255, 102, 102, 0.2);
+    border-color: rgba(255, 102, 102, 0.5);
+    color: #ff6666;
+}
+
+/* Step size input */
+.step-input {
+    width: 60px;
+}
+
+/* ============================================================================
+   Response Curve Editor
+   ============================================================================ */
+
+.map-editor-curve {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.map-editor-curve.hidden {
+    display: none;
+}
+
+.curve-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.curve-presets {
+    display: flex;
+    gap: 4px;
+}
+
+.curve-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.curve-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.curve-btn.active {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: rgba(0, 212, 255, 0.5);
+    color: #00d4ff;
+}
+
+.gamepad-theme .curve-btn.active {
+    background: rgba(255, 170, 0, 0.2);
+    border-color: rgba(255, 170, 0, 0.5);
+    color: #ffaa00;
+}
+
+.curve-canvas-wrapper {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.curve-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.curve-labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.curve-label-in,
+.curve-label-out {
+    position: absolute;
+    font-size: 0.55rem;
+    color: rgba(255, 255, 255, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.curve-label-in {
+    bottom: 4px;
+    right: 6px;
+}
+
+.curve-label-out {
+    top: 4px;
+    left: 6px;
+}
+
+/* ============================================================================
+   Compact Map Editor (Parametric Curve)
+   ============================================================================ */
+
+.map-editor.compact {
+    min-width: 260px;
+    max-width: 300px;
+}
+
+.map-editor-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.map-editor-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+}
+
+.map-editor-row.hidden {
+    display: none;
+}
+
+.map-editor-label {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 50px;
+}
+
+.inline-btns {
+    display: flex;
+    gap: 3px;
+}
+
+.sm-btn {
+    width: 24px;
+    height: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.8rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sm-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.sm-btn.active {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: rgba(0, 212, 255, 0.5);
+    color: #00d4ff;
+}
+
+/* Mode-specific active colors for sm-btn */
+.mode-selector .sm-btn[data-mode="absolute"].active {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: rgba(0, 212, 255, 0.5);
+    color: #00d4ff;
+}
+
+.mode-selector .sm-btn[data-mode="increment"].active {
+    background: rgba(102, 255, 102, 0.2);
+    border-color: rgba(102, 255, 102, 0.5);
+    color: #66ff66;
+}
+
+.mode-selector .sm-btn[data-mode="decrement"].active {
+    background: rgba(255, 102, 102, 0.2);
+    border-color: rgba(255, 102, 102, 0.5);
+    color: #ff6666;
+}
+
+.mode-selector .sm-btn[data-mode="toggle"].active {
+    background: rgba(255, 170, 0, 0.2);
+    border-color: rgba(255, 170, 0, 0.5);
+    color: #ffaa00;
+}
+
+/* Polarity-specific active colors for sm-btn */
+.polarity-selector .sm-btn[data-direction="normal"].active {
+    background: rgba(102, 255, 102, 0.2);
+    border-color: rgba(102, 255, 102, 0.5);
+    color: #66ff66;
+}
+
+.polarity-selector .sm-btn[data-direction="inverted"].active {
+    background: rgba(255, 102, 102, 0.2);
+    border-color: rgba(255, 102, 102, 0.5);
+    color: #ff6666;
+}
+
+/* Curve presets active */
+.curve-presets .sm-btn.active {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: rgba(0, 212, 255, 0.5);
+    color: #00d4ff;
+}
+
+.gamepad-theme .curve-presets .sm-btn.active {
+    background: rgba(255, 170, 0, 0.2);
+    border-color: rgba(255, 170, 0, 0.5);
+    color: #ffaa00;
+}
+
+/* Compact range inputs */
+.range-row {
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 8px;
+}
+
+.range-inline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sm-input {
+    width: 50px;
+    padding: 4px 6px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #00d4ff;
+    font-family: monospace;
+    font-size: 0.7rem;
+    text-align: center;
+}
+
+.sm-input:focus {
+    outline: none;
+    border-color: #00d4ff;
+    box-shadow: 0 0 4px rgba(0, 212, 255, 0.3);
+}
+
+.gamepad-theme .sm-input {
+    color: #ffaa00;
+}
+
+.gamepad-theme .sm-input:focus {
+    border-color: #ffaa00;
+    box-shadow: 0 0 4px rgba(255, 170, 0, 0.3);
+}
+
+.range-arrow {
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.8rem;
+}
+
+/* Curve editor section */
+.curve-editor {
+    margin-bottom: 12px;
+}
+
+.curve-editor.hidden {
+    display: none;
+}
+
+/* ============================================================================
+   Mapping Info Popup - Tabbed Interface
+   ============================================================================ */
+
+.mapping-info-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.info-tab {
+    flex: 1;
+    padding: 10px 8px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.info-tab:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.info-tab.active {
+    color: #00d4ff;
+    border-bottom-color: #00d4ff;
+    background: rgba(0, 212, 255, 0.05);
+}
+
+.info-tab-panel {
+    display: none;
+}
+
+.info-tab-panel.active {
+    display: block;
+}
+
+/* Transform tab specific */
+.curve-info {
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.curve-info h4 {
+    margin: 0 0 8px 0;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.curve-info p {
+    margin: 0 0 8px 0;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.4;
+}
+
+.curve-params {
+    margin: 8px 0;
+    padding: 0 0 0 16px;
+    list-style: none;
+}
+
+.curve-params li {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 3px 0;
+    position: relative;
+}
+
+.curve-params li::before {
+    content: '•';
+    position: absolute;
+    left: -12px;
+    color: #00d4ff;
+}
+
+.curve-params strong {
+    color: #00d4ff;
+    font-family: monospace;
+}
+
+/* Modes tab - polarity section */
+.polarity-info {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.polarity-info h4 {
+    margin: 0 0 12px 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}

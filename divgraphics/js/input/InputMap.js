@@ -31,10 +31,71 @@ window.APP = window.APP || {};
         TOGGLE: 'toggle'
     };
 
+    // Curve preset values (a, b exponents)
+    const CurvePresets = {
+        linear: { a: 1.0, b: 1.0 },
+        log:    { a: 0.25, b: 0.25 },
+        exp:    { a: 4.0, b: 4.0 },
+        scurve: { a: 4.0, b: 0.25 },
+        invs:   { a: 0.25, b: 4.0 }
+    };
+
+    /**
+     * Parametric piecewise power-law curve
+     * Uses two exponents (a, b) for below/above midpoint, with adjustable midpoint
+     *
+     * f(x; a, b, m) = {
+     *     m * (x/m)^a,                        if x <= m
+     *     1 - (1-m) * (1 - (x-m)/(1-m))^b,    if x > m
+     * }
+     *
+     * Guarantees: f(0)=0, f(m)=m, f(1)=1
+     *
+     * @param {number} x - Normalized input (0-1)
+     * @param {number} a - Exponent for lower half (0.2-5.0, default 1.0)
+     * @param {number} b - Exponent for upper half (0.2-5.0, default 1.0)
+     * @param {number} m - Midpoint position (0.1-0.9, default 0.5)
+     * @returns {number} Curved output (0-1)
+     */
+    function applyParametricCurve(x, a = 1, b = 1, m = 0.5) {
+        x = Math.max(0, Math.min(1, x));
+        a = Math.max(0.1, Math.min(10, a));
+        b = Math.max(0.1, Math.min(10, b));
+        m = Math.max(0.1, Math.min(0.9, m));
+
+        if (x <= m) {
+            const t = x / m;
+            return m * Math.pow(t, a);
+        } else {
+            const t = (x - m) / (1 - m);
+            return 1 - (1 - m) * Math.pow(1 - t, b);
+        }
+    }
+
+    /**
+     * Legacy: Apply response curve by type name (for backward compatibility)
+     * Converts old curve type strings to (a, b) values
+     */
+    function applyCurve(curveType, x) {
+        const preset = CurvePresets[curveType] || CurvePresets.linear;
+        return applyParametricCurve(x, preset.a, preset.b);
+    }
+
+    /**
+     * Get (a, b) values from legacy curve type
+     */
+    function curveTypeToParams(curveType) {
+        return CurvePresets[curveType] || CurvePresets.linear;
+    }
+
     APP.InputMap = {
         SourceTypes,
         InputDomains,
         Modes,
+        CurvePresets,
+        applyParametricCurve,
+        applyCurve,
+        curveTypeToParams,
 
         /**
          * Create a new InputMap
@@ -77,7 +138,10 @@ window.APP = window.APP || {};
                 behavior: {
                     direction: config.behavior?.direction || 'normal',
                     mode: config.behavior?.mode || (inputDomain.discrete ? 'increment' : 'absolute'),
-                    stepSize: config.behavior?.stepSize ?? 10
+                    stepSize: config.behavior?.stepSize ?? 10,
+                    curveA: config.behavior?.curveA ?? 1.0,
+                    curveB: config.behavior?.curveB ?? 1.0,
+                    curveMid: config.behavior?.curveMid ?? 0.5
                 },
 
                 // Intent (captured at bind time)
@@ -101,7 +165,7 @@ window.APP = window.APP || {};
          */
         transform(map, rawValue) {
             const { inputMin, inputMax, outputMin, outputMax, step } = map.domain;
-            const { direction } = map.behavior;
+            const { direction, curveA, curveB } = map.behavior;
             const { type } = map.target;
 
             // Normalize to 0-1
@@ -114,6 +178,10 @@ window.APP = window.APP || {};
             if (direction === 'inverted') {
                 normalized = 1 - normalized;
             }
+
+            // Apply parametric response curve (with midpoint)
+            const curveMid = map.behavior.curveMid ?? 0.5;
+            normalized = applyParametricCurve(normalized, curveA ?? 1, curveB ?? 1, curveMid);
 
             // Transform based on target type
             return this._transformByType(type, normalized, outputMin, outputMax, step);
