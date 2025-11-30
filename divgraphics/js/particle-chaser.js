@@ -17,6 +17,9 @@ window.APP = window.APP || {};
         _arcLengthTable: null,  // Cached arc-length lookup table
         _tableTrackId: null,    // Track ID for cache invalidation
 
+        // Smoothed rotation state
+        _smoothedEuler: null,   // Current smoothed rotation { x, y, z }
+
         // Exposed for follow cam
         currentPos: null,
         currentFrame: null,
@@ -254,15 +257,60 @@ window.APP = window.APP || {};
 
             // Convert frame to euler angles for CSS transform
             const stabilize = APP.State.select('chaser.stabilize');
-            const euler = stabilize ? this._frameToEulerStabilized(frame) : this._frameToEuler(frame);
+            const targetEuler = stabilize ? this._frameToEulerStabilized(frame) : this._frameToEuler(frame);
 
-            // Apply transform directly - CSS transition handles smoothing
+            // Apply rotation smoothing
+            const smoothing = chaserState.smoothing ?? 50;
+            const euler = this._smoothRotation(targetEuler, deltaMs, smoothing);
+
+            // Apply transform
             this.container.style.transform = `
                 translate3d(${pos.x}px, ${pos.y}px, ${pos.z}px)
                 rotateX(${euler.x}deg)
                 rotateY(${euler.y}deg)
                 rotateZ(${euler.z}deg)
             `;
+        },
+
+        /**
+         * Smoothly interpolate rotation towards target
+         * @param {Object} target - Target euler angles { x, y, z }
+         * @param {number} deltaMs - Time delta in ms
+         * @param {number} smoothing - 0-100 smoothing amount
+         * @returns {Object} Smoothed euler angles
+         */
+        _smoothRotation(target, deltaMs, smoothing) {
+            // Initialize smoothed state if needed
+            if (!this._smoothedEuler) {
+                this._smoothedEuler = { ...target };
+                return target;
+            }
+
+            // smoothing 0 = instant (alpha = 1)
+            // smoothing 100 = very smooth (alpha approaches 0)
+            // Convert to time constant: higher smoothing = slower response
+            const tau = 10 + (smoothing / 100) * 200; // 10-210ms time constant
+            const alpha = 1 - Math.exp(-deltaMs / tau);
+
+            // Lerp each angle, handling wraparound for yaw (Y axis)
+            this._smoothedEuler.x = this._lerpAngle(this._smoothedEuler.x, target.x, alpha);
+            this._smoothedEuler.y = this._lerpAngle(this._smoothedEuler.y, target.y, alpha);
+            this._smoothedEuler.z = this._lerpAngle(this._smoothedEuler.z, target.z, alpha);
+
+            return this._smoothedEuler;
+        },
+
+        /**
+         * Lerp between angles, taking the shortest path
+         */
+        _lerpAngle(from, to, alpha) {
+            let diff = to - from;
+
+            // Normalize to [-180, 180]
+            while (diff > 180) diff -= 360;
+            while (diff < -180) diff += 360;
+
+            return from + diff * alpha;
         },
 
         /**

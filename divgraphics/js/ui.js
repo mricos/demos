@@ -192,6 +192,7 @@ window.APP = window.APP || {};
             this._bindRange('chaserSpeed', 'chaser.speed');
             this._bindChaserDirection();
             this._bindCheckbox('chaserSyncBpm', 'chaser.syncBpm');
+            this._bindRange('chaserSmoothing', 'chaser.smoothing');
             // Head
             this._bindRange('chaserSize', 'chaser.size');
             this._bindSelect('chaserHeadShape', 'chaser.headShape');

@@ -255,6 +255,7 @@ window.APP = window.APP || {};
             speed: 50,               // 0-100: movement speed (50 = 1 loop per 4 beats)
             direction: 1,            // 1 = forward, -1 = reverse
             syncBpm: true,           // Lock speed to BPM timing
+            smoothing: 50,           // 0-100: rotation smoothing (0 = snap, 100 = very smooth)
             // Head appearance
             size: 17,                // Head size in px
             headShape: 'square',     // 'square', 'circle', 'diamond'
