@@ -283,6 +283,11 @@ body.sidebar-collapsed .controls {
     user-select: none;
 }
 
+/* Title takes remaining space, pushing everything else right */
+.section-header .section-title {
+    flex: 1;
+}
+
 .section-header:hover {
     background: rgba(255, 255, 255, 0.08);
 }
@@ -443,15 +448,7 @@ body.sidebar-collapsed .controls {
     flex-shrink: 0;
 }
 
-/* Right-align ghost badge in section headers */
-.section-header .ghost-badge {
-    margin-left: auto;
-}
-
-/* Subsection headers already have flex with margin-left: auto on subsection-label */
-.subsection-header .ghost-badge {
-    margin-left: 0;
-}
+/* Ghost badge alignment - no special margin needed, title flex: 1 handles it */
 
 .ghost-badge:hover {
     border-color: rgba(255, 255, 255, 0.3);
