@@ -12,8 +12,10 @@ window.APP = window.APP || {};
         container: null,
         head: null,
         tail: null,
-        t: 0,              // Current position parameter on track
+        t: 0,              // Current position parameter on track (arc-length normalized)
         _lastTime: 0,
+        _arcLengthTable: null,  // Cached arc-length lookup table
+        _tableTrackId: null,    // Track ID for cache invalidation
 
         // Exposed for follow cam
         currentPos: null,
@@ -199,13 +201,18 @@ window.APP = window.APP || {};
 
             this.container.style.display = 'block';
 
+            // Build/rebuild arc-length table if needed (cache by track preset)
+            const trackId = trackState.preset + '_' + (trackState.tension || 0.5);
+            if (!this._arcLengthTable || this._tableTrackId !== trackId) {
+                const result = this._buildArcLengthTable(track, 300);
+                this._arcLengthTable = result.table;
+                this._tableTrackId = trackId;
+            }
+
             // Get speed settings (similar to track rotation)
             const speed = chaserState.speed ?? 50;
             const direction = chaserState.direction ?? 1;
             const syncBpm = chaserState.syncBpm ?? true;
-
-            const range = track.getParameterRange();
-            const tRange = range.max - range.min;
 
             let loopsPerSecond;
             if (syncBpm) {
@@ -218,20 +225,24 @@ window.APP = window.APP || {};
                 loopsPerSecond = (speed / 100) * 2;
             }
 
-            // Advance t with direction (positive = forward, negative = reverse)
-            this.t += direction * (deltaMs / 1000) * loopsPerSecond * tRange;
+            // Advance normalized position (0-1) with direction
+            // this.t is now normalized arc-length, not raw track parameter
+            this.t += direction * (deltaMs / 1000) * loopsPerSecond;
 
-            // Wrap around for closed loop
-            while (this.t >= range.max) {
-                this.t -= tRange;
+            // Wrap around for closed loop (0-1 range)
+            while (this.t >= 1) {
+                this.t -= 1;
             }
-            while (this.t < range.min) {
-                this.t += tRange;
+            while (this.t < 0) {
+                this.t += 1;
             }
 
-            // Get position and frame on track
-            const pos = track.getPoint(this.t);
-            const frame = track.getFrame(this.t);
+            // Convert arc-length position to track parameter
+            const trackT = this._arcLengthToT(this.t, this._arcLengthTable);
+
+            // Get position and frame on track using the corrected parameter
+            const pos = track.getPoint(trackT);
+            const frame = track.getFrame(trackT);
 
             // Store for follow cam
             this.currentPos = pos;
@@ -316,6 +327,75 @@ window.APP = window.APP || {};
          */
         reset() {
             this.t = 0;
+        },
+
+        /**
+         * Build arc-length lookup table for uniform speed
+         * Maps normalized distance (0-1) to track parameter t
+         */
+        _buildArcLengthTable(track, samples = 200) {
+            const range = track.getParameterRange();
+            const tMin = range.min;
+            const tMax = range.max;
+            const tRange = tMax - tMin;
+
+            const table = [{ s: 0, t: tMin }];
+            let totalLength = 0;
+            let prevPoint = track.getPoint(tMin);
+
+            for (let i = 1; i <= samples; i++) {
+                const t = tMin + (tRange * i / samples);
+                const point = track.getPoint(t);
+
+                // Accumulate distance
+                const dx = point.x - prevPoint.x;
+                const dy = point.y - prevPoint.y;
+                const dz = point.z - prevPoint.z;
+                totalLength += Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                table.push({ s: totalLength, t: t });
+                prevPoint = point;
+            }
+
+            // Normalize distances to 0-1
+            for (let i = 0; i < table.length; i++) {
+                table[i].s /= totalLength;
+            }
+
+            return { table, totalLength };
+        },
+
+        /**
+         * Convert normalized arc-length (0-1) to track parameter t
+         * Uses binary search for efficiency
+         */
+        _arcLengthToT(s, table) {
+            // Clamp s to [0, 1]
+            s = Math.max(0, Math.min(1, s));
+
+            // Binary search
+            let low = 0;
+            let high = table.length - 1;
+
+            while (low < high - 1) {
+                const mid = Math.floor((low + high) / 2);
+                if (table[mid].s < s) {
+                    low = mid;
+                } else {
+                    high = mid;
+                }
+            }
+
+            // Linear interpolation between low and high
+            const s0 = table[low].s;
+            const s1 = table[high].s;
+            const t0 = table[low].t;
+            const t1 = table[high].t;
+
+            if (s1 === s0) return t0;
+
+            const alpha = (s - s0) / (s1 - s0);
+            return t0 + alpha * (t1 - t0);
         }
     };
 
