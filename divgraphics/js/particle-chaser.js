@@ -66,10 +66,17 @@ window.APP = window.APP || {};
             const headShape = state?.headShape || 'square';
             const headRoundness = (state?.headRoundness ?? 0) / 100;
             const headOpacity = (state?.headOpacity ?? 100) / 100;
-            const tailLength = state?.tailLength || 54;
-            const tailWidth = ((state?.tailWidth ?? 33) / 100) * size;
-            const tailOpacity = (state?.tailOpacity ?? 85) / 100;
+            // Body (wings - perpendicular to travel)
+            const bodyLength = state?.bodyLength || 54;
+            const bodyWidth = ((state?.bodyWidth ?? 33) / 100) * size;
+            const bodyOpacity = (state?.bodyOpacity ?? 85) / 100;
+            const bodyStyle = state?.bodyStyle || 'gradient';
+            // Tail (behind head - along travel direction)
+            const tailLength = state?.tailLength || 40;
+            const tailWidth = ((state?.tailWidth ?? 25) / 100) * size;
+            const tailOpacity = (state?.tailOpacity ?? 70) / 100;
             const tailStyle = state?.tailStyle || 'gradient';
+            // Glow
             const glowSize = ((state?.glowSize ?? 50) / 100) * size;
             const glowIntensity = (state?.glowIntensity ?? 50) / 100;
             const color = state?.color || '#b34233';
@@ -92,7 +99,6 @@ window.APP = window.APP || {};
             } else if (headShape === 'diamond') {
                 headTransform = 'translate(-50%, -50%) rotate(45deg)';
             } else if (headShape === 'square' && headRoundness > 0) {
-                // Apply roundness to square (0-100% maps to 0-50% of size)
                 headBorderRadius = `${headRoundness * 50}%`;
             }
 
@@ -115,37 +121,51 @@ window.APP = window.APP || {};
                 opacity: ${headOpacity};
             `;
 
-            // Tail background based on style
-            let tailBackground;
-            if (tailStyle === 'solid') {
-                tailBackground = color;
-            } else if (tailStyle === 'glow') {
-                tailBackground = `radial-gradient(ellipse at center, ${color} 0%, ${colorSecondary} 40%, transparent 70%)`;
-            } else {
+            // Helper to get background based on style
+            const getBackground = (style) => {
+                if (style === 'solid') return color;
+                if (style === 'glow') return `radial-gradient(ellipse at center, ${color} 0%, ${colorSecondary} 40%, transparent 70%)`;
                 // gradient (default)
-                tailBackground = `linear-gradient(90deg, transparent, ${colorSecondary} 20%, ${color} 50%, ${colorSecondary} 80%, transparent)`;
-            }
+                return `linear-gradient(90deg, transparent, ${colorSecondary} 20%, ${color} 50%, ${colorSecondary} 80%, transparent)`;
+            };
 
-            // Tail glow
-            const tailGlow = glowIntensity > 0
+            const partGlow = glowIntensity > 0
                 ? `0 0 ${glowSize * 0.5}px ${colorSecondary}`
                 : 'none';
 
-            // Tail element (perpendicular to direction of travel)
+            // Body element (wings - perpendicular to travel, rotateY 90deg)
+            this.body = document.createElement('div');
+            this.body.className = 'chaser-body';
+            this.body.style.cssText = `
+                position: absolute;
+                width: ${bodyLength}px;
+                height: ${bodyWidth}px;
+                background: ${getBackground(bodyStyle)};
+                transform: translate(-50%, -50%) rotateY(90deg);
+                opacity: ${bodyOpacity};
+                box-shadow: ${partGlow};
+                border-radius: ${bodyWidth / 2}px;
+            `;
+
+            // Tail element (behind head - along travel direction, no rotation)
+            // Offset backward along Z axis (negative Z in local space)
             this.tail = document.createElement('div');
             this.tail.className = 'chaser-tail';
             this.tail.style.cssText = `
                 position: absolute;
-                width: ${tailLength}px;
-                height: ${tailWidth}px;
-                background: ${tailBackground};
-                transform: translate(-50%, -50%) rotateY(90deg);
+                width: ${tailWidth}px;
+                height: ${tailLength}px;
+                background: ${getBackground(tailStyle)};
+                transform: translate(-50%, 0) translateY(${size / 2}px);
                 opacity: ${tailOpacity};
-                box-shadow: ${tailGlow};
+                box-shadow: ${partGlow};
                 border-radius: ${tailWidth / 2}px;
             `;
 
             this.container.appendChild(this.head);
+            if (bodyLength > 0) {
+                this.container.appendChild(this.body);
+            }
             if (tailLength > 0) {
                 this.container.appendChild(this.tail);
             }
@@ -166,6 +186,7 @@ window.APP = window.APP || {};
             }
             this.container = null;
             this.head = null;
+            this.body = null;
             this.tail = null;
         },
 

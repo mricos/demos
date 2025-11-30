@@ -198,6 +198,11 @@ window.APP = window.APP || {};
             this._bindSelect('chaserHeadShape', 'chaser.headShape');
             this._bindRange('chaserHeadRoundness', 'chaser.headRoundness');
             this._bindRange('chaserHeadOpacity', 'chaser.headOpacity');
+            // Body (wings)
+            this._bindRange('chaserBodyLength', 'chaser.bodyLength');
+            this._bindRange('chaserBodyWidth', 'chaser.bodyWidth');
+            this._bindRange('chaserBodyOpacity', 'chaser.bodyOpacity');
+            this._bindSelect('chaserBodyStyle', 'chaser.bodyStyle');
             // Tail
             this._bindRange('chaserTailLength', 'chaser.tailLength');
             this._bindRange('chaserTailWidth', 'chaser.tailWidth');

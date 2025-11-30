@@ -261,10 +261,15 @@ window.APP = window.APP || {};
             headShape: 'square',     // 'square', 'circle', 'diamond'
             headRoundness: 0,        // 0-100: corner roundness for square
             headOpacity: 100,        // 0-100
-            // Tail appearance
-            tailLength: 54,          // Tail length in px
-            tailWidth: 33,           // Tail width as % of head size
-            tailOpacity: 85,         // 0-100
+            // Body/Wings appearance (perpendicular to travel - like wings)
+            bodyLength: 54,          // Wing span in px
+            bodyWidth: 33,           // Wing width as % of head size
+            bodyOpacity: 85,         // 0-100
+            bodyStyle: 'gradient',   // 'gradient', 'solid', 'glow'
+            // Tail appearance (behind the head - along travel direction)
+            tailLength: 40,          // Tail length in px
+            tailWidth: 25,           // Tail width as % of head size
+            tailOpacity: 70,         // 0-100
             tailStyle: 'gradient',   // 'gradient', 'solid', 'glow'
             // Glow effects
             glowSize: 50,            // 0-100: glow radius as % of size
