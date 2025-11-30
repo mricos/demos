@@ -994,8 +994,9 @@ window.APP = window.APP || {};
          * Setup ghost badge toggles - prevent clicks from collapsing section
          */
         _setupGhostBadges() {
-            document.querySelectorAll('.ghost-badge').forEach(badge => {
-                badge.addEventListener('click', (e) => {
+            // Stop propagation on both the badge (label) and the hidden checkbox
+            document.querySelectorAll('.ghost-badge, .ghost-toggle').forEach(el => {
+                el.addEventListener('click', (e) => {
                     e.stopPropagation();
                 });
             });
