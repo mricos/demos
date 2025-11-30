@@ -480,6 +480,163 @@ body.sidebar-collapsed .controls {
     justify-content: center;
 }
 
+/* Ghost button - minimal, transparent button matching ghost-badge style */
+.ghost-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-top: 8px;
+    width: 100%;
+}
+
+.ghost-btn:hover {
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(0, 212, 255, 0.1);
+    border-color: rgba(0, 212, 255, 0.4);
+}
+
+.ghost-btn:active {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: rgba(0, 212, 255, 0.5);
+}
+
+/* Ghost button tiny - for inline action buttons */
+.ghost-btn-tiny {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px;
+    font-size: 9px;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ghost-btn-tiny:hover {
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(0, 212, 255, 0.1);
+    border-color: rgba(0, 212, 255, 0.4);
+}
+
+.ghost-btn-tiny.ghost-btn-danger:hover {
+    background: rgba(255, 68, 68, 0.15);
+    border-color: rgba(255, 68, 68, 0.5);
+    color: #ff6666;
+}
+
+/* LFO Entry Styles */
+.lfo-entry {
+    border: 1px solid rgba(0, 255, 136, 0.15);
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 8px;
+    background: rgba(0, 255, 136, 0.03);
+}
+
+.lfo-entry:last-child {
+    margin-bottom: 0;
+}
+
+/* LFO Header - enable, destination, delete */
+.lfo-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+/* Green ghost badge for LFO enable */
+.lfo-enable-badge {
+    border-color: rgba(0, 255, 136, 0.3);
+}
+
+.lfo-enable-badge:hover {
+    border-color: rgba(0, 255, 136, 0.5);
+    background: rgba(0, 255, 136, 0.1);
+}
+
+.lfo-enabled:checked + .lfo-enable-badge {
+    border-color: rgba(0, 255, 136, 0.6);
+    background: rgba(0, 255, 136, 0.2);
+    box-shadow: 0 0 4px rgba(0, 255, 136, 0.4);
+}
+
+.lfo-enabled:checked + .lfo-enable-badge:hover {
+    border-color: rgba(0, 255, 136, 0.8);
+    background: rgba(0, 255, 136, 0.3);
+}
+
+.lfo-destination {
+    flex: 1;
+    font-size: 10px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    color: #00ff88;
+    border-radius: 3px;
+    padding: 3px 6px;
+    height: 22px;
+    min-width: 0;
+}
+
+.lfo-destination:focus {
+    border-color: #00ff88;
+    outline: none;
+}
+
+/* LFO Curve selector */
+.lfo-curve {
+    font-size: 10px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    color: #00ff88;
+    border-radius: 3px;
+    padding: 3px 4px;
+    height: 22px;
+    width: 45px;
+    flex-shrink: 0;
+}
+
+.lfo-curve:focus {
+    border-color: #00ff88;
+    outline: none;
+}
+
+/* LFO Visualizer */
+.lfo-visualizer {
+    height: 6px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+    margin-top: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.lfo-value-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(0, 255, 136, 0.6), rgba(0, 200, 100, 0.4));
+    width: 50%;
+    transition: width 50ms linear;
+}
+
 .subsection-toggle {
     width: 0;
     height: 0;
@@ -857,6 +1014,18 @@ body.sidebar-collapsed .controls {
     pointer-events: none;
 }
 
+/* Sticky toast container - stays at very top, separate from regular toasts */
+.sticky-toast-container {
+    position: fixed;
+    left: 20px;
+    top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1001;
+    pointer-events: none;
+}
+
 .toast {
     padding: 12px 18px;
     background: rgba(10, 10, 20, 0.85);
@@ -924,6 +1093,27 @@ body.sidebar-collapsed .controls {
 @keyframes toast-scan {
     0% { left: -50%; }
     100% { left: 150%; }
+}
+
+/* Learn mode sticky toast - cyan pulsing border */
+.toast-learn {
+    border-left-color: #00d4ff;
+    border-left-width: 4px;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(0, 0, 0, 0.8));
+    animation: learn-pulse 1.5s ease-in-out infinite;
+}
+
+.toast-sticky {
+    pointer-events: auto;
+}
+
+@keyframes learn-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.2), 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
 }
 
 /* ============================================================================
@@ -3475,4 +3665,250 @@ body:not(.sidebar-collapsed) .axis-world-gizmo {
     color: rgba(255, 255, 255, 0.5);
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+
+/* ============================================
+   Control Helper Popup (Long-press [C])
+   ============================================ */
+.control-helper-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.15s ease-out;
+}
+
+.control-helper-popup {
+    background: rgba(20, 25, 35, 0.95);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    border-radius: 12px;
+    padding: 0;
+    min-width: 380px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    animation: popIn 0.2s ease-out;
+}
+
+@keyframes popIn {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.control-helper-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+    background: rgba(0, 212, 255, 0.05);
+}
+
+.control-helper-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #00d4ff;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.control-helper-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    transition: color 0.15s;
+}
+
+.control-helper-close:hover {
+    color: #ff6b6b;
+}
+
+.control-helper-target {
+    padding: 8px 16px;
+    background: rgba(0, 212, 255, 0.08);
+    border-bottom: 1px solid rgba(0, 212, 255, 0.15);
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.control-helper-target strong {
+    color: #00d4ff;
+    font-family: monospace;
+}
+
+.control-helper-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 16px;
+}
+
+.control-helper-card {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.control-helper-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(0, 212, 255, 0.4);
+    transform: translateY(-2px);
+}
+
+.control-helper-card:last-child:nth-child(odd) {
+    grid-column: span 2;
+    max-width: 50%;
+    margin: 0 auto;
+}
+
+.card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    transition: all 0.15s;
+}
+
+.card-icon.connected {
+    background: rgba(0, 212, 255, 0.2);
+    color: #00d4ff;
+    border: 1px solid rgba(0, 212, 255, 0.4);
+}
+
+.card-icon.disconnected {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Mode-specific colors */
+.control-helper-card.midi .card-icon.connected {
+    background: rgba(0, 212, 255, 0.2);
+    color: #00d4ff;
+    border-color: rgba(0, 212, 255, 0.4);
+}
+
+.control-helper-card.gamepad .card-icon.connected {
+    background: rgba(255, 170, 0, 0.2);
+    color: #ffaa00;
+    border-color: rgba(255, 170, 0, 0.4);
+}
+
+.control-helper-card.lfo .card-icon.connected {
+    background: rgba(0, 255, 136, 0.2);
+    color: #00ff88;
+    border-color: rgba(0, 255, 136, 0.4);
+}
+
+.control-helper-card.mobile .card-icon.connected {
+    background: rgba(255, 0, 170, 0.2);
+    color: #ff00aa;
+    border-color: rgba(255, 0, 170, 0.4);
+}
+
+.control-helper-card.keyboard .card-icon.connected {
+    background: rgba(136, 0, 255, 0.2);
+    color: #8800ff;
+    border-color: rgba(136, 0, 255, 0.4);
+}
+
+.card-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.card-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 2px;
+}
+
+.card-status {
+    font-size: 0.7rem;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.card-status.connected {
+    color: #00ff88;
+}
+
+.card-status.disconnected {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.card-desc {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.control-helper-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.control-helper-hint {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.control-helper-bank {
+    font-size: 0.7rem;
+    color: #00d4ff;
+    padding: 2px 8px;
+    background: rgba(0, 212, 255, 0.1);
+    border-radius: 4px;
+}
+
+/* Disabled card state */
+.control-helper-card.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* Learning state for C buttons */
+.ctrl-btn.learning {
+    animation: pulse-learn 0.8s ease-in-out infinite;
+    background: rgba(0, 212, 255, 0.3) !important;
+    border-color: #00d4ff !important;
+    color: #00d4ff !important;
+}
+
+@keyframes pulse-learn {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(0, 212, 255, 0);
+    }
 }

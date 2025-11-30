@@ -12,8 +12,10 @@ window.APP = window.APP || {};
 
     APP.Toast = {
         container: null,
+        stickyContainer: null,
         maxToasts: 5,
         duration: 2000,
+        stickyDuration: 8000, // Sticky toasts last 8 seconds
 
         init() {
             this.container = document.getElementById('toastContainer');
@@ -22,6 +24,15 @@ window.APP = window.APP || {};
                 this.container.id = 'toastContainer';
                 this.container.className = 'toast-container';
                 document.body.appendChild(this.container);
+            }
+
+            // Sticky container at top (separate from regular toasts)
+            this.stickyContainer = document.getElementById('stickyToastContainer');
+            if (!this.stickyContainer) {
+                this.stickyContainer = document.createElement('div');
+                this.stickyContainer.id = 'stickyToastContainer';
+                this.stickyContainer.className = 'sticky-toast-container';
+                document.body.appendChild(this.stickyContainer);
             }
 
             // 1. Restore from state
@@ -34,11 +45,13 @@ window.APP = window.APP || {};
         _restoreFromState() {
             const enabled = APP.State.select('display.toasts');
             this.container.style.display = enabled ? 'flex' : 'none';
+            this.stickyContainer.style.display = enabled ? 'flex' : 'none';
         },
 
         _subscribe() {
             APP.State.subscribe('display.toasts', (enabled) => {
                 this.container.style.display = enabled ? 'flex' : 'none';
+                this.stickyContainer.style.display = enabled ? 'flex' : 'none';
             });
         },
 
@@ -64,8 +77,49 @@ window.APP = window.APP || {};
             }, this.duration);
         },
 
+        /**
+         * Show a sticky toast that stays longer at the top
+         * Useful for learn mode messages that should persist while CC messages come/go
+         */
+        sticky(message, type = 'info') {
+            const enabled = APP.State.select('display.toasts');
+            if (!enabled || !this.stickyContainer) return;
+
+            // Remove existing sticky of same type
+            const existing = this.stickyContainer.querySelector(`.toast-${type}`);
+            if (existing) {
+                existing.remove();
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type} toast-sticky`;
+            toast.textContent = message;
+
+            this.stickyContainer.appendChild(toast);
+
+            requestAnimationFrame(() => toast.classList.add('show'));
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, this.stickyDuration);
+
+            return toast; // Return for manual dismissal
+        },
+
+        /**
+         * Dismiss a sticky toast early
+         */
+        dismissSticky(toast) {
+            if (toast) {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }
+        },
+
         info(msg) { this.show(msg, 'info'); },
         success(msg) { this.show(msg, 'success'); },
+        learn(msg) { return this.sticky(msg, 'learn'); }, // Sticky learn mode toast
         midi(msg) {
             if (APP.State.select('display.midiToasts')) {
                 this.show(msg, 'midi');

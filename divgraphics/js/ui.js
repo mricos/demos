@@ -34,7 +34,9 @@ window.APP = window.APP || {};
         'curveRotateY': (v) => v + '°',
         'curveRotateZ': (v) => v + '°',
         'trackRotationSpeed': (v) => v,
-        'trackRotationPpr': (v) => v
+        'trackRotationPpr': (v) => v,
+        'sphereOpacity': (v) => (v / 100).toFixed(2),
+        'icosahedronOpacity': (v) => (v / 100).toFixed(2)
     };
 
     // Log scale conversion for PPS (0.5 to 4 pps mapped to 0-100 slider)
@@ -51,6 +53,8 @@ window.APP = window.APP || {};
             this.elements = {
                 outerControls: document.getElementById('outerControls'),
                 innerControls: document.getElementById('innerControls'),
+                sphereControls: document.getElementById('sphereControls'),
+                icoControls: document.getElementById('icoControls'),
                 curveControls: document.getElementById('curveControls'),
                 trackControls: document.getElementById('trackControls'),
                 chaserControls: document.getElementById('chaserControls'),
@@ -74,6 +78,8 @@ window.APP = window.APP || {};
             // Sync all controls from current state
             this._syncFromState('outer');
             this._syncFromState('inner');
+            this._syncFromState('sphere');
+            this._syncFromState('icosahedron');
             this._syncFromState('curve');
             this._syncFromState('track');
             this._syncFromState('chaser');
@@ -113,18 +119,66 @@ window.APP = window.APP || {};
             if (this.elements.chaserControls) {
                 this.elements.chaserControls.style.display = chaserEnabled ? 'block' : 'none';
             }
+
+            // Sphere controls visibility
+            const sphereEnabled = APP.State.select('sphere.enabled');
+            if (this.elements.sphereControls) {
+                this.elements.sphereControls.style.display = sphereEnabled ? 'block' : 'none';
+            }
+
+            // Icosahedron controls visibility
+            const icoEnabled = APP.State.select('icosahedron.enabled');
+            if (this.elements.icoControls) {
+                this.elements.icoControls.style.display = icoEnabled ? 'block' : 'none';
+            }
         },
 
         _bindInputs() {
+            // Bind shape selects - outer/inner geometry
+            this._bindSelect('outerShape', 'outer.shape');
+            this._bindSelect('innerShape', 'inner.shape');
+
             // Bind range inputs - cylinders
             this._bindRange('outerRadius', 'outer.radius');
             this._bindRange('outerHeight', 'outer.height');
             this._bindRange('outerRadialSegments', 'outer.radialSegments');
             this._bindRange('outerHeightSegments', 'outer.heightSegments');
+            this._bindRange('outerScale', 'outer.scale');
             this._bindRange('innerRadius', 'inner.radius');
             this._bindRange('innerHeight', 'inner.height');
             this._bindRange('innerRadialSegments', 'inner.radialSegments');
             this._bindRange('innerHeightSegments', 'inner.heightSegments');
+            this._bindRange('innerScale', 'inner.scale');
+
+            // Bind sphere controls
+            this._bindCheckbox('sphereWireframe', 'sphere.wireframe');
+            this._bindCheckbox('sphereFaceInward', 'sphere.faceInward');
+            this._bindRange('sphereRadius', 'sphere.radius');
+            this._bindRange('sphereLatSegments', 'sphere.latSegments');
+            this._bindRange('sphereLonSegments', 'sphere.lonSegments');
+            this._bindRange('sphereSubdivisions', 'sphere.subdivisions');
+            this._bindRange('sphereSegmentSize', 'sphere.segmentSize');
+            this._bindRange('sphereRoundness', 'sphere.roundness');
+            this._bindCheckbox('sphereFlat', 'sphere.flat');
+            this._bindBorderWidth('sphereBorderWidth', 'sphere.borderWidth');
+            this._bindRangeScaled('sphereOpacity', 'sphere.opacity', 100);
+            this._bindRange('sphereScale', 'sphere.scale');
+            this._bindColor('sphereColor', 'sphere.color');
+            this._bindColor('sphereColorSecondary', 'sphere.colorSecondary');
+            this._bindSphereWireframeMode();
+            this._bindSphereType(); // Toggle lat/lon vs subdivisions visibility
+
+            // Bind icosahedron controls
+            this._bindCheckbox('icoEnabled', 'icosahedron.enabled');
+            this._bindCheckbox('icoWireframe', 'icosahedron.wireframe');
+            this._bindCheckbox('icoFaceInward', 'icosahedron.faceInward');
+            this._bindRange('icoRadius', 'icosahedron.radius');
+            this._bindRange('icoSubdivisions', 'icosahedron.subdivisions');
+            this._bindBorderWidth('icoBorderWidth', 'icosahedron.borderWidth');
+            this._bindRangeScaled('icoOpacity', 'icosahedron.opacity', 100);
+            this._bindColor('icoColor', 'icosahedron.color');
+            this._bindColor('icoColorSecondary', 'icosahedron.colorSecondary');
+            this._bindIcoDual(); // Ico/Dodeca toggle
 
             // Bind range inputs - curve
             this._bindRange('curveRadius', 'curve.radius');
@@ -234,6 +288,8 @@ window.APP = window.APP || {};
             this._bindColor('outerColorSecondary', 'outer.colorSecondary');
             this._bindColor('innerColor', 'inner.color');
             this._bindColor('innerColorSecondary', 'inner.colorSecondary');
+            this._bindColor('sphereColor', 'sphere.color');
+            this._bindColor('sphereColorSecondary', 'sphere.colorSecondary');
             this._bindColor('curveColor', 'curve.color');
             this._bindColor('curveColorSecondary', 'curve.colorSecondary');
             this._bindColor('trackColor', 'track.color');
@@ -250,20 +306,26 @@ window.APP = window.APP || {};
             this._bindCheckbox('outerWireframe', 'outer.wireframe');
             this._bindCheckbox('innerWireframe', 'inner.wireframe');
             this._bindCheckbox('innerEnabled', 'inner.enabled');
+            this._bindCheckbox('sphereEnabled', 'sphere.enabled');
+            this._bindCheckbox('sphereWireframe', 'sphere.wireframe');
+            this._bindCheckbox('sphereFaceInward', 'sphere.faceInward');
             this._bindCheckbox('curveEnabled', 'curve.enabled');
             this._bindCheckbox('curveWireframe', 'curve.wireframe');
+            this._bindCheckbox('curveBoundingBox', 'curve.showBoundingBox');
             this._bindCurveMode(); // Custom handler for mode visibility
+            this._bindCurveOffset(); // Custom handler for per-mode offset
             this._bindCheckbox('trackEnabled', 'track.enabled');
             this._bindCheckbox('trackWireframe', 'track.wireframe');
             this._bindCheckbox('trackEndless', 'track.endless');
 
-            // Track circle (the fundamental primitive)
-            this._bindCheckbox('trackCircleEnabled', 'track.circle.visible');
-            this._bindCheckbox('trackCircleFill', 'track.circle.fill');
-            this._bindRange('trackCircleBorderWidth', 'track.circle.borderWidth');
-            this._bindRange('trackCircleSkip', 'track.circle.skip');
-            this._bindRangeScaled('trackCircleOpacity', 'track.circle.opacity', 100);
-            this._bindColor('trackCircleColor', 'track.circle.color');
+            // Track hoop (the ring at each track point)
+            this._bindCheckbox('trackHoopEnabled', 'track.hoop.visible');
+            this._bindCheckbox('trackHoopFill', 'track.hoop.fill');
+            this._bindRange('trackHoopRadius', 'track.hoop.radius');
+            this._bindRange('trackHoopBorderWidth', 'track.hoop.borderWidth');
+            this._bindRange('trackHoopSkip', 'track.hoop.skip');
+            this._bindRangeScaled('trackHoopOpacity', 'track.hoop.opacity', 100);
+            this._bindColor('trackHoopColor', 'track.hoop.color');
 
             // Track normals (magenta, point radially outward)
             this._bindCheckbox('trackRadialsEnabled', 'track.normals.enabled');
@@ -300,6 +362,8 @@ window.APP = window.APP || {};
             // Sync UI when state changes (for MIDI-driven changes)
             APP.State.subscribe('outer.*', () => this._syncFromState('outer'));
             APP.State.subscribe('inner.*', () => this._syncFromState('inner'));
+            APP.State.subscribe('sphere.*', () => this._syncFromState('sphere'));
+            APP.State.subscribe('icosahedron.*', () => this._syncFromState('icosahedron'));
             APP.State.subscribe('curve.*', () => this._syncFromState('curve'));
             APP.State.subscribe('track.*', () => this._syncFromState('track'));
             APP.State.subscribe('chaser.*', () => this._syncFromState('chaser'));
@@ -342,6 +406,20 @@ window.APP = window.APP || {};
             APP.State.subscribe('chaser.enabled', (enabled) => {
                 if (this.elements.chaserControls) {
                     this.elements.chaserControls.style.display = enabled ? 'block' : 'none';
+                }
+            });
+
+            // Sphere controls visibility
+            APP.State.subscribe('sphere.enabled', (enabled) => {
+                if (this.elements.sphereControls) {
+                    this.elements.sphereControls.style.display = enabled ? 'block' : 'none';
+                }
+            });
+
+            // Icosahedron controls visibility
+            APP.State.subscribe('icosahedron.enabled', (enabled) => {
+                if (this.elements.icoControls) {
+                    this.elements.icoControls.style.display = enabled ? 'block' : 'none';
                 }
             });
         },
@@ -432,8 +510,20 @@ window.APP = window.APP || {};
                 });
             });
 
+            // Ctrl buttons (C) - scroll to and expand MIDI/Gamepad section
+            this._setupCtrlButtons();
+
             // Export/Import settings
             this._setupSettingsIO();
+        },
+
+        /**
+         * Setup ctrl-btn click handlers
+         * Now handled by ControlHelper which shows Input Sources popup
+         */
+        _setupCtrlButtons() {
+            // Click behavior managed by ControlHelper
+            // Both click and long-press show the Input Sources popup
         },
 
         /**
@@ -511,6 +601,29 @@ window.APP = window.APP || {};
 
                     // Remove metadata before applying
                     delete importData._meta;
+
+                    // Migrate old track settings (pre-hoop refactor)
+                    // Old: track.radius was tube size (5-50), track.circle was hoop settings
+                    // New: track.radius is path scale (50-200), track.hoop.radius is tube size
+                    if (importData.track) {
+                        const oldRadius = importData.track.radius;
+                        // Detect old format: radius was tube size (typically 5-50)
+                        if (oldRadius && oldRadius < 50) {
+                            // Migrate: old radius -> hoop.radius, set new radius to default
+                            if (!importData.track.hoop) {
+                                importData.track.hoop = {};
+                            }
+                            importData.track.hoop.radius = oldRadius;
+                            importData.track.radius = 100; // Default path scale
+
+                            // Also migrate circle -> hoop if present
+                            if (importData.track.circle && !importData.track.hoop.visible) {
+                                Object.assign(importData.track.hoop, importData.track.circle);
+                                delete importData.track.circle;
+                            }
+                            console.log('Migrated old track settings: radius', oldRadius, '-> hoop.radius');
+                        }
+                    }
 
                     // Apply each top-level state section
                     for (const section in importData) {
@@ -986,6 +1099,313 @@ window.APP = window.APP || {};
         },
 
         /**
+         * Bind curve offset controls (per-mode X/Y/Z offset)
+         * Radio buttons select which mode's offset to edit
+         * Defaults to and follows the currently selected curve.mode
+         */
+        _bindCurveOffset() {
+            const radios = document.querySelectorAll('input[name="curveOffsetMode"]');
+            const xSlider = document.getElementById('curveOffsetX');
+            const ySlider = document.getElementById('curveOffsetY');
+            const zSlider = document.getElementById('curveOffsetZ');
+            const scaleSlider = document.getElementById('curveOffsetScale');
+            const xValue = document.getElementById('curveOffsetXValue');
+            const yValue = document.getElementById('curveOffsetYValue');
+            const zValue = document.getElementById('curveOffsetZValue');
+            const scaleValue = document.getElementById('curveOffsetScaleValue');
+
+            if (!radios.length || !xSlider || !ySlider || !zSlider) return;
+
+            // Map curve.mode to offset mode (free uses bezier offset)
+            const modeToOffsetMode = (mode) => {
+                if (mode === 'distribute') return 'distribute';
+                if (mode === 'crystal') return 'crystal';
+                return 'bezier'; // 'free' and 'bezier' both use bezier offset
+            };
+
+            // Track currently selected offset mode - init from curve.mode
+            const currentCurveMode = APP.State.select('curve.mode') || 'bezier';
+            let selectedOffsetMode = modeToOffsetMode(currentCurveMode);
+
+            // Get state path for current mode's offset
+            const getOffsetPath = (mode) => {
+                switch (mode) {
+                    case 'distribute': return 'curve.distributeOffset';
+                    case 'crystal': return 'curve.crystalOffset';
+                    default: return 'curve.bezierOffset';
+                }
+            };
+
+            // Get state path for current mode's scale
+            const getScalePath = (mode) => {
+                switch (mode) {
+                    case 'distribute': return 'curve.distributeScale';
+                    case 'crystal': return 'curve.crystalScale';
+                    default: return 'curve.bezierScale';
+                }
+            };
+
+            // Update sliders from state
+            const syncSliders = () => {
+                const offsetPath = getOffsetPath(selectedOffsetMode);
+                const scalePath = getScalePath(selectedOffsetMode);
+                const offset = APP.State.select(offsetPath) || { x: 0, y: 0, z: 0 };
+                const scale = APP.State.select(scalePath) ?? 100;
+                xSlider.value = offset.x || 0;
+                ySlider.value = offset.y || 0;
+                zSlider.value = offset.z || 0;
+                if (scaleSlider) scaleSlider.value = scale;
+                if (xValue) xValue.textContent = offset.x || 0;
+                if (yValue) yValue.textContent = offset.y || 0;
+                if (zValue) zValue.textContent = offset.z || 0;
+                if (scaleValue) scaleValue.textContent = scale + '%';
+            };
+
+            // Handle radio changes
+            radios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    if (radio.checked) {
+                        selectedOffsetMode = radio.value;
+                        syncSliders();
+                    }
+                });
+            });
+
+            // Simple input handlers - dispatch to nested path directly
+            xSlider.addEventListener('input', () => {
+                const val = parseInt(xSlider.value);
+                if (xValue) xValue.textContent = val;
+                const path = getOffsetPath(selectedOffsetMode) + '.x';
+                APP.State.dispatch({ type: path, payload: val });
+            });
+
+            ySlider.addEventListener('input', () => {
+                const val = parseInt(ySlider.value);
+                if (yValue) yValue.textContent = val;
+                const path = getOffsetPath(selectedOffsetMode) + '.y';
+                APP.State.dispatch({ type: path, payload: val });
+            });
+
+            zSlider.addEventListener('input', () => {
+                const val = parseInt(zSlider.value);
+                if (zValue) zValue.textContent = val;
+                const path = getOffsetPath(selectedOffsetMode) + '.z';
+                APP.State.dispatch({ type: path, payload: val });
+            });
+
+            // Scale slider handler
+            if (scaleSlider) {
+                scaleSlider.addEventListener('input', () => {
+                    const val = parseInt(scaleSlider.value);
+                    if (scaleValue) scaleValue.textContent = val + '%';
+                    const path = getScalePath(selectedOffsetMode);
+                    APP.State.dispatch({ type: path, payload: val });
+                    // Also update the generic path for CC/LFO consistency
+                    APP.State.dispatch({ type: 'curve.offset.scale', payload: val });
+                });
+            }
+
+            // Sync radio buttons to match selected mode
+            const syncRadios = () => {
+                radios.forEach(radio => {
+                    radio.checked = radio.value === selectedOffsetMode;
+                });
+            };
+
+            // Subscribe to curve.mode changes - auto-switch offset mode to match
+            APP.State.subscribe('curve.mode', (newMode) => {
+                selectedOffsetMode = modeToOffsetMode(newMode);
+                syncRadios();
+                syncSliders();
+            });
+
+            // Guard against recursive dispatch
+            let isForwarding = false;
+
+            // Subscribe to curve.offset.scale (from CC/LFO) - apply to current mode
+            APP.State.subscribe('curve.offset.scale', (val) => {
+                if (val === undefined || isForwarding) return;
+                isForwarding = true;
+                const path = getScalePath(selectedOffsetMode);
+                // Update the per-mode scale
+                APP.State.dispatch({ type: path, payload: val });
+                // Sync slider UI
+                if (scaleSlider) scaleSlider.value = val;
+                if (scaleValue) scaleValue.textContent = val + '%';
+                isForwarding = false;
+            });
+
+            // Subscribe to curve.offset.x/y/z (from CC/LFO) - apply to current mode
+            APP.State.subscribe('curve.offset.x', (val) => {
+                if (val === undefined || isForwarding) return;
+                isForwarding = true;
+                const path = getOffsetPath(selectedOffsetMode) + '.x';
+                APP.State.dispatch({ type: path, payload: val });
+                if (xSlider) xSlider.value = val;
+                if (xValue) xValue.textContent = val;
+                isForwarding = false;
+            });
+
+            APP.State.subscribe('curve.offset.y', (val) => {
+                if (val === undefined || isForwarding) return;
+                isForwarding = true;
+                const path = getOffsetPath(selectedOffsetMode) + '.y';
+                APP.State.dispatch({ type: path, payload: val });
+                if (ySlider) ySlider.value = val;
+                if (yValue) yValue.textContent = val;
+                isForwarding = false;
+            });
+
+            APP.State.subscribe('curve.offset.z', (val) => {
+                if (val === undefined || isForwarding) return;
+                isForwarding = true;
+                const path = getOffsetPath(selectedOffsetMode) + '.z';
+                APP.State.dispatch({ type: path, payload: val });
+                if (zSlider) zSlider.value = val;
+                if (zValue) zValue.textContent = val;
+                isForwarding = false;
+            });
+
+            // Initial sync
+            syncRadios();
+            syncSliders();
+        },
+
+        /**
+         * Bind sphere type radio buttons and toggle visibility of type-specific controls
+         */
+        _bindSphereType() {
+            const radios = document.querySelectorAll('input[name="sphereType"]');
+            const ringSphereControls = document.getElementById('ringSphereControls');
+            const flatControl = document.getElementById('sphereFlatControl');
+
+            if (!radios.length) return;
+
+            const updateVisibility = (type) => {
+                // Show ring/panel sphere controls for ring-sphere and panel-sphere types
+                if (ringSphereControls) {
+                    ringSphereControls.style.display = (type === 'ring-sphere' || type === 'panel-sphere') ? 'block' : 'none';
+                }
+                // Show flat checkbox only for panel-sphere
+                if (flatControl) {
+                    flatControl.style.display = type === 'panel-sphere' ? 'flex' : 'none';
+                }
+
+                // Update radio checked state
+                radios.forEach(radio => {
+                    radio.checked = radio.value === type;
+                });
+            };
+
+            // Handle radio changes
+            radios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    if (radio.checked) {
+                        APP.State.dispatch({ type: 'sphere.type', payload: radio.value });
+                        updateVisibility(radio.value);
+                    }
+                });
+            });
+
+            // Subscribe to state changes
+            APP.State.subscribe('sphere.type', (type) => {
+                updateVisibility(type || 'uv-sphere');
+            });
+
+            // Initial state
+            const initialType = APP.State.select('sphere.type') || 'uv-sphere';
+            updateVisibility(initialType);
+        },
+
+        /**
+         * Bind icosahedron dual toggle (Ico/Dodeca radio pills)
+         */
+        _bindIcoDual() {
+            const radios = document.querySelectorAll('input[name="icoDual"]');
+            if (!radios.length) return;
+
+            // Handle radio changes
+            radios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    if (radio.checked) {
+                        const isDual = radio.value === 'true';
+                        APP.State.dispatch({ type: 'icosahedron.dual', payload: isDual });
+                    }
+                });
+            });
+
+            // Subscribe to state changes
+            APP.State.subscribe('icosahedron.dual', (isDual) => {
+                const targetValue = isDual === true ? 'true' : 'false';
+                radios.forEach(radio => {
+                    radio.checked = radio.value === targetValue;
+                });
+            });
+
+            // Initial state
+            const initialDual = APP.State.select('icosahedron.dual') === true;
+            const targetValue = initialDual ? 'true' : 'false';
+            radios.forEach(radio => {
+                radio.checked = radio.value === targetValue;
+            });
+        },
+
+        /**
+         * Bind sphere wireframe mode (border vs edge)
+         */
+        _bindSphereWireframeMode() {
+            const radios = document.querySelectorAll('input[name="sphereWireframeMode"]');
+            if (!radios.length) return;
+
+            radios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    if (radio.checked) {
+                        APP.State.dispatch({ type: 'sphere.wireframeMode', payload: radio.value });
+                    }
+                });
+            });
+
+            APP.State.subscribe('sphere.wireframeMode', (mode) => {
+                radios.forEach(radio => {
+                    radio.checked = radio.value === mode;
+                });
+            });
+
+            const initial = APP.State.select('sphere.wireframeMode') || 'border';
+            radios.forEach(radio => {
+                radio.checked = radio.value === initial;
+            });
+        },
+
+        /**
+         * Bind border width slider (1-400 → 0.01-4.0px)
+         */
+        _bindBorderWidth(id, path) {
+            const el = document.getElementById(id);
+            const valueEl = document.getElementById(id + 'Value');
+            if (!el) return;
+
+            el.addEventListener('input', () => {
+                const val = parseInt(el.value);
+                const displayVal = (val / 100).toFixed(2);
+                if (valueEl) valueEl.textContent = displayVal;
+                APP.State.dispatch({ type: path, payload: val });
+            });
+
+            // Sync from state
+            APP.State.subscribe(path, (val) => {
+                const v = val ?? 100;
+                el.value = v;
+                if (valueEl) valueEl.textContent = (v / 100).toFixed(2);
+            });
+
+            // Initial sync
+            const initial = APP.State.select(path) ?? 100;
+            el.value = initial;
+            if (valueEl) valueEl.textContent = (initial / 100).toFixed(2);
+        },
+
+        /**
          * Bind breathing speed slider (1-32 beats per breath cycle)
          */
         _bindBreatheSpeed() {
@@ -1017,10 +1437,12 @@ window.APP = window.APP || {};
          */
         _setupGhostBadges() {
             // Visual object toggles that can be soloed
-            const soloableIds = ['outerEnabled', 'innerEnabled', 'curveEnabled', 'trackEnabled', 'chaserEnabled'];
+            const soloableIds = ['outerEnabled', 'innerEnabled', 'sphereEnabled', 'icoEnabled', 'curveEnabled', 'trackEnabled', 'chaserEnabled'];
             const soloStatePaths = {
                 'outerEnabled': 'outer.enabled',
                 'innerEnabled': 'inner.enabled',
+                'sphereEnabled': 'sphere.enabled',
+                'icoEnabled': 'icosahedron.enabled',
                 'curveEnabled': 'curve.enabled',
                 'trackEnabled': 'track.enabled',
                 'chaserEnabled': 'chaser.enabled'
@@ -1224,8 +1646,10 @@ window.APP = window.APP || {};
             const state = APP.State.select(prefix);
             if (!state) return;
 
-            // Skip custom-handled elements
-            const customHandled = ['animationPps', 'animationBpm', 'trackTension', 'cameraFov'];
+            // Skip custom-handled elements (scaled values that need special sync)
+            const customHandled = ['animationPps', 'animationBpm', 'trackTension', 'cameraFov',
+                                   'curveOffsetX', 'curveOffsetY', 'curveOffsetZ', 'curveOffsetScale',
+                                   'sphereOpacity', 'icosahedronOpacity'];
 
             Object.entries(state).forEach(([key, value]) => {
                 const id = prefix + key.charAt(0).toUpperCase() + key.slice(1);
@@ -1264,6 +1688,14 @@ window.APP = window.APP || {};
                     if (fovValueEl) fovValueEl.textContent = state.fov;
                 }
             }
+
+            // Handle scaled opacity values (stored as 0-1, slider is 0-100)
+            if (prefix === 'sphere' && state.opacity !== undefined) {
+                this._syncEl('sphereOpacity', state.opacity * 100, 'range', state.opacity.toFixed(2));
+            }
+            if (prefix === 'icosahedron' && state.opacity !== undefined) {
+                this._syncEl('icoOpacity', state.opacity * 100, 'range', state.opacity.toFixed(2));
+            }
         },
 
         _syncTrackSubsections(state) {
@@ -1276,14 +1708,15 @@ window.APP = window.APP || {};
                 if (dirEl) dirEl.value = state.rotation.direction;
             }
 
-            // Circle (the fundamental primitive)
-            if (state.circle) {
-                this._syncEl('trackCircleEnabled', state.circle.visible, 'checkbox');
-                this._syncEl('trackCircleFill', state.circle.fill, 'checkbox');
-                this._syncEl('trackCircleBorderWidth', state.circle.borderWidth, 'range');
-                this._syncEl('trackCircleSkip', state.circle.skip, 'range');
-                this._syncEl('trackCircleOpacity', state.circle.opacity * 100, 'range', state.circle.opacity.toFixed(1));
-                this._syncEl('trackCircleColor', state.circle.color, 'color');
+            // Hoop (the ring at each track point)
+            if (state.hoop) {
+                this._syncEl('trackHoopEnabled', state.hoop.visible, 'checkbox');
+                this._syncEl('trackHoopFill', state.hoop.fill, 'checkbox');
+                this._syncEl('trackHoopRadius', state.hoop.radius, 'range');
+                this._syncEl('trackHoopBorderWidth', state.hoop.borderWidth, 'range');
+                this._syncEl('trackHoopSkip', state.hoop.skip, 'range');
+                this._syncEl('trackHoopOpacity', state.hoop.opacity * 100, 'range', state.hoop.opacity.toFixed(1));
+                this._syncEl('trackHoopColor', state.hoop.color, 'color');
             }
 
             // Normals (magenta, radially outward)

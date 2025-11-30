@@ -19,12 +19,22 @@ window.APP = window.APP || {};
             this.faceInward = options.faceInward || false;
             this.opacity = options.opacity || 0.85;
 
+            // LOD support - multiplier for segment counts (0.0-1.0)
+            this.lodMultiplier = options.lodMultiplier ?? 1.0;
+
             this.container = null;
             this.faceCount = 0;
             this.divCount = 0;
 
             // Store face references for view-space haze updates
             this._faces = [];
+        }
+
+        /**
+         * Get effective segment count with LOD applied
+         */
+        _getEffectiveSegments(base, min = 3) {
+            return Math.max(min, Math.floor(base * this.lodMultiplier));
         }
 
         generate() {
@@ -36,23 +46,27 @@ window.APP = window.APP || {};
             this.divCount = 0;
             this._faces = [];
 
-            const segmentAngle = (2 * Math.PI) / this.radialSegments;
-            const segmentHeight = this.height / this.heightSegments;
+            // Apply LOD to segment counts
+            const effectiveRadialSegments = this._getEffectiveSegments(this.radialSegments, 6);
+            const effectiveHeightSegments = this._getEffectiveSegments(this.heightSegments, 1);
+
+            const segmentAngle = (2 * Math.PI) / effectiveRadialSegments;
+            const segmentHeight = this.height / effectiveHeightSegments;
             const faceWidth = 2 * this.radius * Math.sin(segmentAngle / 2) + 0.5;
 
-            for (let h = 0; h < this.heightSegments; h++) {
+            for (let h = 0; h < effectiveHeightSegments; h++) {
                 const y = h * segmentHeight - this.height / 2 + segmentHeight / 2;
                 const ring = document.createElement('div');
                 ring.className = 'cylinder-ring';
                 ring.style.cssText = `position:absolute;transform-style:preserve-3d;transform:translateY(${h * segmentHeight - this.height / 2}px);`;
 
-                for (let r = 0; r < this.radialSegments; r++) {
+                for (let r = 0; r < effectiveRadialSegments; r++) {
                     const angle = r * segmentAngle;
                     const x = this.radius * Math.cos(angle + segmentAngle / 2);
                     const z = this.radius * Math.sin(angle + segmentAngle / 2);
                     const rotY = APP.Utils.radToDeg(angle + segmentAngle / 2) + (this.faceInward ? 180 : 0);
 
-                    const t = ((h / this.heightSegments) + (r / this.radialSegments)) / 2;
+                    const t = ((h / effectiveHeightSegments) + (r / effectiveRadialSegments)) / 2;
                     const color = APP.Utils.lerpColor(this.color, this.colorSecondary, t);
 
                     const face = document.createElement('div');

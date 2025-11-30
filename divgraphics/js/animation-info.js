@@ -50,15 +50,16 @@ Log-scale slider:
                 </div>
 
                 <div class="curve-info-section">
-                    <div class="curve-info-label">RPP: REVOLUTIONS PER PULSE</div>
+                    <div class="curve-info-label">PPR: PULSES PER REVOLUTION</div>
                     <pre class="curve-info-diagram">Rotation synced to tempo:
 
-0.25 RPP = 1 rev per 4 pulses
-0.5  RPP = 1 rev per 2 pulses
-1.0  RPP = 1 rev per pulse
-2.0  RPP = 2 revs per pulse
+1   PPR = 1 rev per pulse (fast)
+4   PPR = 1 rev per 4 pulses
+16  PPR = 1 rev per 16 pulses
+160 PPR = 1 rev per 160 pulses (slow)
+256 PPR = 1 rev per 256 pulses (very slow)
 
-deg/sec = RPP × 360 × PPS</pre>
+deg/sec = 360 × PPS / PPR</pre>
                 </div>
 
                 <div class="curve-info-section">
@@ -96,8 +97,8 @@ when ship collides with wall</pre>
                             <span class="live-value" id="animInfoBpm">120</span>
                         </div>
                         <div class="live-row">
-                            <span class="live-label">RPP:</span>
-                            <span class="live-value" id="animInfoRpb">0.25</span>
+                            <span class="live-label">PPR:</span>
+                            <span class="live-value" id="animInfoPpr">160</span>
                         </div>
                         <div class="live-row">
                             <span class="live-label">deg/sec:</span>
@@ -128,7 +129,7 @@ when ship collides with wall</pre>
             this._liveEls = {
                 pps: document.getElementById('animInfoPps'),
                 bpm: document.getElementById('animInfoBpm'),
-                rpb: document.getElementById('animInfoRpb'),
+                ppr: document.getElementById('animInfoPpr'),
                 dps: document.getElementById('animInfoDps'),
                 msPerPulse: document.getElementById('animInfoMsPerPulse'),
                 playing: document.getElementById('animInfoPlaying')
@@ -147,10 +148,10 @@ when ship collides with wall</pre>
             const anim = APP.State?.state?.animation;
             if (!anim) return;
 
-            const pps = anim.pps || 2.0;
+            const pps = anim.pps || 1.0;
             const bpm = pps * 60;
-            const rpb = anim.rpb || 0.25;
-            const dps = rpb * 360 * pps;
+            const ppr = anim.ppr || 160;
+            const dps = 360 * pps / ppr;
             const msPerPulse = 1000 / pps;
 
             if (this._liveEls.pps) {
@@ -159,11 +160,11 @@ when ship collides with wall</pre>
             if (this._liveEls.bpm) {
                 this._liveEls.bpm.textContent = Math.round(bpm);
             }
-            if (this._liveEls.rpb) {
-                this._liveEls.rpb.textContent = rpb.toFixed(2);
+            if (this._liveEls.ppr) {
+                this._liveEls.ppr.textContent = ppr;
             }
             if (this._liveEls.dps) {
-                this._liveEls.dps.textContent = dps.toFixed(0);
+                this._liveEls.dps.textContent = dps.toFixed(1);
             }
             if (this._liveEls.msPerPulse) {
                 this._liveEls.msPerPulse.textContent = msPerPulse.toFixed(0);

@@ -13,6 +13,8 @@ window.APP = window.APP || {};
         viewport: null,
         outerCylinder: null,
         innerCylinder: null,
+        sphere: null,
+        icosahedron: null,
         curve: null,
         track: null,
         ringPool: null,
@@ -33,10 +35,13 @@ window.APP = window.APP || {};
 
         _restoreFromState() {
             // Build geometry from current state
+            // Track must be built BEFORE curve so distribute mode can bind to it
             this._rebuildCylinder('outer', false);
             this._rebuildCylinder('inner', true);
-            this._rebuildCurve();
+            this._rebuildSphere();
+            this._rebuildIcosahedron();
             this._rebuildTrack();
+            this._rebuildCurve();
             // Camera handles its own state restoration
         },
 
@@ -45,11 +50,15 @@ window.APP = window.APP || {};
             // Throttled rebuilds for performance
             const throttledRebuildOuter = APP.Utils.throttle(() => this._rebuildCylinder('outer', false), config.throttleMs);
             const throttledRebuildInner = APP.Utils.throttle(() => this._rebuildCylinder('inner', true), config.throttleMs);
+            const throttledRebuildSphere = APP.Utils.throttle(() => this._rebuildSphere(), config.throttleMs);
+            const throttledRebuildIcosahedron = APP.Utils.throttle(() => this._rebuildIcosahedron(), config.throttleMs);
             const throttledRebuildCurve = APP.Utils.throttle(() => this._rebuildCurve(), config.throttleMs);
             const throttledRebuildTrack = APP.Utils.throttle(() => this._rebuildTrack(), config.throttleMs);
 
             APP.State.subscribe('outer.*', throttledRebuildOuter);
             APP.State.subscribe('inner.*', throttledRebuildInner);
+            APP.State.subscribe('sphere.*', throttledRebuildSphere);
+            APP.State.subscribe('icosahedron.*', throttledRebuildIcosahedron);
             APP.State.subscribe('track.*', throttledRebuildTrack);
 
             // Special handling for curve mode changes - use transitions
@@ -59,22 +68,35 @@ window.APP = window.APP || {};
                     const canTransition = (lastCurveMode === 'crystal' || lastCurveMode === 'distribute') &&
                                           (newMode === 'crystal' || newMode === 'distribute');
                     if (canTransition) {
-                        // Start smooth transition
+                        // Start smooth transition with rebuild callback
                         const duration = APP.State.select('curve.transitionDuration') || 500;
                         const easing = APP.State.select('curve.transitionEasing') || 'easeInOut';
-                        this.curve.startTransition(newMode, duration, easing);
+                        this.curve.startTransition(newMode, duration, easing, () => {
+                            // Rebuild with proper geometry after transition completes
+                            this._rebuildCurve();
+                        });
                         lastCurveMode = newMode;
-                        return; // Don't rebuild, transition will handle it
+                        return; // Don't rebuild now, transition will handle it
                     }
                 }
                 lastCurveMode = newMode;
                 throttledRebuildCurve();
             });
 
+            // Handle softness/round without full rebuild
+            APP.State.subscribe('curve.softness', (val) => {
+                if (this.curve) this.curve.updateEffects(val, undefined);
+            });
+            APP.State.subscribe('curve.round', (val) => {
+                if (this.curve) this.curve.updateEffects(undefined, val);
+            });
+
             // Other curve changes rebuild normally
             APP.State.subscribe('curve.*', (val, state, meta) => {
                 // Skip if this is a mode change (handled above)
                 if (meta.path === 'curve.mode') return;
+                // Skip effects-only changes (handled above)
+                if (meta.path === 'curve.softness' || meta.path === 'curve.round') return;
                 // Skip rebuild during transition
                 if (this.curve?.isTransitioning()) return;
                 throttledRebuildCurve();
@@ -89,12 +111,12 @@ window.APP = window.APP || {};
 
             if (!state) return;
 
-            // Remove existing cylinder if present
+            // Remove existing geometry if present
             if (this[propName]?.container?.parentNode) {
                 this[propName].container.parentNode.removeChild(this[propName].container);
             }
 
-            // Handle disabled cylinders (both outer and inner have enabled toggle)
+            // Handle disabled (both outer and inner have enabled toggle)
             if (state.enabled === false) {
                 this[propName] = null;
                 APP.Stats.updateCounts();
@@ -102,19 +124,197 @@ window.APP = window.APP || {};
             }
 
             const opacity = faceInward ? config.innerOpacity : config.outerOpacity;
-            this[propName] = new APP.Cylinder({
-                radius: state.radius,
-                height: state.height,
-                radialSegments: state.radialSegments,
-                heightSegments: state.heightSegments,
-                color: state.color,
-                colorSecondary: state.colorSecondary,
-                wireframe: state.wireframe,
-                faceInward,
-                opacity
-            });
+            const shape = state.shape || 'cylinder';
 
-            this.container.appendChild(this[propName].generate());
+            // Select geometry class based on shape
+            let geometry;
+            if (shape === 'uv-sphere' && APP.UVSphere) {
+                geometry = new APP.UVSphere({
+                    radius: state.radius,
+                    latSegments: state.heightSegments,
+                    lonSegments: state.radialSegments,
+                    color: state.color,
+                    colorSecondary: state.colorSecondary,
+                    wireframe: state.wireframe,
+                    faceInward,
+                    opacity
+                });
+            } else if (shape === 'ico-sphere' && APP.IcoSphere) {
+                geometry = new APP.IcoSphere({
+                    radius: state.radius,
+                    subdivisions: state.subdivisions || 2,
+                    color: state.color,
+                    colorSecondary: state.colorSecondary,
+                    wireframe: state.wireframe,
+                    faceInward,
+                    opacity
+                });
+            } else {
+                // Default: cylinder
+                geometry = new APP.Cylinder({
+                    radius: state.radius,
+                    height: state.height,
+                    radialSegments: state.radialSegments,
+                    heightSegments: state.heightSegments,
+                    color: state.color,
+                    colorSecondary: state.colorSecondary,
+                    wireframe: state.wireframe,
+                    faceInward,
+                    opacity
+                });
+            }
+
+            this[propName] = geometry;
+            const container = this[propName].generate();
+
+            // Apply scale transform (100 = 1.0)
+            const scale = (state.scale ?? 100) / 100;
+            if (scale !== 1) {
+                container.style.transform = `scale3d(${scale}, ${scale}, ${scale})`;
+            }
+
+            this.container.appendChild(container);
+            APP.Stats.updateCounts();
+        },
+
+        _rebuildSphere() {
+            const config = APP.State.defaults.config;
+            const state = APP.State.state.sphere;
+
+            if (!state) return;
+
+            // Remove existing sphere if present
+            if (this.sphere?.container?.parentNode) {
+                this.sphere.container.parentNode.removeChild(this.sphere.container);
+            }
+
+            // Handle disabled
+            if (state.enabled === false) {
+                this.sphere = null;
+                APP.Stats.updateCounts();
+                return;
+            }
+
+            const opacity = state.opacity ?? 0.85;
+            const type = state.type || 'uv-sphere';
+
+            // Select geometry class based on type
+            let geometry;
+            if (type === 'ico-sphere' && APP.IcoSphere) {
+                geometry = new APP.IcoSphere({
+                    radius: state.radius,
+                    subdivisions: state.subdivisions || 2,
+                    color: state.color,
+                    colorSecondary: state.colorSecondary,
+                    wireframe: state.wireframe,
+                    faceInward: state.faceInward,
+                    borderWidth: (state.borderWidth ?? 100) / 100,
+                    opacity
+                });
+            } else if (type === 'ring-sphere' && APP.RingSphere) {
+                geometry = new APP.RingSphere({
+                    radius: state.radius,
+                    rings: state.latSegments || 12,
+                    segments: state.lonSegments || 24,
+                    color: state.color,
+                    colorSecondary: state.colorSecondary,
+                    segmentSize: state.segmentSize || 2,
+                    roundness: state.roundness ?? 100,
+                    opacity
+                });
+            } else if (type === 'panel-sphere' && APP.PanelSphere) {
+                geometry = new APP.PanelSphere({
+                    radius: state.radius,
+                    rings: state.latSegments || 12,
+                    segments: state.lonSegments || 24,
+                    color: state.color,
+                    colorSecondary: state.colorSecondary,
+                    panelSize: state.segmentSize || 2,
+                    roundness: state.roundness ?? 50,
+                    flat: state.flat ?? false,
+                    opacity
+                });
+            } else if (APP.UVSphere) {
+                geometry = new APP.UVSphere({
+                    radius: state.radius,
+                    latSegments: state.latSegments,
+                    lonSegments: state.lonSegments,
+                    color: state.color,
+                    colorSecondary: state.colorSecondary,
+                    wireframe: state.wireframe,
+                    wireframeMode: state.wireframeMode || 'border',
+                    faceInward: state.faceInward,
+                    borderWidth: (state.borderWidth ?? 100) / 100,
+                    opacity
+                });
+            }
+
+            if (geometry) {
+                this.sphere = geometry;
+                const container = this.sphere.generate();
+
+                // Apply scale transform (100 = 1.0)
+                const scale = (state.scale ?? 100) / 100;
+                if (scale !== 1) {
+                    container.style.transform = `scale3d(${scale}, ${scale}, ${scale})`;
+                }
+
+                this.container.appendChild(container);
+            }
+            APP.Stats.updateCounts();
+        },
+
+        _rebuildIcosahedron() {
+            const config = APP.State.defaults.config;
+            const state = APP.State.state.icosahedron;
+
+            if (!state) return;
+
+            // Remove existing icosahedron if present
+            if (this.icosahedron?.container?.parentNode) {
+                this.icosahedron.container.parentNode.removeChild(this.icosahedron.container);
+            }
+
+            // Handle disabled
+            if (state.enabled === false) {
+                this.icosahedron = null;
+                APP.Stats.updateCounts();
+                return;
+            }
+
+            const opacity = state.opacity ?? 0.85;
+
+            // Select geometry class based on dual toggle
+            let geometry;
+            if (state.dual && APP.Dodecahedron) {
+                // Dodecahedron mode (12 pentagonal faces)
+                geometry = new APP.Dodecahedron({
+                    radius: state.radius,
+                    color: state.color,
+                    colorSecondary: state.colorSecondary,
+                    wireframe: state.wireframe,
+                    faceInward: state.faceInward,
+                    borderWidth: (state.borderWidth ?? 100) / 100,
+                    opacity
+                });
+            } else if (APP.IcoSphere) {
+                // Icosahedron mode (subdivided triangular faces)
+                geometry = new APP.IcoSphere({
+                    radius: state.radius,
+                    subdivisions: state.subdivisions || 0,
+                    color: state.color,
+                    colorSecondary: state.colorSecondary,
+                    wireframe: state.wireframe,
+                    faceInward: state.faceInward,
+                    borderWidth: (state.borderWidth ?? 100) / 100,
+                    opacity
+                });
+            }
+
+            if (geometry) {
+                this.icosahedron = geometry;
+                this.container.appendChild(this.icosahedron.generate());
+            }
             APP.Stats.updateCounts();
         },
 
@@ -144,11 +344,21 @@ window.APP = window.APP || {};
                 color: state.color,
                 colorSecondary: state.colorSecondary,
                 wireframe: state.wireframe,
+                // Geometry
+                length: state.length,
+                spacing: state.spacing,
+                twist: state.twist,
+                borderWidth: state.borderWidth,
+                faceWidthScale: state.faceWidthScale,
+                loopBorder: state.loopBorder,
+                softness: state.softness,
+                round: state.round,
                 // Mode and shared modulation
                 mode: state.mode,
                 pieceCount: state.pieceCount,
                 phase: state.phase,
                 spin: state.spin,
+                spread: state.spread,
                 sineAmplitudeX: state.sineAmplitudeX,
                 sineAmplitudeY: state.sineAmplitudeY,
                 sineAmplitudeZ: state.sineAmplitudeZ,
@@ -162,8 +372,20 @@ window.APP = window.APP || {};
                 rotateX: state.rotateX,
                 rotateY: state.rotateY,
                 rotateZ: state.rotateZ,
+                // Position offset (per-mode)
+                bezierOffset: state.bezierOffset,
+                distributeOffset: state.distributeOffset,
+                crystalOffset: state.crystalOffset,
+                // Scale factor (per-mode)
+                bezierScale: state.bezierScale,
+                distributeScale: state.distributeScale,
+                crystalScale: state.crystalScale,
                 // Crystal
-                crystal: state.crystal
+                crystal: state.crystal,
+                // Bounding box
+                showBoundingBox: state.showBoundingBox,
+                boundingBoxColor: state.boundingBoxColor,
+                boundingBoxOpacity: state.boundingBoxOpacity
             });
 
             this.container.appendChild(this.curve.generate());
@@ -207,11 +429,21 @@ window.APP = window.APP || {};
                 ];
             }
 
-            // Create track
+            // Apply track.radius as path scale (100 = 1.0x preset scale)
+            const pathScale = (state.radius ?? 100) / 100;
+            if (pathScale !== 1) {
+                waypoints = waypoints.map(p => ({
+                    x: p.x * pathScale,
+                    y: p.y * pathScale,
+                    z: p.z * pathScale
+                }));
+            }
+
+            // Create track - use hoop.radius for tube size
             if (APP.CatmullRomTrack) {
                 this.track = new APP.CatmullRomTrack({
                     waypoints,
-                    radius: state.radius,
+                    radius: state.hoop?.radius ?? 23,
                     radialSegments: state.radialSegments,  // 0 = centerline only, 1+ = tube
                     segmentsPerSpan: state.segmentsPerSpan,
                     color: state.color,
@@ -224,7 +456,7 @@ window.APP = window.APP || {};
                     centerlineColor: state.centerlineColor,
                     widthZScale: state.widthZScale,
                     radialWidthScale: state.radialWidthScale,
-                    circle: state.circle,
+                    circle: state.hoop,
                     normals: state.normals,
                     tangents: state.tangents
                 });

@@ -182,6 +182,26 @@ window.APP = window.APP || {};
                 this.state.track.rotation = this.defaults.track.rotation;
                 console.log('State: Added track.rotation defaults');
             }
+
+            // Migrate track.radius from tube size to path scale (hoop refactor)
+            // Old: track.radius was tube size (5-50), track.circle was hoop settings
+            // New: track.radius is path scale (50-200), track.hoop.radius is tube size
+            if (this.state.track && this.state.track.radius < 50) {
+                const oldRadius = this.state.track.radius;
+                // Create hoop from old circle settings
+                if (!this.state.track.hoop) {
+                    this.state.track.hoop = this.state.track.circle
+                        ? { ...this.state.track.circle, radius: oldRadius }
+                        : { ...this.defaults.track.hoop, radius: oldRadius };
+                } else if (!this.state.track.hoop.radius) {
+                    this.state.track.hoop.radius = oldRadius;
+                }
+                // Set new path scale to default
+                this.state.track.radius = 100;
+                // Remove old circle key
+                delete this.state.track.circle;
+                console.log(`State: Migrated track.radius ${oldRadius} -> hoop.radius, path scale = 100`);
+            }
         },
 
         /**

@@ -115,6 +115,7 @@ window.APP = window.APP || {};
 
                 // Emit to InputHub
                 const key = lfoConfig.id;
+
                 APP.InputHub?.emit('lfo', 'continuous', key, value, {
                     lfoId: lfoConfig.id,
                     waveform: lfoConfig.waveform,

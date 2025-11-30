@@ -83,12 +83,18 @@ window.APP = window.APP || {};
             document.querySelectorAll('.control-section').forEach(section => {
                 section.classList.add('collapsed');
             });
+            document.querySelectorAll('.control-subsection.collapsible').forEach(subsection => {
+                subsection.classList.add('collapsed');
+            });
             this._saveSectionStates();
         },
 
         expandAll() {
             document.querySelectorAll('.control-section').forEach(section => {
                 section.classList.remove('collapsed');
+            });
+            document.querySelectorAll('.control-subsection.collapsible').forEach(subsection => {
+                subsection.classList.remove('collapsed');
             });
             this._saveSectionStates();
         },

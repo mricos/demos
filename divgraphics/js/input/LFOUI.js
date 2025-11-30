@@ -1,6 +1,7 @@
 /**
  * LFOUI - User interface for LFO management
- * Handles LFO creation, editing, and learn mode integration
+ * LFOs are created via ControlHelper, shown here with target parameter
+ * Each LFO shows its mapped destination with dropdown to change target
  */
 window.APP = window.APP || {};
 
@@ -9,23 +10,17 @@ window.APP = window.APP || {};
 
     APP.LFOUI = {
         _container: null,
-        _learnMode: false,
-        _learnTarget: null,  // Element being learned to
+        _emptyMessage: null,
 
         init() {
             this._container = document.getElementById('lfoList');
+            this._emptyMessage = document.getElementById('lfoEmptyMessage');
             this._setupEventListeners();
             this._subscribe();
             this._render();
         },
 
         _setupEventListeners() {
-            // Add LFO button
-            const addBtn = document.getElementById('lfoAddButton');
-            if (addBtn) {
-                addBtn.addEventListener('click', () => this._addLFO());
-            }
-
             // Master enable
             const masterEnable = document.getElementById('lfoMasterEnabled');
             if (masterEnable) {
@@ -39,41 +34,169 @@ window.APP = window.APP || {};
                 });
             }
 
-            // LFO Learn mode
-            const learnToggle = document.getElementById('lfoLearnMode');
-            if (learnToggle) {
-                learnToggle.addEventListener('change', (e) => {
-                    this._setLearnMode(e.target.checked);
+            // Add LFO button
+            const addBtn = document.getElementById('lfoAddBtn');
+            if (addBtn) {
+                addBtn.addEventListener('click', () => {
+                    this._addNewLFO();
                 });
             }
         },
 
+        /**
+         * Add a new unmapped LFO
+         */
+        _addNewLFO() {
+            const lfoId = APP.LFOEngine?.addLFO({
+                enabled: true,
+                waveform: 'sine',
+                frequency: 1.0,
+                amplitude: 0.5,
+                offset: 0.5,
+                phase: 0,
+                sync: false,
+                syncDiv: 4
+            });
+
+            if (lfoId) {
+                APP.Toast?.success('LFO added');
+            }
+        },
+
         _subscribe() {
-            // Re-render when LFOs change
-            APP.State?.subscribe('lfo.lfos', () => this._render());
+            // Track LFO count to only re-render when LFOs added/removed
+            let lastLfoCount = Object.keys(APP.State?.select('lfo.lfos') || {}).length;
+
+            APP.State?.subscribe('lfo.lfos', (lfos) => {
+                const newCount = Object.keys(lfos || {}).length;
+                // Only re-render if LFO count changed (added/removed)
+                if (newCount !== lastLfoCount) {
+                    lastLfoCount = newCount;
+                    this._render();
+                }
+            });
+
             APP.State?.subscribe('lfo.enabled', (enabled) => {
                 const el = document.getElementById('lfoMasterEnabled');
                 if (el) el.checked = enabled;
             });
+
+            // Re-render when input mappings change (to update target display)
+            APP.State?.subscribe('input.banks.*', () => this._render());
         },
 
         _render() {
             if (!this._container) return;
 
-            const lfos = APP.State?.select('lfo.lfos') || {};
+            const lfos = APP.State?.select('lfo.lfos') || {}
             const lfoIds = Object.keys(lfos);
 
+            // Show/hide empty message
+            if (this._emptyMessage) {
+                this._emptyMessage.style.display = lfoIds.length === 0 ? 'block' : 'none';
+            }
+
             if (lfoIds.length === 0) {
-                this._container.innerHTML = `
-                    <p style="font-size: 11px; color: #666; text-align: center; padding: 8px;">
-                        No LFOs. Click "+ Add LFO" to create one.
-                    </p>
-                `;
+                this._container.innerHTML = '';
                 return;
             }
 
             this._container.innerHTML = lfoIds.map(id => this._renderLFO(lfos[id])).join('');
             this._attachLFOEventListeners();
+        },
+
+        /**
+         * Get the target parameter path for an LFO (from input mappings)
+         */
+        _getLFOTarget(lfoId) {
+            const activeBank = APP.InputHub?.getActiveBank() || 'A';
+            const maps = APP.State?.select(`input.banks.${activeBank}.maps`) || {};
+
+            for (const map of Object.values(maps)) {
+                if (map.source?.type === 'lfo' && map.source?.key === lfoId) {
+                    return map.target?.path || null;
+                }
+            }
+            return null;
+        },
+
+        /**
+         * Get the LFO map object for an LFO
+         */
+        _getLFOMap(lfoId) {
+            const activeBank = APP.InputHub?.getActiveBank() || 'A';
+            const maps = APP.State?.select(`input.banks.${activeBank}.maps`) || {};
+
+            for (const map of Object.values(maps)) {
+                if (map.source?.type === 'lfo' && map.source?.key === lfoId) {
+                    return map;
+                }
+            }
+            return null;
+        },
+
+        /**
+         * Get current curve preset name from map behavior
+         */
+        _getCurvePreset(map) {
+            if (!map?.behavior) return 'linear';
+            const { curveA, curveB } = map.behavior;
+            const a = curveA ?? 1.0;
+            const b = curveB ?? 1.0;
+
+            // Match to presets
+            if (Math.abs(a - 1.0) < 0.1 && Math.abs(b - 1.0) < 0.1) return 'linear';
+            if (Math.abs(a - 0.25) < 0.1 && Math.abs(b - 0.25) < 0.1) return 'log';
+            if (Math.abs(a - 4.0) < 0.5 && Math.abs(b - 4.0) < 0.5) return 'exp';
+            if (Math.abs(a - 4.0) < 0.5 && Math.abs(b - 0.25) < 0.1) return 'scurve';
+            if (Math.abs(a - 0.25) < 0.1 && Math.abs(b - 4.0) < 0.5) return 'invs';
+            return 'linear';
+        },
+
+        /**
+         * Get all bindable parameters for dropdown
+         */
+        _getAllParameters() {
+            const params = [];
+            const registry = APP.ParameterRegistry?.parameters || {};
+
+            for (const [id, def] of Object.entries(registry)) {
+                if (def.path) {
+                    params.push({
+                        id,
+                        path: def.path,
+                        label: def.path
+                    });
+                }
+            }
+
+            // Sort by path
+            params.sort((a, b) => a.path.localeCompare(b.path));
+            return params;
+        },
+
+        // Logarithmic speed mapping: slider 0-100 → freq 0.001-10 Hz
+        // More resolution at low speeds
+        _sliderToFreq(sliderVal) {
+            // 0 → 0.001, 50 → 0.1, 100 → 10
+            const minFreq = 0.001;
+            const maxFreq = 10;
+            const t = sliderVal / 100;
+            return minFreq * Math.pow(maxFreq / minFreq, t);
+        },
+
+        _freqToSlider(freq) {
+            const minFreq = 0.001;
+            const maxFreq = 10;
+            freq = Math.max(minFreq, Math.min(maxFreq, freq));
+            return 100 * Math.log(freq / minFreq) / Math.log(maxFreq / minFreq);
+        },
+
+        _formatFreq(freq) {
+            if (freq < 0.01) return freq.toFixed(3);
+            if (freq < 0.1) return freq.toFixed(3);
+            if (freq < 1) return freq.toFixed(2);
+            return freq.toFixed(1);
         },
 
         _renderLFO(lfo) {
@@ -82,80 +205,60 @@ window.APP = window.APP || {};
                 `<option value="${w}" ${lfo.waveform === w ? 'selected' : ''}>${w}</option>`
             ).join('');
 
+            // Speed: logarithmic 0.001 - 10 Hz
+            const sliderVal = Math.round(this._freqToSlider(lfo.frequency));
+            const speedValue = this._formatFreq(lfo.frequency);
+            const ampValue = Math.round(lfo.amplitude * 100);
+
+            // Get current target and map
+            const lfoMap = this._getLFOMap(lfo.id);
+            const targetPath = lfoMap?.target?.path || null;
+            const currentCurve = this._getCurvePreset(lfoMap);
+
+            // Build destination dropdown
+            const allParams = this._getAllParameters();
+            const destOptions = allParams.map(p =>
+                `<option value="${p.path}" ${p.path === targetPath ? 'selected' : ''}>${p.path}</option>`
+            ).join('');
+
+            // Build curve dropdown
+            const curvePresets = ['linear', 'log', 'exp', 'scurve', 'invs'];
+            const curveLabels = { linear: 'Lin', log: 'Log', exp: 'Exp', scurve: 'S', invs: 'S⁻¹' };
+            const curveOptions = curvePresets.map(c =>
+                `<option value="${c}" ${c === currentCurve ? 'selected' : ''}>${curveLabels[c]}</option>`
+            ).join('');
+
+            const enableId = `lfoEnable_${lfo.id}`;
             return `
-                <div class="lfo-entry" data-lfo-id="${lfo.id}" style="
-                    border: 1px solid #333;
-                    border-radius: 4px;
-                    padding: 8px;
-                    margin-bottom: 8px;
-                    background: #1a1a1a;
-                ">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <label style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                            <input type="checkbox" class="lfo-enabled" ${lfo.enabled ? 'checked' : ''}>
-                            <span class="lfo-name" style="font-weight: bold; color: #0af;">${lfo.id.slice(0, 8)}</span>
-                        </label>
-                        <div style="display: flex; gap: 4px;">
-                            <button class="lfo-map-btn btn btn-tiny" title="Map to parameter" style="font-size: 10px; padding: 2px 6px;">
-                                Map
-                            </button>
-                            <button class="lfo-delete-btn btn btn-tiny btn-danger" title="Delete LFO" style="font-size: 10px; padding: 2px 6px;">
-                                ×
-                            </button>
-                        </div>
+                <div class="lfo-entry" data-lfo-id="${lfo.id}">
+                    <div class="lfo-header">
+                        <input type="checkbox" id="${enableId}" class="lfo-enabled ghost-toggle" ${lfo.enabled ? 'checked' : ''}>
+                        <label for="${enableId}" class="ghost-badge lfo-enable-badge" title="Enable"></label>
+                        <select class="lfo-destination" title="Modulation target">
+                            <option value="">-- Select target --</option>
+                            ${destOptions}
+                        </select>
+                        <select class="lfo-curve" title="Response curve">
+                            ${curveOptions}
+                        </select>
+                        <button class="lfo-delete-btn ghost-btn-tiny ghost-btn-danger" title="Delete">&times;</button>
                     </div>
-
-                    <div class="lfo-controls" style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px;">
-                        <div>
-                            <label style="color: #888;">Wave</label>
-                            <select class="lfo-waveform" style="width: 100%; font-size: 10px;">
-                                ${waveformOptions}
-                            </select>
-                        </div>
-                        <div>
-                            <label style="color: #888;">Freq</label>
-                            <input type="range" class="lfo-frequency" min="1" max="100" value="${Math.round(lfo.frequency * 10)}" style="width: 100%;">
-                        </div>
-                        <div>
-                            <label style="color: #888;">Amp</label>
-                            <input type="range" class="lfo-amplitude" min="0" max="100" value="${Math.round(lfo.amplitude * 100)}" style="width: 100%;">
-                        </div>
-                        <div>
-                            <label style="color: #888;">Offset</label>
-                            <input type="range" class="lfo-offset" min="0" max="100" value="${Math.round(lfo.offset * 100)}" style="width: 100%;">
-                        </div>
-                        <div style="grid-column: span 2;">
-                            <label style="display: flex; align-items: center; gap: 4px; color: #888;">
-                                <input type="checkbox" class="lfo-sync" ${lfo.sync ? 'checked' : ''}>
-                                Sync to BPM
-                                <select class="lfo-syncDiv" style="width: 50px; font-size: 10px; margin-left: auto;" ${!lfo.sync ? 'disabled' : ''}>
-                                    <option value="1" ${lfo.syncDiv === 1 ? 'selected' : ''}>1</option>
-                                    <option value="2" ${lfo.syncDiv === 2 ? 'selected' : ''}>2</option>
-                                    <option value="4" ${lfo.syncDiv === 4 ? 'selected' : ''}>4</option>
-                                    <option value="8" ${lfo.syncDiv === 8 ? 'selected' : ''}>8</option>
-                                    <option value="16" ${lfo.syncDiv === 16 ? 'selected' : ''}>16</option>
-                                </select>
-                            </label>
-                        </div>
+                    <div class="mini-control">
+                        <span class="mini-label">Wave</span>
+                        <select class="lfo-waveform" title="Waveform">${waveformOptions}</select>
                     </div>
-
-                    <div class="lfo-visualizer" style="
-                        height: 20px;
-                        background: #111;
-                        border-radius: 2px;
-                        margin-top: 6px;
-                        position: relative;
-                        overflow: hidden;
-                    ">
-                        <div class="lfo-value-bar" style="
-                            position: absolute;
-                            left: 0;
-                            top: 0;
-                            height: 100%;
-                            background: linear-gradient(90deg, #0af, #08f);
-                            width: 50%;
-                            transition: width 50ms linear;
-                        "></div>
+                    <div class="mini-control">
+                        <span class="mini-label">Speed</span>
+                        <input type="range" class="lfo-speed" min="0" max="100" value="${sliderVal}" title="Speed (Hz)">
+                        <span class="mini-value lfo-speed-value">${speedValue}</span>
+                    </div>
+                    <div class="mini-control">
+                        <span class="mini-label">Amp</span>
+                        <input type="range" class="lfo-amplitude" min="0" max="100" value="${ampValue}" title="Amplitude">
+                        <span class="mini-value lfo-amp-value">${ampValue}%</span>
+                    </div>
+                    <div class="lfo-visualizer">
+                        <div class="lfo-value-bar"></div>
                     </div>
                 </div>
             `;
@@ -176,48 +279,139 @@ window.APP = window.APP || {};
                     APP.LFOEngine?.updateLFO(id, { waveform: e.target.value });
                 });
 
-                // Frequency (0.1 - 10 Hz)
-                entry.querySelector('.lfo-frequency')?.addEventListener('input', (e) => {
-                    APP.LFOEngine?.updateLFO(id, { frequency: parseInt(e.target.value) / 10 });
+                // Speed (logarithmic: 0.001 - 10 Hz)
+                entry.querySelector('.lfo-speed')?.addEventListener('input', (e) => {
+                    const freq = this._sliderToFreq(parseInt(e.target.value));
+                    APP.LFOEngine?.updateLFO(id, { frequency: freq });
+                    const valueEl = entry.querySelector('.lfo-speed-value');
+                    if (valueEl) valueEl.textContent = this._formatFreq(freq);
                 });
 
                 // Amplitude (0 - 1)
                 entry.querySelector('.lfo-amplitude')?.addEventListener('input', (e) => {
-                    APP.LFOEngine?.updateLFO(id, { amplitude: parseInt(e.target.value) / 100 });
+                    const amp = parseInt(e.target.value);
+                    APP.LFOEngine?.updateLFO(id, { amplitude: amp / 100 });
+                    const valueEl = entry.querySelector('.lfo-amp-value');
+                    if (valueEl) valueEl.textContent = amp + '%';
                 });
 
-                // Offset (0 - 1)
-                entry.querySelector('.lfo-offset')?.addEventListener('input', (e) => {
-                    APP.LFOEngine?.updateLFO(id, { offset: parseInt(e.target.value) / 100 });
+                // Destination change
+                entry.querySelector('.lfo-destination')?.addEventListener('change', (e) => {
+                    const newPath = e.target.value;
+                    if (newPath) {
+                        this._changeMapping(id, newPath);
+                    } else {
+                        this._removeMapping(id);
+                    }
                 });
 
-                // Sync toggle
-                entry.querySelector('.lfo-sync')?.addEventListener('change', (e) => {
-                    APP.LFOEngine?.updateLFO(id, { sync: e.target.checked });
-                    const syncDiv = entry.querySelector('.lfo-syncDiv');
-                    if (syncDiv) syncDiv.disabled = !e.target.checked;
-                });
-
-                // Sync division
-                entry.querySelector('.lfo-syncDiv')?.addEventListener('change', (e) => {
-                    APP.LFOEngine?.updateLFO(id, { syncDiv: parseInt(e.target.value) });
+                // Curve change
+                entry.querySelector('.lfo-curve')?.addEventListener('change', (e) => {
+                    this._updateMapCurve(id, e.target.value);
                 });
 
                 // Delete button
                 entry.querySelector('.lfo-delete-btn')?.addEventListener('click', () => {
-                    if (confirm('Delete this LFO?')) {
-                        APP.LFOEngine?.removeLFO(id);
-                    }
-                });
-
-                // Map button
-                entry.querySelector('.lfo-map-btn')?.addEventListener('click', () => {
-                    this._startMapping(id);
+                    this._removeMapping(id);
+                    APP.LFOEngine?.removeLFO(id);
                 });
             });
 
             // Start visualizer updates
             this._startVisualizerUpdates();
+        },
+
+        /**
+         * Change the mapping target for an LFO
+         */
+        _changeMapping(lfoId, targetPath) {
+            // Find element ID from path
+            const elementId = APP.ParameterRegistry?.findByPath(targetPath);
+            if (!elementId) {
+                APP.Toast?.info(`Unknown target: ${targetPath}`);
+                return;
+            }
+
+            const element = document.getElementById(elementId);
+            if (!element) {
+                APP.Toast?.info(`Element not found: ${elementId}`);
+                return;
+            }
+
+            // Remove existing mapping for this LFO
+            this._removeMapping(lfoId);
+
+            // Create new mapping
+            const sourceType = 'lfo';
+            const fullKey = `lfo:${lfoId}`;
+
+            let map = APP.InputMap?.fromElement(
+                element,
+                sourceType,
+                lfoId,
+                fullKey,
+                { inferredAction: 'absolute' }
+            );
+
+            if (map) {
+                APP.InputHub?.addMap(map);
+                APP.Toast?.success(`LFO → ${targetPath}`);
+            }
+        },
+
+        /**
+         * Remove mapping for an LFO
+         */
+        _removeMapping(lfoId) {
+            const activeBank = APP.InputHub?.getActiveBank() || 'A';
+            const maps = { ...APP.State?.select(`input.banks.${activeBank}.maps`) };
+
+            let removed = false;
+            for (const [mapId, map] of Object.entries(maps)) {
+                if (map.source?.type === 'lfo' && map.source?.key === lfoId) {
+                    delete maps[mapId];
+                    removed = true;
+                }
+            }
+
+            if (removed) {
+                APP.State?.dispatch({ type: `input.banks.${activeBank}.maps`, payload: maps });
+            }
+        },
+
+        /**
+         * Update the response curve for an LFO mapping
+         */
+        _updateMapCurve(lfoId, curvePreset) {
+            const activeBank = APP.InputHub?.getActiveBank() || 'A';
+            const maps = { ...APP.State?.select(`input.banks.${activeBank}.maps`) };
+
+            // Get curve values from preset
+            const presets = APP.InputMap?.CurvePresets || {
+                linear: { a: 1.0, b: 1.0 },
+                log:    { a: 0.25, b: 0.25 },
+                exp:    { a: 4.0, b: 4.0 },
+                scurve: { a: 4.0, b: 0.25 },
+                invs:   { a: 0.25, b: 4.0 }
+            };
+            const curve = presets[curvePreset] || presets.linear;
+
+            // Find and update the map
+            for (const [mapId, map] of Object.entries(maps)) {
+                if (map.source?.type === 'lfo' && map.source?.key === lfoId) {
+                    maps[mapId] = {
+                        ...map,
+                        behavior: {
+                            ...map.behavior,
+                            curveA: curve.a,
+                            curveB: curve.b
+                        }
+                    };
+                    APP.State?.dispatch({ type: `input.banks.${activeBank}.maps`, payload: maps });
+                    APP.Toast?.success(`Curve: ${curvePreset}`);
+                    return;
+                }
+            }
         },
 
         _startVisualizerUpdates() {
@@ -241,36 +435,70 @@ window.APP = window.APP || {};
             this._visualizerInterval = setInterval(update, 50);
         },
 
-        _addLFO() {
-            const id = APP.LFOEngine?.addLFO({
+        /**
+         * Create a new LFO mapped to a specific parameter
+         * Called by ControlHelper when LFO mode is selected
+         */
+        createLFOForParameter(targetPath) {
+            const elementId = APP.ParameterRegistry?.findByPath(targetPath);
+            if (!elementId) {
+                APP.Toast?.info(`Unknown parameter: ${targetPath}`);
+                return null;
+            }
+
+            const element = document.getElementById(elementId);
+            if (!element) {
+                APP.Toast?.info(`Element not found: ${elementId}`);
+                return null;
+            }
+
+            // Create the LFO
+            const lfoId = APP.LFOEngine?.addLFO({
                 enabled: true,
                 waveform: 'sine',
                 frequency: 1.0,
-                amplitude: 1.0,
+                amplitude: 0.5,
                 offset: 0.5,
                 phase: 0,
                 sync: false,
                 syncDiv: 4
             });
-            APP.Toast?.success(`LFO created: ${id.slice(0, 8)}`);
+
+            if (!lfoId) {
+                APP.Toast?.info('Failed to create LFO');
+                return null;
+            }
+
+            // Create mapping to target
+            const fullKey = `lfo:${lfoId}`;
+            let map = APP.InputMap?.fromElement(
+                element,
+                'lfo',
+                lfoId,
+                fullKey,
+                { inferredAction: 'absolute' }
+            );
+
+            if (map) {
+                APP.InputHub?.addMap(map);
+                APP.Toast?.success(`LFO → ${targetPath}`);
+
+                // Scroll to LFO section
+                this._focusLFOSection();
+            }
+
+            return lfoId;
         },
 
-        _startMapping(lfoId) {
-            // Activate learn mode and set this LFO as the source
-            this._mappingLfoId = lfoId;
-            APP.Toast?.info(`Click a control to map LFO ${lfoId.slice(0, 8)} to it`);
-
-            // Register a one-time handler with InputLearnUI
-            if (APP.InputLearnUI) {
-                APP.InputLearnUI.startLearnWithSource('lfo', lfoId, `lfo:${lfoId}`);
-            }
-        },
-
-        _setLearnMode(enabled) {
-            this._learnMode = enabled;
-            if (enabled) {
-                APP.Toast?.info('LFO Learn: Click a control, then click "Map" on an LFO');
-            }
+        _focusLFOSection() {
+            const sections = document.querySelectorAll('.control-section');
+            sections.forEach(section => {
+                const header = section.querySelector('.section-title');
+                if (header && header.textContent.trim() === 'LFO') {
+                    section.classList.remove('collapsed');
+                    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
         }
     };
 
