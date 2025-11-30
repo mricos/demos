@@ -12,17 +12,29 @@ window.APP = window.APP || {};
         'cameraZoom': (v) => (v / 100).toFixed(1),
         'cameraSensitivity': (v) => (v / 10).toFixed(1),
         'displayHaze': (v) => v === 0 ? 'Off' : v + '%',
+        'displayGreenDesat': (v) => v === 0 ? 'Off' : v + '%',
+        'displayBlur': (v) => v === 0 ? 'Off' : v + '%',
+        'displayDimmer': (v) => v + '%',
+        'displayBright': (v) => v + '%',
         'trackTension': (v) => (v / 100).toFixed(2),
         'trackRadialsTwist': (v) => v + '°',
+        'curveSpread': (v) => v + '%',
         'curvePhase': (v) => v + '°',
         'curveSpin': (v) => v + '°',
-        'curveBreatheSpeed': (v) => v + ' beats',
+        'curveBorderWidth': (v) => (v / 100).toFixed(3),
+        'curveFaceWidthScale': (v) => v + '%',
+        'curveSoftness': (v) => v,
+        'curveRound': (v) => v + '%',
+        'curveBreatheScale': (v) => v + '%',
+        'curveBreatheSpeed': (v) => v,
         'curveBreathePhase': (v) => v + '°',
         'curveCrystalSpread': (v) => v + '°',
         'curveCrystalTwist': (v) => v + '°',
         'curveRotateX': (v) => v + '°',
         'curveRotateY': (v) => v + '°',
-        'curveRotateZ': (v) => v + '°'
+        'curveRotateZ': (v) => v + '°',
+        'trackRotationSpeed': (v) => v,
+        'trackRotationPpr': (v) => v
     };
 
     // Log scale conversion for PPS (0.5 to 4 pps mapped to 0-100 slider)
@@ -118,6 +130,17 @@ window.APP = window.APP || {};
             this._bindRange('curveRadius', 'curve.radius');
             this._bindRange('curveCurveSegments', 'curve.curveSegments');
             this._bindRange('curveRadialSegments', 'curve.radialSegments');
+
+            // Curve geometry
+            this._bindCurveLength(); // Custom handler for length (0-200 → 0.0-2.0)
+            this._bindSpacing(); // Custom handler for spacing (0-200 → 0%-200%)
+            this._bindRange('curveTwist', 'curve.twist');
+            this._bindRange('curveBorderWidth', 'curve.borderWidth');
+            this._bindFaceWidthScale(); // Custom handler for face width (0-200 → 0%-200%)
+            this._bindCheckbox('curveLoopBorder', 'curve.loopBorder');
+            this._bindRange('curveSoftness', 'curve.softness');
+            this._bindRange('curveRound', 'curve.round');
+
             this._bindRange('curveP0x', 'curve.p0x');
             this._bindRange('curveP0y', 'curve.p0y');
             this._bindRange('curveP0z', 'curve.p0z');
@@ -130,6 +153,7 @@ window.APP = window.APP || {};
 
             // Curve modulation (shared across modes)
             this._bindRange('curvePieceCount', 'curve.pieceCount');
+            this._bindRange('curveSpread', 'curve.spread');
             this._bindRange('curvePhase', 'curve.phase');
             this._bindRange('curveSpin', 'curve.spin');
             this._bindRange('curveSineFrequency', 'curve.sineFrequency');
@@ -177,8 +201,11 @@ window.APP = window.APP || {};
             this._bindRange('cameraRotationZ', 'camera.rotationZ');
             this._bindRange('cameraSensitivity', 'camera.sensitivity');
 
-            // Bind range inputs - display
+            // Bind range inputs - display effects
             this._bindRange('displayHaze', 'display.haze');
+            this._bindRange('displayGreenDesat', 'display.greenDesat');
+            this._bindRange('displayBlur', 'display.blur');
+            this._bindDimmer();
 
             // Bind color inputs
             this._bindColor('outerColor', 'outer.color');
@@ -239,6 +266,12 @@ window.APP = window.APP || {};
             // Bind select elements - track
             this._bindSelect('trackPreset', 'track.preset');
             this._bindSelect('trackVariationSource', 'track.variationSource');
+
+            // Track rotation controls
+            this._bindRange('trackRotationSpeed', 'track.rotation.speed');
+            this._bindRange('trackRotationPpr', 'track.rotation.ppr');
+            this._bindTrackRotationDirection();
+            this._bindCheckbox('trackRotationSyncBpm', 'track.rotation.syncBpm');
         },
 
         _subscribe() {
@@ -292,6 +325,9 @@ window.APP = window.APP || {};
         },
 
         _setupUI() {
+            // Ghost badge toggles - update text on change
+            this._setupGhostBadges();
+
             // Reset button
             if (this.elements.resetBtn) {
                 this.elements.resetBtn.addEventListener('click', () => APP.Scene.resetView());
@@ -361,6 +397,15 @@ window.APP = window.APP || {};
             // Collapsible sections
             document.querySelectorAll('.section-header').forEach(header => {
                 header.addEventListener('click', () => {
+                    header.parentElement.classList.toggle('collapsed');
+                });
+            });
+
+            // Collapsible subsections
+            document.querySelectorAll('.subsection-header').forEach(header => {
+                header.addEventListener('click', (e) => {
+                    // Don't toggle if clicking on a control inside the header
+                    if (e.target.matches('input, select, button')) return;
                     header.parentElement.classList.toggle('collapsed');
                 });
             });
@@ -721,14 +766,160 @@ window.APP = window.APP || {};
         },
 
         /**
-         * Bind curve mode selector with visibility toggle for different control sections
+         * Bind curve length slider (10-300 → 0.1-3.0 display)
+         */
+        _bindCurveLength() {
+            const el = document.getElementById('curveLength');
+            const valueEl = document.getElementById('curveLengthValue');
+            if (!el) return;
+
+            // Length stored as 10-300, display as 0.1-3.0
+            el.addEventListener('input', () => {
+                const length = parseInt(el.value);
+                if (valueEl) valueEl.textContent = (length / 100).toFixed(1);
+                APP.State.dispatch({ type: 'curve.length', payload: length });
+            });
+
+            // Sync from state
+            APP.State.subscribe('curve.length', (length) => {
+                el.value = length || 100;
+                if (valueEl) valueEl.textContent = ((length || 100) / 100).toFixed(1);
+            });
+
+            // Initial sync
+            const initialLength = APP.State.select('curve.length') || 100;
+            el.value = initialLength;
+            if (valueEl) valueEl.textContent = (initialLength / 100).toFixed(1);
+        },
+
+        /**
+         * Bind face width scale slider (0-200 → 0%-200% display)
+         */
+        _bindFaceWidthScale() {
+            const el = document.getElementById('curveFaceWidthScale');
+            const valueEl = document.getElementById('curveFaceWidthScaleValue');
+            if (!el) return;
+
+            el.addEventListener('input', () => {
+                const scale = parseInt(el.value);
+                if (valueEl) valueEl.textContent = scale + '%';
+                APP.State.dispatch({ type: 'curve.faceWidthScale', payload: scale });
+            });
+
+            // Sync from state
+            APP.State.subscribe('curve.faceWidthScale', (scale) => {
+                const val = scale ?? 100;
+                el.value = val;
+                if (valueEl) valueEl.textContent = val + '%';
+            });
+
+            // Initial sync
+            const initialScale = APP.State.select('curve.faceWidthScale') ?? 100;
+            el.value = initialScale;
+            if (valueEl) valueEl.textContent = initialScale + '%';
+        },
+
+        /**
+         * Bind spacing slider (0-200 → 0%-200% display)
+         */
+        _bindSpacing() {
+            const el = document.getElementById('curveSpacing');
+            const valueEl = document.getElementById('curveSpacingValue');
+            if (!el) return;
+
+            el.addEventListener('input', () => {
+                const val = parseInt(el.value);
+                if (valueEl) valueEl.textContent = val + '%';
+                APP.State.dispatch({ type: 'curve.spacing', payload: val });
+            });
+
+            APP.State.subscribe('curve.spacing', (val) => {
+                const v = val ?? 100;
+                el.value = v;
+                if (valueEl) valueEl.textContent = v + '%';
+            });
+
+            const initial = APP.State.select('curve.spacing') ?? 100;
+            el.value = initial;
+            if (valueEl) valueEl.textContent = initial + '%';
+        },
+
+        /**
+         * Bind global dimmer and bright - applies brightness filter to scene
+         */
+        _bindDimmer() {
+            const dimmerEl = document.getElementById('displayDimmer');
+            const dimmerValueEl = document.getElementById('displayDimmerValue');
+            const brightEl = document.getElementById('displayBright');
+            const brightValueEl = document.getElementById('displayBrightValue');
+            const scene = document.getElementById('scene');
+            if (!scene) return;
+
+            const applyBrightness = () => {
+                const dimmer = APP.State.select('display.dimmer') ?? 100;
+                const bright = APP.State.select('display.bright') ?? 100;
+                // Combine: dimmer (0-100) and bright (100-300)
+                // At dimmer=100, bright=100 → 1.0
+                // At dimmer=50, bright=100 → 0.5
+                // At dimmer=100, bright=200 → 2.0
+                const brightness = (dimmer / 100) * (bright / 100);
+                scene.style.filter = brightness !== 1 ? `brightness(${brightness})` : '';
+            };
+
+            if (dimmerEl) {
+                dimmerEl.addEventListener('input', () => {
+                    const val = parseInt(dimmerEl.value);
+                    if (dimmerValueEl) dimmerValueEl.textContent = val + '%';
+                    APP.State.dispatch({ type: 'display.dimmer', payload: val });
+                    applyBrightness();
+                });
+            }
+
+            if (brightEl) {
+                brightEl.addEventListener('input', () => {
+                    const val = parseInt(brightEl.value);
+                    if (brightValueEl) brightValueEl.textContent = val + '%';
+                    APP.State.dispatch({ type: 'display.bright', payload: val });
+                    applyBrightness();
+                });
+            }
+
+            // Sync from state
+            APP.State.subscribe('display.dimmer', (val) => {
+                if (dimmerEl) dimmerEl.value = val ?? 100;
+                if (dimmerValueEl) dimmerValueEl.textContent = (val ?? 100) + '%';
+                applyBrightness();
+            });
+
+            APP.State.subscribe('display.bright', (val) => {
+                if (brightEl) brightEl.value = val ?? 100;
+                if (brightValueEl) brightValueEl.textContent = (val ?? 100) + '%';
+                applyBrightness();
+            });
+
+            // Initial sync
+            if (dimmerEl) {
+                const initialDimmer = APP.State.select('display.dimmer') ?? 100;
+                dimmerEl.value = initialDimmer;
+                if (dimmerValueEl) dimmerValueEl.textContent = initialDimmer + '%';
+            }
+            if (brightEl) {
+                const initialBright = APP.State.select('display.bright') ?? 100;
+                brightEl.value = initialBright;
+                if (brightValueEl) brightValueEl.textContent = initialBright + '%';
+            }
+            applyBrightness();
+        },
+
+        /**
+         * Bind curve mode selector (radio badges) with visibility toggle
          */
         _bindCurveMode() {
-            const el = document.getElementById('curveMode');
+            const radios = document.querySelectorAll('input[name="curveMode"]');
             const modulationControls = document.getElementById('curveModulationControls');
             const crystalControls = document.getElementById('curveCrystalControls');
             const bezierControls = document.getElementById('curveBezierControls');
-            if (!el) return;
+            if (!radios.length) return;
 
             const updateVisibility = (mode) => {
                 // Modulation controls visible for distribute and crystal modes
@@ -745,21 +936,30 @@ window.APP = window.APP || {};
                 }
             };
 
-            // Handle select changes
-            el.addEventListener('change', () => {
-                APP.State.dispatch({ type: 'curve.mode', payload: el.value });
-                updateVisibility(el.value);
+            // Handle radio changes
+            radios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    if (radio.checked) {
+                        APP.State.dispatch({ type: 'curve.mode', payload: radio.value });
+                        updateVisibility(radio.value);
+                    }
+                });
             });
 
             // Sync from state
             APP.State.subscribe('curve.mode', (mode) => {
-                el.value = mode || 'bezier';
-                updateVisibility(mode || 'bezier');
+                const targetMode = mode || 'bezier';
+                radios.forEach(radio => {
+                    radio.checked = radio.value === targetMode;
+                });
+                updateVisibility(targetMode);
             });
 
             // Initial sync
             const initialMode = APP.State.select('curve.mode') || 'bezier';
-            el.value = initialMode;
+            radios.forEach(radio => {
+                radio.checked = radio.value === initialMode;
+            });
             updateVisibility(initialMode);
         },
 
@@ -788,6 +988,38 @@ window.APP = window.APP || {};
             const initialBeats = APP.State.select('curve.breatheSpeed') || 4;
             el.value = initialBeats;
             if (valueEl) valueEl.textContent = initialBeats;
+        },
+
+        /**
+         * Setup ghost badge toggles - prevent clicks from collapsing section
+         */
+        _setupGhostBadges() {
+            document.querySelectorAll('.ghost-badge').forEach(badge => {
+                badge.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+            });
+        },
+
+        /**
+         * Bind track rotation direction select (1 = CW, -1 = CCW)
+         */
+        _bindTrackRotationDirection() {
+            const el = document.getElementById('trackRotationDirection');
+            if (!el) return;
+
+            // Restore from state
+            const saved = APP.State.select('track.rotation.direction');
+            if (saved !== undefined) el.value = saved;
+
+            el.addEventListener('change', () => {
+                APP.State.dispatch({ type: 'track.rotation.direction', payload: parseInt(el.value) });
+            });
+
+            // Sync from state
+            APP.State.subscribe('track.rotation.direction', (val) => {
+                el.value = val !== undefined ? val : 1;
+            });
         },
 
         _syncFromState(prefix) {
@@ -837,13 +1069,22 @@ window.APP = window.APP || {};
         },
 
         _syncTrackSubsections(state) {
+            // Rotation
+            if (state.rotation) {
+                this._syncEl('trackRotationSpeed', state.rotation.speed, 'range');
+                this._syncEl('trackRotationPpr', state.rotation.ppr, 'range');
+                this._syncEl('trackRotationSyncBpm', state.rotation.syncBpm, 'checkbox');
+                const dirEl = document.getElementById('trackRotationDirection');
+                if (dirEl) dirEl.value = state.rotation.direction;
+            }
+
             // Circle (the fundamental primitive)
             if (state.circle) {
                 this._syncEl('trackCircleEnabled', state.circle.visible, 'checkbox');
                 this._syncEl('trackCircleFill', state.circle.fill, 'checkbox');
                 this._syncEl('trackCircleBorderWidth', state.circle.borderWidth, 'range');
                 this._syncEl('trackCircleSkip', state.circle.skip, 'range');
-                this._syncEl('trackCircleOpacity', state.circle.opacity * 100, 'range', state.circle.opacity);
+                this._syncEl('trackCircleOpacity', state.circle.opacity * 100, 'range', state.circle.opacity.toFixed(1));
                 this._syncEl('trackCircleColor', state.circle.color, 'color');
             }
 
@@ -851,7 +1092,7 @@ window.APP = window.APP || {};
             if (state.normals) {
                 this._syncEl('trackRadialsEnabled', state.normals.enabled, 'checkbox');
                 this._syncEl('trackRadialsRoundness', state.normals.roundness, 'range');
-                this._syncEl('trackRadialsSize', state.normals.width, 'range');
+                this._syncEl('trackRadialsSize', state.normals.width, 'range', state.normals.width + '%');
                 this._syncEl('trackRadialsTwist', state.normals.spin, 'range', state.normals.spin + '°');
             }
 

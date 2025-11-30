@@ -130,10 +130,10 @@ window.APP = window.APP || {};
         },
 
         /**
-         * Migrate old input.maps structure to bank-based structure
+         * Migrate old schema structures to new formats
          */
         _migrateSchema() {
-            // Check if old schema: input.maps exists at root (not inside banks)
+            // Migrate old input.maps to bank-based structure
             if (this.state.input?.maps && !this.state.input?.banks) {
                 console.log('State: Migrating input bindings to bank schema...');
                 const oldMaps = this.state.input.maps;
@@ -158,6 +158,29 @@ window.APP = window.APP || {};
                 if (mapCount > 0) {
                     console.log(`State: Migrated ${mapCount} bindings to Bank A`);
                 }
+            }
+
+            // Migrate rpb (revolutions per beat) to ppr (pulses per revolution)
+            if (this.state.animation?.rpb !== undefined && this.state.animation?.ppr === undefined) {
+                const rpb = this.state.animation.rpb;
+                // Convert: ppr = 1/rpb (with safeguard for zero)
+                const ppr = rpb > 0 ? Math.round(1 / rpb) : 160;
+                this.state.animation.ppr = Math.max(1, Math.min(256, ppr));
+                delete this.state.animation.rpb;
+                console.log(`State: Migrated rpb=${rpb} to ppr=${this.state.animation.ppr}`);
+            }
+
+            // Migrate curve.distribute to curve.mode
+            if (this.state.curve?.distribute !== undefined && this.state.curve?.mode === undefined) {
+                this.state.curve.mode = this.state.curve.distribute ? 'distribute' : 'bezier';
+                delete this.state.curve.distribute;
+                console.log(`State: Migrated curve.distribute to mode=${this.state.curve.mode}`);
+            }
+
+            // Ensure track.rotation exists (new feature)
+            if (this.state.track && !this.state.track.rotation) {
+                this.state.track.rotation = this.defaults.track.rotation;
+                console.log('State: Added track.rotation defaults');
             }
         },
 

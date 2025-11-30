@@ -37,7 +37,7 @@ window.APP = window.APP || {};
             enabled: true,
             radius: 8,
             curveSegments: 5,
-            radialSegments: 8,
+            radialSegments: 8,       // Number of radial faces (all modes use pieceCount, this is legacy)
             color: '#00ff88',
             colorSecondary: '#0088ff',
             wireframe: true,
@@ -49,10 +49,21 @@ window.APP = window.APP || {};
             // Mode: 'bezier' | 'distribute' | 'crystal'
             mode: 'bezier',
 
+            // === Geometry parameters (shared across all modes) ===
+            length: 100,             // Segment/petal length as % (0-200)
+            spacing: 100,            // Gap between segments (0-200%, 100=natural)
+            twist: 0,                // Rotation delta per segment in degrees
+            borderWidth: 50,         // Border width (5-200 slider → 0.05-2px)
+            faceWidthScale: 100,     // Face width scale (0-200, 100=natural)
+            loopBorder: false,       // Full border loop (true) vs hairline edges only (false)
+            softness: 0,             // Blur to soften lines (0-100 → 0-5px blur)
+            round: 0,                // Round corners (0=square, 100=fully rounded)
+
             // === Shared modulation parameters (all modes respond to these) ===
-            pieceCount: 23,          // Number of pieces/petals
+            pieceCount: 23,          // Number of radial segments/petals (unified across modes)
             phase: 0,                // Global phase offset (0-360)
             spin: -124,              // Rotation per piece (degrees)
+            spread: 100,             // Distribution spread (0=stacked at center, 100=evenly distributed)
             sineAmplitudeX: 0,       // Sine modulation amplitude for X/normal
             sineAmplitudeY: 67,      // Sine modulation amplitude for Y/binormal
             sineAmplitudeZ: 54,      // Sine modulation amplitude for Z/tangent
@@ -105,7 +116,11 @@ window.APP = window.APP || {};
             header: false,
             midiToasts: true,
             gamepadToasts: true,
-            haze: 52            // 0 = off, 1-100 = z-depth haze intensity
+            haze: 52,           // 0 = off, 1-100 = z-depth haze intensity
+            greenDesat: 0,      // 0 = off, 1-100 = extra desaturation for green hues
+            blur: 0,            // 0 = off, 1-100 = depth-based blur intensity
+            dimmer: 100,        // 0-100 = global brightness (100 = full)
+            bright: 100         // 100-300 = global brightness boost (100 = normal)
         },
         midi: {
             device: null,
@@ -140,6 +155,14 @@ window.APP = window.APP || {};
             enabled: true,
             type: 'catmullrom',      // 'catmullrom' (Bezier handled by curve section)
             preset: 'OVAL_LOOP',     // Closed loop preset
+
+            // Rotation - explicit control over track rotation (synced to BPM)
+            rotation: {
+                speed: 50,           // 0-100: rotation speed (50 = 1 rev per 4 beats at default BPM)
+                direction: 1,        // 1 = CW, -1 = CCW
+                syncBpm: true,       // Lock rotation to BPM timing
+                ppr: 160             // Pulses per revolution when synced (1 = fast, 256 = slow)
+            },
 
             // Geometry - radialSegments: 0 = centerline only, 1+ = tube with faces
             radius: 23,

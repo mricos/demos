@@ -405,6 +405,287 @@ body.sidebar-collapsed .controls {
     margin-bottom: 10px;
 }
 
+/* Collapsible subsections */
+.control-subsection.collapsible .subsection-header {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin: -10px -10px 10px -10px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px 4px 0 0;
+    user-select: none;
+}
+
+.control-subsection.collapsible .subsection-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.control-subsection.collapsible .subsection-header .subsection-label {
+    margin-bottom: 0;
+    flex: 1;
+}
+
+/* Ghost toggle - matches mini-control ctrl-btn style */
+.ghost-toggle {
+    display: none;
+}
+
+.ghost-badge {
+    width: 14px;
+    height: 14px;
+    margin-left: auto;
+    margin-right: 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.ghost-badge:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* On state - cyan dot like active ctrl-btn */
+.ghost-toggle:checked + .ghost-badge {
+    border-color: rgba(0, 212, 255, 0.5);
+    background: rgba(0, 212, 255, 0.15);
+    box-shadow: 0 0 4px rgba(0, 212, 255, 0.3);
+}
+
+.ghost-toggle:checked + .ghost-badge:hover {
+    border-color: rgba(0, 212, 255, 0.7);
+    background: rgba(0, 212, 255, 0.25);
+}
+
+.subsection-toggle {
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid rgba(255, 255, 255, 0.5);
+    transition: transform 0.2s ease;
+}
+
+.control-subsection.collapsed .subsection-toggle {
+    transform: rotate(-90deg);
+}
+
+.control-subsection.collapsed .subsection-content {
+    display: none;
+}
+
+/* Inline control row (checkboxes side by side) */
+.control-row-inline {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 4px;
+}
+
+.control-row-inline .control-group {
+    margin-bottom: 0;
+}
+
+/* Mode row with pill buttons */
+.mode-row {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 8px 0 12px 0;
+}
+
+.mode-pill {
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.35);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: color 0.1s;
+}
+
+.mode-pill input[type="radio"] {
+    display: none;
+}
+
+.mode-pill:hover {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.mode-pill:has(input:checked) {
+    color: rgba(0, 212, 255, 0.9);
+    text-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+}
+
+.mode-pill[data-mode="crystal"]:has(input:checked) {
+    color: rgba(255, 0, 170, 0.9);
+    text-shadow: 0 0 8px rgba(255, 0, 170, 0.5);
+}
+
+.mode-pill[data-mode="distribute"]:has(input:checked) {
+    color: rgba(0, 255, 136, 0.9);
+    text-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+/* Bezier point groups */
+.point-group {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.point-group:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.point-label {
+    display: block;
+    font-size: 0.7rem;
+    color: rgba(0, 212, 255, 0.6);
+    margin-bottom: 6px;
+}
+
+.point-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.control-group.compact {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0;
+}
+
+.control-group.compact label {
+    min-width: 16px;
+    font-size: 0.75rem;
+}
+
+.control-group.compact input[type="range"] {
+    flex: 1;
+}
+
+.control-group.compact .control-value {
+    min-width: 40px;
+    text-align: right;
+}
+
+/* Mini Control - ultra compact single-line control with ctrl button */
+.mini-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    height: 22px;
+}
+
+.mini-control:last-child {
+    margin-bottom: 0;
+}
+
+.mini-control .ctrl-btn {
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    font-size: 7px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mini-control .ctrl-btn:hover {
+    color: rgba(0, 212, 255, 0.8);
+    border-color: rgba(0, 212, 255, 0.5);
+    background: rgba(0, 212, 255, 0.1);
+}
+
+.mini-control .ctrl-btn.active,
+.mini-control .ctrl-btn.learning {
+    color: #00d4ff;
+    border-color: #00d4ff;
+    background: rgba(0, 212, 255, 0.2);
+    animation: pulse-glow 1s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 2px rgba(0, 212, 255, 0.3); }
+    50% { box-shadow: 0 0 6px rgba(0, 212, 255, 0.6); }
+}
+
+.mini-control .mini-label {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    min-width: 50px;
+    flex-shrink: 0;
+}
+
+.mini-control input[type="range"] {
+    flex: 1;
+    height: 3px;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 1px;
+    outline: none;
+    min-width: 0;
+}
+
+.mini-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 10px;
+    background: #00d4ff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 4px rgba(0, 212, 255, 0.4);
+}
+
+.mini-control .mini-value {
+    font-size: 0.65rem;
+    color: #00d4ff;
+    min-width: 32px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* Mini control select */
+.mini-control select {
+    flex: 1;
+    height: 18px;
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    padding: 0 4px;
+    outline: none;
+    cursor: pointer;
+}
+
+.mini-control select:hover {
+    border-color: rgba(0, 212, 255, 0.4);
+}
+
+.mini-control select:focus {
+    border-color: rgba(0, 212, 255, 0.6);
+}
+
 .checkbox-group input[type="checkbox"] {
     width: 16px;
     height: 16px;

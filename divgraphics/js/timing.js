@@ -55,15 +55,36 @@ window.APP = window.APP || {};
 
         /**
          * Get rotation rate in degrees per millisecond
-         * Based on current PPS and RPB (revolutions per pulse)
-         * @returns {number} Degrees per millisecond
+         * Uses track rotation settings (speed, direction, PPR, syncBpm)
+         * Falls back to animation.ppr if track rotation not configured
+         * @returns {number} Degrees per millisecond (positive = CW, negative = CCW)
          */
         getRotationRate() {
+            const trackRotation = APP.State?.select('track.rotation');
             const pps = APP.State?.select('animation.pps') || 1.0;
-            const rpb = APP.State?.select('animation.rpb') || 0.00625;
-            // deg/ms = (rev/pulse) * (360 deg/rev) * (pulse/ms)
-            // pulse/ms = pps / 1000
-            return rpb * 360 * (pps / 1000);
+
+            if (trackRotation) {
+                const speed = trackRotation.speed ?? 50;
+                const direction = trackRotation.direction ?? 1;
+                const syncBpm = trackRotation.syncBpm ?? true;
+                const ppr = trackRotation.ppr ?? 160;
+
+                if (syncBpm) {
+                    // BPM-synced: use PPR (pulses per revolution)
+                    // deg/ms = (360 deg/rev) * (pps pulse/sec) / (ppr pulse/rev) / 1000
+                    // Speed scales the rate: 0 = stopped, 50 = normal, 100 = 2x
+                    const speedFactor = speed / 50;
+                    return direction * speedFactor * 360 * pps / (ppr * 1000);
+                } else {
+                    // Free rotation: speed directly controls deg/sec (0-100 → 0-180 deg/s)
+                    const degPerSec = (speed / 100) * 180;
+                    return direction * degPerSec / 1000;
+                }
+            }
+
+            // Fallback to legacy animation.ppr
+            const ppr = APP.State?.select('animation.ppr') || 160;
+            return 360 * pps / (ppr * 1000);
         },
 
         /**

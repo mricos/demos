@@ -160,10 +160,44 @@
                             <label>Show 3D Gizmo</label>
                         </div>
 
-                        <div class="control-group">
-                            <label>Z-Haze</label>
-                            <input type="range" id="displayHaze" min="0" max="100" value="0">
-                            <div class="control-value" id="displayHazeValue">Off</div>
+                        <!-- Effects Sub-section -->
+                        <div class="control-subsection collapsible">
+                            <div class="subsection-header">
+                                <span class="subsection-label">Effects</span>
+                                <span class="subsection-toggle"></span>
+                            </div>
+                            <div class="subsection-content">
+                                <div class="mini-control">
+                                    <button class="ctrl-btn" data-bind="display.haze" title="Bind to controller">C</button>
+                                    <span class="mini-label">Haze</span>
+                                    <input type="range" id="displayHaze" min="0" max="100" value="0">
+                                    <span class="mini-value" id="displayHazeValue">Off</span>
+                                </div>
+                                <div class="mini-control">
+                                    <button class="ctrl-btn" data-bind="display.greenDesat" title="Bind to controller">C</button>
+                                    <span class="mini-label">GreenD</span>
+                                    <input type="range" id="displayGreenDesat" min="0" max="100" value="0">
+                                    <span class="mini-value" id="displayGreenDesatValue">Off</span>
+                                </div>
+                                <div class="mini-control">
+                                    <button class="ctrl-btn" data-bind="display.blur" title="Bind to controller">C</button>
+                                    <span class="mini-label">Blur</span>
+                                    <input type="range" id="displayBlur" min="0" max="100" value="0">
+                                    <span class="mini-value" id="displayBlurValue">Off</span>
+                                </div>
+                                <div class="mini-control">
+                                    <button class="ctrl-btn" data-bind="display.dimmer" title="Bind to controller">C</button>
+                                    <span class="mini-label">Dimmer</span>
+                                    <input type="range" id="displayDimmer" min="0" max="100" value="100">
+                                    <span class="mini-value" id="displayDimmerValue">100%</span>
+                                </div>
+                                <div class="mini-control">
+                                    <button class="ctrl-btn" data-bind="display.bright" title="Bind to controller">C</button>
+                                    <span class="mini-label">Bright</span>
+                                    <input type="range" id="displayBright" min="100" max="300" value="100">
+                                    <span class="mini-value" id="displayBrightValue">100%</span>
+                                </div>
+                            </div>
                         </div>
 
                         <button class="btn" id="resetBtn">Reset View</button>
@@ -396,66 +430,140 @@
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
-                        <div class="control-group checkbox-group">
-                            <input type="checkbox" id="curveEnabled">
-                            <label>Enabled</label>
+                        <div class="control-row-inline">
+                            <div class="control-group checkbox-group">
+                                <input type="checkbox" id="curveEnabled">
+                                <label>Enabled</label>
+                            </div>
+                            <div class="control-group checkbox-group">
+                                <input type="checkbox" id="curveWireframe">
+                                <label>Wire</label>
+                            </div>
+                        </div>
+                        <div class="mode-row">
+                            <label class="mode-pill" data-mode="crystal">
+                                <input type="radio" name="curveMode" value="crystal">
+                                <span>xtl</span>
+                            </label>
+                            <label class="mode-pill" data-mode="bezier">
+                                <input type="radio" name="curveMode" value="bezier">
+                                <span>free</span>
+                            </label>
+                            <label class="mode-pill" data-mode="distribute">
+                                <input type="radio" name="curveMode" value="distribute">
+                                <span>bound</span>
+                            </label>
                         </div>
 
                         <div id="curveControls">
-                            <div class="control-group">
-                                <label>Tube Radius</label>
-                                <input type="range" id="curveRadius" min="2" max="30" value="10">
-                                <div class="control-value" id="curveRadiusValue">10</div>
+                            <div class="control-subsection collapsible">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Radial</span>
+                                    <span class="subsection-toggle"></span>
+                                </div>
+                                <div class="subsection-content">
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="curve.length" title="Bind to controller">C</button>
+                                        <span class="mini-label">Length</span>
+                                        <input type="range" id="curveLength" min="0" max="800" value="100">
+                                        <span class="mini-value" id="curveLengthValue">1.0</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="curve.spacing" title="Bind to controller">C</button>
+                                        <span class="mini-label">Space</span>
+                                        <input type="range" id="curveSpacing" min="0" max="400" value="100">
+                                        <span class="mini-value" id="curveSpacingValue">100%</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="curve.radius" title="Bind to controller">C</button>
+                                        <span class="mini-label">Radius</span>
+                                        <input type="range" id="curveRadius" min="2" max="30" value="10">
+                                        <span class="mini-value" id="curveRadiusValue">10</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="curve.curveSegments" title="Bind to controller">C</button>
+                                        <span class="mini-label">Segs</span>
+                                        <input type="range" id="curveCurveSegments" min="1" max="32" value="16">
+                                        <span class="mini-value" id="curveCurveSegmentsValue">16</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="curve.radialSegments" title="Bind to controller">C</button>
+                                        <span class="mini-label">Sides</span>
+                                        <input type="range" id="curveRadialSegments" min="1" max="16" value="8">
+                                        <span class="mini-value" id="curveRadialSegmentsValue">8</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="curve.twist" title="Bind to controller">C</button>
+                                        <span class="mini-label">Twist</span>
+                                        <input type="range" id="curveTwist" min="-45" max="45" value="0">
+                                        <span class="mini-value" id="curveTwistValue">0°</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="curve.borderWidth" title="Bind to controller">C</button>
+                                        <span class="mini-label">Line</span>
+                                        <input type="range" id="curveBorderWidth" min="0.5" max="200" step="0.5" value="50">
+                                        <span class="mini-value" id="curveBorderWidthValue">0.50</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="curve.faceWidthScale" title="Bind to controller">C</button>
+                                        <span class="mini-label">FaceW</span>
+                                        <input type="range" id="curveFaceWidthScale" min="0" max="200" value="100">
+                                        <span class="mini-value" id="curveFaceWidthScaleValue">100%</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <span class="mini-label">Loop</span>
+                                        <input type="checkbox" id="curveLoopBorder">
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="curve.softness" title="Bind to controller">C</button>
+                                        <span class="mini-label">Soft</span>
+                                        <input type="range" id="curveSoftness" min="0" max="100" value="0">
+                                        <span class="mini-value" id="curveSoftnessValue">0</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="curve.round" title="Bind to controller">C</button>
+                                        <span class="mini-label">Round</span>
+                                        <input type="range" id="curveRound" min="0" max="100" value="0">
+                                        <span class="mini-value" id="curveRoundValue">0</span>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="control-group">
-                                <label>Curve Segments</label>
-                                <input type="range" id="curveCurveSegments" min="4" max="32" value="16">
-                                <div class="control-value" id="curveCurveSegmentsValue">16</div>
-                            </div>
-
-                            <div class="control-group">
-                                <label>Radial Segments</label>
-                                <input type="range" id="curveRadialSegments" min="3" max="16" value="8">
-                                <div class="control-value" id="curveRadialSegmentsValue">8</div>
-                            </div>
-
-                            <div class="control-group">
-                                <label>Primary Color</label>
-                                <input type="color" id="curveColor" value="#00ff88">
-                            </div>
-
-                            <div class="control-group">
-                                <label>Secondary Color</label>
-                                <input type="color" id="curveColorSecondary" value="#0088ff">
-                            </div>
-
-                            <div class="control-group checkbox-group">
-                                <input type="checkbox" id="curveWireframe">
-                                <label>Wireframe</label>
-                            </div>
-
-                            <!-- Mode Selector -->
-                            <div class="control-subsection">
-                                <label class="subsection-label">Form</label>
-                                <div class="control-group">
-                                    <label>Mode</label>
-                                    <select id="curveMode">
-                                        <option value="bezier">Bezier Tube</option>
-                                        <option value="distribute">Track Distribute</option>
-                                        <option value="crystal">Crystal Flower</option>
-                                    </select>
+                            <div class="control-subsection collapsible collapsed">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Colors</span>
+                                    <span class="subsection-toggle"></span>
+                                </div>
+                                <div class="subsection-content">
+                                    <div class="control-group">
+                                        <label>Primary</label>
+                                        <input type="color" id="curveColor" value="#00ff88">
+                                    </div>
+                                    <div class="control-group">
+                                        <label>Secondary</label>
+                                        <input type="color" id="curveColorSecondary" value="#0088ff">
+                                    </div>
                                 </div>
                             </div>
 
                             <!-- Shared Modulation (visible in distribute & crystal modes) -->
                             <div id="curveModulationControls" style="display: none;">
-                                <div class="control-subsection">
-                                    <label class="subsection-label">Modulation</label>
+                                <div class="control-subsection collapsible">
+                                    <div class="subsection-header">
+                                        <span class="subsection-label">Modulation</span>
+                                        <span class="subsection-toggle"></span>
+                                    </div>
+                                    <div class="subsection-content">
                                     <div class="control-group">
                                         <label>Pieces/Petals</label>
                                         <input type="range" id="curvePieceCount" min="1" max="32" value="8">
                                         <div class="control-value" id="curvePieceCountValue">8</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Spread</label>
+                                        <input type="range" id="curveSpread" min="0" max="100" value="100">
+                                        <div class="control-value" id="curveSpreadValue">100%</div>
                                     </div>
 
                                     <div class="control-group">
@@ -493,39 +601,49 @@
                                         <input type="range" id="curveSineAmplitudeZ" min="0" max="100" value="0">
                                         <div class="control-value" id="curveSineAmplitudeZValue">0</div>
                                     </div>
-                                </div>
-
-                                <!-- Breathing (beat-synced) -->
-                                <div class="control-subsection">
-                                    <label class="subsection-label">Breathing</label>
-                                    <div class="control-group checkbox-group">
-                                        <input type="checkbox" id="curveBreathe">
-                                        <label>Enable (BPM sync)</label>
-                                    </div>
-
-                                    <div class="control-group">
-                                        <label>Scale %</label>
-                                        <input type="range" id="curveBreatheScale" min="0" max="100" value="50">
-                                        <div class="control-value" id="curveBreatheScaleValue">50</div>
-                                    </div>
-
-                                    <div class="control-group">
-                                        <label>Beats/Cycle</label>
-                                        <input type="range" id="curveBreatheSpeed" min="1" max="32" value="4">
-                                        <div class="control-value" id="curveBreatheSpeedValue">4</div>
-                                    </div>
-
-                                    <div class="control-group">
-                                        <label>Phase Offset</label>
-                                        <input type="range" id="curveBreathePhase" min="0" max="360" value="0">
-                                        <div class="control-value" id="curveBreathePhaseValue">0°</div>
-                                    </div>
-                                </div>
+                                    </div><!-- /.subsection-content -->
+                                </div><!-- /.control-subsection Modulation -->
                             </div>
 
+                            <!-- Breathing (beat-synced, all modes) -->
+                            <div class="control-subsection collapsible">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Breathing</span>
+                                    <span class="subsection-toggle"></span>
+                                </div>
+                                <div class="subsection-content">
+                                    <div class="mini-control">
+                                        <input type="checkbox" id="curveBreathe" class="mini-checkbox">
+                                        <span class="mini-label">Enable</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="curve.breatheScale" title="Bind to controller">C</button>
+                                        <span class="mini-label">Scale</span>
+                                        <input type="range" id="curveBreatheScale" min="0" max="100" value="50">
+                                        <span class="mini-value" id="curveBreatheScaleValue">50%</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="curve.breatheSpeed" title="Bind to controller">C</button>
+                                        <span class="mini-label">Beats</span>
+                                        <input type="range" id="curveBreatheSpeed" min="1" max="32" value="4">
+                                        <span class="mini-value" id="curveBreatheSpeedValue">4</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="curve.breathePhase" title="Bind to controller">C</button>
+                                        <span class="mini-label">Phase</span>
+                                        <input type="range" id="curveBreathePhase" min="0" max="360" value="0">
+                                        <span class="mini-value" id="curveBreathePhaseValue">0°</span>
+                                    </div>
+                                </div>
+                            </div><!-- /.control-subsection Breathing -->
+
                             <!-- Rotation around Center of Mass (all modes) -->
-                            <div class="control-subsection">
-                                <label class="subsection-label">Rotation (around COM)</label>
+                            <div class="control-subsection collapsible">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Rotation (COM)</span>
+                                    <span class="subsection-toggle"></span>
+                                </div>
+                                <div class="subsection-content">
                                 <div class="control-group">
                                     <label>Rotate X</label>
                                     <input type="range" id="curveRotateX" min="-180" max="180" value="0">
@@ -543,12 +661,17 @@
                                     <input type="range" id="curveRotateZ" min="-180" max="180" value="0">
                                     <div class="control-value" id="curveRotateZValue">0°</div>
                                 </div>
-                            </div>
+                                </div><!-- /.subsection-content -->
+                            </div><!-- /.control-subsection Rotation -->
 
                             <!-- Crystal Mode Controls -->
                             <div id="curveCrystalControls" style="display: none;">
-                                <div class="control-subsection">
-                                    <label class="subsection-label">Crystal Geometry</label>
+                                <div class="control-subsection collapsible">
+                                    <div class="subsection-header">
+                                        <span class="subsection-label">Crystal Geometry</span>
+                                        <span class="subsection-toggle"></span>
+                                    </div>
+                                    <div class="subsection-content">
                                     <div class="control-group">
                                         <label>Layers</label>
                                         <input type="range" id="curveCrystalLayers" min="1" max="6" value="3">
@@ -596,66 +719,79 @@
                                         <input type="range" id="curveCrystalScale" min="1" max="100" value="100">
                                         <div class="control-value" id="curveCrystalScaleValue">100</div>
                                     </div>
-                                </div>
+                                    </div><!-- /.subsection-content -->
+                                </div><!-- /.control-subsection Crystal -->
                             </div>
 
                             <div id="curveBezierControls">
-                            <div class="control-subsection">
-                                <label class="subsection-label">Start Point (P0)</label>
-                                <div class="control-group">
-                                    <label>X</label>
-                                    <input type="range" id="curveP0x" min="-200" max="200" value="-100">
-                                    <div class="control-value" id="curveP0xValue">-100</div>
-                                </div>
-                                <div class="control-group">
-                                    <label>Y</label>
-                                    <input type="range" id="curveP0y" min="-200" max="200" value="0">
-                                    <div class="control-value" id="curveP0yValue">0</div>
-                                </div>
-                                <div class="control-group">
-                                    <label>Z</label>
-                                    <input type="range" id="curveP0z" min="-200" max="200" value="0">
-                                    <div class="control-value" id="curveP0zValue">0</div>
-                                </div>
-                            </div>
-
-                            <div class="control-subsection">
-                                <label class="subsection-label">Control Point (P1)</label>
-                                <div class="control-group">
-                                    <label>X</label>
-                                    <input type="range" id="curveP1x" min="-200" max="200" value="0">
-                                    <div class="control-value" id="curveP1xValue">0</div>
-                                </div>
-                                <div class="control-group">
-                                    <label>Y</label>
-                                    <input type="range" id="curveP1y" min="-200" max="200" value="-100">
-                                    <div class="control-value" id="curveP1yValue">-100</div>
-                                </div>
-                                <div class="control-group">
-                                    <label>Z</label>
-                                    <input type="range" id="curveP1z" min="-200" max="200" value="50">
-                                    <div class="control-value" id="curveP1zValue">50</div>
-                                </div>
-                            </div>
-
-                            <div class="control-subsection">
-                                <label class="subsection-label">End Point (P2)</label>
-                                <div class="control-group">
-                                    <label>X</label>
-                                    <input type="range" id="curveP2x" min="-200" max="200" value="100">
-                                    <div class="control-value" id="curveP2xValue">100</div>
-                                </div>
-                                <div class="control-group">
-                                    <label>Y</label>
-                                    <input type="range" id="curveP2y" min="-200" max="200" value="0">
-                                    <div class="control-value" id="curveP2yValue">0</div>
-                                </div>
-                                <div class="control-group">
-                                    <label>Z</label>
-                                    <input type="range" id="curveP2z" min="-200" max="200" value="0">
-                                    <div class="control-value" id="curveP2zValue">0</div>
-                                </div>
-                            </div>
+                                <div class="control-subsection collapsible">
+                                    <div class="subsection-header">
+                                        <span class="subsection-label">Bezier Points</span>
+                                        <span class="subsection-toggle"></span>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="point-group">
+                                            <span class="point-label">P0 (Start)</span>
+                                            <div class="point-controls">
+                                                <div class="control-group compact">
+                                                    <label>X</label>
+                                                    <input type="range" id="curveP0x" min="-200" max="200" value="-100">
+                                                    <div class="control-value" id="curveP0xValue">-100</div>
+                                                </div>
+                                                <div class="control-group compact">
+                                                    <label>Y</label>
+                                                    <input type="range" id="curveP0y" min="-200" max="200" value="0">
+                                                    <div class="control-value" id="curveP0yValue">0</div>
+                                                </div>
+                                                <div class="control-group compact">
+                                                    <label>Z</label>
+                                                    <input type="range" id="curveP0z" min="-200" max="200" value="0">
+                                                    <div class="control-value" id="curveP0zValue">0</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="point-group">
+                                            <span class="point-label">P1 (Control)</span>
+                                            <div class="point-controls">
+                                                <div class="control-group compact">
+                                                    <label>X</label>
+                                                    <input type="range" id="curveP1x" min="-200" max="200" value="0">
+                                                    <div class="control-value" id="curveP1xValue">0</div>
+                                                </div>
+                                                <div class="control-group compact">
+                                                    <label>Y</label>
+                                                    <input type="range" id="curveP1y" min="-200" max="200" value="-100">
+                                                    <div class="control-value" id="curveP1yValue">-100</div>
+                                                </div>
+                                                <div class="control-group compact">
+                                                    <label>Z</label>
+                                                    <input type="range" id="curveP1z" min="-200" max="200" value="50">
+                                                    <div class="control-value" id="curveP1zValue">50</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="point-group">
+                                            <span class="point-label">P2 (End)</span>
+                                            <div class="point-controls">
+                                                <div class="control-group compact">
+                                                    <label>X</label>
+                                                    <input type="range" id="curveP2x" min="-200" max="200" value="100">
+                                                    <div class="control-value" id="curveP2xValue">100</div>
+                                                </div>
+                                                <div class="control-group compact">
+                                                    <label>Y</label>
+                                                    <input type="range" id="curveP2y" min="-200" max="200" value="0">
+                                                    <div class="control-value" id="curveP2yValue">0</div>
+                                                </div>
+                                                <div class="control-group compact">
+                                                    <label>Z</label>
+                                                    <input type="range" id="curveP2z" min="-200" max="200" value="0">
+                                                    <div class="control-value" id="curveP2zValue">0</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div><!-- /.subsection-content -->
+                                </div><!-- /.control-subsection Bezier -->
                             </div><!-- /#curveBezierControls -->
                         </div>
                     </div>
@@ -668,140 +804,210 @@
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
-                        <div class="control-group checkbox-group">
-                            <input type="checkbox" id="trackEnabled">
-                            <label>Enabled</label>
+                        <div class="control-row-inline">
+                            <div class="control-group checkbox-group">
+                                <input type="checkbox" id="trackEnabled">
+                                <label>Enabled</label>
+                            </div>
+                            <div class="control-group checkbox-group">
+                                <input type="checkbox" id="trackWireframe">
+                                <label>Wire</label>
+                            </div>
                         </div>
 
                         <div id="trackControls">
-                            <div class="control-group">
-                                <label>Preset</label>
-                                <select id="trackPreset">
-                                    <option value="GENTLE_TURNS">Gentle Turns</option>
-                                    <option value="SPIRAL_CLIMB">Spiral Climb</option>
-                                    <option value="OVAL_LOOP">Oval Loop (closed)</option>
-                                    <option value="FIGURE_EIGHT">Figure 8 (closed)</option>
-                                </select>
-                            </div>
-
-                            <div class="control-group">
-                                <label>Tube Radius</label>
-                                <input type="range" id="trackRadius" min="5" max="40" value="15">
-                                <div class="control-value" id="trackRadiusValue">15</div>
-                            </div>
-
-                            <div class="control-group">
-                                <label>Segments/Span</label>
-                                <input type="range" id="trackSegmentsPerSpan" min="2" max="12" value="6">
-                                <div class="control-value" id="trackSegmentsPerSpanValue">6</div>
-                            </div>
-
-                            <div class="control-group">
-                                <label>Tension</label>
-                                <input type="range" id="trackTension" min="0" max="100" value="50">
-                                <div class="control-value" id="trackTensionValue">0.5</div>
-                            </div>
-
-                            <div class="control-group">
-                                <label>Primary Color</label>
-                                <input type="color" id="trackColor" value="#00ff88">
-                            </div>
-
-                            <div class="control-group">
-                                <label>Secondary Color</label>
-                                <input type="color" id="trackColorSecondary" value="#0088ff">
-                            </div>
-
-                            <div class="control-group checkbox-group">
-                                <input type="checkbox" id="trackWireframe">
-                                <label>Wireframe</label>
-                            </div>
-
-                            <!-- Normals (point radially outward) -->
-                            <div class="control-subsection">
-                                <label class="subsection-label">Normals</label>
-                                <div class="control-group checkbox-group">
-                                    <input type="checkbox" id="trackRadialsEnabled" checked>
-                                    <label>Enabled</label>
+                            <!-- Rotation Sub-section -->
+                            <div class="control-subsection collapsible">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Rotation</span>
+                                    <span class="subsection-toggle"></span>
                                 </div>
-                                <div class="control-group">
-                                    <label>Roundness</label>
-                                    <input type="range" id="trackRadialsRoundness" min="0" max="100" value="0">
-                                    <div class="control-value" id="trackRadialsRoundnessValue">0</div>
-                                </div>
-                                <div class="control-group">
-                                    <label>Size %</label>
-                                    <input type="range" id="trackRadialsSize" min="10" max="200" value="100">
-                                    <div class="control-value" id="trackRadialsSizeValue">100</div>
-                                </div>
-                                <div class="control-group">
-                                    <label>Spin</label>
-                                    <input type="range" id="trackRadialsTwist" min="-180" max="180" value="0">
-                                    <div class="control-value" id="trackRadialsTwistValue">0°</div>
+                                <div class="subsection-content">
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="track.rotation.speed" title="Bind to controller">C</button>
+                                        <span class="mini-label">Speed</span>
+                                        <input type="range" id="trackRotationSpeed" min="0" max="100" value="50">
+                                        <span class="mini-value" id="trackRotationSpeedValue">50</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="track.rotation.ppr" title="Bind to controller">C</button>
+                                        <span class="mini-label">PPR</span>
+                                        <input type="range" id="trackRotationPpr" min="1" max="256" value="160">
+                                        <span class="mini-value" id="trackRotationPprValue">160</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <span class="mini-label">Dir</span>
+                                        <select id="trackRotationDirection">
+                                            <option value="1">CW →</option>
+                                            <option value="-1">CCW ←</option>
+                                        </select>
+                                    </div>
+                                    <div class="mini-control">
+                                        <input type="checkbox" id="trackRotationSyncBpm" class="mini-checkbox" checked>
+                                        <span class="mini-label">Sync BPM</span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Tangents (point along curve) -->
-                            <div class="control-subsection">
-                                <label class="subsection-label">Tangents</label>
-                                <div class="control-group checkbox-group">
-                                    <input type="checkbox" id="trackRadialsOutward">
-                                    <label>Enabled</label>
+                            <!-- Geometry Sub-section -->
+                            <div class="control-subsection collapsible">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Geometry</span>
+                                    <span class="subsection-toggle"></span>
+                                </div>
+                                <div class="subsection-content">
+                                    <div class="mini-control">
+                                        <span class="mini-label">Preset</span>
+                                        <select id="trackPreset">
+                                            <option value="GENTLE_TURNS">Gentle</option>
+                                            <option value="SPIRAL_CLIMB">Spiral</option>
+                                            <option value="OVAL_LOOP">Oval</option>
+                                            <option value="FIGURE_EIGHT">Fig 8</option>
+                                        </select>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="track.radius" title="Bind to controller">C</button>
+                                        <span class="mini-label">Radius</span>
+                                        <input type="range" id="trackRadius" min="5" max="40" value="15">
+                                        <span class="mini-value" id="trackRadiusValue">15</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="track.segmentsPerSpan" title="Bind to controller">C</button>
+                                        <span class="mini-label">Segs</span>
+                                        <input type="range" id="trackSegmentsPerSpan" min="2" max="12" value="6">
+                                        <span class="mini-value" id="trackSegmentsPerSpanValue">6</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="track.tension" title="Bind to controller">C</button>
+                                        <span class="mini-label">Tension</span>
+                                        <input type="range" id="trackTension" min="0" max="100" value="50">
+                                        <span class="mini-value" id="trackTensionValue">0.50</span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Circle (reference ring) -->
-                            <div class="control-subsection">
-                                <label class="subsection-label">Circle</label>
-                                <div class="control-group checkbox-group">
-                                    <input type="checkbox" id="trackCircleEnabled">
-                                    <label>Enabled</label>
+                            <!-- Colors Sub-section -->
+                            <div class="control-subsection collapsible collapsed">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Colors</span>
+                                    <span class="subsection-toggle"></span>
                                 </div>
-                                <div class="control-group">
-                                    <label>Border Width</label>
-                                    <input type="range" id="trackCircleBorderWidth" min="1" max="10" value="2">
-                                    <div class="control-value" id="trackCircleBorderWidthValue">2</div>
-                                </div>
-                                <div class="control-group checkbox-group">
-                                    <input type="checkbox" id="trackCircleFill">
-                                    <label>Fill</label>
-                                </div>
-                                <div class="control-group">
-                                    <label>Color</label>
-                                    <input type="color" id="trackCircleColor" value="#ffffff">
-                                </div>
-                                <div class="control-group">
-                                    <label>Skip (every Nth)</label>
-                                    <input type="range" id="trackCircleSkip" min="1" max="10" value="1">
-                                    <div class="control-value" id="trackCircleSkipValue">1</div>
-                                </div>
-                                <div class="control-group">
-                                    <label>Opacity</label>
-                                    <input type="range" id="trackCircleOpacity" min="0" max="100" value="100">
-                                    <div class="control-value" id="trackCircleOpacityValue">1</div>
+                                <div class="subsection-content">
+                                    <div class="control-group">
+                                        <label>Primary</label>
+                                        <input type="color" id="trackColor" value="#00ff88">
+                                    </div>
+                                    <div class="control-group">
+                                        <label>Secondary</label>
+                                        <input type="color" id="trackColorSecondary" value="#0088ff">
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="control-subsection">
-                                <label class="subsection-label">Endless Mode</label>
-                                <div class="control-group checkbox-group">
-                                    <input type="checkbox" id="trackEndless">
-                                    <label>Endless Generation</label>
+                            <!-- Normals Sub-section -->
+                            <div class="control-subsection collapsible">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Normals</span>
+                                    <input type="checkbox" id="trackRadialsEnabled" checked class="ghost-toggle">
+                                    <label for="trackRadialsEnabled" class="ghost-badge"></label>
+                                    <span class="subsection-toggle"></span>
                                 </div>
-
-                                <div class="control-group">
-                                    <label>Variation</label>
-                                    <select id="trackVariationSource">
-                                        <option value="none">None</option>
-                                        <option value="perlin">Perlin Noise</option>
-                                        <option value="random">Random</option>
-                                    </select>
+                                <div class="subsection-content">
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="track.normals.roundness" title="Bind to controller">C</button>
+                                        <span class="mini-label">Round</span>
+                                        <input type="range" id="trackRadialsRoundness" min="0" max="100" value="0">
+                                        <span class="mini-value" id="trackRadialsRoundnessValue">0</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="track.normals.width" title="Bind to controller">C</button>
+                                        <span class="mini-label">Size</span>
+                                        <input type="range" id="trackRadialsSize" min="10" max="200" value="100">
+                                        <span class="mini-value" id="trackRadialsSizeValue">100%</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="track.normals.spin" title="Bind to controller">C</button>
+                                        <span class="mini-label">Spin</span>
+                                        <input type="range" id="trackRadialsTwist" min="-180" max="180" value="0">
+                                        <span class="mini-value" id="trackRadialsTwistValue">0°</span>
+                                    </div>
                                 </div>
+                            </div>
 
-                                <div class="control-group">
-                                    <label>Intensity</label>
-                                    <input type="range" id="trackVariationIntensity" min="0" max="100" value="50">
-                                    <div class="control-value" id="trackVariationIntensityValue">50</div>
+                            <!-- Tangents Sub-section -->
+                            <div class="control-subsection collapsible collapsed">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Tangents</span>
+                                    <input type="checkbox" id="trackRadialsOutward" class="ghost-toggle">
+                                    <label for="trackRadialsOutward" class="ghost-badge"></label>
+                                    <span class="subsection-toggle"></span>
+                                </div>
+                                <div class="subsection-content">
+                                    <p style="font-size: 10px; color: #666; margin: 4px 0;">Perpendicular to normals</p>
+                                </div>
+                            </div>
+
+                            <!-- Circle Sub-section -->
+                            <div class="control-subsection collapsible">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Circle</span>
+                                    <input type="checkbox" id="trackCircleEnabled" class="ghost-toggle">
+                                    <label for="trackCircleEnabled" class="ghost-badge"></label>
+                                    <span class="subsection-toggle"></span>
+                                </div>
+                                <div class="subsection-content">
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="track.circle.borderWidth" title="Bind to controller">C</button>
+                                        <span class="mini-label">Border</span>
+                                        <input type="range" id="trackCircleBorderWidth" min="1" max="10" value="2">
+                                        <span class="mini-value" id="trackCircleBorderWidthValue">2</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <input type="checkbox" id="trackCircleFill" class="mini-checkbox">
+                                        <span class="mini-label">Fill</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <span class="mini-label">Color</span>
+                                        <input type="color" id="trackCircleColor" value="#ffffff">
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="track.circle.skip" title="Bind to controller">C</button>
+                                        <span class="mini-label">Skip</span>
+                                        <input type="range" id="trackCircleSkip" min="1" max="10" value="1">
+                                        <span class="mini-value" id="trackCircleSkipValue">1</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="track.circle.opacity" title="Bind to controller">C</button>
+                                        <span class="mini-label">Opacity</span>
+                                        <input type="range" id="trackCircleOpacity" min="0" max="100" value="100">
+                                        <span class="mini-value" id="trackCircleOpacityValue">1.0</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Endless Mode Sub-section -->
+                            <div class="control-subsection collapsible collapsed">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Endless</span>
+                                    <input type="checkbox" id="trackEndless" class="ghost-toggle">
+                                    <label for="trackEndless" class="ghost-badge"></label>
+                                    <span class="subsection-toggle"></span>
+                                </div>
+                                <div class="subsection-content">
+                                    <div class="mini-control">
+                                        <span class="mini-label">Source</span>
+                                        <select id="trackVariationSource">
+                                            <option value="none">None</option>
+                                            <option value="perlin">Perlin</option>
+                                            <option value="random">Random</option>
+                                        </select>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="track.variationIntensity" title="Bind to controller">C</button>
+                                        <span class="mini-label">Intensity</span>
+                                        <input type="range" id="trackVariationIntensity" min="0" max="100" value="50">
+                                        <span class="mini-value" id="trackVariationIntensityValue">50</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -957,6 +1163,9 @@
     <!-- Core Instance System -->
     <script src="js/core/InstanceState.js"></script>
     <script src="js/core/GeometryData.js"></script>
+    <script src="js/core/Morph.js"></script>
+    <script src="js/core/StageDefinition.js"></script>
+    <script src="js/core/StageMorph.js"></script>
     <script src="js/core/CameraController.js"></script>
     <script src="js/core/SceneRenderer.js"></script>
     <script src="js/core/DivGraphicsInstance.js"></script>
