@@ -201,6 +201,7 @@ window.APP = window.APP || {};
             // Body (wings)
             this._bindRange('chaserBodyLength', 'chaser.bodyLength');
             this._bindRange('chaserBodyWidth', 'chaser.bodyWidth');
+            this._bindRange('chaserBodyAngle', 'chaser.bodyAngle');
             this._bindRange('chaserBodyOpacity', 'chaser.bodyOpacity');
             this._bindSelect('chaserBodyStyle', 'chaser.bodyStyle');
             // Tail

@@ -69,9 +69,10 @@ window.APP = window.APP || {};
             // Body (wings - perpendicular to travel)
             const bodyLength = state?.bodyLength || 54;
             const bodyWidth = ((state?.bodyWidth ?? 33) / 100) * size;
+            const bodyAngle = state?.bodyAngle ?? 90;  // 0 = knife, 90 = flat wing
             const bodyOpacity = (state?.bodyOpacity ?? 85) / 100;
             const bodyStyle = state?.bodyStyle || 'gradient';
-            // Tail (behind head - along travel direction)
+            // Tail/Exhaust (extends from back of body)
             const tailLength = state?.tailLength || 40;
             const tailWidth = ((state?.tailWidth ?? 25) / 100) * size;
             const tailOpacity = (state?.tailOpacity ?? 70) / 100;
@@ -133,7 +134,9 @@ window.APP = window.APP || {};
                 ? `0 0 ${glowSize * 0.5}px ${colorSecondary}`
                 : 'none';
 
-            // Body element (wings - perpendicular to travel, rotateY 90deg)
+            // Body element (wings - perpendicular to travel)
+            // Angle: 0 = knife edge (rotateX 90), 90 = flat wing (rotateX 0)
+            const bodyRotateX = 90 - bodyAngle;
             this.body = document.createElement('div');
             this.body.className = 'chaser-body';
             this.body.style.cssText = `
@@ -141,14 +144,16 @@ window.APP = window.APP || {};
                 width: ${bodyLength}px;
                 height: ${bodyWidth}px;
                 background: ${getBackground(bodyStyle)};
-                transform: translate(-50%, -50%) rotateY(90deg);
+                transform: translate(-50%, -50%) rotateY(90deg) rotateX(${bodyRotateX}deg);
                 opacity: ${bodyOpacity};
                 box-shadow: ${partGlow};
                 border-radius: ${bodyWidth / 2}px;
+                transform-style: preserve-3d;
             `;
 
-            // Tail element (behind head - along travel direction, no rotation)
-            // Offset backward along Z axis (negative Z in local space)
+            // Tail/Exhaust element - extends from back of body like exhaust
+            // Position at the back edge of the body, extending backward
+            const tailOffsetY = bodyWidth / 2;  // Start at back edge of body
             this.tail = document.createElement('div');
             this.tail.className = 'chaser-tail';
             this.tail.style.cssText = `
@@ -156,7 +161,8 @@ window.APP = window.APP || {};
                 width: ${tailWidth}px;
                 height: ${tailLength}px;
                 background: ${getBackground(tailStyle)};
-                transform: translate(-50%, 0) translateY(${size / 2}px);
+                transform: translate(-50%, 0) translateY(${tailOffsetY}px);
+                transform-origin: center top;
                 opacity: ${tailOpacity};
                 box-shadow: ${partGlow};
                 border-radius: ${tailWidth / 2}px;

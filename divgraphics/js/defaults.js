@@ -264,11 +264,12 @@ window.APP = window.APP || {};
             // Body/Wings appearance (perpendicular to travel - like wings)
             bodyLength: 54,          // Wing span in px
             bodyWidth: 33,           // Wing width as % of head size
+            bodyAngle: 90,           // 0-90: 0 = knife edge, 90 = flat wing
             bodyOpacity: 85,         // 0-100
             bodyStyle: 'gradient',   // 'gradient', 'solid', 'glow'
-            // Tail appearance (behind the head - along travel direction)
-            tailLength: 40,          // Tail length in px
-            tailWidth: 25,           // Tail width as % of head size
+            // Tail/Exhaust appearance (extends from back of body)
+            tailLength: 40,          // Exhaust length in px
+            tailWidth: 25,           // Exhaust width as % of head size
             tailOpacity: 70,         // 0-100
             tailStyle: 'gradient',   // 'gradient', 'solid', 'glow'
             // Glow effects
