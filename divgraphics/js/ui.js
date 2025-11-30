@@ -190,10 +190,21 @@ window.APP = window.APP || {};
 
             // Bind range inputs - chaser
             this._bindRange('chaserSpeed', 'chaser.speed');
-            this._bindRange('chaserSize', 'chaser.size');
-            this._bindRange('chaserTailLength', 'chaser.tailLength');
             this._bindChaserDirection();
             this._bindCheckbox('chaserSyncBpm', 'chaser.syncBpm');
+            // Head
+            this._bindRange('chaserSize', 'chaser.size');
+            this._bindSelect('chaserHeadShape', 'chaser.headShape');
+            this._bindRange('chaserHeadRoundness', 'chaser.headRoundness');
+            this._bindRange('chaserHeadOpacity', 'chaser.headOpacity');
+            // Tail
+            this._bindRange('chaserTailLength', 'chaser.tailLength');
+            this._bindRange('chaserTailWidth', 'chaser.tailWidth');
+            this._bindRange('chaserTailOpacity', 'chaser.tailOpacity');
+            this._bindSelect('chaserTailStyle', 'chaser.tailStyle');
+            // Glow
+            this._bindRange('chaserGlowSize', 'chaser.glowSize');
+            this._bindRange('chaserGlowIntensity', 'chaser.glowIntensity');
 
             // Bind range inputs - camera
             this._bindRange('cameraZoom', 'camera.zoom');

@@ -255,9 +255,20 @@ window.APP = window.APP || {};
             speed: 50,               // 0-100: movement speed (50 = 1 loop per 4 beats)
             direction: 1,            // 1 = forward, -1 = reverse
             syncBpm: true,           // Lock speed to BPM timing
-            // Appearance
-            size: 17,                // Square size in px
-            tailLength: 54,          // Rectangle length in px
+            // Head appearance
+            size: 17,                // Head size in px
+            headShape: 'square',     // 'square', 'circle', 'diamond'
+            headRoundness: 0,        // 0-100: corner roundness for square
+            headOpacity: 100,        // 0-100
+            // Tail appearance
+            tailLength: 54,          // Tail length in px
+            tailWidth: 33,           // Tail width as % of head size
+            tailOpacity: 85,         // 0-100
+            tailStyle: 'gradient',   // 'gradient', 'solid', 'glow'
+            // Glow effects
+            glowSize: 50,            // 0-100: glow radius as % of size
+            glowIntensity: 50,       // 0-100
+            // Colors
             color: '#b34233',        // Rust/red primary
             colorSecondary: '#8b2500' // Darker rust accent
         },

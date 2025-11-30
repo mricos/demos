@@ -1038,24 +1038,96 @@
                                 </div>
                             </div>
 
-                            <!-- Appearance Sub-section -->
+                            <!-- Head Sub-section -->
                             <div class="control-subsection collapsible">
                                 <div class="subsection-header">
-                                    <span class="subsection-label">Appearance</span>
+                                    <span class="subsection-label">Head</span>
                                     <span class="subsection-toggle"></span>
                                 </div>
                                 <div class="subsection-content">
                                     <div class="mini-control">
                                         <button class="ctrl-btn" data-bind="chaser.size" title="Bind to controller">C</button>
                                         <span class="mini-label">Size</span>
-                                        <input type="range" id="chaserSize" min="5" max="50" value="20">
-                                        <span class="mini-value" id="chaserSizeValue">20</span>
+                                        <input type="range" id="chaserSize" min="5" max="50" value="17">
+                                        <span class="mini-value" id="chaserSizeValue">17</span>
                                     </div>
                                     <div class="mini-control">
+                                        <span class="mini-label">Shape</span>
+                                        <select id="chaserHeadShape">
+                                            <option value="square">Square</option>
+                                            <option value="circle">Circle</option>
+                                            <option value="diamond">Diamond</option>
+                                        </select>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="chaser.headRoundness" title="Bind to controller">C</button>
+                                        <span class="mini-label">Round</span>
+                                        <input type="range" id="chaserHeadRoundness" min="0" max="100" value="0">
+                                        <span class="mini-value" id="chaserHeadRoundnessValue">0%</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="chaser.headOpacity" title="Bind to controller">C</button>
+                                        <span class="mini-label">Opacity</span>
+                                        <input type="range" id="chaserHeadOpacity" min="0" max="100" value="100">
+                                        <span class="mini-value" id="chaserHeadOpacityValue">100%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tail Sub-section -->
+                            <div class="control-subsection collapsible">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Tail</span>
+                                    <span class="subsection-toggle"></span>
+                                </div>
+                                <div class="subsection-content">
+                                    <div class="mini-control">
                                         <button class="ctrl-btn" data-bind="chaser.tailLength" title="Bind to controller">C</button>
-                                        <span class="mini-label">Tail</span>
-                                        <input type="range" id="chaserTailLength" min="20" max="150" value="60">
-                                        <span class="mini-value" id="chaserTailLengthValue">60</span>
+                                        <span class="mini-label">Length</span>
+                                        <input type="range" id="chaserTailLength" min="0" max="200" value="54">
+                                        <span class="mini-value" id="chaserTailLengthValue">54</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="chaser.tailWidth" title="Bind to controller">C</button>
+                                        <span class="mini-label">Width</span>
+                                        <input type="range" id="chaserTailWidth" min="10" max="100" value="33">
+                                        <span class="mini-value" id="chaserTailWidthValue">33%</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="chaser.tailOpacity" title="Bind to controller">C</button>
+                                        <span class="mini-label">Opacity</span>
+                                        <input type="range" id="chaserTailOpacity" min="0" max="100" value="85">
+                                        <span class="mini-value" id="chaserTailOpacityValue">85%</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <span class="mini-label">Style</span>
+                                        <select id="chaserTailStyle">
+                                            <option value="gradient">Gradient</option>
+                                            <option value="solid">Solid</option>
+                                            <option value="glow">Glow</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Glow Sub-section -->
+                            <div class="control-subsection collapsible collapsed">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Glow</span>
+                                    <span class="subsection-toggle"></span>
+                                </div>
+                                <div class="subsection-content">
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="chaser.glowSize" title="Bind to controller">C</button>
+                                        <span class="mini-label">Size</span>
+                                        <input type="range" id="chaserGlowSize" min="0" max="100" value="50">
+                                        <span class="mini-value" id="chaserGlowSizeValue">50%</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="chaser.glowIntensity" title="Bind to controller">C</button>
+                                        <span class="mini-label">Intensity</span>
+                                        <input type="range" id="chaserGlowIntensity" min="0" max="100" value="50">
+                                        <span class="mini-value" id="chaserGlowIntensityValue">50%</span>
                                     </div>
                                 </div>
                             </div>
