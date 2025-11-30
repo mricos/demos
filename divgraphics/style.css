@@ -434,13 +434,23 @@ body.sidebar-collapsed .controls {
 .ghost-badge {
     width: 14px;
     height: 14px;
-    margin-left: auto;
     margin-right: 8px;
     border-radius: 3px;
     cursor: pointer;
     transition: all 0.15s ease;
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.15);
+    flex-shrink: 0;
+}
+
+/* Right-align ghost badge in section headers */
+.section-header .ghost-badge {
+    margin-left: auto;
+}
+
+/* Subsection headers already have flex with margin-left: auto on subsection-label */
+.subsection-header .ghost-badge {
+    margin-left: 0;
 }
 
 .ghost-badge:hover {
@@ -2125,9 +2135,7 @@ body:not(.sidebar-collapsed) .axis-world-gizmo {
 .bank-selector {
     display: flex;
     gap: 6px;
-    padding: 10px 15px;
-    background: rgba(0, 0, 0, 0.2);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 10px;
 }
 
 .bank-btn {

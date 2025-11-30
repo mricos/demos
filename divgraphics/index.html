@@ -50,21 +50,24 @@
                     </div>
                 </div>
                 <div class="sidebar-content">
-                <!-- Bank Selector -->
-                <div class="bank-selector">
-                    <button class="bank-btn active" data-bank="A" title="Long-press to learn bank switch CC">A</button>
-                    <button class="bank-btn" data-bank="B" title="Long-press to learn bank switch CC">B</button>
-                    <button class="bank-btn" data-bank="C" title="Long-press to learn bank switch CC">C</button>
-                    <button class="bank-btn" data-bank="D" title="Long-press to learn bank switch CC">D</button>
-                </div>
 
                 <!-- MIDI Section -->
                 <div class="control-section">
                     <div class="section-header">
                         <span class="section-title">MIDI</span>
+                        <input type="checkbox" id="midiToastsEnabled" checked class="ghost-toggle">
+                        <label for="midiToastsEnabled" class="ghost-badge" title="Toasts"></label>
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
+                        <!-- Bank Selector -->
+                        <div class="bank-selector">
+                            <button class="bank-btn active" data-bank="A" title="Long-press to learn bank switch CC">A</button>
+                            <button class="bank-btn" data-bank="B" title="Long-press to learn bank switch CC">B</button>
+                            <button class="bank-btn" data-bank="C" title="Long-press to learn bank switch CC">C</button>
+                            <button class="bank-btn" data-bank="D" title="Long-press to learn bank switch CC">D</button>
+                        </div>
+
                         <div class="control-group">
                             <div class="midi-status">
                                 <span class="midi-status-indicator"></span>
@@ -72,16 +75,11 @@
                             </div>
                         </div>
 
-                        <div class="control-group">
-                            <label>Device</label>
+                        <div class="mini-control">
+                            <span class="mini-label">Device</span>
                             <select id="midiDevice">
-                                <option value="">Select device...</option>
+                                <option value="">Select...</option>
                             </select>
-                        </div>
-
-                        <div class="control-group checkbox-group">
-                            <input type="checkbox" id="midiToastsEnabled" checked>
-                            <label>Show MIDI Toasts</label>
                         </div>
 
                         <div class="stat-item">
@@ -97,6 +95,8 @@
                 <div class="control-section">
                     <div class="section-header">
                         <span class="section-title">Gamepad</span>
+                        <input type="checkbox" id="gamepadToastsEnabled" checked class="ghost-toggle">
+                        <label for="gamepadToastsEnabled" class="ghost-badge" title="Toasts"></label>
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
@@ -107,16 +107,11 @@
                             </div>
                         </div>
 
-                        <div class="control-group">
-                            <label>Device</label>
+                        <div class="mini-control">
+                            <span class="mini-label">Device</span>
                             <select id="gamepadDevice">
-                                <option value="">Select gamepad...</option>
+                                <option value="">Select...</option>
                             </select>
-                        </div>
-
-                        <div class="control-group checkbox-group">
-                            <input type="checkbox" id="gamepadToastsEnabled" checked>
-                            <label>Show Gamepad Toasts</label>
                         </div>
 
                         <div class="stat-item">
@@ -316,13 +311,11 @@
                 <div class="control-section">
                     <div class="section-header">
                         <span class="section-title">Outer Cylinder</span>
+                        <input type="checkbox" id="outerEnabled" checked class="ghost-toggle">
+                        <label for="outerEnabled" class="ghost-badge"></label>
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
-                        <div class="control-group checkbox-group">
-                            <input type="checkbox" id="outerEnabled" checked>
-                            <label>Enabled</label>
-                        </div>
 
                         <div id="outerControls">
                         <div class="control-group">
@@ -371,13 +364,11 @@
                 <div class="control-section">
                     <div class="section-header">
                         <span class="section-title">Inner Cylinder</span>
+                        <input type="checkbox" id="innerEnabled" checked class="ghost-toggle">
+                        <label for="innerEnabled" class="ghost-badge"></label>
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
-                        <div class="control-group checkbox-group">
-                            <input type="checkbox" id="innerEnabled" checked>
-                            <label>Enabled</label>
-                        </div>
 
                         <div id="innerControls">
                             <div class="control-group">
@@ -426,18 +417,16 @@
                 <div class="control-section">
                     <div class="section-header">
                         <span class="section-title">Curve</span>
+                        <input type="checkbox" id="curveEnabled" class="ghost-toggle">
+                        <label for="curveEnabled" class="ghost-badge"></label>
                         <button class="info-btn" id="curveInfoBtn" title="Show Curve Math">?</button>
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
                         <div class="control-row-inline">
                             <div class="control-group checkbox-group">
-                                <input type="checkbox" id="curveEnabled">
-                                <label>Enabled</label>
-                            </div>
-                            <div class="control-group checkbox-group">
                                 <input type="checkbox" id="curveWireframe">
-                                <label>Wire</label>
+                                <label>Wireframe</label>
                             </div>
                         </div>
                         <div class="mode-row">
@@ -801,17 +790,15 @@
                 <div class="control-section">
                     <div class="section-header">
                         <span class="section-title">Track</span>
+                        <input type="checkbox" id="trackEnabled" class="ghost-toggle">
+                        <label for="trackEnabled" class="ghost-badge"></label>
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
                         <div class="control-row-inline">
                             <div class="control-group checkbox-group">
-                                <input type="checkbox" id="trackEnabled">
-                                <label>Enabled</label>
-                            </div>
-                            <div class="control-group checkbox-group">
                                 <input type="checkbox" id="trackWireframe">
-                                <label>Wire</label>
+                                <label>Wireframe</label>
                             </div>
                         </div>
 
@@ -1018,13 +1005,11 @@
                 <div class="control-section">
                     <div class="section-header">
                         <span class="section-title">Chaser</span>
+                        <input type="checkbox" id="chaserEnabled" class="ghost-toggle">
+                        <label for="chaserEnabled" class="ghost-badge"></label>
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
-                        <div class="control-group checkbox-group">
-                            <input type="checkbox" id="chaserEnabled">
-                            <label>Enabled</label>
-                        </div>
 
                         <div class="control-group checkbox-group">
                             <input type="checkbox" id="chaserFollow">
@@ -1071,14 +1056,12 @@
                 <!-- LFO Modulation Section -->
                 <div class="control-section">
                     <div class="section-header">
-                        <span class="section-title">LFO Modulation</span>
+                        <span class="section-title">LFO</span>
+                        <input type="checkbox" id="lfoMasterEnabled" checked class="ghost-toggle">
+                        <label for="lfoMasterEnabled" class="ghost-badge"></label>
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
-                        <div class="control-group checkbox-group">
-                            <input type="checkbox" id="lfoMasterEnabled" checked>
-                            <label>Enable LFOs</label>
-                        </div>
 
                         <div id="lfoList">
                             <!-- LFO entries will be added here dynamically -->
@@ -1105,13 +1088,11 @@
                 <div class="control-section">
                     <div class="section-header">
                         <span class="section-title">Keyboard</span>
+                        <input type="checkbox" id="keyboardEnabled" checked class="ghost-toggle">
+                        <label for="keyboardEnabled" class="ghost-badge"></label>
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
-                        <div class="control-group checkbox-group">
-                            <input type="checkbox" id="keyboardEnabled" checked>
-                            <label>Enable Keyboard Input</label>
-                        </div>
 
                         <div class="control-group checkbox-group">
                             <input type="checkbox" id="keyboardLearnMode">
