@@ -127,32 +127,26 @@
                 <div class="control-section">
                     <div class="section-header">
                         <span class="section-title">Display</span>
+                        <input type="checkbox" id="uiHud" checked class="ghost-toggle">
+                        <label for="uiHud" class="ghost-badge" title="HUD"></label>
+                        <input type="checkbox" id="statsEnabled" checked class="ghost-toggle">
+                        <label for="statsEnabled" class="ghost-badge" title="Stats"></label>
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
                         <div class="control-group checkbox-group">
                             <input type="checkbox" id="toastsEnabled" checked>
-                            <label>Show Toasts</label>
-                        </div>
-
-                        <div class="control-group checkbox-group">
-                            <input type="checkbox" id="statsEnabled" checked>
-                            <label>Show Stats</label>
+                            <label>Toasts</label>
                         </div>
 
                         <div class="control-group checkbox-group">
                             <input type="checkbox" id="headerEnabled" checked>
-                            <label>Show Header</label>
-                        </div>
-
-                        <div class="control-group checkbox-group">
-                            <input type="checkbox" id="uiHud" checked>
-                            <label>Show HUD</label>
+                            <label>Header</label>
                         </div>
 
                         <div class="control-group checkbox-group">
                             <input type="checkbox" id="uiGizmo" checked>
-                            <label>Show 3D Gizmo</label>
+                            <label>3D Gizmo</label>
                         </div>
 
                         <!-- Effects Sub-section -->
@@ -213,9 +207,11 @@
                 <div class="control-section">
                     <div class="section-header">
                         <span class="section-title">Camera</span>
-                        <span class="section-toggle"></span>
                         <button class="info-btn" id="cameraInfoBtn" title="Camera & Rotation Info">R</button>
                         <button class="info-btn" id="frustumInfoBtn" title="Perspective & FOV Info" style="background: rgba(0, 212, 255, 0.15); border-color: rgba(0, 212, 255, 0.4); color: #00d4ff;">P</button>
+                        <input type="checkbox" id="autoRotate" class="ghost-toggle">
+                        <label for="autoRotate" class="ghost-badge" title="Auto Rotate"></label>
+                        <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
                         <div class="control-group">
@@ -259,11 +255,6 @@
                             <label>Clamp Pitch</label>
                         </div>
 
-                        <div class="control-group checkbox-group">
-                            <input type="checkbox" id="autoRotate" checked>
-                            <label>Auto Rotate</label>
-                        </div>
-
                         <div class="control-group">
                             <label>Z Roll Mode</label>
                             <select id="cameraRollMode">
@@ -278,10 +269,10 @@
                 <div class="control-section">
                     <div class="section-header">
                         <span class="section-title">Animation</span>
+                        <button class="info-btn" id="animationInfoBtn" title="Animation System Info">A</button>
                         <input type="checkbox" id="animationPlaying" class="ghost-toggle">
                         <label for="animationPlaying" class="ghost-badge"></label>
                         <span class="section-toggle"></span>
-                        <button class="info-btn" id="animationInfoBtn" title="Animation System Info">A</button>
                     </div>
                     <div class="section-content">
 
@@ -415,10 +406,10 @@
                 <div class="control-section">
                     <div class="section-header">
                         <span class="section-title">Curve</span>
+                        <button class="info-btn" id="curveInfoBtn" title="Show Curve Math">?</button>
                         <input type="checkbox" id="curveEnabled" class="ghost-toggle">
                         <label for="curveEnabled" class="ghost-badge"></label>
                         <span class="section-toggle"></span>
-                        <button class="info-btn" id="curveInfoBtn" title="Show Curve Math">?</button>
                     </div>
                     <div class="section-content">
                         <div class="control-row-inline">
