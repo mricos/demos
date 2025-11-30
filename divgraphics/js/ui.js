@@ -12,9 +12,17 @@ window.APP = window.APP || {};
         'cameraZoom': (v) => (v / 100).toFixed(1),
         'cameraSensitivity': (v) => (v / 10).toFixed(1),
         'displayHaze': (v) => v === 0 ? 'Off' : v + '%',
-        'animationRpb': (v) => parseFloat(v).toFixed(2),
         'trackTension': (v) => (v / 100).toFixed(2),
-        'trackRadialsTwist': (v) => v + '°'  // Normals spin in degrees
+        'trackRadialsTwist': (v) => v + '°',
+        'curvePhase': (v) => v + '°',
+        'curveSpin': (v) => v + '°',
+        'curveBreatheSpeed': (v) => v + ' beats',
+        'curveBreathePhase': (v) => v + '°',
+        'curveCrystalSpread': (v) => v + '°',
+        'curveCrystalTwist': (v) => v + '°',
+        'curveRotateX': (v) => v + '°',
+        'curveRotateY': (v) => v + '°',
+        'curveRotateZ': (v) => v + '°'
     };
 
     // Log scale conversion for PPS (0.5 to 4 pps mapped to 0-100 slider)
@@ -62,6 +70,7 @@ window.APP = window.APP || {};
             this._syncFromState('display');
             this._syncFromState('ui');
             this._syncFromState('animation');
+            this._syncFromState('pip');
 
             // Outer controls visibility
             const outerEnabled = APP.State.select('outer.enabled');
@@ -119,6 +128,36 @@ window.APP = window.APP || {};
             this._bindRange('curveP2y', 'curve.p2y');
             this._bindRange('curveP2z', 'curve.p2z');
 
+            // Curve modulation (shared across modes)
+            this._bindRange('curvePieceCount', 'curve.pieceCount');
+            this._bindRange('curvePhase', 'curve.phase');
+            this._bindRange('curveSpin', 'curve.spin');
+            this._bindRange('curveSineFrequency', 'curve.sineFrequency');
+            this._bindRange('curveSineAmplitudeX', 'curve.sineAmplitudeX');
+            this._bindRange('curveSineAmplitudeY', 'curve.sineAmplitudeY');
+            this._bindRange('curveSineAmplitudeZ', 'curve.sineAmplitudeZ');
+
+            // Curve breathing
+            this._bindCheckbox('curveBreathe', 'curve.breathe');
+            this._bindRange('curveBreatheScale', 'curve.breatheScale');
+            this._bindBreatheSpeed(); // Custom handler for speed (25-400 to 0.25-4.0)
+            this._bindRange('curveBreathePhase', 'curve.breathePhase');
+
+            // Curve rotation around center of mass
+            this._bindRange('curveRotateX', 'curve.rotateX');
+            this._bindRange('curveRotateY', 'curve.rotateY');
+            this._bindRange('curveRotateZ', 'curve.rotateZ');
+
+            // Curve crystal mode
+            this._bindRange('curveCrystalLayers', 'curve.crystal.layers');
+            this._bindRange('curveCrystalSpread', 'curve.crystal.spread');
+            this._bindRange('curveCrystalPetalLength', 'curve.crystal.petalLength');
+            this._bindRange('curveCrystalPetalWidth', 'curve.crystal.petalWidth');
+            this._bindRange('curveCrystalConvergence', 'curve.crystal.convergence');
+            this._bindRange('curveCrystalTwist', 'curve.crystal.twist');
+            this._bindRange('curveCrystalBloom', 'curve.crystal.bloom');
+            this._bindRange('curveCrystalScale', 'curve.crystal.scale');
+
             // Bind range inputs - track
             this._bindRange('trackRadius', 'track.radius');
             this._bindRange('trackSegmentsPerSpan', 'track.segmentsPerSpan');
@@ -155,7 +194,7 @@ window.APP = window.APP || {};
 
             // Bind range inputs - animation (log-scale PPS/BPM)
             this._bindAnimationSliders();
-            this._bindRange('animationRpb', 'animation.rpb', true);
+            this._bindRange('animationPpr', 'animation.ppr');
 
             // Bind checkboxes
             this._bindCheckbox('outerEnabled', 'outer.enabled');
@@ -164,6 +203,7 @@ window.APP = window.APP || {};
             this._bindCheckbox('innerEnabled', 'inner.enabled');
             this._bindCheckbox('curveEnabled', 'curve.enabled');
             this._bindCheckbox('curveWireframe', 'curve.wireframe');
+            this._bindCurveMode(); // Custom handler for mode visibility
             this._bindCheckbox('trackEnabled', 'track.enabled');
             this._bindCheckbox('trackWireframe', 'track.wireframe');
             this._bindCheckbox('trackEndless', 'track.endless');
@@ -186,6 +226,7 @@ window.APP = window.APP || {};
             this._bindCheckbox('trackRadialsOutward', 'track.tangents.enabled');
             this._bindCheckbox('chaserEnabled', 'chaser.enabled');
             this._bindCheckbox('chaserFollow', 'chaser.follow');
+            this._bindCheckbox('pipShowWhenFollow', 'pip.showWhenFollow');
             this._bindCheckbox('animationPlaying', 'animation.playing');
             this._bindCheckbox('autoRotate', 'scene.autoRotate');
             this._bindCheckbox('cameraPitchClamp', 'camera.pitchClamp');
@@ -212,6 +253,7 @@ window.APP = window.APP || {};
             APP.State.subscribe('display.*', () => this._syncFromState('display'));
             APP.State.subscribe('ui.*', () => this._syncFromState('ui'));
             APP.State.subscribe('animation.*', () => this._syncFromState('animation'));
+            APP.State.subscribe('pip.*', () => this._syncFromState('pip'));
 
             // Outer controls visibility
             APP.State.subscribe('outer.enabled', (enabled) => {
@@ -322,6 +364,166 @@ window.APP = window.APP || {};
                     header.parentElement.classList.toggle('collapsed');
                 });
             });
+
+            // Export/Import settings
+            this._setupSettingsIO();
+        },
+
+        /**
+         * Setup export/import settings functionality
+         */
+        _setupSettingsIO() {
+            const exportBtn = document.getElementById('exportSettingsBtn');
+            const importBtn = document.getElementById('importSettingsBtn');
+            const importFile = document.getElementById('importSettingsFile');
+
+            if (exportBtn) {
+                exportBtn.addEventListener('click', () => {
+                    this._exportSettings();
+                });
+            }
+
+            if (importBtn && importFile) {
+                importBtn.addEventListener('click', () => {
+                    importFile.click();
+                });
+
+                importFile.addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        this._importSettings(e.target.files[0]);
+                        e.target.value = ''; // Reset for next import
+                    }
+                });
+            }
+        },
+
+        /**
+         * Export current settings to a JSON file
+         */
+        _exportSettings() {
+            // Get current state (exclude runtime config)
+            const state = APP.State.state;
+            const exportData = {};
+
+            // Copy all state except config (runtime constants)
+            for (const key in state) {
+                if (key !== 'config') {
+                    exportData[key] = JSON.parse(JSON.stringify(state[key]));
+                }
+            }
+
+            // Add metadata
+            exportData._meta = {
+                exportedAt: new Date().toISOString(),
+                version: '1.0'
+            };
+
+            // Create and download file
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `divgraphics-settings-${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            APP.Toast?.success('Settings exported');
+        },
+
+        /**
+         * Import settings from a JSON file
+         */
+        _importSettings(file) {
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                try {
+                    const importData = JSON.parse(e.target.result);
+
+                    // Remove metadata before applying
+                    delete importData._meta;
+
+                    // Apply each top-level state section
+                    for (const section in importData) {
+                        const sectionData = importData[section];
+
+                        if (typeof sectionData === 'object' && sectionData !== null) {
+                            // Dispatch each property in the section
+                            this._applyStateSection(section, sectionData);
+                        }
+                    }
+
+                    // Force UI sync
+                    this._restoreFromState();
+
+                    APP.Toast?.success('Settings imported');
+                } catch (err) {
+                    console.error('Import error:', err);
+                    APP.Toast?.show('Import failed: ' + err.message, 'error');
+                }
+            };
+
+            reader.onerror = () => {
+                APP.Toast?.show('Failed to read file', 'error');
+            };
+
+            reader.readAsText(file);
+        },
+
+        /**
+         * Recursively apply state section
+         * Skips empty objects and handles null values
+         */
+        _applyStateSection(prefix, data, depth = 0) {
+            // Safety limit to prevent infinite recursion
+            if (depth > 10) return;
+
+            for (const key in data) {
+                const path = `${prefix}.${key}`;
+                const value = data[key];
+
+                // Skip null/undefined values
+                if (value === null || value === undefined) {
+                    continue;
+                }
+
+                // Check if it's a non-empty plain object (not array)
+                const isPlainObject = typeof value === 'object' && !Array.isArray(value);
+                const hasKeys = isPlainObject && Object.keys(value).length > 0;
+
+                if (isPlainObject && hasKeys) {
+                    // Check if this is a "leaf" object that should be set as a whole
+                    // (objects with only primitive values, or known leaf objects)
+                    const isLeafObject = this._isLeafObject(value);
+
+                    if (isLeafObject) {
+                        // Set the entire object at once
+                        APP.State.dispatch({ type: path, payload: value });
+                    } else {
+                        // Recurse into nested objects
+                        this._applyStateSection(path, value, depth + 1);
+                    }
+                } else if (!isPlainObject || !hasKeys) {
+                    // Dispatch primitive values and empty objects
+                    APP.State.dispatch({ type: path, payload: value });
+                }
+            }
+        },
+
+        /**
+         * Check if an object should be treated as a leaf (set as whole)
+         * Returns true for objects containing only primitives or arrays
+         */
+        _isLeafObject(obj) {
+            for (const key in obj) {
+                const val = obj[key];
+                if (val !== null && typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length > 0) {
+                    return false;
+                }
+            }
+            return true;
         },
 
         /**
@@ -516,6 +718,76 @@ window.APP = window.APP || {};
             const initialTension = APP.State.select('track.tension') || 0.5;
             el.value = Math.round(initialTension * 100);
             if (valueEl) valueEl.textContent = initialTension.toFixed(2);
+        },
+
+        /**
+         * Bind curve mode selector with visibility toggle for different control sections
+         */
+        _bindCurveMode() {
+            const el = document.getElementById('curveMode');
+            const modulationControls = document.getElementById('curveModulationControls');
+            const crystalControls = document.getElementById('curveCrystalControls');
+            const bezierControls = document.getElementById('curveBezierControls');
+            if (!el) return;
+
+            const updateVisibility = (mode) => {
+                // Modulation controls visible for distribute and crystal modes
+                if (modulationControls) {
+                    modulationControls.style.display = (mode === 'distribute' || mode === 'crystal') ? 'block' : 'none';
+                }
+                // Crystal controls only for crystal mode
+                if (crystalControls) {
+                    crystalControls.style.display = mode === 'crystal' ? 'block' : 'none';
+                }
+                // Bezier controls only for bezier mode
+                if (bezierControls) {
+                    bezierControls.style.display = mode === 'bezier' ? 'block' : 'none';
+                }
+            };
+
+            // Handle select changes
+            el.addEventListener('change', () => {
+                APP.State.dispatch({ type: 'curve.mode', payload: el.value });
+                updateVisibility(el.value);
+            });
+
+            // Sync from state
+            APP.State.subscribe('curve.mode', (mode) => {
+                el.value = mode || 'bezier';
+                updateVisibility(mode || 'bezier');
+            });
+
+            // Initial sync
+            const initialMode = APP.State.select('curve.mode') || 'bezier';
+            el.value = initialMode;
+            updateVisibility(initialMode);
+        },
+
+        /**
+         * Bind breathing speed slider (1-32 beats per breath cycle)
+         */
+        _bindBreatheSpeed() {
+            const el = document.getElementById('curveBreatheSpeed');
+            const valueEl = document.getElementById('curveBreatheSpeedValue');
+            if (!el) return;
+
+            el.addEventListener('input', () => {
+                const beats = parseInt(el.value);
+                if (valueEl) valueEl.textContent = beats;
+                APP.State.dispatch({ type: 'curve.breatheSpeed', payload: beats });
+            });
+
+            // Sync from state
+            APP.State.subscribe('curve.breatheSpeed', (beats) => {
+                const val = beats || 4;
+                el.value = val;
+                if (valueEl) valueEl.textContent = val;
+            });
+
+            // Initial sync
+            const initialBeats = APP.State.select('curve.breatheSpeed') || 4;
+            el.value = initialBeats;
+            if (valueEl) valueEl.textContent = initialBeats;
         },
 
         _syncFromState(prefix) {

@@ -23,6 +23,9 @@ window.APP = window.APP || {};
         // InputHub event unsubscribe function
         _unsubscribeInput: null,
 
+        // Pre-specified source for LFO/Keyboard mapping
+        _pendingSource: null,  // { source: 'lfo', key: 'lfo_xxx', fullKey: 'lfo:lfo_xxx' }
+
         init() {
             this._setupLongClickHandler();
             this._setupModeButtonDelegation();
@@ -139,12 +142,14 @@ window.APP = window.APP || {};
             const { controlGroup, input, indicator } = pressTarget;
             this._pressTimer = null;
 
-            // Determine which sources are connected
+            // Determine which sources are available
             const midiConnected = APP.MIDI?.activeInput;
             const gamepadConnected = APP.Gamepad?.activeGamepad;
+            const lfosExist = Object.keys(APP.State?.select('lfo.lfos') || {}).length > 0;
+            const keyboardEnabled = APP.State?.select('keyboard.enabled');
 
-            if (!midiConnected && !gamepadConnected) {
-                APP.Toast?.info('Connect MIDI or Gamepad first');
+            if (!midiConnected && !gamepadConnected && !lfosExist && !keyboardEnabled) {
+                APP.Toast?.info('Connect MIDI/Gamepad, create LFO, or enable keyboard');
                 return;
             }
 
@@ -163,11 +168,97 @@ window.APP = window.APP || {};
         },
 
         /**
+         * Start learn mode with a pre-specified source (called by LFOUI)
+         * User then clicks on a control to complete the mapping
+         */
+        startLearnWithSource(source, key, fullKey) {
+            this._pendingSource = { source, key, fullKey };
+            APP.Toast?.info(`Click a control to map ${source}:${key}`);
+
+            // Listen for clicks on control indicators
+            this._setupPendingSourceHandler();
+        },
+
+        _setupPendingSourceHandler() {
+            // One-time handler for control selection
+            const handler = (e) => {
+                const indicator = e.target.closest('.control-indicator');
+                if (!indicator && !e.target.closest('.control-group')) {
+                    // Clicked elsewhere - cancel
+                    this._pendingSource = null;
+                    document.removeEventListener('click', handler);
+                    return;
+                }
+
+                if (!indicator) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                const controlGroup = indicator.closest('.control-group');
+                const input = controlGroup?.querySelector('input[type="range"], input[type="color"], input[type="checkbox"], select');
+                if (!input) {
+                    this._pendingSource = null;
+                    document.removeEventListener('click', handler);
+                    return;
+                }
+
+                const param = APP.ParameterRegistry.get(input.id);
+                if (!param) {
+                    APP.Toast?.info(`Cannot bind: ${input.id}`);
+                    this._pendingSource = null;
+                    document.removeEventListener('click', handler);
+                    return;
+                }
+
+                // Create binding with pending source
+                const pendingSource = this._pendingSource;
+                this._pendingSource = null;
+                document.removeEventListener('click', handler);
+
+                this._createBindingFromSource(pendingSource, input, param);
+            };
+
+            // Use setTimeout to avoid catching the current click
+            setTimeout(() => {
+                document.addEventListener('click', handler);
+            }, 100);
+        },
+
+        _createBindingFromSource(sourceInfo, element, param) {
+            const sourceType = APP.InputHub.getSourceType(sourceInfo.source, sourceInfo.key);
+
+            let map = APP.InputMap.fromElement(
+                element,
+                sourceType,
+                sourceInfo.key,
+                sourceInfo.fullKey,
+                { inferredAction: 'increment' }
+            );
+
+            if (!map) {
+                APP.Toast?.error('Failed to create binding');
+                return;
+            }
+
+            // Remove existing maps for this element from this source type
+            APP.InputHub.removeMapsByElement(element.id, sourceInfo.source);
+
+            // Add new map
+            APP.InputHub.addMap(map);
+
+            const badge = APP.InputMap.getBadgeSymbol(map);
+            APP.Toast.success(`Bound [${badge}]: ${sourceInfo.key} → ${param.path}`);
+        },
+
+        /**
          * Enter learn mode - listens for input from any connected source
          */
         _enterLearnMode(controlGroup, input, indicator, param) {
             const midiConnected = APP.MIDI?.activeInput;
             const gamepadConnected = APP.Gamepad?.activeGamepad;
+            const lfosExist = Object.keys(APP.State?.select('lfo.lfos') || {}).length > 0;
+            const keyboardEnabled = APP.State?.select('keyboard.enabled');
 
             // Set new target - source will be determined by first input received
             this.currentTarget = { elementId: input.id, controlGroup, param, indicator };
@@ -187,7 +278,9 @@ window.APP = window.APP || {};
             const sources = [];
             if (midiConnected) sources.push('MIDI');
             if (gamepadConnected) sources.push('Gamepad');
-            APP.Toast?.info(`Move any ${sources.join(' or ')} control...`);
+            if (lfosExist) sources.push('LFO');
+            if (keyboardEnabled) sources.push('key');
+            APP.Toast?.info(`Move/press: ${sources.join(', ')}`);
         },
 
         // ================================================================
@@ -506,6 +599,8 @@ window.APP = window.APP || {};
                 const maps = APP.InputHub?.getMapsForElement(input.id) || [];
                 const hasMidi = maps.some(m => m.source.type.startsWith('midi'));
                 const hasGamepad = maps.some(m => m.source.type.startsWith('gamepad'));
+                const hasLfo = maps.some(m => m.source.type === 'lfo');
+                const hasKeyboard = maps.some(m => m.source.type.startsWith('keyboard'));
                 const hasBinding = maps.length > 0;
 
                 // Create control indicator
@@ -518,17 +613,26 @@ window.APP = window.APP || {};
                     indicator.classList.add('bound');
                     indicator.textContent = 'C';
 
+                    // Build source list for title
+                    const sources = [];
+                    if (hasMidi) sources.push('MIDI');
+                    if (hasGamepad) sources.push('Gamepad');
+                    if (hasLfo) sources.push('LFO');
+                    if (hasKeyboard) sources.push('Keyboard');
+
                     // Add source indicators
-                    if (hasMidi && hasGamepad) {
+                    if (sources.length > 1) {
                         indicator.classList.add('both');
-                        indicator.title = `MIDI + Gamepad (Bank ${activeBank}) - click to edit`;
                     } else if (hasMidi) {
                         indicator.classList.add('midi-only');
-                        indicator.title = `MIDI (Bank ${activeBank}) - click to edit`;
-                    } else {
+                    } else if (hasGamepad) {
                         indicator.classList.add('gamepad-only');
-                        indicator.title = `Gamepad (Bank ${activeBank}) - click to edit`;
+                    } else if (hasLfo) {
+                        indicator.classList.add('lfo-only');
+                    } else if (hasKeyboard) {
+                        indicator.classList.add('keyboard-only');
                     }
+                    indicator.title = `${sources.join(' + ')} (Bank ${activeBank}) - click to edit`;
                 } else {
                     // Unbound - ghost ring (CSS ::before handles the icon)
                     indicator.title = 'Hold to learn binding';
@@ -1347,17 +1451,25 @@ window.APP = window.APP || {};
 
             let midiCount = 0;
             let gamepadCount = 0;
+            let lfoCount = 0;
+            let keyboardCount = 0;
 
             Object.values(maps).forEach(map => {
                 if (map.source.type.startsWith('midi')) midiCount++;
                 else if (map.source.type.startsWith('gamepad')) gamepadCount++;
+                else if (map.source.type === 'lfo') lfoCount++;
+                else if (map.source.type.startsWith('keyboard')) keyboardCount++;
             });
 
             const midiCountEl = document.getElementById('bindingCount');
             const gamepadCountEl = document.getElementById('gamepadBindingCount');
+            const lfoCountEl = document.getElementById('lfoBindingCount');
+            const keyboardCountEl = document.getElementById('keyboardBindingCount');
 
             if (midiCountEl) midiCountEl.textContent = `${midiCount} (${activeBank})`;
             if (gamepadCountEl) gamepadCountEl.textContent = `${gamepadCount} (${activeBank})`;
+            if (lfoCountEl) lfoCountEl.textContent = `${lfoCount} (${activeBank})`;
+            if (keyboardCountEl) keyboardCountEl.textContent = `${keyboardCount} (${activeBank})`;
         }
     };
 

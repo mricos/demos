@@ -320,9 +320,9 @@ window.APP = window.APP || {};
 
         /**
          * Get source type from source and key
-         * @param {string} source - 'midi' or 'gamepad'
-         * @param {string} key - e.g., 'cc:1:74'
-         * @returns {string} e.g., 'midi-cc'
+         * @param {string} source - 'midi', 'gamepad', 'lfo', or 'keyboard'
+         * @param {string} key - e.g., 'cc:1:74', 'lfo_1', 'KeyA'
+         * @returns {string} e.g., 'midi-cc', 'lfo', 'keyboard-key'
          */
         getSourceType(source, key) {
             if (source === 'midi') {
@@ -330,6 +330,12 @@ window.APP = window.APP || {};
             }
             if (source === 'gamepad') {
                 return key.startsWith('axis:') ? 'gamepad-axis' : 'gamepad-button';
+            }
+            if (source === 'lfo') {
+                return 'lfo';
+            }
+            if (source === 'keyboard') {
+                return key.startsWith('hold:') ? 'keyboard-hold' : 'keyboard-key';
             }
             return `${source}-unknown`;
         },

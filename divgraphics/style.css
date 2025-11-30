@@ -58,6 +58,78 @@ header h1 span {
     transform-style: preserve-3d;
 }
 
+/* ============================================
+   PIP (Picture-in-Picture) Overlay
+   ============================================ */
+.pip-container {
+    position: fixed;
+    bottom: 100px;
+    left: 20px;
+    width: 280px;
+    height: 200px;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid rgba(0, 212, 255, 0.4);
+    border-radius: 8px;
+    overflow: hidden;
+    z-index: 1000;
+    display: none;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.pip-container.visible {
+    display: flex;
+}
+
+.pip-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 8px;
+    background: rgba(0, 212, 255, 0.15);
+    border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+    flex-shrink: 0;
+}
+
+.pip-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(0, 212, 255, 0.8);
+}
+
+.pip-close {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.pip-close:hover {
+    color: #ff6666;
+}
+
+.pip-container .viewport,
+.pip-container .instance-viewport {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 600px;
+    perspective-origin: center center;
+    overflow: hidden;
+}
+
+.pip-container .scene,
+.pip-container .instance-scene {
+    position: relative;
+    transform-style: preserve-3d;
+}
+
 .controls {
     width: 300px;
     background: rgba(0, 0, 0, 0.4);
@@ -420,6 +492,16 @@ body.sidebar-collapsed .controls {
     background: rgba(255, 255, 255, 0.2);
     box-shadow: none;
     transform: none;
+}
+
+.button-row {
+    display: flex;
+    gap: 8px;
+}
+
+.button-row .btn {
+    flex: 1;
+    margin-top: 0;
 }
 
 /* Stats */
@@ -1927,6 +2009,32 @@ body:not(.sidebar-collapsed) .axis-world-gizmo {
     background: linear-gradient(135deg, rgba(0, 212, 255, 0.3) 50%, rgba(255, 170, 0, 0.3) 50%);
     border-color: #fff;
     box-shadow: 0 0 6px rgba(255, 255, 255, 0.25);
+}
+
+/* LFO-only binding - purple/magenta */
+.control-indicator.bound.lfo-only {
+    background: rgba(170, 0, 255, 0.15);
+    border-color: rgba(170, 0, 255, 0.4);
+    color: #aa00ff;
+}
+
+.control-indicator.bound.lfo-only:hover {
+    background: rgba(170, 0, 255, 0.25);
+    border-color: #aa00ff;
+    box-shadow: 0 0 6px rgba(170, 0, 255, 0.3);
+}
+
+/* Keyboard-only binding - green */
+.control-indicator.bound.keyboard-only {
+    background: rgba(0, 255, 136, 0.15);
+    border-color: rgba(0, 255, 136, 0.4);
+    color: #00ff88;
+}
+
+.control-indicator.bound.keyboard-only:hover {
+    background: rgba(0, 255, 136, 0.25);
+    border-color: #00ff88;
+    box-shadow: 0 0 6px rgba(0, 255, 136, 0.3);
 }
 
 /* Learning state - pulsing */

@@ -215,6 +215,10 @@ window.APP = window.APP || {};
                     // Update timing system
                     APP.Timing?.tick(deltaMs);
 
+                    // Update modulation sources (LFO, keyboard)
+                    APP.LFOEngine?.update(deltaMs);
+                    APP.KeyboardInput?.update(deltaMs);
+
                     // Update particle chaser
                     APP.ParticleChaser?.update(deltaMs);
 
@@ -289,6 +293,13 @@ window.APP = window.APP || {};
                         this._lastHaze = hazeIntensity;
                         this._lastHazeRotX = effectiveRotX;
                         this._lastHazeRotY = effectiveRotY;
+                    }
+
+                    // Update curve transitions and breathing
+                    if (APP.Scene?.curve?.isTransitioning()) {
+                        APP.Scene.curve.updateTransition();
+                    } else {
+                        APP.Scene?.curve?.updateBreathing();
                     }
                 } catch (e) {
                     console.error('Animation error:', e);

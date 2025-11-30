@@ -50,8 +50,35 @@ window.APP = window.APP || {};
 
             APP.State.subscribe('outer.*', throttledRebuildOuter);
             APP.State.subscribe('inner.*', throttledRebuildInner);
-            APP.State.subscribe('curve.*', throttledRebuildCurve);
             APP.State.subscribe('track.*', throttledRebuildTrack);
+
+            // Special handling for curve mode changes - use transitions
+            let lastCurveMode = APP.State.select('curve.mode') || 'bezier';
+            APP.State.subscribe('curve.mode', (newMode) => {
+                if (this.curve && newMode !== lastCurveMode) {
+                    const canTransition = (lastCurveMode === 'crystal' || lastCurveMode === 'distribute') &&
+                                          (newMode === 'crystal' || newMode === 'distribute');
+                    if (canTransition) {
+                        // Start smooth transition
+                        const duration = APP.State.select('curve.transitionDuration') || 500;
+                        const easing = APP.State.select('curve.transitionEasing') || 'easeInOut';
+                        this.curve.startTransition(newMode, duration, easing);
+                        lastCurveMode = newMode;
+                        return; // Don't rebuild, transition will handle it
+                    }
+                }
+                lastCurveMode = newMode;
+                throttledRebuildCurve();
+            });
+
+            // Other curve changes rebuild normally
+            APP.State.subscribe('curve.*', (val, state, meta) => {
+                // Skip if this is a mode change (handled above)
+                if (meta.path === 'curve.mode') return;
+                // Skip rebuild during transition
+                if (this.curve?.isTransitioning()) return;
+                throttledRebuildCurve();
+            });
             // Haze is now view-space, updated in animation loop - no rebuild needed
         },
 
@@ -116,7 +143,27 @@ window.APP = window.APP || {};
                 radialSegments: state.radialSegments,
                 color: state.color,
                 colorSecondary: state.colorSecondary,
-                wireframe: state.wireframe
+                wireframe: state.wireframe,
+                // Mode and shared modulation
+                mode: state.mode,
+                pieceCount: state.pieceCount,
+                phase: state.phase,
+                spin: state.spin,
+                sineAmplitudeX: state.sineAmplitudeX,
+                sineAmplitudeY: state.sineAmplitudeY,
+                sineAmplitudeZ: state.sineAmplitudeZ,
+                sineFrequency: state.sineFrequency,
+                // Breathing
+                breathe: state.breathe,
+                breatheScale: state.breatheScale,
+                breatheSpeed: state.breatheSpeed,
+                breathePhase: state.breathePhase,
+                // Rotation around center of mass
+                rotateX: state.rotateX,
+                rotateY: state.rotateY,
+                rotateZ: state.rotateZ,
+                // Crystal
+                crystal: state.crystal
             });
 
             this.container.appendChild(this.curve.generate());

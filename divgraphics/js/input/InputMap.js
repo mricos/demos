@@ -12,7 +12,10 @@ window.APP = window.APP || {};
         MIDI_CC: 'midi-cc',
         MIDI_NOTE: 'midi-note',
         GAMEPAD_AXIS: 'gamepad-axis',
-        GAMEPAD_BUTTON: 'gamepad-button'
+        GAMEPAD_BUTTON: 'gamepad-button',
+        LFO: 'lfo',
+        KEYBOARD_KEY: 'keyboard-key',
+        KEYBOARD_HOLD: 'keyboard-hold'
     };
 
     // Input domains (raw value ranges)
@@ -20,7 +23,10 @@ window.APP = window.APP || {};
         'midi-cc':        { min: 0, max: 127, discrete: false },
         'midi-note':      { min: 0, max: 127, discrete: true },
         'gamepad-axis':   { min: -1, max: 1, discrete: false },
-        'gamepad-button': { min: 0, max: 1, discrete: true }
+        'gamepad-button': { min: 0, max: 1, discrete: true },
+        'lfo':            { min: 0, max: 1, discrete: false },
+        'keyboard-key':   { min: 0, max: 1, discrete: true },  // keydown = 1, for increment/toggle
+        'keyboard-hold':  { min: 0, max: 1, discrete: false }  // continuous while held
     };
 
     // Behavior modes for discrete inputs

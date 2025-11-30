@@ -22,6 +22,14 @@
         <div class="stats-row"><span>Faces</span><span id="statFaces">0</span></div>
     </div>
 
+    <!-- PIP Container (Picture-in-Picture overlay) -->
+    <div id="pip-container" class="pip-container">
+        <div class="pip-header">
+            <span class="pip-title">Global View</span>
+            <button class="pip-close" id="pipClose">&times;</button>
+        </div>
+    </div>
+
     <div class="app-container">
         <header>
             <h1><span>Div</span>Graphics</h1>
@@ -160,6 +168,15 @@
 
                         <button class="btn" id="resetBtn">Reset View</button>
                         <button class="btn btn-secondary" id="codeStatsBtn">Code Stats</button>
+
+                        <div class="control-subsection">
+                            <label class="subsection-label">Settings</label>
+                            <div class="button-row">
+                                <button class="btn btn-secondary" id="exportSettingsBtn">Export</button>
+                                <button class="btn btn-secondary" id="importSettingsBtn">Import</button>
+                            </div>
+                            <input type="file" id="importSettingsFile" accept=".json" style="display: none;">
+                        </div>
                     </div>
                 </div>
 
@@ -254,9 +271,9 @@
                         </div>
 
                         <div class="control-group">
-                            <label>RPP (Rev/Pulse)</label>
-                            <input type="range" id="animationRpb" min="0" max="1" step="0.00625" value="0.00625">
-                            <div class="control-value" id="animationRpbValue">0.00625</div>
+                            <label>PPR (Pulses/Rev)</label>
+                            <input type="range" id="animationPpr" min="1" max="256" step="1" value="160">
+                            <div class="control-value" id="animationPprValue">160</div>
                         </div>
                     </div>
                 </div>
@@ -418,6 +435,171 @@
                                 <label>Wireframe</label>
                             </div>
 
+                            <!-- Mode Selector -->
+                            <div class="control-subsection">
+                                <label class="subsection-label">Form</label>
+                                <div class="control-group">
+                                    <label>Mode</label>
+                                    <select id="curveMode">
+                                        <option value="bezier">Bezier Tube</option>
+                                        <option value="distribute">Track Distribute</option>
+                                        <option value="crystal">Crystal Flower</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Shared Modulation (visible in distribute & crystal modes) -->
+                            <div id="curveModulationControls" style="display: none;">
+                                <div class="control-subsection">
+                                    <label class="subsection-label">Modulation</label>
+                                    <div class="control-group">
+                                        <label>Pieces/Petals</label>
+                                        <input type="range" id="curvePieceCount" min="1" max="32" value="8">
+                                        <div class="control-value" id="curvePieceCountValue">8</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Phase</label>
+                                        <input type="range" id="curvePhase" min="0" max="360" value="0">
+                                        <div class="control-value" id="curvePhaseValue">0°</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Spin (per piece)</label>
+                                        <input type="range" id="curveSpin" min="-180" max="180" value="0">
+                                        <div class="control-value" id="curveSpinValue">0°</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Sine Freq</label>
+                                        <input type="range" id="curveSineFrequency" min="1" max="8" value="1">
+                                        <div class="control-value" id="curveSineFrequencyValue">1</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Sine X</label>
+                                        <input type="range" id="curveSineAmplitudeX" min="0" max="100" value="0">
+                                        <div class="control-value" id="curveSineAmplitudeXValue">0</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Sine Y</label>
+                                        <input type="range" id="curveSineAmplitudeY" min="0" max="100" value="0">
+                                        <div class="control-value" id="curveSineAmplitudeYValue">0</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Sine Z</label>
+                                        <input type="range" id="curveSineAmplitudeZ" min="0" max="100" value="0">
+                                        <div class="control-value" id="curveSineAmplitudeZValue">0</div>
+                                    </div>
+                                </div>
+
+                                <!-- Breathing (beat-synced) -->
+                                <div class="control-subsection">
+                                    <label class="subsection-label">Breathing</label>
+                                    <div class="control-group checkbox-group">
+                                        <input type="checkbox" id="curveBreathe">
+                                        <label>Enable (BPM sync)</label>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Scale %</label>
+                                        <input type="range" id="curveBreatheScale" min="0" max="100" value="50">
+                                        <div class="control-value" id="curveBreatheScaleValue">50</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Beats/Cycle</label>
+                                        <input type="range" id="curveBreatheSpeed" min="1" max="32" value="4">
+                                        <div class="control-value" id="curveBreatheSpeedValue">4</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Phase Offset</label>
+                                        <input type="range" id="curveBreathePhase" min="0" max="360" value="0">
+                                        <div class="control-value" id="curveBreathePhaseValue">0°</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Rotation around Center of Mass (all modes) -->
+                            <div class="control-subsection">
+                                <label class="subsection-label">Rotation (around COM)</label>
+                                <div class="control-group">
+                                    <label>Rotate X</label>
+                                    <input type="range" id="curveRotateX" min="-180" max="180" value="0">
+                                    <div class="control-value" id="curveRotateXValue">0°</div>
+                                </div>
+
+                                <div class="control-group">
+                                    <label>Rotate Y</label>
+                                    <input type="range" id="curveRotateY" min="-180" max="180" value="0">
+                                    <div class="control-value" id="curveRotateYValue">0°</div>
+                                </div>
+
+                                <div class="control-group">
+                                    <label>Rotate Z</label>
+                                    <input type="range" id="curveRotateZ" min="-180" max="180" value="0">
+                                    <div class="control-value" id="curveRotateZValue">0°</div>
+                                </div>
+                            </div>
+
+                            <!-- Crystal Mode Controls -->
+                            <div id="curveCrystalControls" style="display: none;">
+                                <div class="control-subsection">
+                                    <label class="subsection-label">Crystal Geometry</label>
+                                    <div class="control-group">
+                                        <label>Layers</label>
+                                        <input type="range" id="curveCrystalLayers" min="1" max="6" value="3">
+                                        <div class="control-value" id="curveCrystalLayersValue">3</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Spread</label>
+                                        <input type="range" id="curveCrystalSpread" min="0" max="90" value="60">
+                                        <div class="control-value" id="curveCrystalSpreadValue">60°</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Petal Length</label>
+                                        <input type="range" id="curveCrystalPetalLength" min="20" max="200" value="80">
+                                        <div class="control-value" id="curveCrystalPetalLengthValue">80</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Petal Width</label>
+                                        <input type="range" id="curveCrystalPetalWidth" min="5" max="100" value="30">
+                                        <div class="control-value" id="curveCrystalPetalWidthValue">30</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Convergence %</label>
+                                        <input type="range" id="curveCrystalConvergence" min="0" max="100" value="100">
+                                        <div class="control-value" id="curveCrystalConvergenceValue">100</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Twist</label>
+                                        <input type="range" id="curveCrystalTwist" min="-180" max="180" value="0">
+                                        <div class="control-value" id="curveCrystalTwistValue">0°</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Bloom %</label>
+                                        <input type="range" id="curveCrystalBloom" min="0" max="100" value="50">
+                                        <div class="control-value" id="curveCrystalBloomValue">50</div>
+                                    </div>
+
+                                    <div class="control-group">
+                                        <label>Scale %</label>
+                                        <input type="range" id="curveCrystalScale" min="1" max="100" value="100">
+                                        <div class="control-value" id="curveCrystalScaleValue">100</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="curveBezierControls">
                             <div class="control-subsection">
                                 <label class="subsection-label">Start Point (P0)</label>
                                 <div class="control-group">
@@ -474,6 +656,7 @@
                                     <div class="control-value" id="curveP2zValue">0</div>
                                 </div>
                             </div>
+                            </div><!-- /#curveBezierControls -->
                         </div>
                     </div>
                 </div>
@@ -642,6 +825,11 @@
                             <label>Follow Cam (ride along)</label>
                         </div>
 
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="pipShowWhenFollow" checked>
+                            <label>Show PIP (global view)</label>
+                        </div>
+
                         <div id="chaserControls">
                             <div class="control-group">
                                 <label>Speed (BPM sync)</label>
@@ -674,6 +862,63 @@
                     </div>
                 </div>
 
+                <!-- LFO Modulation Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <span class="section-title">LFO Modulation</span>
+                        <span class="section-toggle"></span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="lfoMasterEnabled" checked>
+                            <label>Enable LFOs</label>
+                        </div>
+
+                        <div id="lfoList">
+                            <!-- LFO entries will be added here dynamically -->
+                        </div>
+
+                        <button id="lfoAddButton" class="btn btn-small" style="margin-top: 8px; width: 100%;">
+                            + Add LFO
+                        </button>
+
+                        <div class="control-subsection" style="margin-top: 12px;">
+                            <label class="subsection-label">Quick Map</label>
+                            <p style="font-size: 11px; color: #888; margin: 4px 0 8px;">
+                                Click any control while in Learn mode, then select an LFO source
+                            </p>
+                            <div class="control-group checkbox-group">
+                                <input type="checkbox" id="lfoLearnMode">
+                                <label>LFO Learn Mode</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Keyboard Input Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <span class="section-title">Keyboard</span>
+                        <span class="section-toggle"></span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="keyboardEnabled" checked>
+                            <label>Enable Keyboard Input</label>
+                        </div>
+
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="keyboardLearnMode">
+                            <label>Keyboard Learn Mode</label>
+                        </div>
+
+                        <p style="font-size: 11px; color: #888; margin: 8px 0;">
+                            In learn mode, click a control then press a key to bind it.
+                            Keys can increment/toggle (tap) or act continuous (hold).
+                        </p>
+                    </div>
+                </div>
+
                 </div><!-- /.sidebar-content -->
             </div>
         </div>
@@ -689,6 +934,9 @@
     <script src="js/input/ParameterRegistry.js"></script>
     <script src="js/input/InputMap.js"></script>
     <script src="js/input/InputHub.js"></script>
+    <script src="js/input/LFOEngine.js"></script>
+    <script src="js/input/KeyboardInput.js"></script>
+    <script src="js/input/LFOUI.js"></script>
     <script src="js/input/InputLearnUI.js"></script>
     <script src="js/input/BankSelectorUI.js"></script>
 
@@ -706,12 +954,21 @@
     <script src="js/variation/PerlinSource.js"></script>
     <script src="js/variation/RandomSource.js"></script>
 
+    <!-- Core Instance System -->
+    <script src="js/core/InstanceState.js"></script>
+    <script src="js/core/GeometryData.js"></script>
+    <script src="js/core/CameraController.js"></script>
+    <script src="js/core/SceneRenderer.js"></script>
+    <script src="js/core/DivGraphicsInstance.js"></script>
+    <script src="js/core/InstanceManager.js"></script>
+
     <!-- Scene -->
     <script src="js/camera.js"></script>
     <script src="js/scene-manager.js"></script>
     <script src="js/scene.js"></script>
     <script src="js/timing.js"></script>
     <script src="js/particle-chaser.js"></script>
+    <script src="js/pip.js"></script>
 
     <!-- UI -->
     <script src="js/display.js"></script>

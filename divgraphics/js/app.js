@@ -65,9 +65,19 @@ window.APP = window.APP || {};
         // 7e. Initialize particle chaser
         APP.ParticleChaser?.init();
 
+        // 7f. Initialize Instance Manager (multi-instance system)
+        APP.InstanceManager?.init();
+
+        // 7g. Initialize PIP (Picture-in-Picture) overlay
+        APP.PIP?.init();
+
         // 8. Initialize input system
         APP.ParameterRegistry.init();
         APP.InputHub.init();
+        APP.LFOEngine?.init();
+        APP.LFOEngine?.start();
+        APP.KeyboardInput?.init();
+        APP.LFOUI?.init();
         APP.InputLearnUI.init();
         APP.BankSelectorUI.init();
 
