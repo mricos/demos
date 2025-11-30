@@ -251,7 +251,11 @@ window.APP = window.APP || {};
             enabled: true,
             follow: false,           // First-person follow cam mode
             stabilize: true,         // Keep chaser level (no roll with tube)
-            speed: 3,                // 0-100, relative to BPM (50 = 1 loop per 4 beats at 120 BPM)
+            // Speed controls (similar to track.rotation)
+            speed: 50,               // 0-100: movement speed (50 = 1 loop per 4 beats)
+            direction: 1,            // 1 = forward, -1 = reverse
+            syncBpm: true,           // Lock speed to BPM timing
+            // Appearance
             size: 17,                // Square size in px
             tailLength: 54,          // Rectangle length in px
             color: '#b34233',        // Rust/red primary

@@ -148,19 +148,27 @@ window.APP = window.APP || {};
 
             this.container.style.display = 'block';
 
-            // Calculate speed based on BPM setting
-            // Speed slider: 1-100, where 50 = 1 loop per 2 seconds at 120 BPM
-            const pps = APP.State.select('animation.pps') || 1.0;
-            const speedFactor = chaserState.speed / 50; // Normalize so 50 = 1x speed
+            // Get speed settings (similar to track rotation)
+            const speed = chaserState.speed ?? 50;
+            const direction = chaserState.direction ?? 1;
+            const syncBpm = chaserState.syncBpm ?? true;
 
-            // Chaser always moves when enabled (independent of Play button)
-            // Loops per second based on BPM and speed factor
-            const loopsPerSecond = (pps / 4) * speedFactor; // 1 loop per 4 beats at speed 50
             const range = track.getParameterRange();
             const tRange = range.max - range.min;
 
-            // Advance t (negative = travel opposite direction on track)
-            this.t -= (deltaMs / 1000) * loopsPerSecond * tRange;
+            let loopsPerSecond;
+            if (syncBpm) {
+                // BPM-synced: speed 50 = 1 loop per 4 beats
+                const pps = APP.State.select('animation.pps') || 1.0;
+                const speedFactor = speed / 50;
+                loopsPerSecond = (pps / 4) * speedFactor;
+            } else {
+                // Free mode: speed directly controls loops per second (0-100 → 0-2 loops/sec)
+                loopsPerSecond = (speed / 100) * 2;
+            }
+
+            // Advance t with direction (positive = forward, negative = reverse)
+            this.t += direction * (deltaMs / 1000) * loopsPerSecond * tRange;
 
             // Wrap around for closed loop
             while (this.t >= range.max) {

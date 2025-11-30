@@ -192,6 +192,8 @@ window.APP = window.APP || {};
             this._bindRange('chaserSpeed', 'chaser.speed');
             this._bindRange('chaserSize', 'chaser.size');
             this._bindRange('chaserTailLength', 'chaser.tailLength');
+            this._bindChaserDirection();
+            this._bindCheckbox('chaserSyncBpm', 'chaser.syncBpm');
 
             // Bind range inputs - camera
             this._bindRange('cameraZoom', 'camera.zoom');
@@ -1019,6 +1021,27 @@ window.APP = window.APP || {};
 
             // Sync from state
             APP.State.subscribe('track.rotation.direction', (val) => {
+                el.value = val !== undefined ? val : 1;
+            });
+        },
+
+        /**
+         * Bind chaser direction select (1 = forward, -1 = reverse)
+         */
+        _bindChaserDirection() {
+            const el = document.getElementById('chaserDirection');
+            if (!el) return;
+
+            // Restore from state
+            const saved = APP.State.select('chaser.direction');
+            if (saved !== undefined) el.value = saved;
+
+            el.addEventListener('change', () => {
+                APP.State.dispatch({ type: 'chaser.direction', payload: parseInt(el.value) });
+            });
+
+            // Sync from state
+            APP.State.subscribe('chaser.direction', (val) => {
                 el.value = val !== undefined ? val : 1;
             });
         },

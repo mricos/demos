@@ -999,44 +999,83 @@
                         <span class="section-toggle"></span>
                     </div>
                     <div class="section-content">
-
-                        <div class="control-group checkbox-group">
-                            <input type="checkbox" id="chaserFollow">
-                            <label>Follow Cam (ride along)</label>
-                        </div>
-
-                        <div class="control-group checkbox-group">
-                            <input type="checkbox" id="pipShowWhenFollow" checked>
-                            <label>Show PIP (global view)</label>
+                        <div class="control-row-inline">
+                            <div class="control-group checkbox-group">
+                                <input type="checkbox" id="chaserFollow">
+                                <label>Follow Cam</label>
+                            </div>
+                            <div class="control-group checkbox-group">
+                                <input type="checkbox" id="pipShowWhenFollow" checked>
+                                <label>PIP</label>
+                            </div>
                         </div>
 
                         <div id="chaserControls">
-                            <div class="control-group">
-                                <label>Speed (BPM sync)</label>
-                                <input type="range" id="chaserSpeed" min="1" max="100" value="50">
-                                <div class="control-value" id="chaserSpeedValue">50</div>
+                            <!-- Speed Sub-section -->
+                            <div class="control-subsection collapsible">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Speed</span>
+                                    <span class="subsection-toggle"></span>
+                                </div>
+                                <div class="subsection-content">
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="chaser.speed" title="Bind to controller">C</button>
+                                        <span class="mini-label">Speed</span>
+                                        <input type="range" id="chaserSpeed" min="0" max="100" value="50">
+                                        <span class="mini-value" id="chaserSpeedValue">50</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <span class="mini-label">Dir</span>
+                                        <select id="chaserDirection">
+                                            <option value="1">Fwd →</option>
+                                            <option value="-1">Rev ←</option>
+                                        </select>
+                                    </div>
+                                    <div class="mini-control">
+                                        <input type="checkbox" id="chaserSyncBpm" class="mini-checkbox" checked>
+                                        <span class="mini-label">Sync BPM</span>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="control-group">
-                                <label>Head Size</label>
-                                <input type="range" id="chaserSize" min="5" max="50" value="20">
-                                <div class="control-value" id="chaserSizeValue">20</div>
+                            <!-- Appearance Sub-section -->
+                            <div class="control-subsection collapsible">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Appearance</span>
+                                    <span class="subsection-toggle"></span>
+                                </div>
+                                <div class="subsection-content">
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="chaser.size" title="Bind to controller">C</button>
+                                        <span class="mini-label">Size</span>
+                                        <input type="range" id="chaserSize" min="5" max="50" value="20">
+                                        <span class="mini-value" id="chaserSizeValue">20</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="chaser.tailLength" title="Bind to controller">C</button>
+                                        <span class="mini-label">Tail</span>
+                                        <input type="range" id="chaserTailLength" min="20" max="150" value="60">
+                                        <span class="mini-value" id="chaserTailLengthValue">60</span>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="control-group">
-                                <label>Tail Length</label>
-                                <input type="range" id="chaserTailLength" min="20" max="150" value="60">
-                                <div class="control-value" id="chaserTailLengthValue">60</div>
-                            </div>
-
-                            <div class="control-group">
-                                <label>Primary Color</label>
-                                <input type="color" id="chaserColor" value="#b34233">
-                            </div>
-
-                            <div class="control-group">
-                                <label>Secondary Color</label>
-                                <input type="color" id="chaserColorSecondary" value="#8b2500">
+                            <!-- Colors Sub-section -->
+                            <div class="control-subsection collapsible collapsed">
+                                <div class="subsection-header">
+                                    <span class="subsection-label">Colors</span>
+                                    <span class="subsection-toggle"></span>
+                                </div>
+                                <div class="subsection-content">
+                                    <div class="control-group">
+                                        <label>Primary</label>
+                                        <input type="color" id="chaserColor" value="#b34233">
+                                    </div>
+                                    <div class="control-group">
+                                        <label>Secondary</label>
+                                        <input type="color" id="chaserColorSecondary" value="#8b2500">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
