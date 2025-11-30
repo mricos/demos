@@ -202,11 +202,13 @@ window.APP = window.APP || {};
             this._bindRange('chaserBodyLength', 'chaser.bodyLength');
             this._bindRange('chaserBodyWidth', 'chaser.bodyWidth');
             this._bindRange('chaserBodyAngle', 'chaser.bodyAngle');
+            this._bindRange('chaserBodyRoundness', 'chaser.bodyRoundness');
             this._bindRange('chaserBodyOpacity', 'chaser.bodyOpacity');
             this._bindSelect('chaserBodyStyle', 'chaser.bodyStyle');
             // Tail
             this._bindRange('chaserTailLength', 'chaser.tailLength');
             this._bindRange('chaserTailWidth', 'chaser.tailWidth');
+            this._bindRange('chaserTailAngle', 'chaser.tailAngle');
             this._bindRange('chaserTailOpacity', 'chaser.tailOpacity');
             this._bindSelect('chaserTailStyle', 'chaser.tailStyle');
             // Glow
@@ -1014,12 +1016,166 @@ window.APP = window.APP || {};
          * Setup ghost badge toggles - prevent clicks from collapsing section
          */
         _setupGhostBadges() {
+            // Visual object toggles that can be soloed
+            const soloableIds = ['outerEnabled', 'innerEnabled', 'curveEnabled', 'trackEnabled', 'chaserEnabled'];
+            const soloStatePaths = {
+                'outerEnabled': 'outer.enabled',
+                'innerEnabled': 'inner.enabled',
+                'curveEnabled': 'curve.enabled',
+                'trackEnabled': 'track.enabled',
+                'chaserEnabled': 'chaser.enabled'
+            };
+
+            // Track solo state - Set of soloed IDs
+            this._soloSet = new Set();
+            this._soloableIds = soloableIds;
+            this._soloStatePaths = soloStatePaths;
+            this._preSoloStates = null;
+
             // Stop propagation on both the badge (label) and the hidden checkbox
             document.querySelectorAll('.ghost-badge, .ghost-toggle').forEach(el => {
                 el.addEventListener('click', (e) => {
                     e.stopPropagation();
+
+                    const checkbox = el.classList.contains('ghost-toggle') ? el : document.getElementById(el.getAttribute('for'));
+                    if (!checkbox) return;
+
+                    // If in solo mode and clicking a soloed badge, toggle it out
+                    if (this._soloSet && this._soloSet.size > 0 && this._soloSet.has(checkbox.id)) {
+                        e.preventDefault();
+                        this._toggleSoloItem(checkbox.id);
+                        return;
+                    }
+
+                    // Check for shift-click solo on soloable badges
+                    if (e.shiftKey && soloableIds.includes(checkbox.id)) {
+                        e.preventDefault();
+                        this._toggleSolo(checkbox.id);
+                    }
                 });
             });
+        },
+
+        /**
+         * Toggle a single item in/out of solo set
+         */
+        _toggleSoloItem(id) {
+            if (this._soloSet.has(id)) {
+                // Remove from solo set
+                this._soloSet.delete(id);
+
+                // Update badge
+                const badge = document.querySelector(`label[for="${id}"]`);
+                if (badge) {
+                    badge.textContent = '';
+                    badge.classList.remove('solo-active');
+                }
+
+                // If no more solos, exit solo mode entirely
+                if (this._soloSet.size === 0) {
+                    // Restore previous states before clearing
+                    if (this._preSoloStates) {
+                        for (const [elemId, wasEnabled] of Object.entries(this._preSoloStates)) {
+                            const path = this._soloStatePaths[elemId];
+                            if (path) {
+                                APP.State.dispatch({ type: path, payload: wasEnabled });
+                            }
+                        }
+                        this._preSoloStates = null;
+                    }
+                    APP.Toast?.show('Solo off');
+                } else {
+                    // Hide this item
+                    const path = this._soloStatePaths[id];
+                    if (path) {
+                        APP.State.dispatch({ type: path, payload: false });
+                    }
+                    APP.Toast?.show(`Solo: ${this._soloSet.size} items`);
+                }
+            }
+        },
+
+        /**
+         * Exit solo mode and restore previous states
+         */
+        _exitSolo() {
+            // Restore previous states
+            if (this._preSoloStates) {
+                for (const [elemId, wasEnabled] of Object.entries(this._preSoloStates)) {
+                    const path = this._soloStatePaths[elemId];
+                    if (path) {
+                        APP.State.dispatch({ type: path, payload: wasEnabled });
+                    }
+                }
+                this._preSoloStates = null;
+            }
+
+            // Clear all solo indicators
+            for (const id of this._soloSet) {
+                const badge = document.querySelector(`label[for="${id}"]`);
+                if (badge) {
+                    badge.textContent = '';
+                    badge.classList.remove('solo-active');
+                }
+            }
+
+            this._soloSet.clear();
+            APP.Toast?.show('Solo off');
+        },
+
+        /**
+         * Toggle solo mode for a visual object
+         * Shift-click: add/remove from solo set
+         */
+        _toggleSolo(id) {
+            // First time entering solo mode - save all states
+            if (this._soloSet.size === 0) {
+                this._preSoloStates = {};
+                for (const elemId of this._soloableIds) {
+                    const path = this._soloStatePaths[elemId];
+                    this._preSoloStates[elemId] = APP.State.select(path) ?? false;
+                }
+                // Hide all
+                for (const elemId of this._soloableIds) {
+                    const path = this._soloStatePaths[elemId];
+                    APP.State.dispatch({ type: path, payload: false });
+                }
+            }
+
+            if (this._soloSet.has(id)) {
+                // Remove from solo
+                this._soloSet.delete(id);
+                const path = this._soloStatePaths[id];
+                APP.State.dispatch({ type: path, payload: false });
+
+                const badge = document.querySelector(`label[for="${id}"]`);
+                if (badge) {
+                    badge.textContent = '';
+                    badge.classList.remove('solo-active');
+                }
+
+                // If no more solos, exit entirely
+                if (this._soloSet.size === 0) {
+                    this._exitSolo();
+                    return;
+                }
+            } else {
+                // Add to solo
+                this._soloSet.add(id);
+                const path = this._soloStatePaths[id];
+                APP.State.dispatch({ type: path, payload: true });
+
+                const badge = document.querySelector(`label[for="${id}"]`);
+                if (badge) {
+                    badge.textContent = 'S';
+                    badge.classList.add('solo-active');
+                }
+            }
+
+            const names = Array.from(this._soloSet).map(i =>
+                i.replace('Enabled', '').replace(/([A-Z])/g, ' $1').trim()
+            );
+            APP.Toast?.show(`Solo: ${names.join(', ')}`);
         },
 
         /**

@@ -62,15 +62,15 @@ window.APP = window.APP || {};
         getRotationRate() {
             const trackRotation = APP.State?.select('track.rotation');
             const pps = APP.State?.select('animation.pps') || 1.0;
+            const ppr = APP.State?.select('animation.ppr') || 160;
 
             if (trackRotation) {
                 const speed = trackRotation.speed ?? 50;
                 const direction = trackRotation.direction ?? 1;
                 const syncBpm = trackRotation.syncBpm ?? true;
-                const ppr = trackRotation.ppr ?? 160;
 
                 if (syncBpm) {
-                    // BPM-synced: use PPR (pulses per revolution)
+                    // BPM-synced: use global animation.ppr (pulses per revolution)
                     // deg/ms = (360 deg/rev) * (pps pulse/sec) / (ppr pulse/rev) / 1000
                     // Speed scales the rate: 0 = stopped, 50 = normal, 100 = 2x
                     const speedFactor = speed / 50;
@@ -82,8 +82,7 @@ window.APP = window.APP || {};
                 }
             }
 
-            // Fallback to legacy animation.ppr
-            const ppr = APP.State?.select('animation.ppr') || 160;
+            // Fallback to legacy behavior
             return 360 * pps / (ppr * 1000);
         },
 

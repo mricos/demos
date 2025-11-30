@@ -29,6 +29,8 @@ window.APP = window.APP || {};
         pitchClamp: false,
         rollMode: 'view',
         _lastHaze: 0,
+        _lastGreenDesat: 0,
+        _lastBlur: 0,
         _lastHazeRotX: null,
         _lastHazeRotY: null,
         _lastTrackHazeTime: 0,
@@ -255,9 +257,14 @@ window.APP = window.APP || {};
 
                     this.applyTransform();
 
-                    // Update view-space haze on geometry (only when rotation changed)
+                    // Update view-space effects on geometry (haze, greenDesat, blur)
                     const hazeIntensity = APP.State?.select('display.haze') || 0;
+                    const greenDesat = APP.State?.select('display.greenDesat') ?? 0;
+                    const blur = APP.State?.select('display.blur') ?? 0;
+
                     const hazeChanged = hazeIntensity !== this._lastHaze;
+                    const greenDesatChanged = greenDesat !== this._lastGreenDesat;
+                    const blurChanged = blur !== this._lastBlur;
 
                     // Use follow camera rotation when in follow mode
                     const effectiveRotX = followMode ? this._followPitch : this.rotation.x;
@@ -268,14 +275,20 @@ window.APP = window.APP || {};
                         Math.abs(effectiveRotX - this._lastHazeRotX) > 0.5 ||
                         Math.abs(effectiveRotY - this._lastHazeRotY) > 0.5;
 
-                    // In follow mode, always update haze (camera moves constantly)
-                    if ((hazeIntensity > 0 && (rotChanged || followMode)) || hazeChanged) {
+                    // Any effect active?
+                    const anyEffectActive = hazeIntensity > 0 || greenDesat > 0 || blur > 0;
+                    const anyEffectChanged = hazeChanged || greenDesatChanged || blurChanged;
+
+                    // Update when effects change or rotation changes while effects are active
+                    if ((anyEffectActive && (rotChanged || followMode)) || anyEffectChanged) {
                         const hazeOpts = {
                             rotX: effectiveRotX,
                             rotY: effectiveRotY,
                             rotZ: effectiveRotZ,
                             intensity: hazeIntensity,
                             rollMode: this.rollMode,
+                            greenDesat: greenDesat,
+                            blur: blur,
                             // In follow mode, pass camera position for relative depth calc
                             camPos: followMode ? this._followPos : null
                         };
@@ -283,14 +296,17 @@ window.APP = window.APP || {};
                         APP.Scene?.innerCylinder?.updateHaze(hazeOpts);
                         APP.Scene?.curve?.updateHaze(hazeOpts);
 
-                        // Throttle track haze more aggressively (every 50ms)
+                        // Throttle track and chaser haze more aggressively (every 50ms)
                         const now = currentTime;
                         if (now - this._lastTrackHazeTime > 50) {
                             APP.Scene?.track?.updateHaze(hazeOpts);
+                            APP.ParticleChaser?.updateHaze(hazeOpts);
                             this._lastTrackHazeTime = now;
                         }
 
                         this._lastHaze = hazeIntensity;
+                        this._lastGreenDesat = greenDesat;
+                        this._lastBlur = blur;
                         this._lastHazeRotX = effectiveRotX;
                         this._lastHazeRotY = effectiveRotY;
                     }

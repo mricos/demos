@@ -68,17 +68,19 @@ window.APP = window.APP || {};
             const headOpacity = (state?.headOpacity ?? 100) / 100;
             // Body (wings - perpendicular to travel)
             const bodyLength = state?.bodyLength || 54;
-            const bodyWidth = ((state?.bodyWidth ?? 33) / 100) * size;
-            const bodyAngle = state?.bodyAngle ?? 90;  // 0 = knife, 90 = flat wing
+            const bodyWidth = state?.bodyWidth ?? 10;  // Width in px
+            const bodyAngle = state?.bodyAngle ?? 90;  // 0-360: rotation around travel axis
+            const bodyRoundness = (state?.bodyRoundness ?? 100) / 100;  // 0-1
             const bodyOpacity = (state?.bodyOpacity ?? 85) / 100;
             const bodyStyle = state?.bodyStyle || 'gradient';
             // Tail/Exhaust (extends from back of body)
             const tailLength = state?.tailLength || 40;
-            const tailWidth = ((state?.tailWidth ?? 25) / 100) * size;
+            const tailWidth = state?.tailWidth ?? 8;  // Width in px
+            const tailAngle = state?.tailAngle ?? 0;  // 0-360: rotation around travel axis
             const tailOpacity = (state?.tailOpacity ?? 70) / 100;
             const tailStyle = state?.tailStyle || 'gradient';
             // Glow
-            const glowSize = ((state?.glowSize ?? 50) / 100) * size;
+            const glowSize = state?.glowSize ?? 20;  // Glow radius in px
             const glowIntensity = (state?.glowIntensity ?? 50) / 100;
             const color = state?.color || '#b34233';
             const colorSecondary = state?.colorSecondary || '#8b2500';
@@ -123,10 +125,16 @@ window.APP = window.APP || {};
             `;
 
             // Helper to get background based on style
-            const getBackground = (style) => {
+            // direction: 'horizontal' (body/wings) or 'vertical' (tail/exhaust)
+            const getBackground = (style, direction = 'horizontal') => {
                 if (style === 'solid') return color;
                 if (style === 'glow') return `radial-gradient(ellipse at center, ${color} 0%, ${colorSecondary} 40%, transparent 70%)`;
-                // gradient (default)
+                // gradient (default) - direction matters
+                if (direction === 'vertical') {
+                    // Tail: fade from top (bright) to bottom (transparent)
+                    return `linear-gradient(180deg, ${color} 0%, ${colorSecondary} 30%, transparent 100%)`;
+                }
+                // Body: horizontal gradient with transparent edges
                 return `linear-gradient(90deg, transparent, ${colorSecondary} 20%, ${color} 50%, ${colorSecondary} 80%, transparent)`;
             };
 
@@ -135,8 +143,8 @@ window.APP = window.APP || {};
                 : 'none';
 
             // Body element (wings - perpendicular to travel)
-            // Angle: 0 = knife edge (rotateX 90), 90 = flat wing (rotateX 0)
-            const bodyRotateX = 90 - bodyAngle;
+            // rotateY(90deg) makes it perpendicular to head facing
+            // rotateX rotates around the travel axis: 0 = horizontal wings, 90 = vertical, 360 = full rotation
             this.body = document.createElement('div');
             this.body.className = 'chaser-body';
             this.body.style.cssText = `
@@ -144,28 +152,31 @@ window.APP = window.APP || {};
                 width: ${bodyLength}px;
                 height: ${bodyWidth}px;
                 background: ${getBackground(bodyStyle)};
-                transform: translate(-50%, -50%) rotateY(90deg) rotateX(${bodyRotateX}deg);
+                transform: translate(-50%, -50%) rotateY(90deg) rotateX(${bodyAngle}deg);
                 opacity: ${bodyOpacity};
                 box-shadow: ${partGlow};
-                border-radius: ${bodyWidth / 2}px;
+                border-radius: ${bodyRoundness * Math.min(bodyLength, bodyWidth) / 2}px;
                 transform-style: preserve-3d;
             `;
 
-            // Tail/Exhaust element - extends from back of body like exhaust
-            // Position at the back edge of the body, extending backward
-            const tailOffsetY = bodyWidth / 2;  // Start at back edge of body
+            // Tail/Exhaust element - extends from end of body like exhaust
+            // Body is centered at head, extends left/right (after rotateY(90deg) it's in Z axis)
+            // Tail attaches to the right tip of body and extends backward (not sideways)
+            // rotateZ(90deg) rotates tail within its plane to point backward
+            // Use ellipse clip to show only the radiant half
             this.tail = document.createElement('div');
             this.tail.className = 'chaser-tail';
             this.tail.style.cssText = `
                 position: absolute;
                 width: ${tailWidth}px;
                 height: ${tailLength}px;
-                background: ${getBackground(tailStyle)};
-                transform: translate(-50%, 0) translateY(${tailOffsetY}px);
+                background: ${getBackground(tailStyle, 'vertical')};
+                transform: translate3d(0, 0, ${bodyLength / 2}px) rotateY(90deg) rotateX(${tailAngle}deg) rotateZ(90deg) translate(-50%, 0);
                 transform-origin: center top;
                 opacity: ${tailOpacity};
                 box-shadow: ${partGlow};
                 border-radius: ${tailWidth / 2}px;
+                clip-path: ellipse(50% 50% at 50% 0%);
             `;
 
             this.container.appendChild(this.head);
@@ -217,24 +228,27 @@ window.APP = window.APP || {};
             // Check if we have a closed loop track
             const track = APP.Scene?.track;
             const trackState = APP.State.select('track');
-            if (!track || !trackState?.enabled) {
-                this.container.style.display = 'none';
-                return;
-            }
+            const hasTrack = track && trackState?.enabled;
 
-            // Only run on closed loops
-            const presetInfo = APP.TrackPresets?.getInfo(trackState.preset);
-            if (!presetInfo?.closed) {
-                this.container.style.display = 'none';
+            // Check if track is a closed loop
+            const presetInfo = APP.TrackPresets?.getInfo(trackState?.preset);
+            const isClosedLoop = presetInfo?.closed;
+
+            // Isolate mode: show chaser at center when no valid track
+            if (!hasTrack || !isClosedLoop) {
+                this.container.style.display = 'block';
+                // Position at scene center, static for editing
+                this.container.style.transform = `translate3d(0px, 0px, 0px)`;
                 return;
             }
 
             this.container.style.display = 'block';
 
             // Build/rebuild arc-length table if needed (cache by track preset)
+            // Use high sample count for smooth motion
             const trackId = trackState.preset + '_' + (trackState.tension || 0.5);
             if (!this._arcLengthTable || this._tableTrackId !== trackId) {
-                const result = this._buildArcLengthTable(track, 300);
+                const result = this._buildArcLengthTable(track, 1000);
                 this._arcLengthTable = result.table;
                 this._tableTrackId = trackId;
             }
@@ -246,10 +260,12 @@ window.APP = window.APP || {};
 
             let loopsPerSecond;
             if (syncBpm) {
-                // BPM-synced: speed 50 = 1 loop per 4 beats
+                // BPM-synced: use PPR (pulses per revolution)
+                // loops/sec = pps / ppr (one loop = one revolution)
                 const pps = APP.State.select('animation.pps') || 1.0;
+                const ppr = APP.State.select('animation.ppr') || 160;
                 const speedFactor = speed / 50;
-                loopsPerSecond = (pps / 4) * speedFactor;
+                loopsPerSecond = speedFactor * pps / ppr;
             } else {
                 // Free mode: speed directly controls loops per second (0-100 → 0-2 loops/sec)
                 loopsPerSecond = (speed / 100) * 2;
@@ -271,8 +287,12 @@ window.APP = window.APP || {};
             const trackT = this._arcLengthToT(this.t, this._arcLengthTable);
 
             // Get position and frame on track using the corrected parameter
-            const pos = track.getPoint(trackT);
+            const targetPos = track.getPoint(trackT);
             const frame = track.getFrame(trackT);
+
+            // Apply position smoothing
+            const smoothing = chaserState.smoothing ?? 50;
+            const pos = this._smoothPosition(targetPos, deltaMs, smoothing);
 
             // Store for follow cam
             this.currentPos = pos;
@@ -287,7 +307,6 @@ window.APP = window.APP || {};
             const targetEuler = stabilize ? this._frameToEulerStabilized(frame) : this._frameToEuler(frame);
 
             // Apply rotation smoothing
-            const smoothing = chaserState.smoothing ?? 50;
             const euler = this._smoothRotation(targetEuler, deltaMs, smoothing);
 
             // Apply transform
@@ -297,6 +316,33 @@ window.APP = window.APP || {};
                 rotateY(${euler.y}deg)
                 rotateZ(${euler.z}deg)
             `;
+        },
+
+        /**
+         * Smoothly interpolate position towards target
+         * @param {Object} target - Target position { x, y, z }
+         * @param {number} deltaMs - Time delta in ms
+         * @param {number} smoothing - 0-100 smoothing amount
+         * @returns {Object} Smoothed position
+         */
+        _smoothPosition(target, deltaMs, smoothing) {
+            // Initialize smoothed state if needed
+            if (!this._smoothedPos) {
+                this._smoothedPos = { ...target };
+                return target;
+            }
+
+            // Use smaller time constant for position (tighter tracking)
+            // smoothing 0 = instant, 100 = smooth but still follows closely
+            const tau = 5 + (smoothing / 100) * 50; // 5-55ms time constant
+            const alpha = 1 - Math.exp(-deltaMs / tau);
+
+            // Lerp each component
+            this._smoothedPos.x = this._smoothedPos.x + (target.x - this._smoothedPos.x) * alpha;
+            this._smoothedPos.y = this._smoothedPos.y + (target.y - this._smoothedPos.y) * alpha;
+            this._smoothedPos.z = this._smoothedPos.z + (target.z - this._smoothedPos.z) * alpha;
+
+            return this._smoothedPos;
         },
 
         /**
@@ -471,6 +517,70 @@ window.APP = window.APP || {};
 
             const alpha = (s - s0) / (s1 - s0);
             return t0 + alpha * (t1 - t0);
+        },
+
+        /**
+         * Update haze/opacity based on camera view
+         * opts: { rotX, rotY, rotZ, intensity, rollMode }
+         */
+        updateHaze(opts) {
+            if (!this.container || !this.currentPos) return;
+
+            const { rotX, rotY, rotZ, intensity, rollMode } = opts;
+
+            // Get base opacities from state
+            const chaserState = APP.State.select('chaser');
+            const headOpacity = (chaserState?.headOpacity ?? 100) / 100;
+            const bodyOpacity = (chaserState?.bodyOpacity ?? 85) / 100;
+            const tailOpacity = (chaserState?.tailOpacity ?? 70) / 100;
+
+            if (intensity <= 0) {
+                // No haze - restore base opacities
+                if (this.head) this.head.style.opacity = headOpacity;
+                if (this.body) this.body.style.opacity = bodyOpacity;
+                if (this.tail) this.tail.style.opacity = tailOpacity;
+                return;
+            }
+
+            const hazeFactor = intensity / 100;
+            const pos = this.currentPos;
+
+            // Convert degrees to radians
+            const rx = rotX * Math.PI / 180;
+            const ry = rotY * Math.PI / 180;
+            const rz = rotZ * Math.PI / 180;
+
+            // Precompute trig
+            const cosX = Math.cos(rx), sinX = Math.sin(rx);
+            const cosY = Math.cos(ry), sinY = Math.sin(ry);
+            const cosZ = Math.cos(rz), sinZ = Math.sin(rz);
+
+            // Calculate view-space Z for chaser position
+            let viewZ;
+            if (rollMode === 'world') {
+                const xz = pos.x * cosZ - pos.y * sinZ;
+                const yz = pos.x * sinZ + pos.y * cosZ;
+                const zy = -xz * sinY + pos.z * cosY;
+                viewZ = yz * sinX + zy * cosX;
+            } else {
+                const z1 = -pos.x * sinY + pos.z * cosY;
+                viewZ = pos.y * sinX + z1 * cosX;
+            }
+
+            // Normalize viewZ to 0-1 range (estimate scene bounds)
+            // Use a reasonable range for typical track sizes
+            const sceneRadius = 300;
+            const zNorm = (viewZ + sceneRadius) / (2 * sceneRadius);
+            const zClamped = Math.max(0, Math.min(1, zNorm));
+
+            // Calculate haze amount (0 = far/hazy, 1 = near/clear)
+            const hazeAmount = 1 - (1 - zClamped) * hazeFactor;
+            const hazeMult = Math.max(0.15, hazeAmount);
+
+            // Apply to all parts
+            if (this.head) this.head.style.opacity = headOpacity * hazeMult;
+            if (this.body) this.body.style.opacity = bodyOpacity * hazeMult;
+            if (this.tail) this.tail.style.opacity = tailOpacity * hazeMult;
         }
     };
 

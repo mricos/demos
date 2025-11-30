@@ -216,7 +216,7 @@
                     <div class="section-content">
                         <div class="control-group">
                             <label>Zoom</label>
-                            <input type="range" id="cameraZoom" min="30" max="250" value="100">
+                            <input type="range" id="cameraZoom" min="10" max="800" value="100">
                             <div class="control-value" id="cameraZoomValue">1.0</div>
                         </div>
 
@@ -1096,14 +1096,20 @@
                                     <div class="mini-control">
                                         <button class="ctrl-btn" data-bind="chaser.bodyWidth" title="Bind to controller">C</button>
                                         <span class="mini-label">Width</span>
-                                        <input type="range" id="chaserBodyWidth" min="10" max="100" value="33">
-                                        <span class="mini-value" id="chaserBodyWidthValue">33%</span>
+                                        <input type="range" id="chaserBodyWidth" min="1" max="50" value="10">
+                                        <span class="mini-value" id="chaserBodyWidthValue">10</span>
                                     </div>
                                     <div class="mini-control">
                                         <button class="ctrl-btn" data-bind="chaser.bodyAngle" title="Bind to controller">C</button>
                                         <span class="mini-label">Angle</span>
-                                        <input type="range" id="chaserBodyAngle" min="0" max="90" value="90">
+                                        <input type="range" id="chaserBodyAngle" min="0" max="360" value="90">
                                         <span class="mini-value" id="chaserBodyAngleValue">90°</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="chaser.bodyRoundness" title="Bind to controller">C</button>
+                                        <span class="mini-label">Round</span>
+                                        <input type="range" id="chaserBodyRoundness" min="0" max="100" value="100">
+                                        <span class="mini-value" id="chaserBodyRoundnessValue">100%</span>
                                     </div>
                                     <div class="mini-control">
                                         <button class="ctrl-btn" data-bind="chaser.bodyOpacity" title="Bind to controller">C</button>
@@ -1138,8 +1144,14 @@
                                     <div class="mini-control">
                                         <button class="ctrl-btn" data-bind="chaser.tailWidth" title="Bind to controller">C</button>
                                         <span class="mini-label">Width</span>
-                                        <input type="range" id="chaserTailWidth" min="10" max="100" value="25">
-                                        <span class="mini-value" id="chaserTailWidthValue">25%</span>
+                                        <input type="range" id="chaserTailWidth" min="1" max="50" value="8">
+                                        <span class="mini-value" id="chaserTailWidthValue">8</span>
+                                    </div>
+                                    <div class="mini-control">
+                                        <button class="ctrl-btn" data-bind="chaser.tailAngle" title="Bind to controller">C</button>
+                                        <span class="mini-label">Angle</span>
+                                        <input type="range" id="chaserTailAngle" min="0" max="360" value="0">
+                                        <span class="mini-value" id="chaserTailAngleValue">0°</span>
                                     </div>
                                     <div class="mini-control">
                                         <button class="ctrl-btn" data-bind="chaser.tailOpacity" title="Bind to controller">C</button>
@@ -1168,8 +1180,8 @@
                                     <div class="mini-control">
                                         <button class="ctrl-btn" data-bind="chaser.glowSize" title="Bind to controller">C</button>
                                         <span class="mini-label">Size</span>
-                                        <input type="range" id="chaserGlowSize" min="0" max="100" value="50">
-                                        <span class="mini-value" id="chaserGlowSizeValue">50%</span>
+                                        <input type="range" id="chaserGlowSize" min="0" max="100" value="20">
+                                        <span class="mini-value" id="chaserGlowSizeValue">20</span>
                                     </div>
                                     <div class="mini-control">
                                         <button class="ctrl-btn" data-bind="chaser.glowIntensity" title="Bind to controller">C</button>

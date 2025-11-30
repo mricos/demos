@@ -263,17 +263,19 @@ window.APP = window.APP || {};
             headOpacity: 100,        // 0-100
             // Body/Wings appearance (perpendicular to travel - like wings)
             bodyLength: 54,          // Wing span in px
-            bodyWidth: 33,           // Wing width as % of head size
-            bodyAngle: 90,           // 0-90: 0 = knife edge, 90 = flat wing
+            bodyWidth: 10,           // Wing width in px
+            bodyAngle: 90,           // 0-360: rotation around travel axis
+            bodyRoundness: 100,      // 0-100: corner roundness (0 = square, 100 = fully rounded)
             bodyOpacity: 85,         // 0-100
             bodyStyle: 'gradient',   // 'gradient', 'solid', 'glow'
             // Tail/Exhaust appearance (extends from back of body)
             tailLength: 40,          // Exhaust length in px
-            tailWidth: 25,           // Exhaust width as % of head size
+            tailWidth: 8,            // Exhaust width in px
+            tailAngle: 0,            // 0-360: rotation around travel axis (0 = same plane as body)
             tailOpacity: 70,         // 0-100
             tailStyle: 'gradient',   // 'gradient', 'solid', 'glow'
             // Glow effects
-            glowSize: 50,            // 0-100: glow radius as % of size
+            glowSize: 20,            // Glow radius in px
             glowIntensity: 50,       // 0-100
             // Colors
             color: '#b34233',        // Rust/red primary
@@ -327,8 +329,8 @@ window.APP = window.APP || {};
             sensitivityScale: 10,        // Stored value divisor (10 → 1.0)
             pitchClampMin: -90,
             pitchClampMax: 90,
-            zoomMin: 30,
-            zoomMax: 250,
+            zoomMin: 10,
+            zoomMax: 800,
             wheelZoomFactor: 0.1,
 
             // Geometry
