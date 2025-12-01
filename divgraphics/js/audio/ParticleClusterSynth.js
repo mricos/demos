@@ -499,14 +499,26 @@ window.APP = window.APP || {};
          * Subscribe to state changes
          */
         _subscribe() {
+            // Listen for enabled toggle
+            APP.State?.subscribe('audio.cluster.enabled', (enabled) => {
+                if (this.masterGain && this.ctx) {
+                    const vol = APP.State?.select('audio.cluster.volume') ?? 30;
+                    const targetGain = enabled ? vol / 100 : 0;
+                    this.masterGain.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.05);
+                }
+            });
+
             APP.State?.subscribe('audio.cluster.volume', (vol) => {
-                if (this.masterGain) {
-                    this.masterGain.gain.setTargetAtTime(vol / 100, this.ctx.currentTime, 0.05);
+                if (this.masterGain && this.ctx) {
+                    const enabled = APP.State?.select('audio.cluster.enabled') !== false;
+                    if (enabled) {
+                        this.masterGain.gain.setTargetAtTime(vol / 100, this.ctx.currentTime, 0.05);
+                    }
                 }
             });
 
             APP.State?.subscribe('audio.cluster.reverbMix', (mix) => {
-                if (this.reverbWet && this.reverbDry) {
+                if (this.reverbWet && this.reverbDry && this.ctx) {
                     const wetLevel = mix / 100;
                     this.reverbWet.gain.setTargetAtTime(wetLevel, this.ctx.currentTime, 0.05);
                     this.reverbDry.gain.setTargetAtTime(1 - wetLevel, this.ctx.currentTime, 0.05);

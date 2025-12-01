@@ -154,6 +154,11 @@ window.APP = window.APP || {};
             }
             // Migrate old schema to new bank-based structure
             this._migrateSchema();
+
+            // Force audio.enabled = false on every load (requires user gesture)
+            if (this.state.audio) {
+                this.state.audio.enabled = false;
+            }
         },
 
         /**
