@@ -283,6 +283,18 @@ window.APP = window.APP || {};
             }
         }
 
+        /**
+         * Set pulse value for audio-synced glow (0-1)
+         */
+        setPulse(pulse) {
+            if (!this._faces.length) return;
+            // Modulate opacity: base * (0.5 + 0.5 * pulse) for gentle glow
+            const glowOpacity = this.opacity * (0.6 + 0.4 * pulse);
+            for (const face of this._faces) {
+                face.el.style.opacity = glowOpacity;
+            }
+        }
+
         getStats() {
             return { divCount: this.divCount, faceCount: this.faceCount };
         }
@@ -537,6 +549,14 @@ window.APP = window.APP || {};
             }
         }
 
+        setPulse(pulse) {
+            if (!this._faces.length) return;
+            const glowOpacity = this.opacity * (0.6 + 0.4 * pulse);
+            for (const face of this._faces) {
+                face.el.style.opacity = glowOpacity;
+            }
+        }
+
         getStats() {
             return { divCount: this.divCount, faceCount: this.faceCount };
         }
@@ -759,6 +779,14 @@ window.APP = window.APP || {};
             }
         }
 
+        setPulse(pulse) {
+            if (!this._faces.length) return;
+            const glowOpacity = this.opacity * (0.6 + 0.4 * pulse);
+            for (const face of this._faces) {
+                face.el.style.opacity = glowOpacity;
+            }
+        }
+
         getStats() {
             return { divCount: this.divCount, faceCount: this.faceCount };
         }
@@ -915,6 +943,14 @@ window.APP = window.APP || {};
                     ? Math.max(0.15, 1 - zNorm * hazeFactor)
                     : Math.max(0.15, 1 - (1 - zNorm) * hazeFactor);
                 this._faces[i].el.style.opacity = this.opacity * opacity;
+            }
+        }
+
+        setPulse(pulse) {
+            if (!this._faces.length) return;
+            const glowOpacity = this.opacity * (0.6 + 0.4 * pulse);
+            for (const face of this._faces) {
+                face.el.style.opacity = glowOpacity;
             }
         }
 

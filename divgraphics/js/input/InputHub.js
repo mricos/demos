@@ -334,6 +334,9 @@ window.APP = window.APP || {};
             if (source === 'lfo') {
                 return 'lfo';
             }
+            if (source === 'audio-lfo') {
+                return 'audio-lfo';
+            }
             if (source === 'keyboard') {
                 return key.startsWith('hold:') ? 'keyboard-hold' : 'keyboard-key';
             }

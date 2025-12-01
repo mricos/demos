@@ -22,6 +22,44 @@ window.APP = window.APP || {};
 
         init() {
             this._setupCtrlButtonListener();
+            this._updateBoundButtons();
+            this._subscribeToMaps();
+        },
+
+        /**
+         * Subscribe to map changes to update button highlights
+         */
+        _subscribeToMaps() {
+            APP.State?.subscribe('input.banks.*', () => {
+                this._updateBoundButtons();
+            });
+        },
+
+        /**
+         * Update all ctrl-btn elements to show bound state
+         */
+        _updateBoundButtons() {
+            const buttons = document.querySelectorAll('.ctrl-btn[data-bind]');
+            const activeBank = APP.State?.select('input.activeBank') || 'A';
+            const maps = APP.State?.select(`input.banks.${activeBank}.maps`) || {};
+
+            // Build set of bound paths
+            const boundPaths = new Set();
+            Object.values(maps).forEach(map => {
+                if (map.target?.path) {
+                    boundPaths.add(map.target.path);
+                }
+            });
+
+            // Update each button
+            buttons.forEach(btn => {
+                const bindKey = btn.dataset.bind;
+                if (boundPaths.has(bindKey)) {
+                    btn.classList.add('bound');
+                } else {
+                    btn.classList.remove('bound');
+                }
+            });
         },
 
         /**

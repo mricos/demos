@@ -16,14 +16,54 @@ window.APP = window.APP || {};
         'inner': 'inner',
         'scene': 'scene',
         'camera': 'camera',
-        'display': 'display'
+        'display': 'display',
+        'sphere': 'sphere',
+        'ico': 'icosahedron',
+        'curve': 'curve',
+        'track': 'track',
+        'chaser': 'chaser',
+        'animation': 'animation',
+        'lfo': 'lfo',
+        'audio': 'audio'
     };
 
     // Special cases where ID doesn't follow prefix.property pattern
     const PATH_OVERRIDES = {
         'autoRotate': 'scene.autoRotate',
         'toastsEnabled': 'display.toasts',
-        'statsEnabled': 'display.stats'
+        'statsEnabled': 'display.stats',
+        // Curve offset controls (nested path)
+        'curveOffsetX': 'curve.offset.x',
+        'curveOffsetY': 'curve.offset.y',
+        'curveOffsetZ': 'curve.offset.z',
+        'curveOffsetScale': 'curve.offset.scale',
+        // Audio controls (nested paths)
+        'audioEnabled': 'audio.enabled',
+        'audioMasterVolume': 'audio.masterVolume',
+        'audioChaserEnabled': 'audio.chaser.enabled',
+        'audioChaserVolume': 'audio.chaser.volume',
+        'audioChaserFilterMin': 'audio.chaser.filterMin',
+        'audioChaserFilterMax': 'audio.chaser.filterMax',
+        'audioChaserFilterQ': 'audio.chaser.filterQ',
+        'audioChaserStereoWidth': 'audio.chaser.stereoWidth',
+        'audioSphereEnabled': 'audio.sphere.enabled',
+        'audioSphereVolume': 'audio.sphere.volume',
+        'audioSphereBaseFreq': 'audio.sphere.baseFreq',
+        'audioSphereFilterFreq': 'audio.sphere.filterFreq',
+        'audioSphereFilterQ': 'audio.sphere.filterQ',
+        'audioSphereLfoRate': 'audio.sphere.lfoRate',
+        'audioSphereLfoDepth': 'audio.sphere.lfoDepth',
+        'audioSphereAttack': 'audio.sphere.attack',
+        'audioSphereDecay': 'audio.sphere.decay',
+        'audioSphereSustain': 'audio.sphere.sustain',
+        'audioSphereRelease': 'audio.sphere.release',
+        'audioCabinEnabled': 'audio.cabin.enabled',
+        'audioCabinVolume': 'audio.cabin.volume',
+        'audioCabinFilterFreq': 'audio.cabin.filterFreq',
+        'audioEngineEnabled': 'audio.engine.enabled',
+        'audioEngineVolume': 'audio.engine.volume',
+        'audioEngineBaseFreq': 'audio.engine.baseFreq',
+        'audioEngineFilterFreq': 'audio.engine.filterFreq'
     };
 
     APP.ParameterRegistry = {

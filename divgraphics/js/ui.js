@@ -36,6 +36,8 @@ window.APP = window.APP || {};
         'trackRotationSpeed': (v) => v,
         'trackRotationPpr': (v) => v,
         'sphereOpacity': (v) => (v / 100).toFixed(2),
+        'spherePulse': (v) => (v / 100).toFixed(2),
+        'spherePulseDepth': (v) => v + '%',
         'icosahedronOpacity': (v) => (v / 100).toFixed(2)
     };
 
@@ -163,6 +165,8 @@ window.APP = window.APP || {};
             this._bindBorderWidth('sphereBorderWidth', 'sphere.borderWidth');
             this._bindRangeScaled('sphereOpacity', 'sphere.opacity', 100);
             this._bindRange('sphereScale', 'sphere.scale');
+            this._bindRangeScaled('spherePulse', 'sphere.pulse', 100);  // 0-100 → 0-1
+            this._bindRange('spherePulseDepth', 'sphere.pulseDepth');
             this._bindColor('sphereColor', 'sphere.color');
             this._bindColor('sphereColorSecondary', 'sphere.colorSecondary');
             this._bindSphereWireframeMode();
@@ -359,19 +363,17 @@ window.APP = window.APP || {};
         },
 
         _subscribe() {
-            // Sync UI when state changes (for MIDI-driven changes)
-            APP.State.subscribe('outer.*', () => this._syncFromState('outer'));
-            APP.State.subscribe('inner.*', () => this._syncFromState('inner'));
-            APP.State.subscribe('sphere.*', () => this._syncFromState('sphere'));
-            APP.State.subscribe('icosahedron.*', () => this._syncFromState('icosahedron'));
-            APP.State.subscribe('curve.*', () => this._syncFromState('curve'));
-            APP.State.subscribe('track.*', () => this._syncFromState('track'));
-            APP.State.subscribe('chaser.*', () => this._syncFromState('chaser'));
-            APP.State.subscribe('scene.*', () => this._syncFromState('scene'));
-            APP.State.subscribe('camera.*', () => this._syncFromState('camera'));
-            APP.State.subscribe('display.*', () => this._syncFromState('display'));
-            APP.State.subscribe('ui.*', () => this._syncFromState('ui'));
-            APP.State.subscribe('animation.*', () => this._syncFromState('animation'));
+            // Sync UI when state changes (for MIDI/LFO-driven changes)
+            // Use targeted sync to avoid expensive full-state iteration
+            const prefixes = ['outer', 'inner', 'sphere', 'icosahedron', 'curve',
+                              'track', 'chaser', 'scene', 'camera', 'display', 'ui', 'animation'];
+
+            prefixes.forEach(prefix => {
+                APP.State.subscribe(`${prefix}.*`, (val, state, meta) => {
+                    // Targeted sync: only update the specific element that changed
+                    this._syncSingleElement(meta.path, val);
+                });
+            });
             APP.State.subscribe('pip.*', () => this._syncFromState('pip'));
 
             // Outer controls visibility
@@ -1649,7 +1651,7 @@ window.APP = window.APP || {};
             // Skip custom-handled elements (scaled values that need special sync)
             const customHandled = ['animationPps', 'animationBpm', 'trackTension', 'cameraFov',
                                    'curveOffsetX', 'curveOffsetY', 'curveOffsetZ', 'curveOffsetScale',
-                                   'sphereOpacity', 'icosahedronOpacity'];
+                                   'sphereOpacity', 'spherePulse', 'icosahedronOpacity'];
 
             Object.entries(state).forEach(([key, value]) => {
                 const id = prefix + key.charAt(0).toUpperCase() + key.slice(1);
@@ -1693,8 +1695,65 @@ window.APP = window.APP || {};
             if (prefix === 'sphere' && state.opacity !== undefined) {
                 this._syncEl('sphereOpacity', state.opacity * 100, 'range', state.opacity.toFixed(2));
             }
+            // Handle pulse value (stored as 0-1 in state, slider is 0-100)
+            if (prefix === 'sphere' && state.pulse !== undefined) {
+                this._syncEl('spherePulse', state.pulse * 100, 'range', state.pulse.toFixed(2));
+            }
             if (prefix === 'icosahedron' && state.opacity !== undefined) {
                 this._syncEl('icoOpacity', state.opacity * 100, 'range', state.opacity.toFixed(2));
+            }
+        },
+
+        /**
+         * Sync a single element when its state path changes
+         * Much faster than _syncFromState for continuous updates (LFO, MIDI)
+         */
+        _syncSingleElement(path, value) {
+            // Convert path to element ID: sphere.opacity -> sphereOpacity
+            const parts = path.split('.');
+            if (parts.length < 2) return;
+
+            const prefix = parts[0];
+            const key = parts.slice(1).join('.');
+
+            // Handle nested paths (e.g., track.hoop.radius)
+            let id;
+            if (parts.length === 2) {
+                id = prefix + key.charAt(0).toUpperCase() + key.slice(1);
+            } else {
+                // Nested: track.hoop.radius -> trackHoopRadius
+                id = parts.map((p, i) => i === 0 ? p : p.charAt(0).toUpperCase() + p.slice(1)).join('');
+            }
+
+            // Handle special scaled values
+            const scaledPaths = {
+                'sphere.opacity': { mult: 100, format: v => v.toFixed(2) },
+                'sphere.pulse': { mult: 100, format: v => v.toFixed(2) },
+                'icosahedron.opacity': { mult: 100, format: v => v.toFixed(2) },
+                'track.hoop.opacity': { mult: 100, format: v => v.toFixed(1) }
+            };
+
+            const scaled = scaledPaths[path];
+            if (scaled) {
+                this._syncEl(id, value * scaled.mult, 'range', scaled.format(value));
+                return;
+            }
+
+            // Standard sync
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            if (el.type === 'checkbox') {
+                el.checked = value;
+            } else if (el.type === 'range') {
+                el.value = value;
+                const valueEl = document.getElementById(id + 'Value');
+                if (valueEl) {
+                    const formatter = VALUE_FORMATTERS[id];
+                    valueEl.textContent = formatter ? formatter(value) : value;
+                }
+            } else if (el.type === 'color') {
+                el.value = value;
             }
         },
 

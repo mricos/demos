@@ -57,9 +57,41 @@ window.APP = window.APP || {};
 
             APP.State.subscribe('outer.*', throttledRebuildOuter);
             APP.State.subscribe('inner.*', throttledRebuildInner);
-            APP.State.subscribe('sphere.*', throttledRebuildSphere);
             APP.State.subscribe('icosahedron.*', throttledRebuildIcosahedron);
             APP.State.subscribe('track.*', throttledRebuildTrack);
+
+            // Sphere: lightweight opacity update without rebuild
+            // Note: val may be 0-1 (from UI) or 0-100 (from LFO mapping) - normalize
+            APP.State.subscribe('sphere.opacity', (val) => {
+                if (this.sphere?._faces) {
+                    const opacity = val > 1 ? val / 100 : val;  // Handle 0-100 or 0-1
+                    this.sphere.opacity = opacity;
+                    for (const face of this.sphere._faces) {
+                        face.el.style.opacity = opacity;
+                    }
+                }
+            });
+
+            // Sphere: pulse controls brightness (modulates base opacity)
+            APP.State.subscribe('sphere.pulse', (val) => {
+                if (this.sphere?._faces) {
+                    const pulse = val > 1 ? val / 100 : val;  // Handle 0-100 or 0-1
+                    const baseOpacity = APP.State?.select('sphere.opacity') ?? 0.85;
+                    const depth = (APP.State?.select('sphere.pulseDepth') ?? 50) / 100;
+                    // Pulse modulates: full pulse = baseOpacity, zero pulse = baseOpacity * (1-depth)
+                    const effectiveOpacity = baseOpacity * (1 - depth + depth * pulse);
+                    for (const face of this.sphere._faces) {
+                        face.el.style.opacity = effectiveOpacity;
+                    }
+                }
+            });
+
+            // Sphere: other changes trigger rebuild
+            APP.State.subscribe('sphere.*', (val, state, meta) => {
+                // Skip lightweight updates handled above
+                if (meta.path === 'sphere.opacity' || meta.path === 'sphere.pulse') return;
+                throttledRebuildSphere();
+            });
 
             // Special handling for curve mode changes - use transitions
             let lastCurveMode = APP.State.select('curve.mode') || 'bezier';

@@ -65,6 +65,9 @@ window.APP = window.APP || {};
         // 7e. Initialize particle chaser
         APP.ParticleChaser?.init();
 
+        // 7e2. Initialize collision detection
+        APP.Collision?.init();
+
         // 7f. Initialize Instance Manager (multi-instance system)
         APP.InstanceManager?.init();
 
@@ -80,6 +83,11 @@ window.APP = window.APP || {};
         APP.LFOUI?.init();
         APP.InputLearnUI.init();
         APP.BankSelectorUI.init();
+        APP.ControlHelper?.init();
+
+        // 8b. Initialize audio system
+        APP.AudioEngine?.init();
+        APP.AudioUI?.init();
 
         // 9. Initialize hardware controllers
         const midiReady = await APP.MIDI.init();

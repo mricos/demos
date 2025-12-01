@@ -244,9 +244,10 @@ window.APP = window.APP || {};
 
             this.container.style.display = 'block';
 
-            // Build/rebuild arc-length table if needed (cache by track preset)
+            // Build/rebuild arc-length table if needed (cache by track config)
             // Use high sample count for smooth motion
-            const trackId = trackState.preset + '_' + (trackState.tension || 0.5);
+            // Include radius (path scale) since it affects waypoint positions
+            const trackId = trackState.preset + '_' + (trackState.tension || 0.5) + '_' + (trackState.radius || 100);
             if (!this._arcLengthTable || this._tableTrackId !== trackId) {
                 const result = this._buildArcLengthTable(track, 1000);
                 this._arcLengthTable = result.table;
@@ -287,15 +288,27 @@ window.APP = window.APP || {};
             const trackT = this._arcLengthToT(this.t, this._arcLengthTable);
 
             // Get position and frame on track using the corrected parameter
+            // Track waypoints are pre-scaled, so positions are already in world coordinates
             const targetPos = track.getPoint(trackT);
             const frame = track.getFrame(trackT);
 
-            // Apply position smoothing
+            // Apply position smoothing for visual chaser
             const smoothing = chaserState.smoothing ?? 50;
             const pos = this._smoothPosition(targetPos, deltaMs, smoothing);
 
-            // Store for follow cam
-            this.currentPos = pos;
+            // Calculate velocity for audio Doppler effect
+            if (this._lastPos && deltaMs > 0) {
+                const dt = deltaMs / 1000;
+                this._lastVelocity = {
+                    x: (targetPos.x - this._lastPos.x) / dt,
+                    y: (targetPos.y - this._lastPos.y) / dt,
+                    z: (targetPos.z - this._lastPos.z) / dt
+                };
+            }
+            this._lastPos = { ...targetPos };
+
+            // Store for follow cam - use RAW position, camera does its own smoothing
+            this.currentPos = targetPos;
             this.currentFrame = frame;
 
             // Hide particle when in follow mode (we're riding inside it)

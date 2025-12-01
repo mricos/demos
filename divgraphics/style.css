@@ -540,6 +540,45 @@ body.sidebar-collapsed .controls {
     color: #ff6666;
 }
 
+/* Subsection enable button - replaces checkbox toggle in subsection headers */
+.subsection-enable-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1px 5px;
+    margin-left: 8px;
+    margin-right: 6px;
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    min-width: 24px;
+}
+
+.subsection-enable-btn:hover {
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.subsection-enable-btn.active {
+    color: #00d4ff;
+    background: rgba(0, 212, 255, 0.12);
+    border-color: rgba(0, 212, 255, 0.4);
+    box-shadow: 0 0 4px rgba(0, 212, 255, 0.2);
+}
+
+.subsection-enable-btn.active:hover {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: rgba(0, 212, 255, 0.5);
+}
+
 /* LFO Entry Styles */
 .lfo-entry {
     border: 1px solid rgba(0, 255, 136, 0.15);
@@ -3911,4 +3950,11 @@ body:not(.sidebar-collapsed) .axis-world-gizmo {
     50% {
         box-shadow: 0 0 0 6px rgba(0, 212, 255, 0);
     }
+}
+
+/* Bound state for C buttons - shows active binding */
+.ctrl-btn.bound {
+    color: #00d4ff;
+    background: rgba(0, 212, 255, 0.15);
+    border-color: rgba(0, 212, 255, 0.6);
 }

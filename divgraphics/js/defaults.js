@@ -10,10 +10,14 @@ window.APP = window.APP || {};
     APP.State.defaults = {
         outer: {
             enabled: false,
+            shape: 'cylinder',       // 'cylinder' | 'uv-sphere' | 'ico-sphere'
             radius: 150,
             height: 155,
             radialSegments: 44,
             heightSegments: 1,
+            scale: 100,              // 0-200: uniform scale (100 = 1.0)
+            // Sphere-specific (latSegments = heightSegments, lonSegments = radialSegments)
+            subdivisions: 2,         // For ico-sphere: 0=20, 1=80, 2=320, 3=1280 faces
             color: '#00d4ff',
             colorSecondary: '#ff00aa',
             wireframe: false
@@ -25,13 +29,51 @@ window.APP = window.APP || {};
         },
         inner: {
             enabled: false,
+            shape: 'cylinder',       // 'cylinder' | 'uv-sphere' | 'ico-sphere'
             radius: 50,
             height: 200,
             radialSegments: 42,
             heightSegments: 19,
+            scale: 100,              // 0-200: uniform scale (100 = 1.0)
+            // Sphere-specific
+            subdivisions: 2,         // For ico-sphere
             color: '#ff00aa',
             colorSecondary: '#00d4ff',
             wireframe: false
+        },
+        sphere: {
+            enabled: false,
+            type: 'uv-sphere',       // 'uv-sphere' | 'ico-sphere' | 'ring-sphere'
+            radius: 100,
+            latSegments: 12,
+            lonSegments: 24,
+            color: '#00d4ff',
+            colorSecondary: '#ff00aa',
+            wireframe: true,
+            wireframeMode: 'border', // 'border' (original thick) or 'edge' (thin lines)
+            faceInward: false,
+            borderWidth: 100,        // Line thickness (1-400 → 0.01-4.0px)
+            opacity: 0.85,           // 0.0-1.0
+            scale: 100,              // 0-200: uniform scale (100 = 1.0)
+            // Ring/Panel sphere specific
+            segmentSize: 2,          // 0.1-20px line width / panel size
+            roundness: 50,           // 0=square, 100=circle for segments
+            flat: false,             // Panel sphere: true = flat panels, false = face outward
+            // Pulse (driven by audio LFO)
+            pulse: 50,               // 0-100: current pulse value (50 = middle)
+            pulseDepth: 40           // 0-100: how much pulse affects opacity
+        },
+        icosahedron: {
+            enabled: false,
+            dual: false,             // false = icosahedron (20 tri), true = dodecahedron (12 pent)
+            radius: 100,
+            subdivisions: 0,         // 0=base shape, 1+=subdivided
+            color: '#00ff88',
+            colorSecondary: '#0088ff',
+            wireframe: true,
+            faceInward: false,
+            borderWidth: 100,        // Line thickness (1-400 → 0.01-4.0px)
+            opacity: 0.85            // 0.0-1.0
         },
         curve: {
             enabled: true,
@@ -95,7 +137,22 @@ window.APP = window.APP || {};
                 bloom: 50,           // Openness of flower (0=closed, 100=flat)
                 scale: 100,          // Overall scale (1-100%, can go to dot size)
                 centerOffset: { x: 0, y: 0, z: 0 }  // Manual center adjustment
-            }
+            },
+
+            // === Position offset (per-mode) ===
+            bezierOffset: { x: 0, y: 0, z: 0 },      // Offset for bezier/free mode
+            distributeOffset: { x: 0, y: 0, z: 0 },  // Offset for distribute/bound mode
+            crystalOffset: { x: 0, y: 0, z: 0 },     // Offset for crystal mode
+
+            // === Scale factor (per-mode) ===
+            bezierScale: 100,        // Scale for bezier/free mode (0-200%)
+            distributeScale: 100,    // Scale for distribute/bound mode (0-200%)
+            crystalScale: 100,       // Scale for crystal mode (0-200%)
+
+            // === Bounding box (debug/visualization) ===
+            showBoundingBox: false,       // Toggle bounding box visibility
+            boundingBoxColor: '#ffffff',  // Box edge color
+            boundingBoxOpacity: 0.5       // Box edge opacity (0-1)
         },
         scene: {
             autoRotate: false
@@ -155,6 +212,7 @@ window.APP = window.APP || {};
             enabled: true,
             type: 'catmullrom',      // 'catmullrom' (Bezier handled by curve section)
             preset: 'OVAL_LOOP',     // Closed loop preset
+            radius: 100,             // 50-200: track path distance from center (100 = 1.0x preset scale)
 
             // Rotation - explicit control over track rotation (synced to BPM)
             rotation: {
@@ -165,7 +223,6 @@ window.APP = window.APP || {};
             },
 
             // Geometry - radialSegments: 0 = centerline only, 1+ = tube with faces
-            radius: 23,
             radialSegments: 7,       // 0 = centerline only, 1+ = faces per ring
             segmentsPerSpan: 2,
             color: '#00ff88',
@@ -177,12 +234,12 @@ window.APP = window.APP || {};
             centerlineColor: '#ffffff',
 
             // ===========================================
-            // UNIT CIRCLE - the fundamental primitive
-            // Everything derives from the circle at each track point
+            // HOOP - the ring geometry at each track point
             // ===========================================
-            circle: {
-                enabled: true,       // Circle is always conceptually present
+            hoop: {
+                enabled: true,       // Hoop is always conceptually present
                 visible: true,       // Whether to render the outline
+                radius: 23,          // Tube radius (size of hoop cross-section)
                 color: '#d6d9bf',
                 borderWidth: 1,
                 fill: false,
@@ -315,6 +372,86 @@ window.APP = window.APP || {};
         keyboard: {
             enabled: true,           // Keyboard input enabled
             learnMode: false         // Keyboard learn mode
+        },
+        audio: {
+            enabled: false,          // Master audio enable (requires user gesture)
+            masterVolume: 30,        // 0-100: master output volume (lower default)
+
+            // Chaser audio - brown noise with sweepable bandpass for Doppler effect
+            chaser: {
+                enabled: true,
+                volume: 25,          // 0-100: chaser sound volume
+                filterMin: 200,      // Minimum bandpass frequency (far/muffled)
+                filterMax: 1500,     // Maximum bandpass frequency (near/bright)
+                filterQ: 1.5,        // Bandpass Q (1-10, higher = narrower band)
+                stereoWidth: 70      // 0-100: stereo spread based on position
+            },
+
+            // Sphere hum - sawtooth oscillator with LFO pulsing
+            sphere: {
+                enabled: true,
+                volume: 15,          // 0-100: sphere hum volume
+                baseFreq: 55,        // Base frequency in Hz (A1 = 55Hz)
+                filterFreq: 150,     // Lowpass filter cutoff
+                filterQ: 0.7,        // Filter resonance (0.5-10)
+                lfoRate: 0.75,       // Pulse rate in Hz
+                lfoDepth: 50,        // 0-100: pulse depth
+                // ADSR envelope for smooth start/stop
+                attack: 1.2,         // Attack time - pronounced ramp up
+                decay: 0.5,          // Decay time - settle into sustain
+                sustain: 75,         // Sustain level 0-100 (% of peak)
+                release: 1.5,        // Release time - gradual power down
+                // Startup sweep (absolute Hz values)
+                startFreq: 27,           // Start frequency in Hz
+                overshootFreq: 60,       // Overshoot frequency in Hz
+                startFilter: 45,         // Start filter cutoff in Hz
+                overshootFilter: 225     // Overshoot filter cutoff in Hz
+            },
+
+            // Cabin noise - cockpit rattle in follow mode
+            cabin: {
+                enabled: true,
+                volume: 20,          // 0-100: cabin noise volume
+                filterFreq: 100      // Lowpass cutoff (rumble character)
+            },
+
+            // Engine rumble - vehicle presence sound
+            engine: {
+                enabled: true,
+                volume: 20,          // 0-100: engine volume
+                baseFreq: 40,        // Base frequency in Hz (low rumble)
+                filterFreq: 100      // Lowpass cutoff
+            },
+
+            // Particle Cluster Synth - lush tines triggered by collisions
+            cluster: {
+                enabled: true,
+                volume: 30,          // 0-100: cluster synth volume
+
+                // Oscillator cluster settings
+                baseFreq: 440,       // Base frequency in Hz (A4)
+                clusterSize: 4,      // Number of detuned oscillators (1-6)
+                detune: 8,           // Detune spread in cents (0-50)
+                waveform: 'triangle', // 'sine', 'triangle', 'sawtooth'
+
+                // Filter
+                filterFreq: 2000,    // Lowpass cutoff (200-8000 Hz)
+                filterQ: 1.5,        // Filter resonance (0.5-10)
+
+                // ADSR envelope
+                attack: 0.01,        // Attack time in seconds (0.001-0.5)
+                decay: 0.3,          // Decay time in seconds (0.01-2)
+                sustain: 30,         // Sustain level 0-100
+                release: 1.5,        // Release time in seconds (0.1-5)
+                hold: 200,           // Hold time before release in ms (50-2000)
+
+                // Velocity/dynamics
+                velocity: 80,        // 0-100: velocity sensitivity
+
+                // Reverb
+                reverbMix: 35,       // 0-100: wet/dry mix
+                reverbDamping: 4000  // Reverb high-frequency damping (1000-10000 Hz)
+            }
         },
 
         // Runtime configuration constants (not persisted)

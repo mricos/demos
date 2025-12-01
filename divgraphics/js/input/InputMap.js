@@ -14,6 +14,7 @@ window.APP = window.APP || {};
         GAMEPAD_AXIS: 'gamepad-axis',
         GAMEPAD_BUTTON: 'gamepad-button',
         LFO: 'lfo',
+        AUDIO_LFO: 'audio-lfo',
         KEYBOARD_KEY: 'keyboard-key',
         KEYBOARD_HOLD: 'keyboard-hold'
     };
@@ -25,6 +26,7 @@ window.APP = window.APP || {};
         'gamepad-axis':   { min: -1, max: 1, discrete: false },
         'gamepad-button': { min: 0, max: 1, discrete: true },
         'lfo':            { min: 0, max: 1, discrete: false },
+        'audio-lfo':      { min: 0, max: 1, discrete: false },  // Audio engine LFO
         'keyboard-key':   { min: 0, max: 1, discrete: true },  // keydown = 1, for increment/toggle
         'keyboard-hold':  { min: 0, max: 1, discrete: false }  // continuous while held
     };

@@ -224,6 +224,31 @@ window.APP = window.APP || {};
                     // Update particle chaser
                     APP.ParticleChaser?.update(deltaMs);
 
+                    // Update collision detection
+                    APP.Collision?.update();
+
+                    // Update audio system with chaser data
+                    if (APP.AudioEngine && APP.ParticleChaser) {
+                        const chaser = APP.ParticleChaser;
+                        const chaserData = chaser.currentPos ? {
+                            pos: chaser.currentPos,
+                            frame: chaser.currentFrame,
+                            t: chaser.t,
+                            velocity: chaser._lastVelocity || null
+                        } : null;
+                        const cameraData = {
+                            position: this._followPos || { x: 0, y: 0, z: 300 },
+                            rotation: this.rotation
+                        };
+                        // Include collision data for audio triggers
+                        const collisionData = APP.Collision ? {
+                            proximity: APP.Collision.proximity,
+                            penetration: APP.Collision.penetration,
+                            isColliding: APP.Collision._wasColliding
+                        } : null;
+                        APP.AudioEngine.update(chaserData, cameraData, deltaMs, collisionData);
+                    }
+
                     // BPM-driven rotation when playing, otherwise use autoRotate
                     const playing = APP.State.select('animation.playing');
                     if (playing && !this.isDragging) {
@@ -294,6 +319,8 @@ window.APP = window.APP || {};
                         };
                         APP.Scene?.outerCylinder?.updateHaze(hazeOpts);
                         APP.Scene?.innerCylinder?.updateHaze(hazeOpts);
+                        APP.Scene?.sphere?.updateHaze(hazeOpts);
+                        APP.Scene?.icosahedron?.updateHaze(hazeOpts);
                         APP.Scene?.curve?.updateHaze(hazeOpts);
 
                         // Throttle track and chaser haze more aggressively (every 50ms)
@@ -394,8 +421,11 @@ window.APP = window.APP || {};
             while (this._followYaw < -180) this._followYaw += 360;
 
             // Apply transform with smoothed values
-            // translateZ pulls camera forward, zoom still works for user control
-            const cameraOffset = 500;
+            // In CSS 3D, perspective defines viewing distance from z=0.
+            // To be "at" the chaser, we need to push scene back by the perspective distance
+            // so the chaser (now at origin after translate3d) is at the focal plane.
+            const fov = APP.State?.select('camera.fov') ?? 1200;
+            const cameraOffset = fov;
 
             // Add look offset for mouse look-around
             const finalPitch = this._followPitch + this._lookOffset.pitch;
