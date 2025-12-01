@@ -355,6 +355,93 @@ window.APP = window.APP || {};
                 const idx = this.handlers.indexOf(handler);
                 if (idx > -1) this.handlers.splice(idx, 1);
             };
+        },
+
+        // ================================================================
+        // Debug Helpers
+        // ================================================================
+
+        /**
+         * Find all input bindings targeting a state path
+         * Usage: APP.InputHub.debugFindBindings('audio.sphere.lfoRate')
+         * @param {string} targetPath - State path to search for
+         */
+        debugFindBindings(targetPath) {
+            console.log(`%c[InputHub Debug] Searching for bindings to: ${targetPath}`, 'color: #0ff; font-weight: bold');
+
+            const results = [];
+
+            // Check all banks
+            ['A', 'B', 'C', 'D'].forEach(bank => {
+                const maps = APP.State.select(`input.banks.${bank}.maps`) || {};
+                Object.entries(maps).forEach(([id, map]) => {
+                    if (map.target?.path === targetPath) {
+                        results.push({
+                            bank,
+                            id,
+                            source: map.source?.fullKey || `${map.source?.type}:${map.source?.key}`,
+                            type: map.source?.type,
+                            range: map.target?.range
+                        });
+                    }
+                });
+            });
+
+            // Check LFO assignments
+            const lfos = APP.State.select('lfo.lfos') || {};
+            Object.entries(lfos).forEach(([id, lfo]) => {
+                if (lfo.target === targetPath) {
+                    results.push({
+                        bank: 'LFO',
+                        id,
+                        source: `LFO: ${lfo.waveform} @ ${lfo.frequency}Hz`,
+                        type: 'lfo',
+                        range: [lfo.offset - lfo.amplitude/2, lfo.offset + lfo.amplitude/2]
+                    });
+                }
+            });
+
+            if (results.length === 0) {
+                console.log('%cNo bindings found', 'color: #888');
+            } else {
+                console.log(`%cFound ${results.length} binding(s):`, 'color: #0f0');
+                console.table(results);
+            }
+
+            // Also show current value
+            const current = APP.State.select(targetPath);
+            console.log(`Current value: ${current}`);
+
+            return results;
+        },
+
+        /**
+         * Remove all bindings targeting a specific path
+         * Usage: APP.InputHub.debugClearBindings('audio.sphere.lfoRate')
+         */
+        debugClearBindings(targetPath) {
+            console.log(`%c[InputHub Debug] Clearing bindings to: ${targetPath}`, 'color: #f80; font-weight: bold');
+
+            let cleared = 0;
+
+            // Clear from all banks
+            ['A', 'B', 'C', 'D'].forEach(bank => {
+                const maps = { ...APP.State.select(`input.banks.${bank}.maps`) };
+                let changed = false;
+                Object.entries(maps).forEach(([id, map]) => {
+                    if (map.target?.path === targetPath) {
+                        delete maps[id];
+                        changed = true;
+                        cleared++;
+                    }
+                });
+                if (changed) {
+                    APP.State.dispatch({ type: `input.banks.${bank}.maps`, payload: maps });
+                }
+            });
+
+            console.log(`%cCleared ${cleared} binding(s)`, 'color: #0f0');
+            return cleared;
         }
     };
 

@@ -17,11 +17,13 @@ window.APP = window.APP || {};
             this._restoreFromState();
             this._subscribe();
             this._initPulseIndicator();
+            this._initFabAudioToggle();
         },
 
         _bindControls() {
-            // Master controls
-            this._bindCheckbox('audioEnabled', 'audio.enabled');
+            // Master audio enable - special handling for AudioContext resume
+            this._bindAudioEnabled();
+
             this._bindRange('audioMasterVolume', 'audio.masterVolume', v => `${v}%`);
 
             // Chaser controls (ghost button toggle)
@@ -86,6 +88,27 @@ window.APP = window.APP || {};
 
             el.addEventListener('change', () => {
                 APP.State?.dispatch({ type: statePath, payload: el.checked });
+            });
+        },
+
+        /**
+         * Special binding for audio.enabled - must resume AudioContext on user gesture
+         */
+        _bindAudioEnabled() {
+            const el = document.getElementById('audioEnabled');
+            if (!el) return;
+
+            el.addEventListener('change', async () => {
+                if (el.checked) {
+                    // Enabling audio - create and resume context during user gesture
+                    if (!APP.AudioEngine?.ctx) {
+                        APP.AudioEngine?._createContext();
+                    }
+                    if (APP.AudioEngine?.ctx?.state === 'suspended') {
+                        await APP.AudioEngine.ctx.resume();
+                    }
+                }
+                APP.State?.dispatch({ type: 'audio.enabled', payload: el.checked });
             });
         },
 
@@ -313,6 +336,59 @@ window.APP = window.APP || {};
             if (this._pulseValueEl) {
                 this._pulseValueEl.textContent = pulse.toFixed(2);
             }
+        },
+
+        /**
+         * Initialize the FAB audio toggle button
+         */
+        _initFabAudioToggle() {
+            const fabAudio = document.getElementById('fabAudioToggle');
+            if (!fabAudio) return;
+
+            // Check if audio is ACTUALLY working (context exists and running)
+            const isAudioActuallyOn = () => {
+                return APP.AudioEngine?.ctx?.state === 'running' &&
+                       APP.State?.select('audio.enabled');
+            };
+
+            // Update visual state based on actual audio state
+            const updateVisual = () => {
+                const actuallyOn = isAudioActuallyOn();
+                fabAudio.classList.toggle('audio-on', actuallyOn);
+                fabAudio.classList.toggle('audio-off', !actuallyOn);
+                fabAudio.innerHTML = actuallyOn ? '&#128266;' : '&#128264;'; // 🔊 vs 🔈
+                fabAudio.title = actuallyOn ? 'Audio On - Click to mute' : 'Audio Off - Click to enable';
+            };
+
+            // Initial state - audio is OFF until user clicks (context doesn't exist yet)
+            updateVisual();
+
+            // Click handler - resume AudioContext first (requires user gesture)
+            fabAudio.addEventListener('click', async () => {
+                const actuallyOn = isAudioActuallyOn();
+
+                if (!actuallyOn) {
+                    // Audio not running - turn it ON
+                    // Create and resume context during user gesture
+                    if (!APP.AudioEngine?.ctx) {
+                        APP.AudioEngine?._createContext();
+                    }
+                    if (APP.AudioEngine?.ctx?.state === 'suspended') {
+                        await APP.AudioEngine.ctx.resume();
+                    }
+                    APP.State?.dispatch({ type: 'audio.enabled', payload: true });
+                } else {
+                    // Audio is running - turn it OFF
+                    APP.State?.dispatch({ type: 'audio.enabled', payload: false });
+                }
+
+                updateVisual();
+            });
+
+            // Subscribe to state changes
+            APP.State?.subscribe('audio.enabled', () => {
+                updateVisual();
+            });
         }
     };
 

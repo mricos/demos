@@ -30,6 +30,26 @@ window.APP = window.APP || {};
         // Core Operations
         // ================================================================
 
+        // Debug: paths to watch (set via APP.State.debugWatch('path'))
+        _debugPaths: new Set(),
+
+        /**
+         * Watch a state path for changes, logging source stack traces
+         * Usage: APP.State.debugWatch('audio.sphere.lfoRate')
+         * @param {string} path - State path to watch
+         */
+        debugWatch(path) {
+            this._debugPaths.add(path);
+            console.log(`%c[State Debug] Watching: ${path}`, 'color: #0f0; font-weight: bold');
+            console.log(`Current value: ${this.select(path)}`);
+            console.log(`To stop: APP.State.debugUnwatch('${path}')`);
+        },
+
+        debugUnwatch(path) {
+            this._debugPaths.delete(path);
+            console.log(`%c[State Debug] Stopped watching: ${path}`, 'color: #f80');
+        },
+
         /**
          * Dispatch an action to update state
          * @param {Object} action - { type: 'outer.radius', payload: 100 }
@@ -37,6 +57,13 @@ window.APP = window.APP || {};
         dispatch(action) {
             const { type, payload } = action;
             const prev = this.select(type);
+
+            // Debug logging for watched paths
+            if (this._debugPaths.has(type)) {
+                const stack = new Error().stack.split('\n').slice(2, 6).join('\n');
+                console.log(`%c[State Debug] ${type}: ${prev} → ${payload}`, 'color: #ff0; font-weight: bold');
+                console.log('%cSource:', 'color: #888', stack);
+            }
 
             // Update state immutably
             this.state = this._setPath(this.state, type, payload);

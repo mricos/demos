@@ -9,7 +9,7 @@ window.APP = window.APP || {};
 
     APP.Sidebar = {
         sidebar: null,
-        isCollapsed: false,
+        isCollapsed: true,   // Start collapsed by default
 
         init() {
             this.sidebar = document.getElementById('sidebar');
@@ -118,9 +118,15 @@ window.APP = window.APP || {};
         },
 
         _restoreState() {
-            // Restore sidebar visibility
+            // Restore sidebar visibility (default: collapsed)
             const collapsed = localStorage.getItem('divgraphics-sidebar-collapsed');
-            if (collapsed === 'true') {
+            if (collapsed === 'false') {
+                // Only open if explicitly saved as open
+                this.isCollapsed = false;
+                this.sidebar.classList.remove('collapsed');
+                document.body.classList.remove('sidebar-collapsed');
+            } else {
+                // Default to collapsed
                 this.isCollapsed = true;
                 this.sidebar.classList.add('collapsed');
                 document.body.classList.add('sidebar-collapsed');

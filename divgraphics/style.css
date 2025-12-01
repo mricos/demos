@@ -265,6 +265,20 @@ body.sidebar-collapsed .controls {
     display: none;
 }
 
+/* Audio FAB toggle - positioned next to gear */
+.fab-audio {
+    right: 54px !important;
+    display: flex !important;
+}
+
+.fab-audio.audio-off {
+    color: rgba(255, 100, 100, 0.6);
+}
+
+.fab-audio.audio-on {
+    color: rgba(100, 255, 150, 0.8);
+}
+
 /* Collapsible Sections */
 .control-section {
     margin-bottom: 12px;

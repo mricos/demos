@@ -10,41 +10,41 @@ window.APP = window.APP || {};
     APP.State.defaults = {
         outer: {
             enabled: false,
-            shape: 'cylinder',       // 'cylinder' | 'uv-sphere' | 'ico-sphere'
-            radius: 150,
-            height: 155,
-            radialSegments: 44,
+            shape: 'uv-sphere',      // 'cylinder' | 'uv-sphere' | 'ico-sphere'
+            radius: 30,
+            height: 102,
+            radialSegments: 16,
             heightSegments: 1,
-            scale: 100,              // 0-200: uniform scale (100 = 1.0)
+            scale: 21,               // 0-200: uniform scale (100 = 1.0)
             // Sphere-specific (latSegments = heightSegments, lonSegments = radialSegments)
             subdivisions: 2,         // For ico-sphere: 0=20, 1=80, 2=320, 3=1280 faces
-            color: '#00d4ff',
-            colorSecondary: '#ff00aa',
-            wireframe: false
+            color: '#acc8b2',
+            colorSecondary: '#cfb5c6',
+            wireframe: true
         },
         animation: {
-            pps: 0.8408964152537145,  // Pulses per second (0.5-4 range, log scale in UI)
-            ppr: 256,                  // Pulses per revolution (160 = very slow, 1 = fast, 256 max)
+            pps: 0.6551967019291817,  // Pulses per second (0.5-4 range, log scale in UI)
+            ppr: 43,                   // Pulses per revolution (160 = very slow, 1 = fast, 256 max)
             playing: true
         },
         inner: {
-            enabled: false,
-            shape: 'cylinder',       // 'cylinder' | 'uv-sphere' | 'ico-sphere'
-            radius: 50,
-            height: 200,
-            radialSegments: 42,
-            heightSegments: 19,
-            scale: 100,              // 0-200: uniform scale (100 = 1.0)
+            enabled: true,
+            shape: 'uv-sphere',      // 'cylinder' | 'uv-sphere' | 'ico-sphere'
+            radius: 99,
+            height: 116,
+            radialSegments: 22,
+            heightSegments: 5,
+            scale: 20,               // 0-200: uniform scale (100 = 1.0)
             // Sphere-specific
             subdivisions: 2,         // For ico-sphere
             color: '#ff00aa',
             colorSecondary: '#00d4ff',
-            wireframe: false
+            wireframe: true
         },
         sphere: {
-            enabled: false,
+            enabled: true,
             type: 'uv-sphere',       // 'uv-sphere' | 'ico-sphere' | 'ring-sphere'
-            radius: 100,
+            radius: 177,
             latSegments: 12,
             lonSegments: 24,
             color: '#00d4ff',
@@ -54,13 +54,13 @@ window.APP = window.APP || {};
             faceInward: false,
             borderWidth: 100,        // Line thickness (1-400 → 0.01-4.0px)
             opacity: 0.85,           // 0.0-1.0
-            scale: 100,              // 0-200: uniform scale (100 = 1.0)
+            scale: 39,               // 0-200: uniform scale (100 = 1.0)
             // Ring/Panel sphere specific
             segmentSize: 2,          // 0.1-20px line width / panel size
             roundness: 50,           // 0=square, 100=circle for segments
             flat: false,             // Panel sphere: true = flat panels, false = face outward
             // Pulse (driven by audio LFO)
-            pulse: 50,               // 0-100: current pulse value (50 = middle)
+            pulse: 1,                // 0-100: current pulse value (50 = middle)
             pulseDepth: 40           // 0-100: how much pulse affects opacity
         },
         icosahedron: {
@@ -77,77 +77,77 @@ window.APP = window.APP || {};
         },
         curve: {
             enabled: true,
-            radius: 8,
-            curveSegments: 5,
-            radialSegments: 8,       // Number of radial faces (all modes use pieceCount, this is legacy)
+            radius: 11,
+            curveSegments: 21,
+            radialSegments: 13,      // Number of radial faces (all modes use pieceCount, this is legacy)
             color: '#00ff88',
             colorSecondary: '#0088ff',
             wireframe: true,
             // Control points stored as flat values for UI binding
-            p0x: 85, p0y: -1, p0z: -45,
-            p1x: 0, p1y: 2, p1z: -20,
-            p2x: 200, p2y: -3, p2z: 0,
+            p0x: -197, p0y: -200, p0z: -140,
+            p1x: -170, p1y: -99, p1z: -200,
+            p2x: -200, p2y: -200, p2z: -140,
 
             // Mode: 'bezier' | 'distribute' | 'crystal'
-            mode: 'bezier',
+            mode: 'distribute',
 
             // === Geometry parameters (shared across all modes) ===
-            length: 100,             // Segment/petal length as % (0-200)
-            spacing: 100,            // Gap between segments (0-200%, 100=natural)
-            twist: 0,                // Rotation delta per segment in degrees
-            borderWidth: 50,         // Border width (5-200 slider → 0.05-2px)
-            faceWidthScale: 100,     // Face width scale (0-200, 100=natural)
-            loopBorder: false,       // Full border loop (true) vs hairline edges only (false)
+            length: 63,              // Segment/petal length as % (0-200)
+            spacing: 81,             // Gap between segments (0-200%, 100=natural)
+            twist: -9,               // Rotation delta per segment in degrees
+            borderWidth: 0,          // Border width (5-200 slider → 0.05-2px)
+            faceWidthScale: 24,      // Face width scale (0-200, 100=natural)
+            loopBorder: true,        // Full border loop (true) vs hairline edges only (false)
             softness: 0,             // Blur to soften lines (0-100 → 0-5px blur)
             round: 0,                // Round corners (0=square, 100=fully rounded)
 
             // === Shared modulation parameters (all modes respond to these) ===
-            pieceCount: 23,          // Number of radial segments/petals (unified across modes)
-            phase: 0,                // Global phase offset (0-360)
-            spin: -124,              // Rotation per piece (degrees)
-            spread: 100,             // Distribution spread (0=stacked at center, 100=evenly distributed)
+            pieceCount: 32,          // Number of radial segments/petals (unified across modes)
+            phase: 249,              // Global phase offset (0-360)
+            spin: -50,               // Rotation per piece (degrees)
+            spread: 4,               // Distribution spread (0=stacked at center, 100=evenly distributed)
             sineAmplitudeX: 0,       // Sine modulation amplitude for X/normal
-            sineAmplitudeY: 67,      // Sine modulation amplitude for Y/binormal
-            sineAmplitudeZ: 54,      // Sine modulation amplitude for Z/tangent
-            sineFrequency: 7,        // Sine wave cycles per loop
+            sineAmplitudeY: 0,       // Sine modulation amplitude for Y/binormal
+            sineAmplitudeZ: 95,      // Sine modulation amplitude for Z/tangent
+            sineFrequency: 4,        // Sine wave cycles per loop
 
             // === Breathing parameters (beat-synced animation) ===
-            breathe: false,          // Enable breathing animation
-            breatheScale: 50,        // How much size changes (0-100%)
-            breatheSpeed: 4,         // Beats per breath cycle (1-32, 4 = 1 bar)
-            breathePhase: 0,         // Phase offset for breathing (0-360)
+            breathe: true,           // Enable breathing animation
+            breatheScale: 40,        // How much size changes (0-100%)
+            breatheSpeed: 5,         // Beats per breath cycle (1-32, 4 = 1 bar)
+            breathePhase: 171,       // Phase offset for breathing (0-360)
 
             // === Transition parameters ===
             transitionDuration: 500, // Duration in ms for mode transitions
             transitionEasing: 'easeInOut', // 'linear', 'easeIn', 'easeOut', 'easeInOut'
 
             // === Rotation around center of mass ===
-            rotateX: 0,              // Rotation around COM X axis (degrees)
-            rotateY: 0,              // Rotation around COM Y axis (degrees)
-            rotateZ: 0,              // Rotation around COM Z axis (degrees)
+            rotateX: -139,           // Rotation around COM X axis (degrees)
+            rotateY: -71,            // Rotation around COM Y axis (degrees)
+            rotateZ: 102,            // Rotation around COM Z axis (degrees)
 
             // === Crystal mode specific ===
             crystal: {
-                layers: 3,           // Number of cross-plane layers
-                spread: 60,          // Angular spread between layers (degrees)
-                petalLength: 80,     // Length of petals from origin
-                petalWidth: 30,      // Width of petals
-                convergence: 100,    // How much petals point to center (0-100%)
-                twist: 0,            // Twist along petal length (degrees)
-                bloom: 50,           // Openness of flower (0=closed, 100=flat)
-                scale: 100,          // Overall scale (1-100%, can go to dot size)
+                layers: 2,           // Number of cross-plane layers
+                spread: 0,           // Angular spread between layers (degrees)
+                petalLength: 20,     // Length of petals from origin
+                petalWidth: 5,       // Width of petals
+                convergence: 98,     // How much petals point to center (0-100%)
+                twist: -71,          // Twist along petal length (degrees)
+                bloom: 35,           // Openness of flower (0=closed, 100=flat)
+                scale: 49,           // Overall scale (1-100%, can go to dot size)
                 centerOffset: { x: 0, y: 0, z: 0 }  // Manual center adjustment
             },
 
             // === Position offset (per-mode) ===
             bezierOffset: { x: 0, y: 0, z: 0 },      // Offset for bezier/free mode
             distributeOffset: { x: 0, y: 0, z: 0 },  // Offset for distribute/bound mode
-            crystalOffset: { x: 0, y: 0, z: 0 },     // Offset for crystal mode
+            crystalOffset: { x: 0, y: 2, z: -2 },    // Offset for crystal mode
 
             // === Scale factor (per-mode) ===
-            bezierScale: 100,        // Scale for bezier/free mode (0-200%)
-            distributeScale: 100,    // Scale for distribute/bound mode (0-200%)
-            crystalScale: 100,       // Scale for crystal mode (0-200%)
+            bezierScale: 20,         // Scale for bezier/free mode (0-200%)
+            distributeScale: 45,     // Scale for distribute/bound mode (0-200%)
+            crystalScale: 18,        // Scale for crystal mode (0-200%)
 
             // === Bounding box (debug/visualization) ===
             showBoundingBox: false,       // Toggle bounding box visibility
@@ -158,22 +158,22 @@ window.APP = window.APP || {};
             autoRotate: false
         },
         camera: {
-            zoom: 105,          // 30-250, displayed as 0.3-2.5
-            fov: 618,           // 1-2000, perspective in px (S-curve mapped)
-            rotationZ: -3,      // -180 to 180
-            panX: -8,           // -200 to 200
-            panY: 61,           // -200 to 200
+            zoom: 100,          // 30-250, displayed as 0.3-2.5
+            fov: 1359,          // 1-2000, perspective in px (S-curve mapped)
+            rotationZ: 0,       // -180 to 180
+            panX: 0,            // -200 to 200
+            panY: 0,            // -200 to 200
             sensitivity: 5,     // 1-20, displayed as 0.1-2.0
-            pitchClamp: false,
+            pitchClamp: true,
             rollMode: 'world'   // 'view' = roll around view axis, 'world' = roll around world Z
         },
         display: {
-            toasts: false,
-            stats: true,
-            header: false,
+            toasts: true,
+            stats: false,
+            header: true,
             midiToasts: true,
             gamepadToasts: true,
-            haze: 52,           // 0 = off, 1-100 = z-depth haze intensity
+            haze: 75,           // 0 = off, 1-100 = z-depth haze intensity
             greenDesat: 0,      // 0 = off, 1-100 = extra desaturation for green hues
             blur: 0,            // 0 = off, 1-100 = depth-based blur intensity
             dimmer: 100,        // 0-100 = global brightness (100 = full)
@@ -190,7 +190,39 @@ window.APP = window.APP || {};
         input: {
             activeBank: 'A',              // Currently active bank
             banks: {                      // Maps organized BY bank
-                A: { maps: {} },
+                A: { maps: {
+                    map_curve_phase_lfo: {
+                        id: 'map_curve_phase_lfo',
+                        source: {
+                            type: 'lfo',
+                            key: 'lfo_curve_phase',
+                            fullKey: 'lfo:lfo_curve_phase',
+                            device: null
+                        },
+                        target: {
+                            path: 'curve.phase',
+                            elementId: 'curvePhase',
+                            type: 'range'
+                        },
+                        domain: {
+                            inputMin: 0,
+                            inputMax: 1,
+                            outputMin: 0,
+                            outputMax: 360,
+                            step: null
+                        },
+                        behavior: {
+                            direction: 'normal',
+                            mode: 'absolute',
+                            stepSize: 10,
+                            curveA: 1,
+                            curveB: 1,
+                            curveMid: 0.5
+                        },
+                        intent: { inferredAction: 'absolute' },
+                        meta: { createdAt: 0, label: 'curvePhase' }
+                    }
+                }},
                 B: { maps: {} },
                 C: { maps: {} },
                 D: { maps: {} }
@@ -204,7 +236,7 @@ window.APP = window.APP || {};
         },
         ui: {
             popups: {},              // Position persistence: { 'popup-id': { left, top } }
-            hud: true,               // Camera direction HUD (bottom center)
+            hud: false,              // Camera direction HUD (bottom center)
             gizmo: false,            // 3D axis gizmo (bottom right corner)
             trackMap: true           // 2D track map widget (bottom left)
         },
@@ -212,14 +244,14 @@ window.APP = window.APP || {};
             enabled: true,
             type: 'catmullrom',      // 'catmullrom' (Bezier handled by curve section)
             preset: 'OVAL_LOOP',     // Closed loop preset
-            radius: 100,             // 50-200: track path distance from center (100 = 1.0x preset scale)
+            radius: 177,             // 50-200: track path distance from center (100 = 1.0x preset scale)
 
             // Rotation - explicit control over track rotation (synced to BPM)
             rotation: {
-                speed: 50,           // 0-100: rotation speed (50 = 1 rev per 4 beats at default BPM)
-                direction: 1,        // 1 = CW, -1 = CCW
+                speed: 9,            // 0-100: rotation speed (50 = 1 rev per 4 beats at default BPM)
+                direction: -1,       // 1 = CW, -1 = CCW
                 syncBpm: true,       // Lock rotation to BPM timing
-                ppr: 160             // Pulses per revolution when synced (1 = fast, 256 = slow)
+                ppr: 256             // Pulses per revolution when synced (1 = fast, 256 = slow)
             },
 
             // Geometry - radialSegments: 0 = centerline only, 1+ = tube with faces
@@ -261,7 +293,7 @@ window.APP = window.APP || {};
                 phase: 0,            // Phase offset from circle's phase (degrees)
                 width: 71,           // % of natural width (short edge)
                 length: 100,         // % extension outward from circle
-                roundness: 52,       // 0 = square, 100 = round
+                roundness: 75,       // 0 = square, 100 = round
                 spin: -98,           // Rotation around element's own axis (degrees)
                 spinRate: 0,         // Additional spin per unit φ (degrees per radian)
                 color: '#ff00aa',    // Magenta
@@ -292,8 +324,8 @@ window.APP = window.APP || {};
 
             // Endless generation
             endless: false,
-            variationSource: 'none', // 'none' | 'perlin' | 'random' | 'music'
-            variationIntensity: 50   // 0-100
+            variationSource: 'perlin', // 'none' | 'perlin' | 'random' | 'music'
+            variationIntensity: 59   // 0-100
         },
         flight: {
             enabled: false,
@@ -309,34 +341,34 @@ window.APP = window.APP || {};
             follow: false,           // First-person follow cam mode
             stabilize: true,         // Keep chaser level (no roll with tube)
             // Speed controls (similar to track.rotation)
-            speed: 50,               // 0-100: movement speed (50 = 1 loop per 4 beats)
-            direction: 1,            // 1 = forward, -1 = reverse
+            speed: 70,               // 0-100: movement speed (50 = 1 loop per 4 beats)
+            direction: -1,           // 1 = forward, -1 = reverse
             syncBpm: true,           // Lock speed to BPM timing
-            smoothing: 50,           // 0-100: rotation smoothing (0 = snap, 100 = very smooth)
+            smoothing: 82,           // 0-100: rotation smoothing (0 = snap, 100 = very smooth)
             // Head appearance
-            size: 17,                // Head size in px
-            headShape: 'square',     // 'square', 'circle', 'diamond'
-            headRoundness: 0,        // 0-100: corner roundness for square
+            size: 10,                // Head size in px
+            headShape: 'diamond',    // 'square', 'circle', 'diamond'
+            headRoundness: 62,       // 0-100: corner roundness for square
             headOpacity: 100,        // 0-100
             // Body/Wings appearance (perpendicular to travel - like wings)
-            bodyLength: 54,          // Wing span in px
-            bodyWidth: 10,           // Wing width in px
-            bodyAngle: 90,           // 0-360: rotation around travel axis
+            bodyLength: 14,          // Wing span in px
+            bodyWidth: 3,            // Wing width in px
+            bodyAngle: 193,          // 0-360: rotation around travel axis
             bodyRoundness: 100,      // 0-100: corner roundness (0 = square, 100 = fully rounded)
-            bodyOpacity: 85,         // 0-100
-            bodyStyle: 'gradient',   // 'gradient', 'solid', 'glow'
+            bodyOpacity: 91,         // 0-100
+            bodyStyle: 'solid',      // 'gradient', 'solid', 'glow'
             // Tail/Exhaust appearance (extends from back of body)
-            tailLength: 40,          // Exhaust length in px
-            tailWidth: 8,            // Exhaust width in px
-            tailAngle: 0,            // 0-360: rotation around travel axis (0 = same plane as body)
-            tailOpacity: 70,         // 0-100
-            tailStyle: 'gradient',   // 'gradient', 'solid', 'glow'
+            tailLength: 25,          // Exhaust length in px
+            tailWidth: 6,            // Exhaust width in px
+            tailAngle: 89,           // 0-360: rotation around travel axis (0 = same plane as body)
+            tailOpacity: 64,         // 0-100
+            tailStyle: 'glow',       // 'gradient', 'solid', 'glow'
             // Glow effects
-            glowSize: 20,            // Glow radius in px
-            glowIntensity: 50,       // 0-100
+            glowSize: 4,             // Glow radius in px
+            glowIntensity: 83,       // 0-100
             // Colors
-            color: '#b34233',        // Rust/red primary
-            colorSecondary: '#8b2500' // Darker rust accent
+            color: '#b54e21',        // Orange/rust primary
+            colorSecondary: '#e7aa04' // Gold accent
         },
         pip: {
             enabled: false,          // PIP overlay enabled
@@ -355,18 +387,20 @@ window.APP = window.APP || {};
         lfo: {
             enabled: true,           // Master LFO enable
             lfos: {
-                // Example LFO (can be empty by default)
-                // lfo_default: {
-                //     id: 'lfo_default',
-                //     enabled: true,
-                //     waveform: 'sine',
-                //     frequency: 1.0,
-                //     amplitude: 1.0,
-                //     offset: 0.5,
-                //     phase: 0,
-                //     sync: false,
-                //     syncDiv: 1
-                // }
+                lfo_curve_phase: {
+                    id: 'lfo_curve_phase',
+                    enabled: true,
+                    waveform: 'saw',
+                    frequency: 0.044,    // Slow sweep (~23 sec cycle)
+                    amplitude: 1,
+                    offset: 0.5,
+                    phase: 0,
+                    sync: false,
+                    syncDiv: 4,
+                    _currentPhase: 0,
+                    _lastRandomCycle: -1,
+                    _randomValue: 0.5
+                }
             }
         },
         keyboard: {
@@ -374,28 +408,28 @@ window.APP = window.APP || {};
             learnMode: false         // Keyboard learn mode
         },
         audio: {
-            enabled: false,          // Master audio enable (requires user gesture)
-            masterVolume: 30,        // 0-100: master output volume (lower default)
+            enabled: false,          // Master audio enable (starts off, requires user gesture)
+            masterVolume: 50,        // 0-100: master output volume
 
             // Chaser audio - brown noise with sweepable bandpass for Doppler effect
             chaser: {
                 enabled: true,
-                volume: 25,          // 0-100: chaser sound volume
+                volume: 50,          // 0-100: chaser sound volume
                 filterMin: 200,      // Minimum bandpass frequency (far/muffled)
-                filterMax: 1500,     // Maximum bandpass frequency (near/bright)
-                filterQ: 1.5,        // Bandpass Q (1-10, higher = narrower band)
-                stereoWidth: 70      // 0-100: stereo spread based on position
+                filterMax: 2000,     // Maximum bandpass frequency (near/bright)
+                filterQ: 2,          // Bandpass Q (1-10, higher = narrower band)
+                stereoWidth: 80      // 0-100: stereo spread based on position
             },
 
             // Sphere hum - sawtooth oscillator with LFO pulsing
             sphere: {
                 enabled: true,
-                volume: 15,          // 0-100: sphere hum volume
-                baseFreq: 55,        // Base frequency in Hz (A1 = 55Hz)
-                filterFreq: 150,     // Lowpass filter cutoff
-                filterQ: 0.7,        // Filter resonance (0.5-10)
-                lfoRate: 0.75,       // Pulse rate in Hz
-                lfoDepth: 50,        // 0-100: pulse depth
+                volume: 33,          // 0-100: sphere hum volume
+                baseFreq: 40,        // Base frequency in Hz
+                filterFreq: 50,      // Lowpass filter cutoff
+                filterQ: 4,          // Filter resonance (0.5-10)
+                lfoRate: 0.2,        // Pulse rate in Hz
+                lfoDepth: 42,        // 0-100: pulse depth
                 // ADSR envelope for smooth start/stop
                 attack: 1.2,         // Attack time - pronounced ramp up
                 decay: 0.5,          // Decay time - settle into sustain
