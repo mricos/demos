@@ -1,0 +1,40 @@
+{
+    "mode": {
+        "name": "Minimal",
+        "version": "1.0.0",
+        "description": "Clean canvas without UI or effects"
+    },
+    "defaultTheme": "phosphor",
+    "animation": {
+        "autoRotate": false,
+        "speed": 1,
+        "rotSpeed": { "x": 0, "y": 0, "z": 0 }
+    },
+    "rendering": {
+        "concentric": 3,
+        "layerOffset": 2,
+        "strokeWidth": 1,
+        "glowIntensity": 40,
+        "colorPrimary": "#00ffff",
+        "colorSecondary": "#ff00aa",
+        "fov": 1000,
+        "cameraZ": 600
+    },
+    "effects": {
+        "scanlines": false,
+        "vignette": false,
+        "drawOn": false,
+        "drawSpeed": 2,
+        "colorOscillate": false
+    },
+    "ui": {
+        "sidePanel": false,
+        "configPanel": false,
+        "fab": false
+    },
+    "features": {
+        "designMode": false,
+        "persistence": false,
+        "effects": false
+    }
+}

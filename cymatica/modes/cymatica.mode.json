@@ -1,0 +1,40 @@
+{
+    "mode": {
+        "name": "Cymatica",
+        "version": "1.0.0",
+        "description": "Quadrascan Vector Art - Default Mode"
+    },
+    "defaultTheme": "phosphor",
+    "animation": {
+        "autoRotate": false,
+        "speed": 1,
+        "rotSpeed": { "x": 5, "y": 15, "z": 0 }
+    },
+    "rendering": {
+        "concentric": 5,
+        "layerOffset": 2,
+        "strokeWidth": 1.5,
+        "glowIntensity": 60,
+        "colorPrimary": "#00ffff",
+        "colorSecondary": "#ff00aa",
+        "fov": 1000,
+        "cameraZ": 600
+    },
+    "effects": {
+        "scanlines": true,
+        "vignette": true,
+        "drawOn": false,
+        "drawSpeed": 2,
+        "colorOscillate": false
+    },
+    "ui": {
+        "sidePanel": true,
+        "configPanel": false,
+        "fab": true
+    },
+    "features": {
+        "designMode": false,
+        "persistence": true,
+        "effects": true
+    }
+}

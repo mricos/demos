@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>cymatica - Quadrascan Vector Art</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Core namespace - bootloader handles the rest -->
+    <script src="js/core/namespace.js"></script>
+</head>
+<body>
+    <!-- Loading overlay -->
+    <div id="loading-overlay">
+        <div class="loading-text">CYMATICA</div>
+    </div>
+
+    <div id="app">
+        <div id="viewport">
+            <svg id="vector-canvas" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <!-- Quadrascan glow filters -->
+                    <filter id="glow-soft" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="2" result="blur"/>
+                        <feMerge>
+                            <feMergeNode in="blur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                    <filter id="glow-medium" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="4" result="blur"/>
+                        <feMerge>
+                            <feMergeNode in="blur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                    <filter id="glow-intense" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="8" result="blur1"/>
+                        <feGaussianBlur stdDeviation="3" result="blur2"/>
+                        <feMerge>
+                            <feMergeNode in="blur1"/>
+                            <feMergeNode in="blur2"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                    <!-- Phosphor persistence effect -->
+                    <filter id="phosphor" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="blur"/>
+                        <feColorMatrix in="blur" type="matrix"
+                            values="1.2 0 0 0 0
+                                    0 1.2 0 0 0
+                                    0 0 1.2 0 0
+                                    0 0 0 1 0" result="bright"/>
+                        <feMerge>
+                            <feMergeNode in="bright"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                </defs>
+                <g id="render-group"></g>
+            </svg>
+            <div id="scanlines"></div>
+            <div id="vignette"></div>
+            <div id="stats"></div>
+        </div>
+
+        <div id="side-panel">
+            <button id="panel-toggle">&#9664;</button>
+
+            <div class="panel-header">
+                <h1>Quadrascan Vector</h1>
+            </div>
+
+            <div class="panel-menu">
+                <button class="menu-btn" id="btn-collapse-all" title="Collapse All">&#9660;</button>
+                <button class="menu-btn" id="btn-expand-all" title="Expand All">&#9650;</button>
+            </div>
+
+            <div class="panel-content">
+                <!-- Reset Button -->
+                <div class="control-group" style="margin-bottom: var(--space-4);">
+                    <button class="action-btn" id="btn-reset" style="width: 100%;">Reset View</button>
+                </div>
+
+                <!-- Animation Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>Animation</h3>
+                        <span class="section-toggle">&#9660;</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <div class="toggle-wrapper">
+                                <label>Play Animation</label>
+                                <div class="toggle" id="toggle-animation"></div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Speed</label>
+                            <div class="control-row">
+                                <input type="range" id="anim-speed" min="0.1" max="3" step="0.1" value="1">
+                                <span class="value-display" id="anim-speed-val">1.0x</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Rotation X</label>
+                            <div class="control-row">
+                                <input type="range" id="rot-x-speed" min="-50" max="50" step="1" value="5">
+                                <span class="value-display" id="rot-x-val">5</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Rotation Y</label>
+                            <div class="control-row">
+                                <input type="range" id="rot-y-speed" min="-50" max="50" step="1" value="15">
+                                <span class="value-display" id="rot-y-val">15</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Rotation Z</label>
+                            <div class="control-row">
+                                <input type="range" id="rot-z-speed" min="-50" max="50" step="1" value="0">
+                                <span class="value-display" id="rot-z-val">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quadrascan Rendering Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>Quadrascan</h3>
+                        <span class="section-toggle">&#9660;</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <label>Concentric Layers</label>
+                            <div class="control-row">
+                                <input type="range" id="concentric-count" min="1" max="12" step="1" value="5">
+                                <span class="value-display" id="concentric-val">5</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Layer Offset</label>
+                            <div class="control-row">
+                                <input type="range" id="layer-offset" min="0.5" max="8" step="0.5" value="2">
+                                <span class="value-display" id="offset-val">2</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Stroke Width</label>
+                            <div class="control-row">
+                                <input type="range" id="stroke-width" min="0.5" max="6" step="0.25" value="1.5">
+                                <span class="value-display" id="stroke-val">1.5</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Glow Intensity</label>
+                            <div class="control-row">
+                                <input type="range" id="glow-intensity" min="0" max="100" step="5" value="60">
+                                <span class="value-display" id="glow-val">60</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Primary Color</label>
+                            <div class="control-row">
+                                <input type="color" id="color-primary" value="#00ffff">
+                                <input type="color" id="color-secondary" value="#ff00aa">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Letter Positioning Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>Letter Positions</h3>
+                        <span class="section-toggle">&#9660;</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="letter-grid" id="letter-grid">
+                            <div class="letter-cell selected" data-index="0">c</div>
+                            <div class="letter-cell" data-index="1">y</div>
+                            <div class="letter-cell" data-index="2">m</div>
+                            <div class="letter-cell" data-index="3">a</div>
+                            <div class="letter-cell" data-index="4">t</div>
+                            <div class="letter-cell" data-index="5">i</div>
+                            <div class="letter-cell" data-index="6">c</div>
+                            <div class="letter-cell" data-index="7">a</div>
+                        </div>
+                        <div class="position-controls">
+                            <div class="position-control">
+                                <label>X</label>
+                                <input type="number" id="pos-x" value="0" step="10">
+                            </div>
+                            <div class="position-control">
+                                <label>Y</label>
+                                <input type="number" id="pos-y" value="0" step="10">
+                            </div>
+                            <div class="position-control">
+                                <label>Z</label>
+                                <input type="number" id="pos-z" value="0" step="10">
+                            </div>
+                        </div>
+                        <div class="control-group" style="margin-top: var(--space-3)">
+                            <label>Letter Scale</label>
+                            <div class="control-row">
+                                <input type="range" id="letter-scale" min="0.5" max="3" step="0.1" value="1">
+                                <span class="value-display" id="scale-val">1.0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Perspective Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>Perspective</h3>
+                        <span class="section-toggle">&#9660;</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <label>FOV</label>
+                            <div class="control-row">
+                                <input type="range" id="fov" min="400" max="2000" step="50" value="1000">
+                                <span class="value-display" id="fov-val">1000</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Camera Z</label>
+                            <div class="control-row">
+                                <input type="range" id="cam-z" min="200" max="1500" step="50" value="600">
+                                <span class="value-display" id="cam-z-val">600</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Effects Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>Effects</h3>
+                        <span class="section-toggle">&#9660;</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <div class="toggle-wrapper">
+                                <label>Scanlines</label>
+                                <div class="toggle active" id="toggle-scanlines"></div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="toggle-wrapper">
+                                <label>Vignette</label>
+                                <div class="toggle active" id="toggle-vignette"></div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="toggle-wrapper">
+                                <label>Draw-On Animation</label>
+                                <div class="toggle" id="toggle-drawon"></div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="toggle-wrapper">
+                                <label>Loop Draw</label>
+                                <div class="toggle active" id="toggle-drawloop"></div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Draw Speed</label>
+                            <div class="control-row">
+                                <input type="range" id="draw-speed" min="0.5" max="5" step="0.25" value="2">
+                                <span class="value-display" id="draw-speed-val">2s</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="toggle-wrapper">
+                                <label>Color Oscillate</label>
+                                <div class="toggle" id="toggle-oscillate"></div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Oscillate Speed</label>
+                            <div class="control-row">
+                                <input type="range" id="oscillate-speed" min="0.2" max="5" step="0.2" value="1">
+                                <span class="value-display" id="oscillate-speed-val">1.0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Presets Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>Presets</h3>
+                        <span class="section-toggle">&#9660;</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="preset-grid">
+                            <button class="preset-btn" data-preset="tempest">Tempest</button>
+                            <button class="preset-btn" data-preset="battlezone">Battlezone</button>
+                            <button class="preset-btn" data-preset="starwars">Star Wars</button>
+                            <button class="preset-btn" data-preset="asteroids">Asteroids</button>
+                            <button class="preset-btn" data-preset="neon">Neon Nights</button>
+                            <button class="preset-btn" data-preset="arcade">Arcade</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Layout Presets -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>Layout</h3>
+                        <span class="section-toggle">&#9660;</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="preset-grid">
+                            <button class="preset-btn" data-layout="flat">Flat</button>
+                            <button class="preset-btn" data-layout="arc">Arc</button>
+                            <button class="preset-btn" data-layout="wave">Wave</button>
+                            <button class="preset-btn" data-layout="spiral">Spiral</button>
+                            <button class="preset-btn" data-layout="scatter">Scatter</button>
+                            <button class="preset-btn" data-layout="cylinder">Cylinder</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootloader handles all module loading -->
+    <script src="js/bootloader.js"></script>
+</body>
+</html>

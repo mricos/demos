@@ -1,0 +1,40 @@
+{
+    "mode": {
+        "name": "Demo",
+        "version": "1.0.0",
+        "description": "Full demo with animation and all effects"
+    },
+    "defaultTheme": "phosphor",
+    "animation": {
+        "autoRotate": true,
+        "speed": 1.5,
+        "rotSpeed": { "x": 8, "y": 20, "z": 2 }
+    },
+    "rendering": {
+        "concentric": 7,
+        "layerOffset": 3,
+        "strokeWidth": 2,
+        "glowIntensity": 80,
+        "colorPrimary": "#00ffff",
+        "colorSecondary": "#ff00aa",
+        "fov": 1000,
+        "cameraZ": 600
+    },
+    "effects": {
+        "scanlines": true,
+        "vignette": true,
+        "drawOn": true,
+        "drawSpeed": 3,
+        "colorOscillate": true
+    },
+    "ui": {
+        "sidePanel": true,
+        "configPanel": true,
+        "fab": true
+    },
+    "features": {
+        "designMode": true,
+        "persistence": true,
+        "effects": true
+    }
+}
