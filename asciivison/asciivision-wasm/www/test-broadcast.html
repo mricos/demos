@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Broadcast Test</title>
+</head>
+<body style="background:#111;color:#0f0;font-family:monospace;padding:20px;">
+    <h2>BroadcastChannel Test</h2>
+    <p>Sends test messages to controldeck-default</p>
+    <button id="send" style="padding:10px 20px;font-size:16px;">Send Test Message</button>
+    <button id="send-continuous" style="padding:10px 20px;font-size:16px;">Send Continuous (5/sec)</button>
+    <pre id="log" style="margin-top:20px;height:400px;overflow:auto;"></pre>
+
+    <script>
+        const channel = new BroadcastChannel('controldeck-default');
+        const log = document.getElementById('log');
+        let interval = null;
+
+        function addLog(msg) {
+            log.textContent += new Date().toISOString().slice(11,23) + ' ' + msg + '\n';
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function sendMsg() {
+            const msg = {
+                _src: 'controldeck',
+                _v: 1,
+                _t: performance.now(),
+                source: 'vision',
+                device: 'ASCIIVision-Hand',
+                type: 'continuous',
+                control: 'hand-x',
+                value: Math.random()
+            };
+            channel.postMessage(msg);
+            addLog('SENT: control=' + msg.control + ' value=' + msg.value.toFixed(3));
+        }
+
+        document.getElementById('send').addEventListener('click', sendMsg);
+
+        document.getElementById('send-continuous').addEventListener('click', function() {
+            if (interval) {
+                clearInterval(interval);
+                interval = null;
+                this.textContent = 'Send Continuous (5/sec)';
+                addLog('Stopped continuous');
+            } else {
+                interval = setInterval(sendMsg, 200);
+                this.textContent = 'Stop Continuous';
+                addLog('Started continuous sending');
+            }
+        });
+
+        // Also listen for messages from OTHER tabs
+        channel.onmessage = (e) => {
+            addLog('RECV: ' + JSON.stringify(e.data).slice(0,80));
+        };
+
+        addLog('=== BroadcastChannel Debug ===');
+        addLog('Channel: controldeck-default');
+        addLog('');
+        addLog('To test:');
+        addLog('1. Open controldeck in another tab');
+        addLog('2. Click RECEIVE button in controldeck');
+        addLog('3. Click Send here - check controldeck Log panel');
+        addLog('');
+        addLog('If controldeck SENDS, you should see RECV here');
+        addLog('=====================================');
+    </script>
+</body>
+</html>
