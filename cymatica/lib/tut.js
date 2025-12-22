@@ -135,6 +135,17 @@ function tutShowInlineError(containerId, message) {
  * TUT Tokens - Token update functions
  */
 
+// Helper: Convert RGB/RGBA to hex (for color inputs)
+function rgbToHex(color) {
+    if (!color || color.startsWith('#')) return color;
+    const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (!match) return color;
+    const r = parseInt(match[1]).toString(16).padStart(2, '0');
+    const g = parseInt(match[2]).toString(16).padStart(2, '0');
+    const b = parseInt(match[3]).toString(16).padStart(2, '0');
+    return '#' + r + g + b;
+}
+
 const TUT_Tokens = {
     /**
      * Update a CSS custom property token
@@ -581,7 +592,7 @@ const TUT_Panel = {
 
         const fab = document.createElement('button');
         fab.id = 'designFab';
-        fab.className = 'fab fab-design';
+        fab.className = 'design-fab';
         fab.innerHTML = this._getFABIcon();
         fab.title = 'Design Tokens (TUT)';
         fab.addEventListener('click', (e) => {
@@ -1090,10 +1101,11 @@ const TUT_Panel = {
     },
 
     /**
-     * Get current token value from DOM
+     * Get current token value from DOM (converts RGB to hex for color inputs)
      */
     _getTokenValue: function(varName) {
-        return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+        const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+        return rgbToHex(value);
     },
 
     // =========================================================================

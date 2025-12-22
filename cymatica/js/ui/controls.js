@@ -37,6 +37,38 @@
             $$('.section-header').forEach(header => header.classList.remove('collapsed'));
         });
 
+        // Play/Pause animation
+        const playPauseBtn = $('#btn-play-pause');
+        if (playPauseBtn) {
+            playPauseBtn.addEventListener('click', () => {
+                state.animating = !state.animating;
+                playPauseBtn.innerHTML = state.animating ? '&#9724;' : '&#9654;';
+                playPauseBtn.classList.toggle('active', state.animating);
+                $('#toggle-animation')?.classList.toggle('active', state.animating);
+            });
+        }
+
+        // Random layout
+        $('#btn-random')?.addEventListener('click', () => {
+            state.letters.forEach(l => {
+                l.x = (Math.random() - 0.5) * 600;
+                l.y = (Math.random() - 0.5) * 300;
+                l.z = (Math.random() - 0.5) * 200;
+                l.scale = 0.5 + Math.random() * 1.5;
+            });
+            updatePositionInputs();
+        });
+
+        // Save state
+        $('#btn-save')?.addEventListener('click', () => {
+            if (CYMATICA.Persistence?.save) {
+                CYMATICA.Persistence.save();
+                const btn = $('#btn-save');
+                btn.classList.add('active');
+                setTimeout(() => btn.classList.remove('active'), 500);
+            }
+        });
+
         // Reset/Center button
         $('#btn-reset')?.addEventListener('click', () => {
             CYMATICA.state.reset();
