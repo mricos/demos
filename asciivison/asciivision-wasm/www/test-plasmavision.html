@@ -9,7 +9,8 @@
         body {
             background: #000;
             color: #0f0;
-            font-family: 'Courier New', monospace;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 10px;
             overflow: hidden;
         }
         #canvas {
@@ -17,45 +18,96 @@
             width: 100vw;
             height: 100vh;
         }
+
+        /* Vector-style HUD */
         #hud {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            font-size: 12px;
-            color: #0a0;
+            top: 8px;
+            left: 8px;
+            font-size: 9px;
+            letter-spacing: 0.5px;
+            color: rgba(0, 255, 100, 0.6);
             pointer-events: none;
+            text-transform: uppercase;
         }
+        #hud div { margin: 2px 0; }
+
+        /* Tight vector controls */
         #controls {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
-            font-size: 11px;
-            color: #080;
+            bottom: 8px;
+            left: 8px;
+            font-size: 9px;
+            color: rgba(0, 180, 80, 0.7);
+            background: rgba(0, 20, 10, 0.3);
+            border: 1px solid rgba(0, 255, 100, 0.15);
+            padding: 6px 8px;
         }
         #controls .row {
-            margin: 4px 0;
             display: flex;
             align-items: center;
-            gap: 8px;
+            height: 16px;
+            gap: 4px;
         }
         #controls label {
-            min-width: 120px;
-        }
-        #controls input[type="range"] {
-            width: 150px;
-            accent-color: #0f0;
+            width: 70px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            opacity: 0.7;
         }
         #controls .value {
-            color: #0f0;
-            min-width: 50px;
+            width: 32px;
+            text-align: right;
+            color: rgba(0, 255, 100, 0.9);
+            font-variant-numeric: tabular-nums;
         }
+
+        /* Minimal vector slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 80px;
+            height: 2px;
+            background: rgba(0, 255, 100, 0.2);
+            border: none;
+            outline: none;
+            cursor: crosshair;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 6px;
+            height: 10px;
+            background: rgba(0, 255, 100, 0.8);
+            border: none;
+            cursor: crosshair;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 6px;
+            height: 10px;
+            background: rgba(0, 255, 100, 0.8);
+            border: none;
+            cursor: crosshair;
+        }
+        input[type="range"]:hover {
+            background: rgba(0, 255, 100, 0.3);
+        }
+        input[type="range"]:hover::-webkit-slider-thumb {
+            background: #0f0;
+            box-shadow: 0 0 4px rgba(0, 255, 100, 0.6);
+        }
+
+        /* Info panel */
         #info {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            font-size: 11px;
-            color: #0a0;
+            top: 8px;
+            right: 8px;
+            font-size: 8px;
+            color: rgba(0, 180, 80, 0.5);
             text-align: right;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            line-height: 1.4;
         }
     </style>
 </head>
@@ -63,51 +115,47 @@
     <canvas id="canvas"></canvas>
 
     <div id="hud">
-        <div>PLASMAVISION - Gravitational Glow</div>
-        <div id="fps">FPS: --</div>
-        <div id="points">Points: --</div>
+        <div>plasmavision</div>
+        <div id="fps">--</div>
+        <div id="points">--</div>
     </div>
 
     <div id="controls">
         <div class="row">
-            <label>Phosphor Decay:</label>
+            <label>phosphor</label>
             <input type="range" id="decay" min="0.8" max="0.99" step="0.01" value="0.92">
-            <span class="value" id="decay-val">0.92</span>
+            <span class="value" id="decay-val">.92</span>
         </div>
         <div class="row">
-            <label>Bloom Intensity:</label>
+            <label>bloom</label>
             <input type="range" id="bloom" min="0" max="1" step="0.05" value="0.3">
-            <span class="value" id="bloom-val">0.30</span>
+            <span class="value" id="bloom-val">.30</span>
         </div>
         <div class="row">
-            <label>Scanlines:</label>
+            <label>scanline</label>
             <input type="range" id="scanlines" min="0" max="0.5" step="0.05" value="0.15">
-            <span class="value" id="scanlines-val">0.15</span>
+            <span class="value" id="scanlines-val">.15</span>
         </div>
         <div class="row">
-            <label>Point Size:</label>
+            <label>glow</label>
             <input type="range" id="pointsize" min="1" max="20" step="0.5" value="4">
             <span class="value" id="pointsize-val">4.0</span>
         </div>
         <div class="row">
-            <label>Gravity Strength:</label>
+            <label>gravity</label>
             <input type="range" id="gravity" min="0" max="3" step="0.1" value="1">
             <span class="value" id="gravity-val">1.0</span>
         </div>
         <div class="row">
-            <label>Mass Pulse:</label>
+            <label>pulse</label>
             <input type="range" id="pulse" min="0" max="2" step="0.1" value="0.5">
-            <span class="value" id="pulse-val">0.5</span>
+            <span class="value" id="pulse-val">.5</span>
         </div>
     </div>
 
     <div id="info">
-        Drag to rotate<br>
-        Scroll to zoom<br>
-        <br>
-        Sphere wireframe with<br>
-        plasma mass at center<br>
-        pulling the glow inward
+        drag rotate<br>
+        scroll zoom
     </div>
 
     <script type="module">
@@ -209,11 +257,14 @@
             pointsize: { target: 'pointSize', el: document.getElementById('pointsize'), valEl: document.getElementById('pointsize-val') }
         };
 
+        // Compact value format (no leading zero for decimals < 1)
+        const fmtVal = (v) => v < 1 ? v.toFixed(2).replace('0.', '.') : v.toFixed(1);
+
         for (const [key, slider] of Object.entries(sliders)) {
             slider.el.addEventListener('input', () => {
                 const val = parseFloat(slider.el.value);
                 renderer.options[slider.target] = val;
-                slider.valEl.textContent = val.toFixed(2);
+                slider.valEl.textContent = fmtVal(val);
             });
         }
 
@@ -222,7 +273,7 @@
         const gravityVal = document.getElementById('gravity-val');
         gravitySlider.addEventListener('input', () => {
             centralMass.mass = parseFloat(gravitySlider.value);
-            gravityVal.textContent = centralMass.mass.toFixed(1);
+            gravityVal.textContent = fmtVal(centralMass.mass);
         });
 
         // Pulse control
@@ -231,7 +282,7 @@
         pulseSlider.addEventListener('input', () => {
             centralMass.pulse = parseFloat(pulseSlider.value);
             orbitMass.pulse = centralMass.pulse * 1.6;
-            pulseVal.textContent = centralMass.pulse.toFixed(1);
+            pulseVal.textContent = fmtVal(centralMass.pulse);
         });
 
         // FPS tracking
@@ -277,8 +328,8 @@
             // FPS
             frameCount++;
             if (now - lastFpsTime >= 1000) {
-                fpsEl.textContent = `FPS: ${frameCount}`;
-                pointsEl.textContent = `Points: ${allPoints.length}`;
+                fpsEl.textContent = `${frameCount} fps`;
+                pointsEl.textContent = `${allPoints.length} pts`;
                 frameCount = 0;
                 lastFpsTime = now;
             }
