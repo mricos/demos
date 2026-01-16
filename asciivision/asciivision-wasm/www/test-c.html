@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCIIVision - C vs Rust Comparison</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #0a0a0a;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            padding: 10px;
+        }
+        h1 { font-size: 16px; margin-bottom: 10px; }
+        .panels {
+            display: flex;
+            gap: 10px;
+        }
+        .panel {
+            flex: 1;
+            background: #111;
+            border: 1px solid #333;
+            padding: 10px;
+        }
+        .panel h2 {
+            font-size: 14px;
+            color: #ff0;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .panel pre {
+            font-size: 6px;
+            line-height: 7px;
+            letter-spacing: 0px;
+            white-space: pre;
+            overflow: hidden;
+            height: 300px;
+        }
+        .stats {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        .stats span { color: #0f0; }
+        #controls {
+            margin-top: 10px;
+            padding: 10px;
+            background: #111;
+            border: 1px solid #333;
+        }
+        button {
+            background: #222;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 5px 10px;
+            margin-right: 5px;
+            cursor: pointer;
+        }
+        button:hover { background: #333; }
+        #status {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+        .loading { color: #ff0; }
+        .error { color: #f00; }
+        .ready { color: #0f0; }
+    </style>
+</head>
+<body>
+    <h1>ASCIIVision - C vs Rust WASM Comparison</h1>
+
+    <div class="panels">
+        <div class="panel">
+            <h2>RUST (wasm-bindgen) <span id="rust-size">--</span></h2>
+            <pre id="rust-output">Loading...</pre>
+            <div class="stats">
+                FPS: <span id="rust-fps">--</span> |
+                Frame: <span id="rust-time">--</span>ms
+            </div>
+        </div>
+        <div class="panel">
+            <h2>C (Emscripten) <span id="c-size">--</span></h2>
+            <pre id="c-output">Loading...</pre>
+            <div class="stats">
+                FPS: <span id="c-fps">--</span> |
+                Frame: <span id="c-time">--</span>ms
+            </div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button id="btn-bright-up">Bright+</button>
+        <button id="btn-bright-down">Bright-</button>
+        <button id="btn-contrast-up">Contrast+</button>
+        <button id="btn-contrast-down">Contrast-</button>
+        <button id="btn-toggle-ramp">Toggle Ramp</button>
+        <button id="btn-invert">Invert</button>
+        <button id="btn-reset">Reset</button>
+    </div>
+
+    <div id="status">
+        <div>Rust: <span id="rust-status" class="loading">Loading...</span></div>
+        <div>C: <span id="c-status" class="loading">Loading...</span></div>
+        <div>Camera: <span id="camera-status" class="loading">Loading...</span></div>
+    </div>
+
+    <video id="video" autoplay playsinline style="display:none;"></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <!-- Load Emscripten C module -->
+    <script>
+        var Module = {
+            onRuntimeInitialized: function() {
+                window.cModuleReady = true;
+                console.log('C WASM module ready');
+            }
+        };
+    </script>
+    <script src="pkg-c/asciivision.js"></script>
+
+    <script type="module">
+        // Wait for C module to be fully ready
+        function waitForCModule() {
+            return new Promise((resolve) => {
+                if (window.cModuleReady && Module._processor_new) {
+                    resolve();
+                } else {
+                    const check = setInterval(() => {
+                        if (window.cModuleReady && Module._processor_new) {
+                            clearInterval(check);
+                            resolve();
+                        }
+                    }, 50);
+                }
+            });
+        }
+
+        // Rust WASM module
+        import init, { AsciiProcessor as RustProcessor } from './pkg/asciivision_wasm.js';
+        // C wrapper
+        import { AsciiProcessor as CProcessor, initWasm as initCWasm } from './pkg-c/wrapper.js';
+
+        const WIDTH = 100;
+        const HEIGHT = 40;
+
+        // State
+        let rustProcessor = null;
+        let cProcessor = null;
+        let video = null;
+        let canvas = null;
+        let ctx = null;
+        let running = false;
+
+        // Stats
+        let rustFrameTimes = [];
+        let cFrameTimes = [];
+
+        // UI elements
+        const rustOutput = document.getElementById('rust-output');
+        const cOutput = document.getElementById('c-output');
+        const rustFps = document.getElementById('rust-fps');
+        const cFps = document.getElementById('c-fps');
+        const rustTime = document.getElementById('rust-time');
+        const cTime = document.getElementById('c-time');
+        const rustStatus = document.getElementById('rust-status');
+        const cStatus = document.getElementById('c-status');
+        const cameraStatus = document.getElementById('camera-status');
+        const rustSize = document.getElementById('rust-size');
+        const cSize = document.getElementById('c-size');
+
+        // Initialize
+        async function start() {
+            // Initialize Rust WASM
+            try {
+                await init();
+                rustProcessor = new RustProcessor();
+                rustStatus.textContent = 'Ready';
+                rustStatus.className = 'ready';
+
+                // Get Rust WASM size
+                const rustResp = await fetch('./pkg/asciivision_wasm_bg.wasm');
+                const rustBlob = await rustResp.blob();
+                rustSize.textContent = `${(rustBlob.size / 1024).toFixed(1)}KB`;
+            } catch (e) {
+                rustStatus.textContent = `Error: ${e.message}`;
+                rustStatus.className = 'error';
+                console.error('Rust init failed:', e);
+            }
+
+            // Initialize C WASM
+            try {
+                await waitForCModule();
+                cProcessor = new CProcessor();
+                cStatus.textContent = 'Ready';
+                cStatus.className = 'ready';
+
+                // Get C WASM size
+                const cResp = await fetch('./pkg-c/asciivision.wasm');
+                const cBlob = await cResp.blob();
+                cSize.textContent = `${(cBlob.size / 1024).toFixed(1)}KB`;
+            } catch (e) {
+                cStatus.textContent = `Error: ${e.message}`;
+                cStatus.className = 'error';
+                console.error('C init failed:', e);
+            }
+
+            // Initialize camera
+            try {
+                video = document.getElementById('video');
+                canvas = document.getElementById('canvas');
+                ctx = canvas.getContext('2d');
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480 }
+                });
+                video.srcObject = stream;
+                await video.play();
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                cameraStatus.textContent = `Ready (${video.videoWidth}x${video.videoHeight})`;
+                cameraStatus.className = 'ready';
+
+                running = true;
+                render();
+            } catch (e) {
+                cameraStatus.textContent = `Error: ${e.message}`;
+                cameraStatus.className = 'error';
+                console.error('Camera init failed:', e);
+            }
+        }
+
+        function getFrame() {
+            ctx.drawImage(video, 0, 0);
+            return ctx.getImageData(0, 0, canvas.width, canvas.height);
+        }
+
+        function render() {
+            if (!running) return;
+
+            const imageData = getFrame();
+            const pixels = imageData.data;
+
+            // Process with Rust
+            if (rustProcessor) {
+                const t0 = performance.now();
+                const ascii = rustProcessor.process_frame(
+                    pixels,
+                    imageData.width,
+                    imageData.height,
+                    WIDTH,
+                    HEIGHT
+                );
+                const t1 = performance.now();
+                rustOutput.textContent = ascii;
+                rustFrameTimes.push(t1 - t0);
+                if (rustFrameTimes.length > 30) rustFrameTimes.shift();
+            }
+
+            // Process with C
+            if (cProcessor) {
+                const t0 = performance.now();
+                const ascii = cProcessor.process_frame(
+                    pixels,
+                    imageData.width,
+                    imageData.height,
+                    WIDTH,
+                    HEIGHT
+                );
+                const t1 = performance.now();
+                cOutput.textContent = ascii;
+                cFrameTimes.push(t1 - t0);
+                if (cFrameTimes.length > 30) cFrameTimes.shift();
+            }
+
+            // Update stats every 10 frames
+            if (rustFrameTimes.length % 10 === 0) {
+                const avgRust = rustFrameTimes.reduce((a, b) => a + b, 0) / rustFrameTimes.length;
+                const avgC = cFrameTimes.reduce((a, b) => a + b, 0) / cFrameTimes.length;
+                rustTime.textContent = avgRust.toFixed(2);
+                cTime.textContent = avgC.toFixed(2);
+                rustFps.textContent = (1000 / avgRust).toFixed(0);
+                cFps.textContent = (1000 / avgC).toFixed(0);
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        // Controls - apply to both processors
+        function applyBoth(fn) {
+            if (rustProcessor) fn(rustProcessor);
+            if (cProcessor) fn(cProcessor);
+        }
+
+        document.getElementById('btn-bright-up').onclick = () =>
+            applyBoth(p => p.set_brightness(p.get_brightness() + 0.1));
+
+        document.getElementById('btn-bright-down').onclick = () =>
+            applyBoth(p => p.set_brightness(p.get_brightness() - 0.1));
+
+        document.getElementById('btn-contrast-up').onclick = () =>
+            applyBoth(p => p.set_contrast(p.get_contrast() + 0.1));
+
+        document.getElementById('btn-contrast-down').onclick = () =>
+            applyBoth(p => p.set_contrast(p.get_contrast() - 0.1));
+
+        document.getElementById('btn-toggle-ramp').onclick = () =>
+            applyBoth(p => p.toggle_ramp());
+
+        document.getElementById('btn-invert').onclick = () =>
+            applyBoth(p => p.toggle_invert());
+
+        document.getElementById('btn-reset').onclick = () =>
+            applyBoth(p => p.reset());
+
+        // Start
+        start();
+    </script>
+</body>
+</html>

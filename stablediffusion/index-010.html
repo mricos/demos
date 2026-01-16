@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NCA Texture SPA (Vanilla JS)</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --fg:#d7dde6; --muted:#8a93a3; --panel:#101823; --border:#1f2a3a;
+    }
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--fg);
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      display:grid; grid-template-rows:auto 1fr;
+    }
+    header{
+      padding:10px 12px; border-bottom:1px solid var(--border);
+      display:grid; gap:10px;
+    }
+    .grid{display:grid; gap:10px}
+    @media(min-width:980px){ .grid{grid-template-columns: 1.4fr 1fr} }
+    .card{
+      background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:10px;
+    }
+    .row{display:grid; gap:10px}
+    @media(min-width:980px){ .row{grid-template-columns: 1fr 1fr 1fr 1fr} }
+    label{display:grid; gap:6px; font-size:12px; color:var(--muted)}
+    input,select,button{
+      background:#0c121c; color:var(--fg);
+      border:1px solid var(--border); border-radius:10px;
+      padding:8px 10px; outline:none;
+    }
+    input[type="range"]{padding:0;height:26px}
+    button{cursor:pointer}
+    button:disabled{opacity:.55;cursor:default}
+    .btnbar{display:flex;flex-wrap:wrap;gap:8px}
+    main{padding:16px; display:grid; place-items:center}
+    .stage{display:grid; gap:12px; justify-items:center}
+    .canrow{display:flex; gap:12px; flex-wrap:wrap; justify-content:center}
+    canvas{
+      border:1px solid var(--border); border-radius:12px; background:#000;
+      image-rendering: pixelated; image-rendering: crisp-edges;
+    }
+    .meta{
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+      color:var(--muted); font-size:12px; display:flex; gap:12px; flex-wrap:wrap; justify-content:center;
+    }
+    .pill{padding:2px 8px; border:1px solid var(--border); border-radius:999px; background:#0c121c}
+    .small{font-size:12px;color:var(--muted);line-height:1.4}
+    .split{display:grid;gap:10px}
+    @media(min-width:980px){ .split{grid-template-columns:1fr 1fr} }
+  </style>
+</head>
+<body>
+<header class="grid">
+  <div class="card">
+    <div class="row">
+      <label>Grid
+        <select id="size">
+          <option value="32">32×32</option>
+          <option value="48">48×48</option>
+          <option value="64" selected>64×64</option>
+        </select>
+      </label>
+      <label>Channels (state)
+        <select id="ch">
+          <option value="8" selected>8</option>
+          <option value="12">12</option>
+          <option value="16">16</option>
+        </select>
+      </label>
+      <label>Hidden width
+        <select id="h1">
+          <option value="16">16</option>
+          <option value="24" selected>24</option>
+          <option value="32">32</option>
+        </select>
+      </label>
+      <label>Unroll steps K (training)
+        <input id="K" type="number" min="4" max="64" step="1" value="24"/>
+      </label>
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <label>dt (update scale)
+        <input id="dt" type="range" min="0.05" max="1.0" step="0.01" value="0.35"/>
+      </label>
+      <label>Update prob p (asynchronous mask)
+        <input id="p" type="range" min="0.1" max="1.0" step="0.01" value="0.75"/>
+      </label>
+      <label>Learning rate
+        <input id="lr" type="number" min="1e-5" step="1e-5" value="0.001"/>
+      </label>
+      <label>Seed
+        <input id="seed" type="number" min="0" step="1" value="1"/>
+      </label>
+    </div>
+
+    <div class="btnbar" style="margin-top:10px;">
+      <button id="init">Init (reset state)</button>
+      <button id="step">Step</button>
+      <button id="run">Run</button>
+      <button id="stop" disabled>Stop</button>
+      <button id="train">Train</button>
+      <button id="haltTrain" disabled>Stop Train</button>
+      <button id="reinitModel">Reinit model</button>
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <label>Target texture
+        <select id="target">
+          <option value="checker" selected>checker</option>
+          <option value="stripes">stripes</option>
+          <option value="dots">dots</option>
+          <option value="noise">noise (fixed seed)</option>
+        </select>
+      </label>
+      <label>Tile size
+        <select id="tile">
+          <option value="8" selected>8</option>
+          <option value="12">12</option>
+          <option value="16">16</option>
+        </select>
+      </label>
+      <label>Render scale
+        <select id="scale">
+          <option value="6">6×</option>
+          <option value="8" selected>8×</option>
+          <option value="10">10×</option>
+        </select>
+      </label>
+      <label>Render mode
+        <select id="rendermode">
+          <option value="rgb" selected>RGB (state[0..2])</option>
+          <option value="snap">Palette snap (pixel-art)</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="small">
+      <div style="color:var(--fg);margin-bottom:6px;">Neural Cellular Automaton (texture)</div>
+      <div>State: s ∈ R^{H×W×C}. Perception: apply fixed 3×3 kernels (I, Sobel-x, Sobel-y, Laplacian) per channel → features.</div>
+      <div>Update: Δ = MLP_θ(perception); s ← s + dt·mask·Δ (mask is Bernoulli(p) per cell).</div>
+      <div>Training: optimize θ so that after K steps, tanh(s[0..2]) matches a procedural target tile under periodic boundary conditions.</div>
+      <div style="margin-top:8px;">This is the “self-organising textures” mechanism: local rule, shared weights, iterated updates. Diffusion differs by having an explicit noise schedule and reverse-time sampling; the commonality is “local operator iterated over a grid”.</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="stage">
+    <div class="canrow">
+      <div class="card" style="padding:10px;">
+        <div class="small" style="margin-bottom:6px;">Target</div>
+        <canvas id="cvT"></canvas>
+      </div>
+      <div class="card" style="padding:10px;">
+        <div class="small" style="margin-bottom:6px;">NCA output</div>
+        <canvas id="cvO"></canvas>
+      </div>
+    </div>
+    <div class="meta" id="meta"></div>
+  </div>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  // -----------------------------
+  // Utilities
+  // -----------------------------
+  function mulberry32(seed){
+    let a = seed >>> 0;
+    return () => {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randn(rng){
+    let u=0,v=0; while(u===0) u=rng(); while(v===0) v=rng();
+    return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+  }
+  const clamp = (x, a, b) => (x < a ? a : (x > b ? b : x));
+  const tanh = (x) => Math.tanh(x);
+  const dtanh = (y) => 1 - y*y; // y=tanh(x)
+  const relu = (x) => (x > 0 ? x : 0);
+  const drelu = (x) => (x > 0 ? 1 : 0);
+
+  // Pixel-art palette (RGB in [-1,1])
+  const PAL = [
+    [  0,  0,  0], [255,255,255], [ 29, 43, 83], [126, 37, 83],
+    [  0,135, 81], [171, 82, 54], [ 95, 87, 79], [194,195,199],
+    [255,241,232], [255,  0, 77], [255,163,  0], [255,236, 39],
+    [  0,228, 54], [ 41,173,255], [131,118,156], [255,119,168],
+  ].map(([r,g,b]) => [r/127.5-1, g/127.5-1, b/127.5-1]);
+
+  function nearestPal(r,g,b){
+    let best=0, bestD=1e9;
+    for(let k=0;k<PAL.length;k++){
+      const p=PAL[k];
+      const d0=r-p[0], d1=g-p[1], d2=b-p[2];
+      const d=d0*d0+d1*d1+d2*d2;
+      if(d<bestD){bestD=d;best=k;}
+    }
+    return PAL[best];
+  }
+
+  // -----------------------------
+  // DOM
+  // -----------------------------
+  const cvT = document.getElementById("cvT");
+  const cvO = document.getElementById("cvO");
+  const ctxT = cvT.getContext("2d", { alpha:false });
+  const ctxO = cvO.getContext("2d", { alpha:false });
+  const meta = document.getElementById("meta");
+
+  const elSize = document.getElementById("size");
+  const elCh = document.getElementById("ch");
+  const elH1 = document.getElementById("h1");
+  const elK = document.getElementById("K");
+  const elDT = document.getElementById("dt");
+  const elP = document.getElementById("p");
+  const elLR = document.getElementById("lr");
+  const elSeed = document.getElementById("seed");
+  const elTarget = document.getElementById("target");
+  const elTile = document.getElementById("tile");
+  const elScale = document.getElementById("scale");
+  const elRenderMode = document.getElementById("rendermode");
+
+  const btnInit = document.getElementById("init");
+  const btnStep = document.getElementById("step");
+  const btnRun = document.getElementById("run");
+  const btnStop = document.getElementById("stop");
+  const btnTrain = document.getElementById("train");
+  const btnHaltTrain = document.getElementById("haltTrain");
+  const btnReinitModel = document.getElementById("reinitModel");
+
+  // -----------------------------
+  // NCA model + training state
+  // -----------------------------
+  let W=64,H=64,N=4096,C=8,H1=24, F=0, SCALE=8;
+  let rng = mulberry32(1);
+
+  // Fixed 3x3 kernels (periodic boundary)
+  // Order: Identity, SobelX, SobelY, Laplacian
+  const K_ID = [0,0,0, 0,1,0, 0,0,0];
+  const K_SX = [-1,0,1, -2,0,2, -1,0,1].map(v=>v/8);
+  const K_SY = [-1,-2,-1, 0,0,0, 1,2,1].map(v=>v/8);
+  const K_LP = [0,1,0, 1,-4,1, 0,1,0].map(v=>v/4);
+  const KSET = [K_ID, K_SX, K_SY, K_LP];
+
+  // Parameters: W1: (F x H1), b1: H1, W2: (H1 x C), b2: C
+  let W1=null,b1=null,W2=null,b2=null;
+
+  // Adam optimizer moments
+  let mW1=null,vW1=null, mb1=null,vb1=null, mW2=null,vW2=null, mb2=null,vb2=null;
+  let adamT=0;
+
+  // State buffers
+  let s=null;        // current state (N*C)
+  let d=null;        // delta (N*C)
+  let feat=null;     // perception features (N*F)
+  let hpre=null;     // pre-activation (N*H1)
+  let hact=null;     // activation (N*H1)
+  let mask=null;     // update mask (N) in {0,1}
+
+  // Target texture in [-1,1] RGB, size N*3
+  let targetRGB=null;
+
+  // Rendering ImageData
+  let imgT=null,imgO=null;
+
+  // Loops flags
+  let running=false;
+  let training=false;
+
+  function allocAll(){
+    W = Number(elSize.value)|0;
+    H = W;
+    N = W*H;
+    C = Number(elCh.value)|0;
+    H1 = Number(elH1.value)|0;
+    F = 4*C;
+    SCALE = Number(elScale.value)|0;
+
+    cvT.width=W; cvT.height=H;
+    cvO.width=W; cvO.height=H;
+    cvT.style.width=(W*SCALE)+"px"; cvT.style.height=(H*SCALE)+"px";
+    cvO.style.width=(W*SCALE)+"px"; cvO.style.height=(H*SCALE)+"px";
+
+    imgT = ctxT.createImageData(W,H);
+    imgO = ctxO.createImageData(W,H);
+
+    s = new Float32Array(N*C);
+    d = new Float32Array(N*C);
+    feat = new Float32Array(N*F);
+    hpre = new Float32Array(N*H1);
+    hact = new Float32Array(N*H1);
+    mask = new Float32Array(N);
+
+    targetRGB = new Float32Array(N*3);
+  }
+
+  function reinitModel(){
+    const seed = (Number(elSeed.value)|0) >>> 0;
+    rng = mulberry32(seed ^ 0xA53A9E37);
+
+    W1 = new Float32Array(F*H1);
+    b1 = new Float32Array(H1);
+    W2 = new Float32Array(H1*C);
+    b2 = new Float32Array(C);
+
+    // small init
+    const s1 = 0.25 / Math.sqrt(F);
+    const s2 = 0.25 / Math.sqrt(H1);
+    for(let i=0;i<W1.length;i++) W1[i] = s1*randn(rng);
+    for(let i=0;i<b1.length;i++) b1[i] = 0;
+    for(let i=0;i<W2.length;i++) W2[i] = s2*randn(rng);
+    for(let i=0;i<b2.length;i++) b2[i] = 0;
+
+    // Adam
+    mW1 = new Float32Array(W1.length); vW1 = new Float32Array(W1.length);
+    mb1 = new Float32Array(b1.length); vb1 = new Float32Array(b1.length);
+    mW2 = new Float32Array(W2.length); vW2 = new Float32Array(W2.length);
+    mb2 = new Float32Array(b2.length); vb2 = new Float32Array(b2.length);
+    adamT = 0;
+  }
+
+  function initState(){
+    const seed = (Number(elSeed.value)|0) >>> 0;
+    rng = mulberry32(seed);
+
+    // start near zero; seed a single cell
+    s.fill(0);
+    const cx = (W/2)|0, cy=(H/2)|0;
+    const idx = (cy*W+cx)*C;
+    s[idx+0] = 1.0; // R seed
+    s[idx+1] = 1.0; // G seed
+    s[idx+2] = 1.0; // B seed
+    if (C > 3) s[idx+3] = 1.0; // alpha-like
+    for(let k=4;k<C;k++) s[idx+k] = 0.1*randn(rng);
+  }
+
+  // -----------------------------
+  // Procedural target textures (periodic tile)
+  // -----------------------------
+  function buildTarget(){
+    const tile = Number(elTile.value)|0;
+    const mode = elTarget.value;
+    const seed = (Number(elSeed.value)|0) >>> 0;
+    const trng = mulberry32(seed ^ 0xC0FFEE);
+
+    // define two colors (pixel-art)
+    const cA = PAL[13]; // light blue
+    const cB = PAL[12]; // green
+
+    for(let y=0;y<H;y++){
+      for(let x=0;x<W;x++){
+        const tx = x % tile;
+        const ty = y % tile;
+        let r=0,g=0,b=0;
+
+        if(mode==="checker"){
+          const v = ((tx < tile/2) ^ (ty < tile/2)) ? 1 : 0;
+          const p = v ? cA : cB;
+          r=p[0]; g=p[1]; b=p[2];
+        } else if(mode==="stripes"){
+          const v = (tx < tile/2) ? 1 : 0;
+          const p = v ? cA : cB;
+          r=p[0]; g=p[1]; b=p[2];
+        } else if(mode==="dots"){
+          const cx=(tile/2), cy=(tile/2);
+          const dx=tx-cx+0.5, dy=ty-cy+0.5;
+          const v = (dx*dx+dy*dy) <= (tile*0.18)*(tile*0.18);
+          const p = v ? PAL[11] : PAL[2]; // yellow dots on dark blue
+          r=p[0]; g=p[1]; b=p[2];
+        } else if(mode==="noise"){
+          // fixed per-tile noise for a coherent texture
+          const h = ((ty*tile+tx) ^ (seed*2654435761)) >>> 0;
+          const rr = mulberry32(h)();
+          const p = rr < 0.5 ? PAL[6] : PAL[7];
+          r=p[0]; g=p[1]; b=p[2];
+        }
+
+        const i = (y*W+x)*3;
+        targetRGB[i+0]=r; targetRGB[i+1]=g; targetRGB[i+2]=b;
+      }
+    }
+  }
+
+  // -----------------------------
+  // Perception: conv per channel with 4 kernels
+  // feat[(cell * F) + (k*C + c)] where k in 0..3
+  // -----------------------------
+  function idxWrap(x,y){
+    x = (x % W + W) % W;
+    y = (y % H + H) % H;
+    return y*W+x;
+  }
+
+  function computePerception(state, outFeat){
+    // periodic boundary
+    for(let y=0;y<H;y++){
+      for(let x=0;x<W;x++){
+        const cell = y*W+x;
+        const baseS = cell*C;
+        const baseF = cell*F;
+
+        // for each channel c, compute 4 convs
+        for(let c=0;c<C;c++){
+          // 3x3 neighborhood accumulation
+          let acc0=0, acc1=0, acc2=0, acc3=0;
+          let kk=0;
+          for(let oy=-1;oy<=1;oy++){
+            for(let ox=-1;ox<=1;ox++,kk++){
+              const nb = idxWrap(x+ox,y+oy);
+              const v = state[nb*C + c];
+              acc0 += K_ID[kk]*v;
+              acc1 += K_SX[kk]*v;
+              acc2 += K_SY[kk]*v;
+              acc3 += K_LP[kk]*v;
+            }
+          }
+          outFeat[baseF + 0*C + c] = acc0;
+          outFeat[baseF + 1*C + c] = acc1;
+          outFeat[baseF + 2*C + c] = acc2;
+          outFeat[baseF + 3*C + c] = acc3;
+        }
+      }
+    }
+  }
+
+  // -----------------------------
+  // Forward update: state -> new state (in-place)
+  // -----------------------------
+  function sampleMask(p){
+    for(let i=0;i<N;i++){
+      mask[i] = (rng() < p) ? 1 : 0;
+    }
+  }
+
+  function mlpForward(outDelta, featIn, outHpre, outHact){
+    // outHpre/outHact shape N*H1
+    // outDelta shape N*C
+    for(let cell=0;cell<N;cell++){
+      const f0 = cell*F;
+      const h0 = cell*H1;
+      const d0 = cell*C;
+
+      // layer1
+      for(let j=0;j<H1;j++){
+        let z = b1[j];
+        const wj = j; // column index
+        for(let i=0;i<F;i++){
+          z += featIn[f0+i] * W1[i*H1 + wj];
+        }
+        outHpre[h0+j] = z;
+        const a = relu(z);
+        outHact[h0+j] = a;
+      }
+
+      // layer2
+      for(let c=0;c<C;c++){
+        let z = b2[c];
+        for(let j=0;j<H1;j++){
+          z += outHact[h0+j] * W2[j*C + c];
+        }
+        outDelta[d0+c] = z;
+      }
+    }
+  }
+
+  function stepNCA(){
+    const dt = Number(elDT.value);
+    const p = Number(elP.value);
+
+    sampleMask(p);
+    computePerception(s, feat);
+    mlpForward(d, feat, hpre, hact);
+
+    // state update
+    for(let cell=0;cell<N;cell++){
+      const m = mask[cell];
+      const base = cell*C;
+      for(let c=0;c<C;c++){
+        s[base+c] = s[base+c] + dt * m * d[base+c];
+      }
+    }
+  }
+
+  // -----------------------------
+  // Rendering
+  // -----------------------------
+  function drawRGB(ctx, img, rgbArr, snap){
+    for(let y=0;y<H;y++){
+      for(let x=0;x<W;x++){
+        const i = (y*W+x);
+        const o = i*4;
+        let r = rgbArr[i*3+0];
+        let g = rgbArr[i*3+1];
+        let b = rgbArr[i*3+2];
+
+        if(snap){
+          const p = nearestPal(r,g,b);
+          r=p[0]; g=p[1]; b=p[2];
+        }
+        img.data[o+0] = clamp(Math.round((r+1)*127.5),0,255);
+        img.data[o+1] = clamp(Math.round((g+1)*127.5),0,255);
+        img.data[o+2] = clamp(Math.round((b+1)*127.5),0,255);
+        img.data[o+3] = 255;
+      }
+    }
+    ctx.putImageData(img,0,0);
+  }
+
+  function renderAll(loss=null){
+    // target
+    drawRGB(ctxT, imgT, targetRGB, false);
+
+    // output from state channels 0..2 via tanh
+    const snap = (elRenderMode.value === "snap");
+    for(let y=0;y<H;y++){
+      for(let x=0;x<W;x++){
+        const cell = y*W+x;
+        const baseS = cell*C;
+        const i = cell*3;
+        const r = tanh(s[baseS+0]);
+        const g = tanh(s[baseS+1]);
+        const b = tanh(s[baseS+2]);
+        targetScratch[i+0]=r; targetScratch[i+1]=g; targetScratch[i+2]=b;
+      }
+    }
+    drawRGB(ctxO, imgO, targetScratch, snap);
+
+    // meta
+    meta.innerHTML = "";
+    const pills = [
+      ["grid", `${W}×${H}`],
+      ["C", `${C}`],
+      ["H1", `${H1}`],
+      ["dt", `${Number(elDT.value).toFixed(2)}`],
+      ["p", `${Number(elP.value).toFixed(2)}`],
+      ["K", `${Number(elK.value)|0}`],
+      ["mode", `${elTarget.value}`],
+      ["tile", `${Number(elTile.value)|0}`],
+    ];
+    if(loss !== null) pills.push(["loss", `${loss.toExponential(3)}`]);
+    for(const [k,v] of pills){
+      const d=document.createElement("div");
+      d.className="pill";
+      d.textContent=`${k}: ${v}`;
+      meta.appendChild(d);
+    }
+  }
+
+  // scratch for output RGB
+  let targetScratch = null;
+
+  // -----------------------------
+  // Training (BPTT) with Adam
+  // Loss: MSE between tanh(s_K[0..2]) and targetRGB
+  // -----------------------------
+  function adamStep(param, grad, m, v, lr){
+    const b1=0.9, b2=0.999, eps=1e-8;
+    adamT++;
+    const t = adamT;
+
+    // Note: we increment adamT once per call site (coarse); acceptable for toy.
+    // To avoid multiple increments, the caller uses a wrapper.
+    for(let i=0;i<param.length;i++){
+      const g = grad[i];
+      m[i] = b1*m[i] + (1-b1)*g;
+      v[i] = b2*v[i] + (1-b2)*g*g;
+      const mh = m[i] / (1 - Math.pow(b1,t));
+      const vh = v[i] / (1 - Math.pow(b2,t));
+      param[i] -= lr * mh / (Math.sqrt(vh) + eps);
+    }
+  }
+
+  function trainOneIter(){
+    const K = clamp(Number(elK.value)|0, 1, 64);
+    const dt = Number(elDT.value);
+    const p = Number(elP.value);
+    const lr = Number(elLR.value);
+
+    // ---- forward unroll: store per-step buffers ----
+    // store s_k, feat_k, hpre_k, hact_k, mask_k, delta_k
+    const S = new Array(K+1);
+    const Fe = new Array(K);
+    const Hp = new Array(K);
+    const Ha = new Array(K);
+    const Mk = new Array(K);
+    const Dk = new Array(K);
+
+    S[0] = new Float32Array(s); // copy current as initial
+    let loss = 0;
+
+    for(let k=0;k<K;k++){
+      // sample mask
+      const m = new Float32Array(N);
+      for(let i=0;i<N;i++) m[i] = (rng() < p) ? 1 : 0;
+      Mk[k] = m;
+
+      // perception
+      const fe = new Float32Array(N*F);
+      computePerception(S[k], fe);
+      Fe[k] = fe;
+
+      // forward MLP
+      const hp = new Float32Array(N*H1);
+      const ha = new Float32Array(N*H1);
+      const dk = new Float32Array(N*C);
+      // temporarily point globals for mlpForward without reallocating weights
+      mlpForward(dk, fe, hp, ha);
+      Hp[k] = hp; Ha[k] = ha; Dk[k] = dk;
+
+      // update
+      const next = new Float32Array(N*C);
+      next.set(S[k]);
+      for(let cell=0;cell<N;cell++){
+        const mm = m[cell];
+        const base = cell*C;
+        for(let c=0;c<C;c++){
+          next[base+c] += dt * mm * dk[base+c];
+        }
+      }
+      S[k+1] = next;
+    }
+
+    // ---- loss & dS at final ----
+    const dS = new Float32Array(N*C);
+    const SK = S[K];
+    for(let cell=0;cell<N;cell++){
+      const base = cell*C;
+      const i3 = cell*3;
+      const y0 = tanh(SK[base+0]);
+      const y1 = tanh(SK[base+1]);
+      const y2 = tanh(SK[base+2]);
+      const t0 = targetRGB[i3+0], t1 = targetRGB[i3+1], t2 = targetRGB[i3+2];
+      const e0 = y0 - t0, e1 = y1 - t1, e2 = y2 - t2;
+      loss += (e0*e0 + e1*e1 + e2*e2);
+      // d/ds: 2*(y-t)*dtanh(y)
+      dS[base+0] = (2*e0)*dtanh(y0) / (N*3);
+      dS[base+1] = (2*e1)*dtanh(y1) / (N*3);
+      dS[base+2] = (2*e2)*dtanh(y2) / (N*3);
+      for(let c=3;c<C;c++) dS[base+c] = 0;
+    }
+    loss /= (N*3);
+
+    // grads accumulators
+    const gW1 = new Float32Array(W1.length);
+    const gb1 = new Float32Array(b1.length);
+    const gW2 = new Float32Array(W2.length);
+    const gb2 = new Float32Array(b2.length);
+
+    // ---- backward through time ----
+    for(let k=K-1;k>=0;k--){
+      // s_{k+1} = s_k + dt*mask_k*delta_k
+      // => d(delta_k) = dS * dt*mask
+      const mk = Mk[k];
+      const dDelta = new Float32Array(N*C);
+      for(let cell=0;cell<N;cell++){
+        const mm = mk[cell];
+        const base = cell*C;
+        for(let c=0;c<C;c++){
+          dDelta[base+c] = dS[base+c] * dt * mm;
+        }
+      }
+
+      // delta = hact * W2 + b2
+      const ha = Ha[k];
+      // grad W2, b2, and dHact
+      const dHact = new Float32Array(N*H1);
+      for(let cell=0;cell<N;cell++){
+        const h0 = cell*H1;
+        const d0 = cell*C;
+
+        for(let c=0;c<C;c++){
+          gb2[c] += dDelta[d0+c];
+        }
+        for(let j=0;j<H1;j++){
+          const a = ha[h0+j];
+          let acc = 0;
+          for(let c=0;c<C;c++){
+            const g = dDelta[d0+c];
+            gW2[j*C + c] += a * g;
+            acc += W2[j*C + c] * g;
+          }
+          dHact[h0+j] = acc;
+        }
+      }
+
+      // hact = relu(hpre)
+      const hp = Hp[k];
+      const dHpre = new Float32Array(N*H1);
+      for(let i=0;i<dHpre.length;i++){
+        dHpre[i] = dHact[i] * drelu(hp[i]);
+      }
+
+      // hpre = feat * W1 + b1
+      const fe = Fe[k];
+      const dFeat = new Float32Array(N*F);
+      for(let cell=0;cell<N;cell++){
+        const f0 = cell*F;
+        const h0 = cell*H1;
+
+        for(let j=0;j<H1;j++){
+          gb1[j] += dHpre[h0+j];
+        }
+        for(let i=0;i<F;i++){
+          let acc = 0;
+          for(let j=0;j<H1;j++){
+            const g = dHpre[h0+j];
+            gW1[i*H1 + j] += fe[f0+i] * g;
+            acc += W1[i*H1 + j] * g;
+          }
+          dFeat[f0+i] = acc;
+        }
+      }
+
+      // feat is 4 convs per channel of s_k. Backprop through conv:
+      // for each channel c, dFeat for (kernel k, channel c) is gradient wrt conv output.
+      // dS_k accumulates conv-transpose of those kernels.
+      const dSk = new Float32Array(N*C); // gradient to add to dS (from perception path)
+      // Also carry through identity from s_{k+1} to s_k: dS passes through unchanged.
+      // So new dS := dS + dSk (since s_k contributes to s_{k+1} directly with coefficient 1).
+      for(let y=0;y<H;y++){
+        for(let x=0;x<W;x++){
+          const cell = y*W+x;
+          const baseF = cell*F;
+
+          for(let c=0;c<C;c++){
+            // gather gradients for the 4 conv outputs at this cell and channel
+            const g0 = dFeat[baseF + 0*C + c];
+            const g1 = dFeat[baseF + 1*C + c];
+            const g2 = dFeat[baseF + 2*C + c];
+            const g3 = dFeat[baseF + 3*C + c];
+
+            // distribute to 3x3 neighborhood in input s_k using flipped kernels
+            // For symmetric kernels (ID, Laplacian), flip is same; for Sobel, flip = rotate 180.
+            let kk=0;
+            for(let oy=-1;oy<=1;oy++){
+              for(let ox=-1;ox<=1;ox++,kk++){
+                const nb = idxWrap(x+ox,y+oy);
+                const inIdx = nb*C + c;
+                // flip index: (2-oy,2-ox) corresponds to rotate 180 => kkFlip = 8-kk
+                const kf = 8 - kk;
+                dSk[inIdx] += K_ID[kf]*g0 + K_SX[kf]*g1 + K_SY[kf]*g2 + K_LP[kf]*g3;
+              }
+            }
+          }
+        }
+      }
+
+      // update dS to be gradient wrt s_k:
+      // s_{k+1} depends on s_k with coefficient 1 + (perception path already handled via dSk)
+      // and also via delta term already handled through dDelta (which fed into weights).
+      // For state gradient: dS := dS + dSk (carry-through + perception).
+      for(let i=0;i<dS.length;i++){
+        dS[i] = dS[i] + dSk[i];
+      }
+    }
+
+    // ---- Adam update (single time step for all params) ----
+    // increment adamT once per iteration:
+    adamT++;
+    const t = adamT;
+    const beta1=0.9, beta2=0.999, eps=1e-8;
+
+    function adamApply(param, grad, m, v){
+      for(let i=0;i<param.length;i++){
+        const g = grad[i];
+        m[i] = beta1*m[i] + (1-beta1)*g;
+        v[i] = beta2*v[i] + (1-beta2)*g*g;
+        const mh = m[i] / (1 - Math.pow(beta1,t));
+        const vh = v[i] / (1 - Math.pow(beta2,t));
+        param[i] -= lr * mh / (Math.sqrt(vh) + eps);
+      }
+    }
+
+    adamApply(W1, gW1, mW1, vW1);
+    adamApply(b1, gb1, mb1, vb1);
+    adamApply(W2, gW2, mW2, vW2);
+    adamApply(b2, gb2, mb2, vb2);
+
+    // commit the trained model by resetting state from seed for visualization
+    initState();
+
+    return loss;
+  }
+
+  // -----------------------------
+  // Loops
+  // -----------------------------
+  function setRunning(on){
+    running = on;
+    btnStop.disabled = !on;
+    btnRun.disabled = on;
+  }
+  function setTraining(on){
+    training = on;
+    btnHaltTrain.disabled = !on;
+    btnTrain.disabled = on;
+  }
+
+  function animTick(){
+    if(!running) return;
+    // small burst
+    const burst = 2;
+    for(let k=0;k<burst;k++) stepNCA();
+    renderAll();
+    requestAnimationFrame(animTick);
+  }
+
+  function trainTick(){
+    if(!training) return;
+    // do a few iterations per frame (bounded)
+    const iters = 1;
+    let loss = null;
+    for(let i=0;i<iters;i++){
+      loss = trainOneIter();
+    }
+    renderAll(loss);
+    requestAnimationFrame(trainTick);
+  }
+
+  // -----------------------------
+  // Wiring / boot
+  // -----------------------------
+  function fullReset(reinit=true){
+    allocAll();
+    targetScratch = new Float32Array(N*3);
+    buildTarget();
+    if(reinit) reinitModel();
+    initState();
+    renderAll();
+  }
+
+  btnInit.addEventListener("click", () => { initState(); renderAll(); });
+  btnReinitModel.addEventListener("click", () => { reinitModel(); initState(); renderAll(); });
+
+  btnStep.addEventListener("click", () => { stepNCA(); renderAll(); });
+
+  btnRun.addEventListener("click", () => { setRunning(true); requestAnimationFrame(animTick); });
+  btnStop.addEventListener("click", () => { setRunning(false); });
+
+  btnTrain.addEventListener("click", () => { setTraining(true); requestAnimationFrame(trainTick); });
+  btnHaltTrain.addEventListener("click", () => { setTraining(false); });
+
+  // Rebuild on config changes (stop loops)
+  function stopAll(){ setRunning(false); setTraining(false); }
+  for(const el of [elSize, elCh, elH1, elTile, elTarget, elScale]){
+    el.addEventListener("change", () => { stopAll(); fullReset(false); });
+  }
+  elRenderMode.addEventListener("change", () => renderAll());
+  elSeed.addEventListener("change", () => { stopAll(); fullReset(true); });
+  elK.addEventListener("change", () => renderAll());
+  elDT.addEventListener("input", () => renderAll());
+  elP.addEventListener("input", () => renderAll());
+
+  fullReset(true);
+})();
+</script>
+</body>
+</html>

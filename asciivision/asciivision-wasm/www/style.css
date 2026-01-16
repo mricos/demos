@@ -1,0 +1,265 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #000;
+    color: #0f0;
+    font-family: 'Courier New', Courier, monospace;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+#container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Top Control Bar */
+#top-bar {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 6px 10px;
+    background: #111;
+    border-bottom: 1px solid #333;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+/* Bottom Control Bar - hugs bottom */
+#bottom-bar {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 6px 10px;
+    background: #111;
+    border-top: 1px solid #333;
+    flex-shrink: 0;
+    margin-top: auto;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.control-group label {
+    color: #888;
+    font-size: 11px;
+}
+
+/* Buttons */
+button {
+    padding: 4px 10px;
+    background: #222;
+    color: #0f0;
+    border: 1px solid #0f0;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: bold;
+    transition: all 0.15s;
+}
+
+button:hover {
+    background: #0f0;
+    color: #000;
+}
+
+button.active {
+    background: #0f0;
+    color: #000;
+}
+
+button.warning {
+    border-color: #f80;
+    color: #f80;
+}
+
+button.warning:hover,
+button.warning.active {
+    background: #f80;
+    color: #000;
+}
+
+/* Sliders */
+input[type="range"] {
+    width: 80px;
+    height: 4px;
+    -webkit-appearance: none;
+    background: #333;
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #0f0;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: #0f0;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+#slider-offset-x,
+#slider-offset-y {
+    width: 50px;
+}
+
+/* HUD Display */
+.hud-display {
+    display: flex;
+    gap: 10px;
+    padding: 4px 8px;
+    background: rgba(255, 0, 0, 0.15);
+    border: 1px solid #f44;
+    border-radius: 3px;
+    font-size: 11px;
+    color: #f66;
+    font-weight: bold;
+}
+
+#phase-value {
+    font-size: 11px;
+    color: #0f0;
+    min-width: 35px;
+}
+
+/* Main Output Area - no margin, no border */
+#output-wrapper {
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+#ascii-output {
+    width: 100%;
+    height: 100%;
+    font-size: 10px;
+    line-height: 1.0;
+    letter-spacing: 0;
+    white-space: pre;
+    overflow: hidden;
+    font-family: 'Courier New', Courier, monospace;
+    color: #0f0;
+}
+
+#skeleton-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    font-size: 10px;
+    line-height: 1.0;
+    letter-spacing: 0;
+    white-space: pre;
+    overflow: hidden;
+    font-family: 'Courier New', Courier, monospace;
+    color: #f22;
+    pointer-events: none;
+    text-shadow: 0 0 3px #f00;
+}
+
+#hud-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* Status */
+#status {
+    flex: 1;
+    font-size: 11px;
+    color: #0a0;
+    text-align: center;
+}
+
+#send-status {
+    font-size: 11px;
+    color: #0f0;
+}
+
+.key-hint {
+    font-size: 9px;
+    color: #555;
+}
+
+/* Loading & Error */
+#loading .sub {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #0a0;
+}
+
+#loading, #error {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #0f0;
+}
+
+#error {
+    color: #f00;
+}
+
+#error button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: #333;
+    color: #0f0;
+    border: 1px solid #0f0;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+#error button:hover {
+    background: #0f0;
+    color: #000;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Responsive */
+@media (max-width: 800px) {
+    #top-bar {
+        gap: 8px;
+    }
+
+    input[type="range"] {
+        width: 60px;
+    }
+
+    #slider-offset-x,
+    #slider-offset-y {
+        width: 40px;
+    }
+
+    .key-hint {
+        display: none;
+    }
+}

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CA Model Explanation</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-wc6PhrB1yCMqKRqBoFXDSDEFBoO7csSPyLkMPQJMIAPVkE+P5VcUNHSM3UmX2MW8" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" integrity="sha384-hpyrfaEYhYWMJKB2GzVoxm+YxP0u1T3fJ/r+Rie0cGkM2FN5W4lxJ7yB3a5U/T8c" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js" integrity="sha384-doLRpt8BzY+srmS9Yxsa9/Yf4iKqC3Lw00BvQeI4/jKx3k3+pP4/4pP0tWzG" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+<style>
+  body { font-family: sans-serif; margin: 20px; line-height: 1.6; }
+  h2 { color: #333; }
+  p { margin-bottom: 10px; }
+  pre { background-color: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<h2>CA Model Explanation</h2>
+
+<h3>Training Loop</h3>
+<p>The training loop's main goal is to teach the Cellular Automata (CA) model to grow and maintain the target emoji. Here's how it works:</p>
+
+<ol>
+  <li>
+    <strong>Initialization</strong>: Before the loop, a <code>pool</code> of <code>POOL_SIZE</code> (1024) CA states is created, each initialized with a <code>seed</code> (a single living cell in the center of an otherwise empty grid). The <code>ca</code> model, <code>trainer</code> (Adam optimizer), and <code>loss_log</code> are also initialized.
+  </li>
+  <li>
+    <strong>Batch Sampling (if <code>USE_PATTERN_POOL</code> is true)</strong>:
+    <ul>
+      <li>In each step, a <code>BATCH_SIZE</code> (8) of CA states (<code>x0</code>) is sampled from the <code>pool</code>.</li>
+      <li>These sampled states are ranked by their current loss, and the one with the highest loss is replaced by a fresh <code>seed</code> to encourage new growth.</li>
+      <li>If <code>DAMAGE_N</code> is greater than 0 (e.g., in regenerating experiments), a certain number (<code>DAMAGE_N</code>, which is 3 in your current setup) of the worst-performing patterns in the batch are damaged by applying circular masks of zeros, simulating injuries.</li>
+    </ul>
+  </li>
+  <li>
+    <strong>CA Simulation (<code>train_step</code>)</strong>:
+    <ul>
+      <li>The sampled batch <code>x0</code> is passed to the <code>train_step</code> function.</li>
+      <li>Inside <code>train_step</code>, the <code>ca</code> model simulates for a random number of steps (<code>iter_n</code> between 64 and 96). In each step, the <code>ca(x)</code> call updates the state of each cell based on its neighbors and the learned rules.</li>
+      <li>After the simulation, the <code>loss_f</code> (error function) is called to calculate the loss between the final CA states and the <code>pad_target</code>.</li>
+      <li>Gradients are computed based on this loss with respect to the <code>ca</code> model's trainable weights.</li>
+      <li>The gradients are then normalized and used by the <code>trainer</code> (Adam optimizer) to update the <code>ca</code> model's weights.</li>
+      <li>The updated CA states (<code>x</code>) and the calculated <code>loss</code> are returned.</li>
+    </ul>
+  </li>
+  <li>
+    <strong>Pool Update (if <code>USE_PATTERN_POOL</code> is true)</strong>: The updated CA states (<code>x</code>) are committed back to the <code>pool</code>, replacing the states that were originally sampled for that batch. This allows the better-performing patterns to persist and evolve.
+  </li>
+  <li>
+    <strong>Logging and Visualization</strong>: Every 10 steps, figures of the pool contents are generated. Every 100 steps, batch visualizations and a plot of the loss history are displayed, and the model weights are saved.
+  </li>
+</ol>
+
+<h3>Error Function (<code>loss_f</code>)</h3>
+<p>The error function, <code>loss_f</code>, is defined as:</p>
+<pre><code>def loss_f(x):
+  return tf.reduce_mean(tf.square(to_rgba(x)-pad_target), [-2, -3, -1])
+</code></pre>
+<p>Which can be represented using KaTeX as:</p>
+<p>$$\text{loss} = \text{tf.reduce_mean}(\text{tf.square}(\text{to\_rgba}(x) - \text{pad\_target}), [-2, -3, -1])$$</p>
+
+<ul>
+  <li>
+    <strong>Purpose</strong>: Its primary role is to quantify how much the current state of the Cellular Automata ($x$) differs from the desired target image ($	ext{pad_target}$). A lower loss means the CA is successfully growing and replicating the target.
+  </li>
+  <li>
+    <strong><code>to_rgba(x)</code></strong>: The <code>ca</code> model operates on 16 channels (<code>CHANNEL_N = 16</code>). However, $	ext{pad_target}$ is an RGBA image (4 channels). $	ext{to_rgba}(x)$ extracts the first 4 channels of the CA state $x$ to get its RGBA representation.
+  </li>
+  <li>
+    <strong><code>pad_target</code></strong>: This is the original target emoji image ($	ext{target_img}$) padded with $	ext{TARGET_PADDING}$ (16) pixels on all sides. This makes the CA grid larger than the target emoji itself.
+  </li>
+  <li>
+    <strong>$	ext{tf.square}(	ext{to_rgba}(x)-	ext{pad_target})$</strong>: This calculates the squared difference between the CA's RGBA output and the target image.</li>
+  <li>
+    <strong>$	ext{tf.reduce_mean}(..., [-2, -3, -1])$</strong>: This computes the mean of the squared differences over the last three dimensions: height, width, and channels (Mean Squared Error per image).
+  </li>
+</ul>
+
+<h3>Structure of Input and Output</h3>
+
+<h4>Input to <code>ca</code> model (and <code>train_step</code>): $x$</h4>
+<ul>
+  <li>
+    <strong>Shape</strong>: $[\text{BATCH\_SIZE}, \text{height}, \text{width}, \text{CHANNEL\_N}]$
+    <ul>
+      <li>$	ext{BATCH_SIZE}$: Currently 8.</li>
+      <li>$	ext{height}$: $\text{TARGET\_SIZE} + 2 \times \text{TARGET\_PADDING}$ ($40 + 2 \times 16 = 72$).</li>
+      <li>$	ext{width}$: Same as height, 72.</li>
+      <li>$	ext{CHANNEL_N}$: 16.</li>
+    </ul>
+  </li>
+  <li>
+    <strong>Initial State (<code>seed</code>)</strong>: The initial input $x$ for a new pattern starts as mostly zeros. Only the cell at the very center ($h/2, w/2$) has its alpha channel (channel 3) and all subsequent channels ($4$ through $15$) initialized to 1.0. This is represented as: $$x_{:, h/2, w/2, 3:} = 1.0$$
+  </li>
+</ul>
+
+<h4>Output from <code>ca</code> model (and <code>train_step</code>): $x$</h4>
+<ul>
+  <li>
+    <strong>Shape</strong>: The output $x$ from the <code>ca</code> model has the <em>exact same shape</em> as its input: $[\text{BATCH\_SIZE}, \text{height}, \text{width}, \text{CHANNEL\_N}]$.
+  </li>
+  <li>
+    <strong>Interpretation</strong>: The output $x$ represents the updated state of the Cellular Automata after one or more simulation steps. The first 4 channels of this $x$ can be interpreted as the RGBA color of the cells.
+  </li>
+</ul>
+
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!-- ADD near the end of <header> (or anywhere in header controls): -->
+<button id="helpBtn">Help</button>
+
+<!-- ADD near end of <body> (before <script>): -->
+<div id="helpModal" aria-hidden="true" style="
+  position:fixed; inset:0; display:none; place-items:center;
+  background:rgba(0,0,0,0.65); z-index:9999;">
+  <div style="
+    width:min(900px, calc(100vw - 24px));
+    max-height:calc(100vh - 24px);
+    overflow:auto;
+    background:#101823; border:1px solid #1f2a3a; border-radius:12px;
+    padding:12px; color:#d7dde6;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+      <div style="font-family:ui-monospace,monospace; font-size:12px; color:#8a93a3;">
+        Toy Texture CA (Gray–Scott) — help
+      </div>
+      <button id="helpClose">Close</button>
+    </div>
+
+    <div style="margin-top:10px; font-size:12px; line-height:1.45; color:#8a93a3;">
+      <div style="color:#d7dde6; margin:10px 0 6px;">Controls</div>
+      <ul>
+        <li><b>Reset</b>: re-seed (u=1, v=0) with a noisy V disk.</li>
+        <li><b>Pause/Resume</b>: stop/start integration.</li>
+        <li><b>Step</b>: single integration step (only when paused).</li>
+        <li><b>?</b>: toggle this help. <b>Esc</b>: close.</li>
+      </ul>
+
+      <div style="color:#d7dde6; margin:10px 0 6px;">Model</div>
+      <div style="font-family:ui-monospace,monospace; color:#d7dde6;">
+        u,v ∈ [0,1] on a toroidal grid<br/>
+        du/dt = Du ∇²u − u v² + F(1−u)<br/>
+        dv/dt = Dv ∇²v + u v² − (F+k)v
+      </div>
+      <div style="margin-top:6px;">
+        Discretization: 9-point Laplacian + explicit Euler with step dt. “Texture” emerges from local reaction + diffusion.
+      </div>
+
+      <div style="color:#d7dde6; margin:10px 0 6px;">Pixel-art rendering</div>
+      <ul>
+        <li>Render mode selects scalar field: v, u, or (v−u).</li>
+        <li>Scalar is quantized to a fixed 16-color palette (luminance-nearest).</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ADD inside your existing IIFE (after DOM lookups):
+  const helpBtn = document.getElementById("helpBtn");
+  const helpModal = document.getElementById("helpModal");
+  const helpClose = document.getElementById("helpClose");
+
+  function setHelp(open) {
+    helpModal.style.display = open ? "grid" : "none";
+    helpModal.setAttribute("aria-hidden", open ? "false" : "true");
+  }
+
+  helpBtn.addEventListener("click", () => setHelp(true));
+  helpClose.addEventListener("click", () => setHelp(false));
+  helpModal.addEventListener("click", (e) => { if (e.target === helpModal) setHelp(false); });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") setHelp(false);
+    if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+      const open = helpModal.style.display !== "none";
+      setHelp(!open);
+      e.preventDefault();
+    }
+  });
+</script>

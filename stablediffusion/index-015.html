@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Toy Texture CA (Gray–Scott) – Vanilla JS SPA</title>
+
+  <!-- KaTeX (optional; used by the help popups). Remove if you want pure local/no-CDN. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+
+  <style>
+    :root { --bg:#0b0f14; --fg:#d7dde6; --muted:#8a93a3; --panel:#101823; --border:#1f2a3a; --overlay:rgba(0,0,0,0.65); }
+    html,body{height:100%;}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+    header{display:grid;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);}
+    .row{display:grid;gap:10px;grid-template-columns:repeat(6,minmax(0,1fr));align-items:end;}
+    .row2{display:grid;gap:10px;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;}
+    label{display:grid;gap:6px;font-size:12px;color:var(--muted);}
+    input[type="range"], input[type="number"], select{
+      background:#0c121c;color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:8px 10px;outline:none;
+    }
+    input[type="range"]{padding:0;height:26px;}
+    button{background:#0c121c;color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:8px 10px;cursor:pointer;}
+    main{display:grid;place-items:center;padding:14px;}
+    canvas{border:1px solid var(--border);border-radius:12px;background:#000;image-rendering:pixelated;image-rendering:crisp-edges;}
+    .meta{margin-top:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;color:var(--muted);font-size:12px;}
+    .pill{display:inline-block;margin:0 6px 6px 0;padding:2px 8px;border:1px solid var(--border);border-radius:999px;background:#0c121c;}
+
+    /* Help links */
+    a.help {
+      color: var(--fg);
+      text-decoration: none;
+      border-bottom: 1px dotted var(--border);
+      cursor: pointer;
+    }
+    a.help:hover { border-bottom-color: var(--fg); }
+
+    /* Modal */
+    .modalOverlay {
+      position: fixed; inset: 0;
+      background: var(--overlay);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 9999;
+    }
+    .modal {
+      width: min(820px, 96vw);
+      max-height: min(78vh, 920px);
+      overflow: auto;
+      background: #0c121c;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.55);
+    }
+    .modalHeader {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      background: #0b0f14;
+      position: sticky;
+      top: 0;
+    }
+    .modalTitle { font-size: 13px; color: var(--fg); font-weight: 600; }
+    .modalClose {
+      border-radius: 10px;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      background: #0c121c;
+      color: var(--fg);
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .modalBody {
+      padding: 12px 14px;
+      color: var(--fg);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .modalBody .sectionTitle {
+      margin-top: 10px;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    .katex-display { margin: 10px 0; }
+    code.inline { background:#0b0f14; border:1px solid var(--border); border-radius:8px; padding:1px 6px; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="row2">
+    <label>
+      <a class="help" data-help="grid">Grid</a>
+      <select id="grid">
+        <option value="96">96×96</option>
+        <option value="128" selected>128×128</option>
+        <option value="192">192×192</option>
+      </select>
+    </label>
+
+    <label>
+      <a class="help" data-help="scale">Scale</a>
+      <select id="scale">
+        <option value="4">4×</option>
+        <option value="6" selected>6×</option>
+        <option value="8">8×</option>
+      </select>
+    </label>
+
+    <label>
+      <a class="help" data-help="spf">Steps / frame</a>
+      <input id="spf" type="number" min="1" max="50" step="1" value="10" />
+    </label>
+
+    <label>
+      <a class="help" data-help="dt">dt</a>
+      <input id="dt" type="number" min="0.1" max="2.0" step="0.05" value="1.0" />
+    </label>
+
+    <label>
+      <a class="help" data-help="seedR">Seed radius</a>
+      <input id="seedR" type="number" min="2" max="40" step="1" value="12" />
+    </label>
+
+    <label>
+      <a class="help" data-help="seedNoise">Seed noise</a>
+      <input id="seedNoise" type="range" min="0" max="1" step="0.01" value="0.35" />
+    </label>
+  </div>
+
+  <div class="row">
+    <label>
+      <a class="help" data-help="Du">Du</a>
+      <input id="Du" type="number" min="0.01" max="2.0" step="0.01" value="0.16" />
+    </label>
+
+    <label>
+      <a class="help" data-help="Dv">Dv</a>
+      <input id="Dv" type="number" min="0.01" max="2.0" step="0.01" value="0.08" />
+    </label>
+
+    <label>
+      <a class="help" data-help="F">F</a>
+      <input id="F" type="number" min="0.0" max="0.12" step="0.0005" value="0.035" />
+    </label>
+
+    <label>
+      <a class="help" data-help="k">k</a>
+      <input id="k" type="number" min="0.0" max="0.08" step="0.0005" value="0.060" />
+    </label>
+
+    <label>
+      <a class="help" data-help="renderMode">Render</a>
+      <select id="renderMode">
+        <option value="v" selected>palette(v)</option>
+        <option value="u">palette(u)</option>
+        <option value="vu">palette(v-u)</option>
+      </select>
+    </label>
+
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button id="reset">Reset</button>
+      <button id="pause">Pause</button>
+      <button id="step">Step</button>
+      <button id="helpIndex">Help</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div style="display:grid;justify-items:center;">
+    <canvas id="cv"></canvas>
+    <div class="meta" id="meta"></div>
+  </div>
+</main>
+
+<!-- Help Modal -->
+<div class="modalOverlay" id="helpOverlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="modalHeader">
+      <div class="modalTitle" id="helpTitle">Help</div>
+      <button class="modalClose" id="helpClose">Close (Esc)</button>
+    </div>
+    <div class="modalBody" id="helpBody"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // 16-color palette (PICO-8-like) for pixel-art quantization
+  const PAL = [
+    [  0,  0,  0], [255,255,255], [ 29, 43, 83], [126, 37, 83],
+    [  0,135, 81], [171, 82, 54], [ 95, 87, 79], [194,195,199],
+    [255,241,232], [255,  0, 77], [255,163,  0], [255,236, 39],
+    [  0,228, 54], [ 41,173,255], [131,118,156], [255,119,168],
+  ];
+  const PALN = PAL.map(([r,g,b]) => [r/255,g/255,b/255]);
+
+  // DOM
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d", { alpha: false });
+  const elGrid = document.getElementById("grid");
+  const elScale = document.getElementById("scale");
+  const elSpf = document.getElementById("spf");
+  const elDt = document.getElementById("dt");
+  const elSeedR = document.getElementById("seedR");
+  const elSeedNoise = document.getElementById("seedNoise");
+  const elDu = document.getElementById("Du");
+  const elDv = document.getElementById("Dv");
+  const elF = document.getElementById("F");
+  const elk = document.getElementById("k");
+  const elRenderMode = document.getElementById("renderMode");
+  const elMeta = document.getElementById("meta");
+
+  const btnReset = document.getElementById("reset");
+  const btnPause = document.getElementById("pause");
+  const btnStep = document.getElementById("step");
+  const btnHelpIndex = document.getElementById("helpIndex");
+
+  // Help modal
+  const helpOverlay = document.getElementById("helpOverlay");
+  const helpTitle = document.getElementById("helpTitle");
+  const helpBody = document.getElementById("helpBody");
+  const helpClose = document.getElementById("helpClose");
+
+  // State buffers (ping-pong)
+  let N = 128, W = 128, H = 128, size = W*H;
+  let u0, v0, u1, v1;
+  let img;
+  let running = true;
+  let tickCount = 0;
+
+  function alloc(n) {
+    N = n; W = n; H = n; size = W*H;
+    u0 = new Float32Array(size);
+    v0 = new Float32Array(size);
+    u1 = new Float32Array(size);
+    v1 = new Float32Array(size);
+    cv.width = W; cv.height = H;
+    const s = Number(elScale.value)|0;
+    cv.style.width = (W*s) + "px";
+    cv.style.height = (H*s) + "px";
+    img = ctx.createImageData(W, H);
+  }
+
+  // Toroidal wrap indexing
+  function idx(x, y) {
+    x = (x + W) % W;
+    y = (y + H) % H;
+    return y*W + x;
+  }
+
+  // 9-point Laplacian: 0.2 cross + 0.05 diagonals - center
+  function lap(a, x, y) {
+    const c  = a[idx(x,y)];
+    const n  = a[idx(x, y-1)];
+    const s  = a[idx(x, y+1)];
+    const w  = a[idx(x-1, y)];
+    const e  = a[idx(x+1, y)];
+    const nw = a[idx(x-1, y-1)];
+    const ne = a[idx(x+1, y-1)];
+    const sw = a[idx(x-1, y+1)];
+    const se = a[idx(x+1, y+1)];
+    return (0.2*(n+s+w+e) + 0.05*(nw+ne+sw+se) - 1.0*c);
+  }
+
+  // Deterministic RNG for seeding
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function reset(seed = 1) {
+    const rng = mulberry32(seed);
+    for (let i = 0; i < size; i++) { u0[i] = 1.0; v0[i] = 0.0; }
+
+    // Seed V in a disk with noise (symmetry breaking)
+    const r = Number(elSeedR.value)|0;
+    const noise = Number(elSeedNoise.value);
+    const cx = (W/2)|0, cy = (H/2)|0;
+    for (let y = cy-r; y <= cy+r; y++) {
+      for (let x = cx-r; x <= cx+r; x++) {
+        const dx = x - cx, dy = y - cy;
+        if (dx*dx + dy*dy <= r*r) {
+          const i = idx(x,y);
+          const nv = (rng()*2 - 1) * noise;
+          v0[i] = Math.max(0, Math.min(1, 0.5 + nv));
+          u0[i] = 1.0 - v0[i];
+        }
+      }
+    }
+    tickCount = 0;
+    render();
+    meta();
+  }
+
+  function stepOnce() {
+    const Du = Number(elDu.value);
+    const Dv = Number(elDv.value);
+    const F  = Number(elF.value);
+    const k  = Number(elk.value);
+    const dt = Number(elDt.value);
+
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y*W + x;
+        const u = u0[i], v = v0[i];
+
+        const lu = lap(u0, x, y);
+        const lv = lap(v0, x, y);
+
+        const uvv = u * v * v;
+        const du = Du * lu - uvv + F * (1 - u);
+        const dv = Dv * lv + uvv - (F + k) * v;
+
+        // Euler integration; clamp to [0,1]
+        const un = u + du * dt;
+        const vn = v + dv * dt;
+
+        u1[i] = un < 0 ? 0 : (un > 1 ? 1 : un);
+        v1[i] = vn < 0 ? 0 : (vn > 1 ? 1 : vn);
+      }
+    }
+
+    // swap
+    let t = u0; u0 = u1; u1 = t;
+    t = v0; v0 = v1; v1 = t;
+    tickCount++;
+  }
+
+  function nearestPalette01(s) {
+    // scalar s ∈ [0,1] -> nearest palette color by luminance
+    const target = s;
+    let best = 0, bestD = 1e9;
+    for (let k = 0; k < PALN.length; k++) {
+      const [r,g,b] = PALN[k];
+      const lum = 0.2126*r + 0.7152*g + 0.0722*b;
+      const d = (lum - target) * (lum - target);
+      if (d < bestD) { bestD = d; best = k; }
+    }
+    return PAL[best];
+  }
+
+  function render() {
+    const mode = elRenderMode.value;
+    for (let i = 0; i < size; i++) {
+      const u = u0[i], v = v0[i];
+      let s = v;
+      if (mode === "u") s = u;
+      if (mode === "vu") s = Math.max(0, Math.min(1, 0.5 + (v - u)));
+
+      const [r,g,b] = nearestPalette01(s);
+      const o = i*4;
+      img.data[o+0] = r;
+      img.data[o+1] = g;
+      img.data[o+2] = b;
+      img.data[o+3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function meta() {
+    const Du = Number(elDu.value).toFixed(3);
+    const Dv = Number(elDv.value).toFixed(3);
+    const F  = Number(elF.value).toFixed(4);
+    const k  = Number(elk.value).toFixed(4);
+    const dt = Number(elDt.value).toFixed(2);
+    const spf = Number(elSpf.value)|0;
+    elMeta.innerHTML = [
+      ["grid", `${W}×${H}`],
+      ["Du,Dv", `${Du},${Dv}`],
+      ["F,k", `${F},${k}`],
+      ["dt", `${dt}`],
+      ["spf", `${spf}`],
+      ["mode", elRenderMode.value],
+      ["ticks", `${tickCount}`],
+      ["run", running ? "1" : "0"],
+    ].map(([a,b]) => `<span class="pill">${a}: ${b}</span>`).join("");
+  }
+
+  function frame() {
+    if (running) {
+      const spf = Math.max(1, Math.min(50, Number(elSpf.value)|0));
+      for (let i = 0; i < spf; i++) stepOnce();
+      render();
+      meta();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ---------------------------
+  // Help system
+  // ---------------------------
+  const HELP = {
+    index: {
+      title: "Gray–Scott texture CA (help index)",
+      html: `
+        <div class="sectionTitle">Model</div>
+        <div>
+          This is a 2-field reaction–diffusion system on a discrete toroidal grid.
+          The state per cell is concentrations \\(u(x,y), v(x,y)\\in[0,1]\\).
+        </div>
+        <div class="sectionTitle">Update (Euler)</div>
+        <div>
+          $$\\begin{aligned}
+          u_{t+\\Delta t} &= u_t + \\Delta t\\,\\big(D_u\\nabla^2 u_t - u_t v_t^2 + F(1-u_t)\\big)\\\\
+          v_{t+\\Delta t} &= v_t + \\Delta t\\,\\big(D_v\\nabla^2 v_t + u_t v_t^2 - (F+k)v_t\\big)
+          \\end{aligned}$$
+          Diffusion uses a fixed 9-point Laplacian stencil; boundaries wrap (torus).
+        </div>
+        <div class="sectionTitle">Rendering</div>
+        <div>
+          Render maps a scalar (\\(v\\), \\(u\\), or \\(v-u\\)) to a discrete palette by nearest luminance.
+          This quantization turns smooth Turing patterns into hard-edged pixel-art regions.
+        </div>
+      `
+    },
+
+    grid: {
+      title: "Grid (W×H)",
+      html: `
+        <div>Number of cells in the simulation. Complexity is \\(\\Theta(W\\,H\\,\\text{spf})\\) per frame.</div>
+        <div class="sectionTitle">Technical context</div>
+        <div>
+          Discrete reaction–diffusion is anisotropic at low resolution: lattice effects bias shapes toward squares/diamonds.
+          Larger grids reduce discretization artifacts and expand the attainable wavelength spectrum.
+        </div>
+      `
+    },
+
+    scale: {
+      title: "Scale",
+      html: `
+        <div>CSS upscaling factor for the canvas.</div>
+        <div class="sectionTitle">Technical context</div>
+        <div>
+          Scaling is purely visual. With <code class="inline">image-rendering: pixelated</code> each cell becomes a block of pixels.
+          The simulation itself always runs at the selected grid resolution.
+        </div>
+      `
+    },
+
+    spf: {
+      title: "Steps / frame (spf)",
+      html: `
+        <div>Number of CA integration steps executed per animation frame.</div>
+        <div class="sectionTitle">Technical context</div>
+        <div>
+          Increasing spf accelerates simulated time (more Euler steps). It also increases compute cost linearly.
+          Very large spf with large dt can destabilize explicit Euler (overshoot / saturation).
+        </div>
+      `
+    },
+
+    dt: {
+      title: "dt (Euler timestep)",
+      html: `
+        <div>Euler integration timestep \\(\\Delta t\\) used in the update equations.</div>
+        <div class="sectionTitle">Technical context</div>
+        <div>
+          Explicit Euler stability depends on diffusion rates and the Laplacian stencil.
+          Large \\(\\Delta t\\) can create numerical artifacts (clamping dominates) rather than genuine Gray–Scott dynamics.
+        </div>
+      `
+    },
+
+    seedR: {
+      title: "Seed radius",
+      html: `
+        <div>Radius of the initial disk where \\(v\\) is injected and \\(u\\) reduced.</div>
+        <div class="sectionTitle">Technical context</div>
+        <div>
+          Reaction–diffusion requires symmetry breaking. A localized perturbation drives pattern formation, then the system
+          evolves toward a Turing-like texture (spots/stripes) whose wavelength is controlled by parameters.
+        </div>
+      `
+    },
+
+    seedNoise: {
+      title: "Seed noise",
+      html: `
+        <div>Noise amplitude added to \\(v\\) inside the seed disk (uniform in [-noise, +noise]).</div>
+        <div class="sectionTitle">Technical context</div>
+        <div>
+          Noise selects phases/modes of the emergent pattern. Higher noise produces faster diversity but can also bias toward
+          “salt-and-pepper” microstructure if diffusion is weak.
+        </div>
+      `
+    },
+
+    Du: {
+      title: "Du (diffusion of u)",
+      html: `
+        <div>Diffusion coefficient \\(D_u\\) multiplying the Laplacian term in \\(u\\).</div>
+        <div class="sectionTitle">Technical context</div>
+        <div>
+          $$u_{t+\\Delta t}=u_t+\\Delta t\\,(D_u\\nabla^2u_t-uv^2+F(1-u))$$
+          Higher \\(D_u\\) smooths \\(u\\) more aggressively; it changes the effective reaction length-scales relative to \\(v\\).
+        </div>
+      `
+    },
+
+    Dv: {
+      title: "Dv (diffusion of v)",
+      html: `
+        <div>Diffusion coefficient \\(D_v\\) multiplying the Laplacian term in \\(v\\).</div>
+        <div class="sectionTitle">Technical context</div>
+        <div>
+          $$v_{t+\\Delta t}=v_t+\\Delta t\\,(D_v\\nabla^2v_t+uv^2-(F+k)v)$$
+          The ratio \\(D_u/D_v\\) is central: different ratios favor spots vs stripes and change the dominant wavelength.
+        </div>
+      `
+    },
+
+    F: {
+      title: "F (feed rate)",
+      html: `
+        <div>Feed rate \\(F\\) injects \\(u\\) and depletes it toward 1: \\(F(1-u)\\).</div>
+        <div class="sectionTitle">Technical context</div>
+        <div>
+          \\(F\\) acts like a control parameter shifting the system’s fixed points and moving it between regimes.
+          Small changes can switch between spot lattices, worms/stripes, or uniform states.
+        </div>
+      `
+    },
+
+    k: {
+      title: "k (kill rate)",
+      html: `
+        <div>Kill rate \\(k\\) increases removal of \\(v\\) via \\(-(F+k)v\\).</div>
+        <div class="sectionTitle">Technical context</div>
+        <div>
+          Larger \\(k\\) suppresses \\(v\\) and typically coarsens or eliminates patterns; smaller \\(k\\) allows \\(v\\) to persist,
+          often producing denser textures (depending on \\(F\\), \\(D_u\\), \\(D_v\\)).
+        </div>
+      `
+    },
+
+    renderMode: {
+      title: "Render mode",
+      html: `
+        <div>
+          Maps state to a scalar \\(s\\in[0,1]\\) then palette-quantizes by nearest luminance.
+          Options:
+          <ul>
+            <li><code class="inline">palette(v)</code>: \\(s=v\\)</li>
+            <li><code class="inline">palette(u)</code>: \\(s=u\\)</li>
+            <li><code class="inline">palette(v-u)</code>: \\(s=\\mathrm{clip}(0.5 + (v-u))\\)</li>
+          </ul>
+        </div>
+        <div class="sectionTitle">Technical context</div>
+        <div>
+          Palette quantization is a hard nonlinearity. It converts smooth concentration gradients into discrete regions,
+          creating high-contrast “tile” boundaries.
+        </div>
+      `
+    },
+  };
+
+  function openHelp(key) {
+    const item = HELP[key] || HELP.index;
+    helpTitle.textContent = item.title;
+    helpBody.innerHTML = item.html;
+
+    helpOverlay.style.display = "flex";
+    helpOverlay.setAttribute("aria-hidden", "false");
+
+    // KaTeX render (if loaded)
+    const doRender = () => {
+      if (window.renderMathInElement) {
+        window.renderMathInElement(helpBody, {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "\\(", right: "\\)", display: false }
+          ],
+          throwOnError: false,
+        });
+      }
+    };
+    // KaTeX scripts are defer; handle both loaded/not loaded
+    if (document.readyState === "complete" || document.readyState === "interactive") doRender();
+    else window.addEventListener("DOMContentLoaded", doRender, { once: true });
+  }
+
+  function closeHelp() {
+    helpOverlay.style.display = "none";
+    helpOverlay.setAttribute("aria-hidden", "true");
+  }
+
+  // Event delegation for parameter links
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("a.help");
+    if (!a) return;
+    e.preventDefault();
+    openHelp(a.dataset.help || "index");
+  });
+
+  btnHelpIndex.addEventListener("click", () => openHelp("index"));
+  helpClose.addEventListener("click", closeHelp);
+  helpOverlay.addEventListener("click", (e) => { if (e.target === helpOverlay) closeHelp(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeHelp(); });
+
+  // ---------------------------
+  // Controls / lifecycle
+  // ---------------------------
+  function rebuild() { alloc(Number(elGrid.value)|0); reset(1); meta(); }
+  elGrid.addEventListener("change", rebuild);
+  elScale.addEventListener("change", () => { alloc(Number(elGrid.value)|0); render(); meta(); });
+  [elDu, elDv, elF, elk, elDt, elSpf, elRenderMode, elSeedR, elSeedNoise].forEach(el => el.addEventListener("change", meta));
+  btnReset.addEventListener("click", () => reset(1));
+  btnPause.addEventListener("click", () => { running = !running; btnPause.textContent = running ? "Pause" : "Resume"; meta(); });
+  btnStep.addEventListener("click", () => { if (!running) { stepOnce(); render(); meta(); } });
+
+  // Initialize
+  alloc(Number(elGrid.value)|0);
+  reset(1);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

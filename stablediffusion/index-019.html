@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Restricted Boltzmann Machine (RBM)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <style>
+    :root { --bg: #05070a; --panel: #0d1117; --border: #21262d; --accent: #38bdf8; --accent2: #a78bfa; }
+    body { background: var(--bg); color: #c9d1d9; font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+    canvas { image-rendering: pixelated; border: 1px solid var(--border); background: #000; }
+    .stat-card { background: #161b22; border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .feature-cell { width: 28px; height: 28px; border: 1px solid transparent; transition: all 0.15s; }
+    .feature-cell:hover { border-color: var(--accent); transform: scale(1.5); z-index: 10; }
+    .phase-indicator { transition: all 0.3s; }
+    .phase-indicator.active { background: var(--accent); color: #000; }
+  </style>
+</head>
+<body class="p-6">
+
+<header class="max-w-7xl mx-auto mb-6">
+  <h1 class="text-2xl font-bold text-white">Restricted Boltzmann Machine</h1>
+  <p class="text-sm text-gray-500 mt-1">Bipartite energy-based model with learned hidden representations (Hinton, 2006)</p>
+</header>
+
+<main class="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-12 gap-4">
+
+  <!-- Left: Input & Training -->
+  <section class="stat-card xl:col-span-3">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Training Data</h2>
+
+    <div class="bg-yellow-900/20 border border-yellow-700/30 rounded p-2 mb-3">
+      <p class="text-[10px] text-yellow-200/80"><strong>Unsupervised!</strong> RBMs learn without labels. Labels below are just for humans - the network only sees pixel patterns.</p>
+    </div>
+
+    <div class="grid grid-cols-5 gap-1 mb-3" id="trainingPatterns"></div>
+    <div class="text-[10px] text-gray-500 mb-2">Samples: <span id="sampleCount">0</span> patterns</div>
+
+    <div class="flex gap-2 mb-4">
+      <button id="clearDataBtn" class="flex-1 bg-red-800 hover:bg-red-700 text-white py-1 rounded text-[10px]">CLEAR ALL</button>
+      <button id="addDrawnBtn" class="flex-1 bg-green-700 hover:bg-green-600 text-white py-1 rounded text-[10px]">ADD DRAWN</button>
+      <button id="loadPresetsBtn" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded text-[10px]">LOAD 0-8</button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div>
+        <label class="text-[10px] text-gray-600 block mb-1">Draw Pattern (click ADD)</label>
+        <canvas id="cv_input" width="28" height="28" class="w-full aspect-square cursor-crosshair"></canvas>
+        <button id="clearInputBtn" class="w-full mt-1 bg-gray-800 hover:bg-gray-700 text-white py-1 rounded text-[9px]">Clear Canvas</button>
+      </div>
+      <div>
+        <label class="text-[10px] text-gray-600 block mb-1">Reconstruction $\mathbf{v'}$</label>
+        <canvas id="cv_recon" width="28" height="28" class="w-full aspect-square"></canvas>
+      </div>
+    </div>
+
+    <div class="flex gap-2 mb-4">
+      <button id="trainBtn" class="flex-1 bg-purple-600 hover:bg-purple-500 text-white py-1.5 rounded text-[10px] font-bold">TRAIN (CD-1)</button>
+      <button id="stopBtn" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1.5 rounded text-[10px]">STOP</button>
+      <button id="resetNetBtn" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1.5 rounded text-[10px]">RESET NET</button>
+    </div>
+
+    <div class="space-y-2 text-[10px]">
+      <div>
+        <label class="text-gray-500">Learning Rate: <span id="lrVal">0.1</span></label>
+        <input id="lr" type="range" min="0.01" max="0.5" step="0.01" value="0.1" class="w-full">
+      </div>
+      <div>
+        <label class="text-gray-500">Hidden Units: <span id="nhVal">64</span></label>
+        <input id="nh" type="range" min="16" max="128" step="16" value="64" class="w-full">
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800 text-[10px]">
+      <div class="flex justify-between text-gray-500"><span>Epoch:</span><span id="epochVal" class="font-mono">0</span></div>
+      <div class="flex justify-between text-gray-500 mt-1"><span>Recon Error $\mathcal{L}$:</span><span id="errorVal" class="text-red-400 font-mono text-sm">-</span></div>
+      <div class="mt-3 bg-gray-900/50 rounded p-2 text-center">
+        <div class="text-xs text-gray-400 mb-1">Minimizing:</div>
+        <div class="text-sm">$\mathcal{L} = \frac{1}{N}\sum_i(\textcolor{#60a5fa}{v_i} - \textcolor{#c084fc}{v'_i})^2$</div>
+      </div>
+      <div class="mt-2">
+        <label class="text-gray-600 block mb-1">$\mathcal{L}$ over epochs</label>
+        <canvas id="cv_loss" width="200" height="60" class="w-full border border-gray-800 rounded"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- Center: Network Architecture -->
+  <section class="stat-card xl:col-span-6">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Network Architecture</h2>
+
+    <div class="flex justify-center gap-4 mb-4">
+      <span class="phase-indicator active px-3 py-1 rounded text-[10px]" id="phase_pos">Positive Phase</span>
+      <span class="text-gray-600 text-[10px]">→</span>
+      <span class="phase-indicator px-3 py-1 rounded text-[10px] bg-gray-800" id="phase_neg">Negative Phase</span>
+    </div>
+
+    <canvas id="cv_network" width="600" height="350" class="w-full"></canvas>
+
+    <div class="mt-4 grid grid-cols-3 gap-4 text-[10px]">
+      <div class="text-center">
+        <div class="text-gray-500">Visible Layer</div>
+        <div class="text-blue-400 font-mono">784 units</div>
+        <div class="text-gray-600">$v_i \in \{0,1\}$</div>
+      </div>
+      <div class="text-center">
+        <div class="text-gray-500">Weights</div>
+        <div class="text-purple-400 font-mono" id="weightCount">50,176</div>
+        <div class="text-gray-600">$W_{ij}$</div>
+      </div>
+      <div class="text-center">
+        <div class="text-gray-500">Hidden Layer</div>
+        <div class="text-green-400 font-mono" id="hiddenCount">64 units</div>
+        <div class="text-gray-600">$h_j \in \{0,1\}$</div>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800">
+      <div class="text-[10px] text-gray-500 mb-2">Gibbs Sampling & Inference</div>
+      <div class="flex gap-2 flex-wrap">
+        <button id="sampleBtn" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-[10px]">Step: v→h→v'</button>
+        <button id="dreamBtn" class="bg-green-700 hover:bg-green-600 text-white px-3 py-1 rounded text-[10px]">Dream (100 steps)</button>
+        <button id="matchBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-[10px] font-bold">MATCH</button>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800">
+      <div class="text-[10px] text-gray-500 mb-2">Pattern Match Result</div>
+      <div id="matchResult" class="flex items-center gap-4">
+        <div class="text-center">
+          <canvas id="cv_match" width="28" height="28" class="w-16 h-16 border border-gray-700 rounded"></canvas>
+          <div class="text-[10px] text-gray-500 mt-1">Best Match</div>
+        </div>
+        <div class="flex-1 text-[10px]">
+          <div class="text-gray-400">Similarity: <span id="matchScore" class="text-green-400 font-mono">-</span></div>
+          <div class="text-gray-400 mt-1">Method: <span class="text-gray-500">Hidden layer cosine similarity</span></div>
+          <div id="matchRanking" class="mt-2 space-y-1"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Right: Learned Features & Theory -->
+  <section class="stat-card xl:col-span-3">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Learned Features</h2>
+    <p class="text-[10px] text-gray-600 mb-2">Each hidden unit learns a feature detector. Weights reshaped to 28x28:</p>
+
+    <div id="features" class="grid grid-cols-8 gap-0.5 mb-4"></div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800">
+      <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-2">Contrastive Divergence</h3>
+      <div class="text-[10px] text-gray-600 space-y-2">
+        <p><strong class="text-blue-400">1. Positive phase:</strong> Clamp $\mathbf{v}$ to data, sample $\mathbf{h}$</p>
+        <p><strong class="text-purple-400">2. Negative phase:</strong> Reconstruct $\mathbf{v'}$ from $\mathbf{h}$, sample $\mathbf{h'}$</p>
+        <p><strong class="text-green-400">3. Update:</strong> $\Delta W = \eta(\mathbf{v}\mathbf{h}^T - \mathbf{v'}\mathbf{h'}^T)$</p>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800">
+      <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-2">Key Equations</h3>
+      <div class="text-[10px] text-gray-600 space-y-1">
+        <div>$P(h_j=1|\mathbf{v}) = \sigma(b_j + \sum_i W_{ij}v_i)$</div>
+        <div>$P(v_i=1|\mathbf{h}) = \sigma(a_i + \sum_j W_{ij}h_j)$</div>
+        <div class="pt-2">$E(\mathbf{v},\mathbf{h}) = -\mathbf{a}^T\mathbf{v} - \mathbf{b}^T\mathbf{h} - \mathbf{v}^TW\mathbf{h}$</div>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800">
+      <h3 class="text-[10px] font-bold text-red-400 uppercase mb-2">Reconstruction Error</h3>
+      <div class="bg-red-950/30 border border-red-900/50 rounded p-3 text-center">
+        <div class="text-base">$$\mathcal{L} = \frac{1}{N}\sum_{i=1}^{N}(\textcolor{#60a5fa}{v_i} - \textcolor{#c084fc}{v'_i})^2$$</div>
+      </div>
+      <p class="text-[9px] text-gray-500 mt-2">Mean squared difference between input <span class="text-blue-400">v</span> and reconstruction <span class="text-purple-400">v'</span>. Training minimizes this by adjusting weights so the network can accurately encode and decode patterns.</p>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800">
+      <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-2">Why Bipartite?</h3>
+      <p class="text-[10px] text-gray-500">No intra-layer connections means all hidden units are conditionally independent given visible (and vice versa). Enables parallel sampling and efficient training.</p>
+    </div>
+  </section>
+
+</main>
+
+<script>
+// ===== Configuration =====
+const V_SIZE = 28, N_VISIBLE = V_SIZE * V_SIZE; // 784
+let N_HIDDEN = 64;
+
+// ===== RBM Implementation =====
+class RBM {
+  constructor(nVisible, nHidden) {
+    this.nv = nVisible;
+    this.nh = nHidden;
+    // Weights initialized small random
+    this.W = new Float32Array(nVisible * nHidden);
+    this.a = new Float32Array(nVisible); // visible biases
+    this.b = new Float32Array(nHidden);  // hidden biases
+    this.initWeights();
+  }
+
+  initWeights() {
+    const scale = 0.01;
+    for (let i = 0; i < this.W.length; i++) this.W[i] = (Math.random() - 0.5) * scale;
+    this.a.fill(0);
+    this.b.fill(0);
+  }
+
+  sigmoid(x) { return 1 / (1 + Math.exp(-Math.max(-500, Math.min(500, x)))); }
+
+  // P(h_j = 1 | v)
+  hiddenProbs(v) {
+    const probs = new Float32Array(this.nh);
+    for (let j = 0; j < this.nh; j++) {
+      let sum = this.b[j];
+      for (let i = 0; i < this.nv; i++) {
+        sum += this.W[i * this.nh + j] * v[i];
+      }
+      probs[j] = this.sigmoid(sum);
+    }
+    return probs;
+  }
+
+  // P(v_i = 1 | h)
+  visibleProbs(h) {
+    const probs = new Float32Array(this.nv);
+    for (let i = 0; i < this.nv; i++) {
+      let sum = this.a[i];
+      for (let j = 0; j < this.nh; j++) {
+        sum += this.W[i * this.nh + j] * h[j];
+      }
+      probs[i] = this.sigmoid(sum);
+    }
+    return probs;
+  }
+
+  // Sample binary from probabilities
+  sample(probs) {
+    const s = new Float32Array(probs.length);
+    for (let i = 0; i < probs.length; i++) {
+      s[i] = Math.random() < probs[i] ? 1 : 0;
+    }
+    return s;
+  }
+
+  // One step of Gibbs sampling: v -> h -> v'
+  gibbsStep(v) {
+    const hProbs = this.hiddenProbs(v);
+    const h = this.sample(hProbs);
+    const vProbs = this.visibleProbs(h);
+    const vSample = this.sample(vProbs);
+    return { hProbs, h, vProbs, vSample };
+  }
+
+  // CD-1 training step
+  trainCD1(v, lr) {
+    // Positive phase
+    const hProbs0 = this.hiddenProbs(v);
+    const h0 = this.sample(hProbs0);
+
+    // Negative phase (one step reconstruction)
+    const vProbs1 = this.visibleProbs(h0);
+    const v1 = this.sample(vProbs1);
+    const hProbs1 = this.hiddenProbs(v1);
+
+    // Update weights: W += lr * (v * h0^T - v1 * h1^T)
+    for (let i = 0; i < this.nv; i++) {
+      for (let j = 0; j < this.nh; j++) {
+        const idx = i * this.nh + j;
+        this.W[idx] += lr * (v[i] * hProbs0[j] - v1[i] * hProbs1[j]);
+      }
+    }
+
+    // Update biases
+    for (let i = 0; i < this.nv; i++) this.a[i] += lr * (v[i] - v1[i]);
+    for (let j = 0; j < this.nh; j++) this.b[j] += lr * (hProbs0[j] - hProbs1[j]);
+
+    // Return reconstruction error
+    let error = 0;
+    for (let i = 0; i < this.nv; i++) error += (v[i] - vProbs1[i]) ** 2;
+    return { error: error / this.nv, vRecon: vProbs1, h: h0 };
+  }
+
+  // Get weight vector for hidden unit j (as feature detector)
+  getFeature(j) {
+    const f = new Float32Array(this.nv);
+    for (let i = 0; i < this.nv; i++) f[i] = this.W[i * this.nh + j];
+    return f;
+  }
+}
+
+// ===== Training Patterns =====
+const STORED_DIGITS = [0, 1, 4, 7, 8];
+const trainingData = [];
+
+function generateDigit(digit) {
+  const p = new Float32Array(N_VISIBLE).fill(0);
+  const set = (x, y) => { if (x >= 0 && x < 28 && y >= 0 && y < 28) p[y * 28 + x] = 1; };
+  const line = (x1, y1, x2, y2, w = 3) => {
+    const steps = Math.max(Math.abs(x2-x1), Math.abs(y2-y1)) || 1;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const cx = Math.round(x1 + (x2-x1)*t), cy = Math.round(y1 + (y2-y1)*t);
+      for (let dy = -w; dy <= w; dy++) for (let dx = -w; dx <= w; dx++)
+        if (dx*dx + dy*dy <= w*w) set(cx+dx, cy+dy);
+    }
+  };
+  const arc = (cx, cy, r, a1, a2, w = 3) => {
+    for (let a = a1; a <= a2; a += 0.03) {
+      const x = Math.round(cx + Math.cos(a) * r), y = Math.round(cy + Math.sin(a) * r);
+      for (let dy = -w; dy <= w; dy++) for (let dx = -w; dx <= w; dx++)
+        if (dx*dx + dy*dy <= w*w) set(x+dx, y+dy);
+    }
+  };
+  const circle = (cx, cy, r, w = 3) => arc(cx, cy, r, 0, Math.PI * 2, w);
+
+  switch(digit) {
+    case 0: circle(14, 14, 8); break;
+    case 1: line(14, 3, 14, 25); line(9, 6, 14, 3); line(9, 25, 19, 25); break;
+    case 4: line(6, 3, 6, 15); line(6, 15, 22, 15); line(18, 3, 18, 25); break;
+    case 7: line(5, 3, 23, 3); line(21, 3, 11, 25); break;
+    case 8: circle(14, 8, 5); circle(14, 19, 6); break;
+  }
+  return p;
+}
+
+// Generate training data with small variations
+function initTrainingData() {
+  trainingData.length = 0;
+  for (const d of STORED_DIGITS) {
+    const base = generateDigit(d);
+    trainingData.push({ data: base, label: d });
+    // Add noisy variants
+    for (let v = 0; v < 3; v++) {
+      const noisy = new Float32Array(base);
+      for (let i = 0; i < N_VISIBLE; i++) {
+        if (Math.random() < 0.05) noisy[i] = 1 - noisy[i];
+      }
+      trainingData.push({ data: noisy, label: d });
+    }
+  }
+}
+
+// ===== UI State =====
+let rbm = new RBM(N_VISIBLE, N_HIDDEN);
+let currentVisible = new Float32Array(N_VISIBLE);
+let currentHidden = new Float32Array(N_HIDDEN);
+let currentRecon = new Float32Array(N_VISIBLE);
+let isTraining = false;
+let epoch = 0;
+let errorHistory = [];
+
+const ctxInput = document.getElementById('cv_input').getContext('2d');
+const ctxRecon = document.getElementById('cv_recon').getContext('2d');
+const ctxNetwork = document.getElementById('cv_network').getContext('2d');
+const ctxLoss = document.getElementById('cv_loss').getContext('2d');
+
+// ===== Rendering =====
+function render28x28(ctx, data, colorFn = null) {
+  const img = ctx.createImageData(28, 28);
+  for (let i = 0; i < data.length; i++) {
+    const v = Math.floor(Math.max(0, Math.min(1, data[i])) * 255);
+    if (colorFn) {
+      const [r, g, b] = colorFn(data[i]);
+      img.data[i*4] = r; img.data[i*4+1] = g; img.data[i*4+2] = b;
+    } else {
+      img.data[i*4] = v; img.data[i*4+1] = v; img.data[i*4+2] = v;
+    }
+    img.data[i*4+3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function renderNetwork() {
+  const ctx = ctxNetwork;
+  const W = ctx.canvas.width, H = ctx.canvas.height;
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  const vY = H - 40;
+  const hY = 40;
+  const vSpacing = W / 29;
+  const hSpacing = W / (N_HIDDEN + 1);
+
+  // Draw some connections (subset for performance)
+  ctx.strokeStyle = 'rgba(139, 92, 246, 0.1)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < 28; i += 2) {
+    for (let j = 0; j < N_HIDDEN; j += 2) {
+      const vx = (i + 1) * vSpacing;
+      const hx = (j + 1) * hSpacing;
+      const w = rbm.W[(i * 28) * rbm.nh + j];
+      if (Math.abs(w) > 0.1) {
+        ctx.strokeStyle = w > 0 ? `rgba(74, 222, 128, ${Math.min(Math.abs(w), 0.5)})` : `rgba(248, 113, 113, ${Math.min(Math.abs(w), 0.5)})`;
+        ctx.beginPath();
+        ctx.moveTo(vx, vY - 10);
+        ctx.lineTo(hx, hY + 10);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Draw visible layer (28 representative nodes)
+  for (let i = 0; i < 28; i++) {
+    const x = (i + 1) * vSpacing;
+    const avgV = currentVisible.slice(i * 28, (i + 1) * 28).reduce((a, b) => a + b, 0) / 28;
+    ctx.fillStyle = `rgb(${Math.floor(avgV * 200 + 55)}, ${Math.floor(avgV * 200 + 55)}, 255)`;
+    ctx.beginPath();
+    ctx.arc(x, vY, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw hidden layer
+  const hProbs = rbm.hiddenProbs(currentVisible);
+  for (let j = 0; j < N_HIDDEN; j++) {
+    const x = (j + 1) * hSpacing;
+    const p = hProbs[j];
+    ctx.fillStyle = `rgb(${Math.floor(p * 200 + 55)}, ${Math.floor(p * 255)}, ${Math.floor(p * 200 + 55)})`;
+    ctx.beginPath();
+    ctx.arc(x, hY, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Labels
+  ctx.fillStyle = '#6b7280';
+  ctx.font = '11px system-ui';
+  ctx.fillText('Hidden h', 10, hY + 4);
+  ctx.fillText('Visible v', 10, vY + 4);
+
+  // Arrow showing current phase
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = '10px system-ui';
+  const midY = (vY + hY) / 2;
+  ctx.fillText('W', W / 2 - 5, midY);
+}
+
+function renderFeatures() {
+  const container = document.getElementById('features');
+  container.innerHTML = '';
+
+  // Find weight range for normalization
+  let minW = Infinity, maxW = -Infinity;
+  for (let i = 0; i < rbm.W.length; i++) {
+    minW = Math.min(minW, rbm.W[i]);
+    maxW = Math.max(maxW, rbm.W[i]);
+  }
+  const range = Math.max(Math.abs(minW), Math.abs(maxW)) || 1;
+
+  for (let j = 0; j < N_HIDDEN; j++) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 28;
+    canvas.height = 28;
+    canvas.className = 'feature-cell';
+    canvas.title = `Hidden unit ${j}`;
+
+    const ctx = canvas.getContext('2d');
+    const feature = rbm.getFeature(j);
+    const img = ctx.createImageData(28, 28);
+
+    for (let i = 0; i < N_VISIBLE; i++) {
+      const w = feature[i] / range;
+      // Blue = negative, Yellow = positive
+      if (w > 0) {
+        img.data[i*4] = Math.floor(w * 255);
+        img.data[i*4+1] = Math.floor(w * 255);
+        img.data[i*4+2] = 0;
+      } else {
+        img.data[i*4] = 0;
+        img.data[i*4+1] = 0;
+        img.data[i*4+2] = Math.floor(-w * 255);
+      }
+      img.data[i*4+3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    container.appendChild(canvas);
+  }
+}
+
+function renderLoss() {
+  const ctx = ctxLoss;
+  const w = ctx.canvas.width, h = ctx.canvas.height;
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, w, h);
+
+  if (errorHistory.length > 1) {
+    const maxE = Math.max(...errorHistory);
+    const minE = Math.min(...errorHistory);
+    const range = maxE - minE || 1;
+
+    ctx.strokeStyle = '#a78bfa';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    const step = w / Math.max(errorHistory.length - 1, 1);
+    errorHistory.forEach((e, i) => {
+      const x = i * step;
+      const y = h - 3 - ((e - minE) / range) * (h - 6);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+}
+
+function updateDisplay() {
+  render28x28(ctxInput, currentVisible);
+  render28x28(ctxRecon, currentRecon);
+  renderNetwork();
+  renderLoss();
+  document.getElementById('epochVal').textContent = epoch;
+  document.getElementById('hiddenCount').textContent = `${N_HIDDEN} units`;
+  document.getElementById('weightCount').textContent = (N_VISIBLE * N_HIDDEN).toLocaleString();
+  document.getElementById('sampleCount').textContent = trainingData.length;
+}
+
+// ===== Training =====
+function trainEpoch() {
+  const lr = parseFloat(document.getElementById('lr').value);
+  let totalError = 0;
+
+  // Shuffle training data
+  const shuffled = [...trainingData].sort(() => Math.random() - 0.5);
+
+  for (const sample of shuffled) {
+    const result = rbm.trainCD1(sample.data, lr);
+    totalError += result.error;
+  }
+
+  const avgError = totalError / trainingData.length;
+  errorHistory.push(avgError);
+  if (errorHistory.length > 200) errorHistory.shift();
+
+  document.getElementById('errorVal').textContent = avgError.toFixed(4);
+  epoch++;
+
+  // Update reconstruction with current input
+  const result = rbm.gibbsStep(currentVisible);
+  currentRecon = result.vProbs;
+  currentHidden = result.h;
+}
+
+function trainLoop() {
+  if (!isTraining) return;
+  trainEpoch();
+  updateDisplay();
+  if (epoch % 10 === 0) renderFeatures();
+  requestAnimationFrame(trainLoop);
+}
+
+// ===== Event Handlers =====
+function setupTrainingPatterns() {
+  const container = document.getElementById('trainingPatterns');
+  container.innerHTML = '';
+  document.getElementById('sampleCount').textContent = trainingData.length;
+
+  // Show unique patterns (not all noisy variants)
+  const shown = new Set();
+  for (const sample of trainingData) {
+    const key = sample.label !== undefined ? `preset_${sample.label}` : `custom_${trainingData.indexOf(sample)}`;
+    if (shown.has(key) && sample.label !== undefined) continue;
+    shown.add(key);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 28;
+    canvas.height = 28;
+    canvas.className = 'cursor-pointer hover:ring-2 ring-blue-500 rounded';
+    canvas.title = sample.label !== undefined ? `Digit ${sample.label}` : 'Custom pattern';
+    render28x28(canvas.getContext('2d'), sample.data);
+
+    // Click to load into input
+    canvas.onclick = () => {
+      currentVisible = new Float32Array(sample.data);
+      const result = rbm.gibbsStep(currentVisible);
+      currentRecon = result.vProbs;
+      currentHidden = result.h;
+      updateDisplay();
+    };
+    container.appendChild(canvas);
+  }
+
+  if (trainingData.length === 0) {
+    container.innerHTML = '<p class="text-[10px] text-gray-600 col-span-5">No training data. Draw patterns and click ADD, or click LOAD 0-8.</p>';
+  }
+}
+
+// Drawing on input
+let isDrawing = false;
+const inputCanvas = document.getElementById('cv_input');
+inputCanvas.onmousedown = (e) => { isDrawing = true; drawOnInput(e); };
+inputCanvas.onmousemove = (e) => { if (isDrawing) drawOnInput(e); };
+inputCanvas.onmouseup = () => isDrawing = false;
+inputCanvas.onmouseleave = () => isDrawing = false;
+
+function drawOnInput(e) {
+  const rect = inputCanvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / rect.width * 28);
+  const y = Math.floor((e.clientY - rect.top) / rect.height * 28);
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const px = x + dx, py = y + dy;
+      if (px >= 0 && px < 28 && py >= 0 && py < 28) {
+        currentVisible[py * 28 + px] = 1;
+      }
+    }
+  }
+  const result = rbm.gibbsStep(currentVisible);
+  currentRecon = result.vProbs;
+  updateDisplay();
+}
+
+document.getElementById('trainBtn').onclick = () => {
+  if (trainingData.length === 0) {
+    alert('No training data! Draw patterns and click ADD, or click LOAD 0-8 first.');
+    return;
+  }
+  isTraining = true;
+  trainLoop();
+};
+
+document.getElementById('stopBtn').onclick = () => {
+  isTraining = false;
+};
+
+// Clear all training data
+document.getElementById('clearDataBtn').onclick = () => {
+  isTraining = false;
+  trainingData.length = 0;
+  setupTrainingPatterns();
+};
+
+// Add current drawing as training sample
+document.getElementById('addDrawnBtn').onclick = () => {
+  const pattern = new Float32Array(currentVisible);
+  // Check if there's actually something drawn
+  const sum = pattern.reduce((a, b) => a + b, 0);
+  if (sum < 10) {
+    alert('Draw something first!');
+    return;
+  }
+  trainingData.push({ data: pattern, label: undefined }); // No label - unsupervised!
+  // Add some noisy variants too
+  for (let v = 0; v < 2; v++) {
+    const noisy = new Float32Array(pattern);
+    for (let i = 0; i < N_VISIBLE; i++) {
+      if (Math.random() < 0.05) noisy[i] = 1 - noisy[i];
+    }
+    trainingData.push({ data: noisy, label: undefined });
+  }
+  setupTrainingPatterns();
+  // Clear the canvas for next drawing
+  currentVisible.fill(0);
+  render28x28(ctxInput, currentVisible);
+};
+
+// Load preset digits
+document.getElementById('loadPresetsBtn').onclick = () => {
+  initTrainingData();
+  setupTrainingPatterns();
+};
+
+// Clear input canvas
+document.getElementById('clearInputBtn').onclick = () => {
+  currentVisible.fill(0);
+  render28x28(ctxInput, currentVisible);
+  const result = rbm.gibbsStep(currentVisible);
+  currentRecon = result.vProbs;
+  updateDisplay();
+};
+
+// Reset network weights
+document.getElementById('resetNetBtn').onclick = () => {
+  isTraining = false;
+  rbm = new RBM(N_VISIBLE, N_HIDDEN);
+  epoch = 0;
+  errorHistory = [];
+  renderFeatures();
+  updateDisplay();
+  document.getElementById('epochVal').textContent = '0';
+  document.getElementById('errorVal').textContent = '-';
+};
+
+document.getElementById('sampleBtn').onclick = () => {
+  const result = rbm.gibbsStep(currentVisible);
+  currentHidden = result.h;
+  currentRecon = result.vProbs;
+  currentVisible = result.vSample;
+  updateDisplay();
+
+  // Toggle phase indicator
+  const pos = document.getElementById('phase_pos');
+  const neg = document.getElementById('phase_neg');
+  pos.classList.toggle('active');
+  neg.classList.toggle('active');
+  neg.classList.toggle('bg-gray-800');
+};
+
+document.getElementById('dreamBtn').onclick = () => {
+  // Start from noise and let it dream
+  for (let i = 0; i < N_VISIBLE; i++) currentVisible[i] = Math.random() < 0.5 ? 1 : 0;
+
+  let step = 0;
+  const dreamStep = () => {
+    const result = rbm.gibbsStep(currentVisible);
+    currentHidden = result.h;
+    currentRecon = result.vProbs;
+    currentVisible = result.vSample;
+    updateDisplay();
+    step++;
+    if (step < 100) requestAnimationFrame(dreamStep);
+  };
+  dreamStep();
+};
+
+// MATCH - find closest training pattern using hidden layer representation
+document.getElementById('matchBtn').onclick = () => {
+  if (trainingData.length === 0) {
+    alert('No training data to match against! Load patterns first.');
+    return;
+  }
+
+  // Get hidden representation of current input
+  const inputH = rbm.hiddenProbs(currentVisible);
+
+  // Compare to hidden representation of each unique training pattern
+  const matches = [];
+  const seen = new Set();
+
+  for (const sample of trainingData) {
+    // Skip duplicate patterns (noisy variants)
+    const key = sample.data.slice(0, 100).join(',');
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const sampleH = rbm.hiddenProbs(sample.data);
+
+    // Cosine similarity in hidden space
+    let dot = 0, normA = 0, normB = 0;
+    for (let j = 0; j < N_HIDDEN; j++) {
+      dot += inputH[j] * sampleH[j];
+      normA += inputH[j] * inputH[j];
+      normB += sampleH[j] * sampleH[j];
+    }
+    const cosSim = dot / (Math.sqrt(normA) * Math.sqrt(normB) + 1e-8);
+
+    // Also compute pixel-level similarity for comparison
+    let pixelMatch = 0;
+    for (let i = 0; i < N_VISIBLE; i++) {
+      if ((currentVisible[i] > 0.5) === (sample.data[i] > 0.5)) pixelMatch++;
+    }
+    const pixelSim = pixelMatch / N_VISIBLE;
+
+    matches.push({
+      data: sample.data,
+      label: sample.label,
+      hiddenSim: cosSim,
+      pixelSim: pixelSim,
+      combined: cosSim * 0.7 + pixelSim * 0.3 // Weighted combination
+    });
+  }
+
+  // Sort by combined similarity
+  matches.sort((a, b) => b.combined - a.combined);
+
+  // Display best match
+  const best = matches[0];
+  const ctxMatch = document.getElementById('cv_match').getContext('2d');
+  render28x28(ctxMatch, best.data);
+
+  const scoreText = `${(best.combined * 100).toFixed(1)}%`;
+  document.getElementById('matchScore').textContent = scoreText;
+
+  // Show ranking
+  const rankingDiv = document.getElementById('matchRanking');
+  rankingDiv.innerHTML = matches.slice(0, 5).map((m, i) => {
+    const label = m.label !== undefined ? `Digit ${m.label}` : 'Custom';
+    const score = (m.combined * 100).toFixed(0);
+    const barWidth = Math.round(m.combined * 100);
+    const isTop = i === 0;
+    return `<div class="flex items-center gap-2">
+      <span class="w-12 ${isTop ? 'text-green-400' : 'text-gray-500'}">${label}</span>
+      <div class="flex-1 h-1.5 bg-gray-800 rounded">
+        <div class="h-1.5 ${isTop ? 'bg-green-500' : 'bg-gray-600'} rounded" style="width:${barWidth}%"></div>
+      </div>
+      <span class="w-8 text-right ${isTop ? 'text-green-400' : 'text-gray-600'}">${score}%</span>
+    </div>`;
+  }).join('');
+};
+
+document.getElementById('lr').oninput = () => {
+  document.getElementById('lrVal').textContent = document.getElementById('lr').value;
+};
+
+document.getElementById('nh').oninput = () => {
+  const nh = parseInt(document.getElementById('nh').value);
+  document.getElementById('nhVal').textContent = nh;
+  N_HIDDEN = nh;
+  rbm = new RBM(N_VISIBLE, N_HIDDEN);
+  epoch = 0;
+  errorHistory = [];
+  currentHidden = new Float32Array(N_HIDDEN);
+  renderFeatures();
+  updateDisplay();
+};
+
+// ===== Init =====
+// Start with empty training data to emphasize unsupervised nature
+// User can click LOAD 0-8 or draw their own
+trainingData.length = 0;
+setupTrainingPatterns();
+currentVisible.fill(0);
+renderFeatures();
+updateDisplay();
+
+// Initialize match canvas
+const ctxMatch = document.getElementById('cv_match').getContext('2d');
+ctxMatch.fillStyle = '#1a1a2e';
+ctxMatch.fillRect(0, 0, 28, 28);
+
+renderMathInElement(document.body, {
+  delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
+  throwOnError: false
+});
+</script>
+</body>
+</html>

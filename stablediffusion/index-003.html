@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Diffusion TensorDash</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --bg: #0d1117; --panel: #161b22; --border: #30363d; --accent: #58a6ff; }
+    body { background: var(--bg); color: #c9d1d9; font-family: ui-monospace, monospace; }
+    canvas { image-rendering: pixelated; border: 1px solid var(--border); background: #000; width: 100%; }
+    .stat-card { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 12px; }
+    input, select { background: #0d1117; border: 1px solid var(--border); color: white; padding: 4px 8px; border-radius: 4px; }
+    .label-text { color: #8b949e; font-size: 0.75rem; margin-bottom: 4px; display: block; }
+  </style>
+</head>
+<body class="p-4">
+
+  <header class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="stat-card col-span-2">
+      <div class="flex gap-4">
+        <div class="flex-1">
+          <span class="label-text">Prompt Dictionary: [sky, lava, neon, void, grass]</span>
+          <input id="prompt" type="text" class="w-full" value="sky grass neon" />
+        </div>
+        <div>
+          <span class="label-text">Guidance</span>
+          <input id="guidance" type="range" min="0" max="10" step="0.1" value="5" />
+        </div>
+      </div>
+      <div class="flex gap-2 mt-4">
+        <button id="runBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1 rounded">Run Inference</button>
+        <button id="resetBtn" class="border border-gray-600 px-4 py-1 rounded">Reset</button>
+        <label class="flex items-center gap-2 text-xs ml-4">
+          <input type="checkbox" id="useEMD" /> Enable EMD-Lite (Pre-Sort)
+        </label>
+      </div>
+    </div>
+    
+    <div class="stat-card">
+      <span class="label-text">Inference Stats</span>
+      <div id="stats" class="text-xs leading-relaxed">
+        Step: <span id="stat-t">0</span><br>
+        Movement (Work): <span id="stat-work">0</span><br>
+        Entropy: <span id="stat-entropy">0</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+        <span class="label-text">Global Config</span>
+        <div class="text-[10px] text-gray-500">
+            Method: DDPM + Optimal Transport<br>
+            Target: Quadratic Loss toward Dictionary<br>
+            Resolution: 64x64
+        </div>
+    </div>
+  </header>
+
+  <main class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    
+    <div class="space-y-2">
+      <span class="label-text">MAIN_RECONSTRUCTION (x_t)</span>
+      <canvas id="cv_main"></canvas>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <span class="label-text">GRADIENT_FIELD (epsilon)</span>
+        <canvas id="cv_grad"></canvas>
+      </div>
+      <div>
+        <span class="label-text">CONDITIONING_TARGET (m_c)</span>
+        <canvas id="cv_target"></canvas>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      <div class="stat-card h-40">
+        <span class="label-text">PIXEL_DISTRIBUTION (Histogram)</span>
+        <canvas id="cv_hist" class="h-24 border-0"></canvas>
+      </div>
+      <div class="stat-card h-48 overflow-hidden">
+        <span class="label-text">WORK_OVER_TIME (Loss/Flux)</span>
+        <canvas id="cv_flux" class="h-32 border-0"></canvas>
+      </div>
+    </div>
+
+  </main>
+
+<script>
+(() => {
+  const W = 64, H = 64, N = W * H;
+  const PALETTE = [[0,0,0], [255,255,255], [0,255,255], [255,0,255], [255,255,0], [50,200,50], [20,20,80], [255,69,0]];
+  const NORM_PAL = PALETTE.map(c => c.map(v => (v/127.5)-1));
+
+  // --- Visual Dictionary ---
+  const VISUAL_DICTIONARY = {
+    sky: (ctx) => { ctx.fillStyle = '#0ea5e9'; ctx.fillRect(0, 0, W, H*0.6); },
+    grass: (ctx) => { ctx.fillStyle = '#166534'; ctx.fillRect(0, H*0.6, W, H*0.4); },
+    lava: (ctx) => { ctx.fillStyle = '#991b1b'; ctx.fillRect(0, H*0.8, W, H*0.2); },
+    neon: (ctx) => { 
+        ctx.strokeStyle = '#f0f'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, H*0.5); ctx.lineTo(W, H*0.5); ctx.stroke();
+    },
+    void: (ctx) => { ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H); }
+  };
+
+  // State
+  let x = new Float32Array(N * 3);
+  let targetField = new Float32Array(N * 3);
+  let fluxHistory = [];
+  let t = 0, T = 100, running = false;
+
+  const getCtx = (id) => {
+    const el = document.getElementById(id);
+    el.width = W; el.height = H;
+    return el.getContext('2d');
+  };
+
+  const ctxs = {
+    main: getCtx('cv_main'),
+    grad: getCtx('cv_grad'),
+    target: getCtx('cv_target'),
+    hist: document.getElementById('cv_hist').getContext('2d'),
+    flux: document.getElementById('cv_flux').getContext('2d')
+  };
+
+  function init() {
+    // 1. Random Noise Init
+    for(let i=0; i<N*3; i++) x[i] = (Math.random() * 2) - 1;
+
+    // 2. Build Target from Dictionary
+    const prompt = document.getElementById('prompt').value.toLowerCase();
+    const off = document.createElement('canvas'); off.width = W; off.height = H;
+    const octx = off.getContext('2d');
+    Object.keys(VISUAL_DICTIONARY).forEach(key => {
+        if(prompt.includes(key)) VISUAL_DICTIONARY[key](octx);
+    });
+    
+    const imgData = octx.getImageData(0,0,W,H).data;
+    for(let i=0; i<N; i++) {
+        targetField[i*3] = (imgData[i*4]/127.5)-1;
+        targetField[i*3+1] = (imgData[i*4+1]/127.5)-1;
+        targetField[i*3+2] = (imgData[i*4+2]/127.5)-1;
+    }
+
+    // 3. Optional Transport (EMD-Lite)
+    if(document.getElementById('useEMD').checked) {
+        // Sort pixels by brightness to align distribution early
+        const sortedTarget = [...Array(N).keys()].sort((a,b) => targetField[a*3] - targetField[b*3]);
+        const sortedX = [...Array(N).keys()].sort((a,b) => x[a*3] - x[b*3]);
+        let newX = new Float32Array(N*3);
+        for(let i=0; i<N; i++) {
+            const from = sortedX[i], to = sortedTarget[i];
+            newX[to*3] = x[from*3]; newX[to*3+1] = x[from*3+1]; newX[to*3+2] = x[from*3+2];
+        }
+        x = newX;
+    }
+
+    t = T; fluxHistory = []; running = true;
+    renderTarget();
+    loop();
+  }
+
+  function renderTarget() {
+    const img = ctxs.target.createImageData(W, H);
+    for(let i=0; i<N; i++) {
+        img.data[i*4] = (targetField[i*3]+1)*127.5;
+        img.data[i*4+1] = (targetField[i*3+1]+1)*127.5;
+        img.data[i*4+2] = (targetField[i*3+2]+1)*127.5;
+        img.data[i*4+3] = 255;
+    }
+    ctxs.target.putImageData(img, 0, 0);
+  }
+
+  function step() {
+    if(t <= 0) return running = false;
+
+    const guidance = parseFloat(document.getElementById('guidance').value);
+    const gradImg = ctxs.grad.createImageData(W, H);
+    let totalWork = 0;
+
+    for(let i=0; i<N*3; i++) {
+        // Gradient calculation: direction toward target
+        const diff = targetField[i] - x[i];
+        const eps = diff * (guidance / 10);
+        
+        // Apply force + noise
+        const noise = (Math.random()*2-1) * (t/T) * 0.1;
+        const prev = x[i];
+        x[i] += eps + noise;
+        x[i] = Math.max(-1, Math.min(1, x[i]));
+
+        totalWork += Math.abs(x[i] - prev);
+
+        // Visualizing the gradient force
+        if(i % 3 === 0) {
+            const idx = (i/3)*4;
+            gradImg.data[idx] = Math.abs(eps)*255;
+            gradImg.data[idx+1] = eps > 0 ? 255 : 0;
+            gradImg.data[idx+2] = 100;
+            gradImg.data[idx+3] = 255;
+        }
+    }
+
+    ctxs.grad.putImageData(gradImg, 0, 0);
+    fluxHistory.push(totalWork);
+    t--;
+    
+    document.getElementById('stat-t').innerText = t;
+    document.getElementById('stat-work').innerText = totalWork.toFixed(2);
+    
+    renderMain();
+    renderDiagnostics();
+  }
+
+  function renderMain() {
+    const img = ctxs.main.createImageData(W, H);
+    for(let i=0; i<N; i++) {
+        img.data[i*4] = (x[i*3]+1)*127.5;
+        img.data[i*4+1] = (x[i*3+1]+1)*127.5;
+        img.data[i*4+2] = (x[i*3+2]+1)*127.5;
+        img.data[i*4+3] = 255;
+    }
+    ctxs.main.putImageData(img, 0, 0);
+  }
+
+  function renderDiagnostics() {
+    // Histogram
+    const h = ctxs.hist;
+    h.clearRect(0,0,W,H);
+    h.fillStyle = '#58a6ff';
+    const bins = new Array(20).fill(0);
+    for(let i=0; i<N*3; i++) {
+        const b = Math.floor(((x[i]+1)/2) * 19);
+        bins[b]++;
+    }
+    bins.forEach((v, i) => h.fillRect(i*(W/20), H, (W/20)-1, -(v/N)*H*2));
+
+    // Flux Graph
+    const f = ctxs.flux;
+    f.clearRect(0,0,W,H);
+    f.strokeStyle = '#3fb950';
+    f.beginPath();
+    fluxHistory.forEach((v, i) => {
+        const lx = (i / T) * W;
+        const ly = H - (v / 1000) * H;
+        i === 0 ? f.moveTo(lx, ly) : f.lineTo(lx, ly);
+    });
+    f.stroke();
+  }
+
+  function loop() { if(running) { step(); requestAnimationFrame(loop); } }
+
+  document.getElementById('runBtn').onclick = init;
+  document.getElementById('resetBtn').onclick = () => { running = false; t=0; renderDiagnostics(); };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Score-Based Diffusion Visualizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <style>
+    :root { --bg: #05070a; --panel: #0d1117; --border: #21262d; --accent: #a855f7; }
+    body { background: var(--bg); color: #c9d1d9; font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+    canvas { border: 1px solid var(--border); background: #000; border-radius: 8px; }
+    .stat-card { background: #161b22; border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .btn { transition: all 0.2s; }
+    .btn:hover { transform: scale(1.02); }
+    .btn:active { transform: scale(0.98); }
+  </style>
+</head>
+<body class="p-6">
+
+<header class="max-w-7xl mx-auto mb-6">
+  <h1 class="text-2xl font-bold text-white">Score-Based Diffusion</h1>
+  <p class="text-sm text-gray-500 mt-1">From noise to signal: learning the gradient of log-probability</p>
+</header>
+
+<main class="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-4 gap-4">
+
+  <!-- Column 1: Controls -->
+  <section class="stat-card">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Controls</h2>
+
+    <div class="space-y-3 mb-4">
+      <button id="clearBtn" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm">Clear Points</button>
+      <button id="presetCircle" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm">Preset: Circle</button>
+      <button id="presetSpiral" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm">Preset: Spiral</button>
+      <button id="presetMoons" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm">Preset: Two Moons</button>
+    </div>
+
+    <div class="border-t border-gray-800 pt-3 mb-4">
+      <div class="mb-2">
+        <label class="text-[10px] text-gray-500">Epochs: <span id="epochsVal" class="text-purple-400">1000</span></label>
+        <input id="epochsSlider" type="range" min="200" max="3000" step="100" value="1000" class="w-full">
+      </div>
+      <button id="trainBtn" class="btn w-full bg-purple-600 hover:bg-purple-500 text-white py-2.5 rounded text-sm font-bold">Train Score Network</button>
+      <button id="stopBtn" class="btn w-full bg-red-600 hover:bg-red-500 text-white py-1.5 rounded text-[10px] mt-1 hidden">Stop Training</button>
+      <div class="text-[10px] text-gray-600 mt-2 text-center">
+        Loss: <span id="lossVal" class="text-purple-400 font-mono">-</span>
+        | Epoch: <span id="epochVal" class="font-mono">0</span>/<span id="totalEpochs" class="font-mono">0</span>
+      </div>
+      <div class="mt-2">
+        <label class="text-[10px] text-gray-600 block mb-1">Loss Curve</label>
+        <canvas id="lossCanvas" width="200" height="60" class="w-full rounded" style="background:#0d1117;"></canvas>
+      </div>
+    </div>
+
+    <div class="border-t border-gray-800 pt-3 space-y-3">
+      <button id="forwardBtn" class="btn w-full bg-red-600 hover:bg-red-500 text-white py-2 rounded text-sm">Forward Diffusion →</button>
+      <button id="reverseBtn" class="btn w-full bg-green-600 hover:bg-green-500 text-white py-2 rounded text-sm">← Reverse Diffusion</button>
+      <button id="resetPosBtn" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm">Reset to Data</button>
+    </div>
+
+    <div class="border-t border-gray-800 pt-3 mt-4 space-y-3 text-[11px]">
+      <div>
+        <label class="text-gray-500">Noise Level $\sigma$: <span id="sigmaVal" class="text-purple-400">0.1</span></label>
+        <input id="sigma" type="range" min="0.01" max="1" step="0.01" value="0.1" class="w-full">
+      </div>
+      <div>
+        <label class="text-gray-500">Step Size $\epsilon$: <span id="epsVal" class="text-cyan-400">0.01</span></label>
+        <input id="eps" type="range" min="0.001" max="0.05" step="0.001" value="0.01" class="w-full">
+      </div>
+      <div>
+        <label class="text-gray-500">Show: </label>
+        <div class="flex gap-2 mt-1">
+          <label class="flex items-center gap-1"><input type="checkbox" id="showField" checked> <span class="text-gray-400">Score Field</span></label>
+          <label class="flex items-center gap-1"><input type="checkbox" id="showPoints" checked> <span class="text-gray-400">Points</span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800 text-[10px]">
+      <div class="flex justify-between text-gray-500"><span>Points:</span><span id="numPoints" class="font-mono">0</span></div>
+      <div class="flex justify-between text-gray-500 mt-1"><span>Diffusion Step:</span><span id="diffStep" class="font-mono">0</span></div>
+      <div class="flex justify-between text-gray-500 mt-1"><span>Mode:</span><span id="modeVal" class="font-mono text-gray-400">Draw</span></div>
+    </div>
+  </section>
+
+  <!-- Column 2-3: Main Visualization -->
+  <section class="stat-card xl:col-span-2">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Distribution & Score Field</h2>
+
+    <div class="relative">
+      <canvas id="mainCanvas" width="560" height="560" class="w-full aspect-square cursor-crosshair"></canvas>
+      <div class="absolute top-2 left-2 bg-black/70 px-2 py-1 rounded text-[10px] text-gray-400">
+        Click/drag to draw points
+      </div>
+    </div>
+
+    <div class="mt-3 flex justify-between text-[9px] text-gray-600">
+      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-purple-500"></span> Data points</span>
+      <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-cyan-500"></span> Score vectors $\nabla \log p$</span>
+      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-yellow-500 opacity-50"></span> Diffusing points</span>
+    </div>
+  </section>
+
+  <!-- Column 4: Theory Panel -->
+  <section class="stat-card">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">How It Works</h2>
+
+    <div class="space-y-4 text-[11px]">
+      <div class="p-3 bg-black/30 rounded">
+        <div class="text-purple-400 font-bold mb-1">1. Draw Data</div>
+        <p class="text-gray-500">Your points define a 2D probability distribution $p_{data}(x)$</p>
+      </div>
+
+      <div class="p-3 bg-black/30 rounded">
+        <div class="text-purple-400 font-bold mb-1">2. Learn Score</div>
+        <p class="text-gray-500">Neural net learns $s_\theta(x) \approx \nabla_x \log p(x)$</p>
+        <p class="text-gray-500 mt-1">This vector field points toward high-density regions</p>
+      </div>
+
+      <div class="p-3 bg-black/30 rounded">
+        <div class="text-red-400 font-bold mb-1">3. Forward Diffusion</div>
+        <p class="text-gray-500">Add noise: $x_t = x_0 + \sigma_t \cdot \epsilon$</p>
+        <p class="text-gray-500 mt-1">Data gradually becomes pure noise</p>
+      </div>
+
+      <div class="p-3 bg-black/30 rounded">
+        <div class="text-green-400 font-bold mb-1">4. Reverse Diffusion</div>
+        <p class="text-gray-500">Follow score: $x_{t-1} = x_t + \epsilon \cdot s_\theta(x_t)$</p>
+        <p class="text-gray-500 mt-1">Noise flows back toward data!</p>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800">
+      <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-2">Key Equations</h3>
+      <div class="text-[10px] text-gray-600 space-y-2">
+        <div><strong class="text-gray-400">Score:</strong> $s(x) = \nabla_x \log p(x)$</div>
+        <div><strong class="text-gray-400">Langevin:</strong> $x' = x + \epsilon s(x) + \sqrt{2\epsilon}\,z$</div>
+        <div><strong class="text-gray-400">Loss:</strong> $\mathbb{E}[\|s_\theta - \nabla \log p\|^2]$</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- The Big Picture Section -->
+<section class="max-w-7xl mx-auto mt-16 mb-8">
+  <h2 class="text-4xl font-bold text-white mb-2">The Big Picture</h2>
+  <p class="text-lg text-gray-500 mb-10">From score matching to text-to-image generation</p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+
+    <!-- 2005 - Score Matching -->
+    <div class="stat-card border-l-4 border-l-blue-500">
+      <div class="text-blue-400 text-sm font-mono mb-1">2005</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Score Matching</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Hyvärinen shows you can learn the score function ∇log p(x) without knowing the normalizing constant. Avoids intractable partition functions.</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Key Insight</div>
+        <div class="text-gray-300">$s_\theta(x) \approx \nabla_x \log p(x)$</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-blue-500/20 text-blue-400 rounded">Foundation</span>
+      </div>
+    </div>
+
+    <!-- 2015 - Diffusion Models -->
+    <div class="stat-card border-l-4 border-l-purple-500">
+      <div class="text-purple-400 text-sm font-mono mb-1">2015</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Diffusion Probabilistic Models</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Sohl-Dickstein: define a forward noising process, learn to reverse it. Connection to non-equilibrium thermodynamics.</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Forward Process</div>
+        <div class="text-gray-300">$q(x_t|x_{t-1})$</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-purple-500/20 text-purple-400 rounded">Theoretical</span>
+      </div>
+    </div>
+
+    <!-- 2020 - DDPM -->
+    <div class="stat-card border-l-4 border-l-green-500">
+      <div class="text-green-400 text-sm font-mono mb-1">2020</div>
+      <h3 class="text-2xl font-bold text-white mb-3">DDPM</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Ho et al. show diffusion models generate high-quality images. Predict noise ε instead of score. Simple training objective.</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Training</div>
+        <div class="text-gray-300 text-sm">$\|\epsilon - \epsilon_\theta(x_t, t)\|^2$</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded">Practical</span>
+        <span class="px-2 py-1 bg-gray-700 text-gray-400 rounded">Images</span>
+      </div>
+    </div>
+
+    <!-- 2022 - Stable Diffusion -->
+    <div class="stat-card border-l-4 border-l-orange-500">
+      <div class="text-orange-400 text-sm font-mono mb-1">2022</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Stable Diffusion</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Rombach et al.: diffusion in latent space (not pixels). Text conditioning via CLIP. Fast, open-source, revolutionary.</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Architecture</div>
+        <div class="text-gray-300 text-sm">VAE + U-Net + CLIP</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-orange-500/20 text-orange-400 rounded">Text→Image</span>
+        <span class="px-2 py-1 bg-gray-700 text-gray-400 rounded">SOTA</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Score Field Visualization Section -->
+<section class="max-w-7xl mx-auto mb-16">
+  <div class="stat-card">
+    <div class="flex flex-col lg:flex-row gap-8">
+
+      <!-- SVG Illustration -->
+      <div class="flex-1">
+        <h3 class="text-lg font-bold text-white mb-2">The Score Function: Gradient of Log-Probability</h3>
+        <p class="text-sm text-gray-500 mb-4">Why learning ∇log p(x) is the key to generative modeling</p>
+
+        <svg viewBox="0 0 600 300" class="w-full" style="max-width: 600px;">
+          <defs>
+            <radialGradient id="densityGrad" cx="50%" cy="50%">
+              <stop offset="0%" style="stop-color:#a855f7;stop-opacity:0.6" />
+              <stop offset="70%" style="stop-color:#a855f7;stop-opacity:0.1" />
+              <stop offset="100%" style="stop-color:#a855f7;stop-opacity:0" />
+            </radialGradient>
+            <marker id="arrowCyan" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#22d3ee"/>
+            </marker>
+            <filter id="glow2" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+              <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- Background -->
+          <rect width="600" height="300" fill="#0d1117"/>
+
+          <!-- Density blob -->
+          <ellipse cx="300" cy="150" rx="120" ry="100" fill="url(#densityGrad)" filter="url(#glow2)"/>
+          <ellipse cx="300" cy="150" rx="60" ry="50" fill="url(#densityGrad)" filter="url(#glow2)"/>
+
+          <!-- Score vectors pointing inward -->
+          <g stroke="#22d3ee" stroke-width="2" fill="none">
+            <!-- Top -->
+            <path d="M 300 30 L 300 60" marker-end="url(#arrowCyan)"/>
+            <path d="M 220 50 L 240 75" marker-end="url(#arrowCyan)"/>
+            <path d="M 380 50 L 360 75" marker-end="url(#arrowCyan)"/>
+
+            <!-- Sides -->
+            <path d="M 120 150 L 160 150" marker-end="url(#arrowCyan)"/>
+            <path d="M 480 150 L 440 150" marker-end="url(#arrowCyan)"/>
+            <path d="M 140 80 L 175 105" marker-end="url(#arrowCyan)"/>
+            <path d="M 460 80 L 425 105" marker-end="url(#arrowCyan)"/>
+            <path d="M 140 220 L 175 195" marker-end="url(#arrowCyan)"/>
+            <path d="M 460 220 L 425 195" marker-end="url(#arrowCyan)"/>
+
+            <!-- Bottom -->
+            <path d="M 300 270 L 300 240" marker-end="url(#arrowCyan)"/>
+            <path d="M 220 250 L 240 225" marker-end="url(#arrowCyan)"/>
+            <path d="M 380 250 L 360 225" marker-end="url(#arrowCyan)"/>
+          </g>
+
+          <!-- Center point -->
+          <circle cx="300" cy="150" r="8" fill="#a855f7" filter="url(#glow2)"/>
+          <text x="300" y="175" text-anchor="middle" fill="#a855f7" font-size="11" font-weight="bold">High density</text>
+
+          <!-- Labels -->
+          <text x="300" y="20" text-anchor="middle" fill="#22d3ee" font-size="11">$\nabla \log p(x)$</text>
+          <text x="80" y="150" text-anchor="middle" fill="#6b7280" font-size="10">Low density</text>
+          <text x="520" y="150" text-anchor="middle" fill="#6b7280" font-size="10">Low density</text>
+
+          <!-- Moving particle -->
+          <circle cx="450" cy="100" r="6" fill="#fbbf24" filter="url(#glow2)"/>
+          <text x="480" y="85" fill="#fbbf24" font-size="10">Sample</text>
+          <path d="M 445 105 Q 400 130, 350 145" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4" fill="none" marker-end="url(#arrowCyan)"/>
+
+        </svg>
+      </div>
+
+      <!-- Explanation -->
+      <div class="flex-1 flex flex-col justify-center">
+        <div class="space-y-4">
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+              <span class="text-purple-400 font-bold">∇</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold mb-1">The Score Function</h4>
+              <p class="text-gray-400 text-sm">The score $s(x) = \nabla_x \log p(x)$ is a vector field that points toward regions of higher probability. It tells you: "from here, which direction increases density?"</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+              <span class="text-cyan-400 font-bold">→</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold mb-1">Langevin Dynamics</h4>
+              <p class="text-gray-400 text-sm">To sample: start from noise, follow the score. $x_{t+1} = x_t + \epsilon \cdot s(x_t) + \sqrt{2\epsilon}\,z$. Add a bit of noise to explore, but mostly follow the gradient toward data.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+              <span class="text-green-400 font-bold">≈</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold mb-1">Denoising = Score Estimation</h4>
+              <p class="text-gray-400 text-sm">Key insight: predicting noise ε is equivalent to estimating the score! $s(x_t) \propto -\epsilon$. This is why DDPM trains a noise predictor.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+          <p class="text-purple-300 text-sm"><strong>Connection to Stable Diffusion:</strong> The U-Net in SD learns to predict noise at each timestep. This is the score function in disguise. Text conditioning modifies the score to point toward "images matching this prompt."</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Technical Essay Section -->
+<article class="max-w-7xl mx-auto mt-12 mb-16">
+
+  <header class="border-b border-gray-800 pb-6 mb-8">
+    <h2 class="text-3xl font-bold text-white">The Mathematics of Diffusion Models</h2>
+    <p class="text-gray-500 mt-2">Score matching, Langevin dynamics, and the connection to optimal transport</p>
+  </header>
+
+  <style>
+    .eq-box { background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 24px 32px; margin: 24px 0; }
+    .eq-box .katex { font-size: 1.8em; }
+    .eq-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+
+    /* Color-coded variables */
+    .var-x { color: #a855f7; font-weight: bold; } /* Data point - purple */
+    .var-s { color: #22d3ee; font-weight: bold; } /* Score - cyan */
+    .var-p { color: #4ade80; font-weight: bold; } /* Probability - green */
+    .var-sigma { color: #f87171; font-weight: bold; } /* Noise level - red */
+    .var-eps { color: #fbbf24; font-weight: bold; } /* Step size / noise - amber */
+    .var-t { color: #fb923c; font-weight: bold; } /* Time - orange */
+    .var-theta { color: #60a5fa; font-weight: bold; } /* Parameters - blue */
+
+    .prose-section { line-height: 1.8; }
+    .prose-section p { margin-bottom: 1.25rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; margin-bottom: 8px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+  </style>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Main Content -->
+    <div class="lg:col-span-2 prose-section text-gray-300">
+
+      <!-- Variable Legend -->
+      <div class="eq-box mb-8">
+        <div class="eq-label text-gray-500">Variable Legend</div>
+        <div class="flex flex-wrap text-sm">
+          <span class="legend-item"><span class="legend-dot" style="background:#a855f7"></span><span class="var-x">x</span> Data point</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#22d3ee"></span><span class="var-s">s(x)</span> Score function</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#4ade80"></span><span class="var-p">p(x)</span> Probability density</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#f87171"></span><span class="var-sigma">σ</span> Noise level</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#fbbf24"></span><span class="var-eps">ε</span> Noise / step size</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#fb923c"></span><span class="var-t">t</span> Timestep</span>
+        </div>
+      </div>
+
+      <!-- Section 1: Score Function -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">1. The Score Function</h3>
+
+        <p>The <span class="var-s">score function</span> is the gradient of the log-probability density with respect to the data:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-cyan-400">Score Function Definition</div>
+          <div class="text-center">
+            $$\textcolor{#22d3ee}{s}(\textcolor{#a855f7}{x}) = \nabla_{\textcolor{#a855f7}{x}} \log \textcolor{#4ade80}{p}(\textcolor{#a855f7}{x})$$
+          </div>
+        </div>
+
+        <p>This is a <em>vector field</em> over the data space. At every point <span class="var-x">x</span>, the score <span class="var-s">s(x)</span> points in the direction of steepest increase in probability. Think of it as a map showing "which way to the data."</p>
+
+        <p><strong>Key insight:</strong> You don't need to know the normalizing constant of <span class="var-p">p(x)</span> to compute its score! If <span class="var-p">p(x)</span> = Z<sup>−1</sup>·f(<span class="var-x">x</span>), then <span class="var-s">s(x)</span> = ∇log f(<span class="var-x">x</span>)—the Z cancels out. This makes score-based methods tractable where likelihood-based methods fail.</p>
+      </section>
+
+      <!-- Section 2: Score Matching -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">2. Learning the Score: Denoising Score Matching</h3>
+
+        <p>How do we train a neural network <span class="var-s">s<sub>θ</sub></span> to approximate the true score? The naive approach would require knowing <span class="var-p">p(x)</span>, which we don't have. The solution: <em>denoising score matching</em>.</p>
+
+        <p>Add noise to data points: <span class="var-x">x̃</span> = <span class="var-x">x</span> + <span class="var-sigma">σ</span>·<span class="var-eps">ε</span>, where <span class="var-eps">ε</span> ~ N(0, I). The score of the noisy distribution has a beautiful form:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-cyan-400">Score of Noisy Data</div>
+          <div class="text-center">
+            $$\nabla_{\textcolor{#a855f7}{\tilde{x}}} \log \textcolor{#4ade80}{p}_{\textcolor{#f87171}{\sigma}}(\textcolor{#a855f7}{\tilde{x}}|\textcolor{#a855f7}{x}) = -\frac{\textcolor{#a855f7}{\tilde{x}} - \textcolor{#a855f7}{x}}{\textcolor{#f87171}{\sigma}^2} = -\frac{\textcolor{#fbbf24}{\epsilon}}{\textcolor{#f87171}{\sigma}}$$
+          </div>
+        </div>
+
+        <p>The score points from the noisy point back toward the clean data! This gives us the training objective:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-blue-400">Denoising Score Matching Loss</div>
+          <div class="text-center">
+            $$\mathcal{L}(\textcolor{#60a5fa}{\theta}) = \mathbb{E}_{\textcolor{#a855f7}{x}, \textcolor{#fbbf24}{\epsilon}}\left[\left\|\textcolor{#22d3ee}{s_\theta}(\textcolor{#a855f7}{x} + \textcolor{#f87171}{\sigma}\textcolor{#fbbf24}{\epsilon}) + \frac{\textcolor{#fbbf24}{\epsilon}}{\textcolor{#f87171}{\sigma}}\right\|^2\right]$$
+          </div>
+        </div>
+
+        <p>This is equivalent to training a <em>denoiser</em>! Predicting what noise was added is the same as estimating the score. This is why DDPM and Stable Diffusion train noise predictors.</p>
+      </section>
+
+      <!-- Section 3: Forward Diffusion -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">3. The Forward Process: Data to Noise</h3>
+
+        <p>Define a sequence of noise levels <span class="var-sigma">σ<sub>1</sub></span> < <span class="var-sigma">σ<sub>2</sub></span> < ... < <span class="var-sigma">σ<sub>T</sub></span>. The forward process progressively corrupts data:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-red-400">Forward Diffusion</div>
+          <div class="text-center">
+            $$\textcolor{#a855f7}{x_t} = \textcolor{#a855f7}{x_0} + \textcolor{#f87171}{\sigma_t} \cdot \textcolor{#fbbf24}{\epsilon}, \quad \textcolor{#fbbf24}{\epsilon} \sim \mathcal{N}(0, I)$$
+          </div>
+        </div>
+
+        <p>As <span class="var-t">t</span> increases, the data distribution <span class="var-p">p<sub>0</sub></span>(<span class="var-x">x</span>) gradually transforms into a simple Gaussian <span class="var-p">p<sub>T</sub></span>(<span class="var-x">x</span>) ≈ N(0, <span class="var-sigma">σ<sub>T</sub></span>²I). Information is destroyed, structure is lost—pure noise remains.</p>
+      </section>
+
+      <!-- Section 4: Reverse Diffusion -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">4. The Reverse Process: Noise to Data</h3>
+
+        <p>The magic: if we know the score at each noise level, we can <em>reverse</em> the diffusion! Starting from noise, we follow the score field back toward data:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-green-400">Langevin Dynamics (Reverse Sampling)</div>
+          <div class="text-center">
+            $$\textcolor{#a855f7}{x_{t-1}} = \textcolor{#a855f7}{x_t} + \textcolor{#fbbf24}{\epsilon} \cdot \textcolor{#22d3ee}{s_\theta}(\textcolor{#a855f7}{x_t}, \textcolor{#fb923c}{t}) + \sqrt{2\textcolor{#fbbf24}{\epsilon}} \cdot \textcolor{#fbbf24}{z}$$
+          </div>
+        </div>
+
+        <p>where <span class="var-eps">z</span> ~ N(0, I) is fresh noise for exploration. The score <span class="var-s">s<sub>θ</sub></span>(<span class="var-x">x<sub>t</sub></span>, <span class="var-t">t</span>) tells us which direction leads toward data at noise level <span class="var-t">t</span>. Step by step, the noise organizes itself into structured data.</p>
+
+        <p>This is <em>Langevin dynamics</em>: gradient ascent on log-probability plus noise for exploration. The algorithm samples from the data distribution without ever computing likelihoods!</p>
+      </section>
+
+      <!-- Section 5: Earth Mover / Optimal Transport -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">5. Connection to Optimal Transport</h3>
+
+        <p>The diffusion process can be viewed through the lens of <em>optimal transport</em>. We're moving probability mass from the noise distribution to the data distribution along optimal paths.</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-orange-400">Earth Mover's Distance (Wasserstein-2)</div>
+          <div class="text-center">
+            $$W_2(\textcolor{#4ade80}{p}, \textcolor{#4ade80}{q}) = \inf_{\gamma} \left(\int \|\textcolor{#a855f7}{x} - \textcolor{#a855f7}{y}\|^2 d\gamma(\textcolor{#a855f7}{x}, \textcolor{#a855f7}{y})\right)^{1/2}$$
+          </div>
+        </div>
+
+        <p>The <em>Earth Mover's Distance</em> (Wasserstein distance) measures how much "work" is needed to transform distribution <span class="var-p">p</span> into <span class="var-p">q</span>. The optimal transport map moves each point along the shortest path.</p>
+
+        <p><strong>Flow Matching</strong> (2022): A newer perspective shows diffusion models learn the <em>velocity field</em> of optimal transport between noise and data. This view leads to faster sampling and connections to continuous normalizing flows.</p>
+      </section>
+
+      <!-- Section 6: Bayesian Interpretation -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">6. Bayesian Interpretation</h3>
+
+        <p>Diffusion models have a natural Bayesian interpretation. The noisy observation <span class="var-x">x<sub>t</sub></span> is evidence; we want to infer the clean data <span class="var-x">x<sub>0</sub></span>:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-green-400">Posterior via Bayes</div>
+          <div class="text-center">
+            $$\textcolor{#4ade80}{p}(\textcolor{#a855f7}{x_0}|\textcolor{#a855f7}{x_t}) \propto \textcolor{#4ade80}{p}(\textcolor{#a855f7}{x_t}|\textcolor{#a855f7}{x_0}) \cdot \textcolor{#4ade80}{p}(\textcolor{#a855f7}{x_0})$$
+          </div>
+        </div>
+
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li><strong>Prior <span class="var-p">p</span>(<span class="var-x">x<sub>0</sub></span>):</strong> The data distribution (learned implicitly)</li>
+          <li><strong>Likelihood <span class="var-p">p</span>(<span class="var-x">x<sub>t</sub></span>|<span class="var-x">x<sub>0</sub></span>):</strong> Gaussian noise model (known exactly)</li>
+          <li><strong>Posterior <span class="var-p">p</span>(<span class="var-x">x<sub>0</sub></span>|<span class="var-x">x<sub>t</sub></span>):</strong> Denoised estimate (what we want)</li>
+        </ul>
+
+        <p>The score function gives us the gradient of the posterior! Langevin dynamics performs approximate Bayesian inference, sampling from the posterior distribution of clean data given noisy observations.</p>
+      </section>
+
+      <!-- Section 7: Text Conditioning -->
+      <section class="mb-8">
+        <h3 class="text-xl font-bold text-white mb-4">7. From Score to Stable Diffusion</h3>
+
+        <p>Stable Diffusion extends these ideas with three key innovations:</p>
+
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li><strong>Latent Space:</strong> Diffuse in compressed VAE latent space (64×64×4) instead of pixel space (512×512×3). Much faster!</li>
+          <li><strong>U-Net Denoiser:</strong> Predicts noise <span class="var-eps">ε<sub>θ</sub></span>(<span class="var-x">x<sub>t</sub></span>, <span class="var-t">t</span>, <span class="var-c">c</span>) conditioned on timestep and text embedding</li>
+          <li><strong>Classifier-Free Guidance:</strong> Amplify the text-conditional score: <span class="var-s">s̃</span> = <span class="var-s">s</span><sub>uncond</sub> + w·(<span class="var-s">s</span><sub>cond</sub> − <span class="var-s">s</span><sub>uncond</sub>)</li>
+        </ul>
+
+        <div class="eq-box">
+          <div class="eq-label text-orange-400">Classifier-Free Guidance</div>
+          <div class="text-center">
+            $$\textcolor{#22d3ee}{\tilde{s}}(\textcolor{#a855f7}{x}, c) = \textcolor{#22d3ee}{s}(\textcolor{#a855f7}{x}, \varnothing) + w \cdot \left(\textcolor{#22d3ee}{s}(\textcolor{#a855f7}{x}, c) - \textcolor{#22d3ee}{s}(\textcolor{#a855f7}{x}, \varnothing)\right)$$
+          </div>
+        </div>
+
+        <p>The guidance weight <em>w</em> controls how strongly the generation follows the text prompt. Higher w = more adherence to prompt (but less diversity). This is why you see "guidance scale" in SD interfaces.</p>
+      </section>
+
+    </div>
+
+    <!-- Sidebar: Quick Reference -->
+    <aside class="stat-card h-fit lg:sticky lg:top-6">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-6">Equation Summary</h3>
+
+      <div class="space-y-5">
+        <!-- Score Function -->
+        <div class="bg-black/40 rounded-lg p-3 border border-cyan-500/30">
+          <div class="text-sm font-bold text-cyan-400 mb-2">Score Function</div>
+          <div class="text-base">$\textcolor{#22d3ee}{s}(\textcolor{#a855f7}{x}) = \nabla_{\textcolor{#a855f7}{x}} \log \textcolor{#4ade80}{p}(\textcolor{#a855f7}{x})$</div>
+        </div>
+
+        <!-- Forward Process -->
+        <div class="bg-black/40 rounded-lg p-3 border border-red-500/30">
+          <div class="text-sm font-bold text-red-400 mb-2">Forward Process</div>
+          <div class="text-base">$\textcolor{#a855f7}{x_t} = \textcolor{#a855f7}{x_0} + \textcolor{#f87171}{\sigma_t} \textcolor{#fbbf24}{\epsilon}$</div>
+        </div>
+
+        <!-- Denoising Loss -->
+        <div class="bg-black/40 rounded-lg p-3 border border-blue-500/30">
+          <div class="text-sm font-bold text-blue-400 mb-2">Denoising Loss</div>
+          <div class="text-base">$\|\textcolor{#22d3ee}{s_\theta}(\textcolor{#a855f7}{\tilde{x}}) + \textcolor{#fbbf24}{\epsilon}/\textcolor{#f87171}{\sigma}\|^2$</div>
+        </div>
+
+        <!-- Langevin Dynamics -->
+        <div class="bg-black/40 rounded-lg p-3 border border-green-500/30">
+          <div class="text-sm font-bold text-green-400 mb-2">Langevin Dynamics</div>
+          <div class="text-base">$\textcolor{#a855f7}{x'} = \textcolor{#a855f7}{x} + \textcolor{#fbbf24}{\epsilon} \textcolor{#22d3ee}{s}(\textcolor{#a855f7}{x}) + \sqrt{2\textcolor{#fbbf24}{\epsilon}}\,\textcolor{#fbbf24}{z}$</div>
+        </div>
+
+        <!-- Wasserstein Distance -->
+        <div class="bg-black/40 rounded-lg p-3 border border-orange-500/30">
+          <div class="text-sm font-bold text-orange-400 mb-2">Wasserstein Distance</div>
+          <div class="text-base">$W_2(\textcolor{#4ade80}{p},\textcolor{#4ade80}{q}) = \inf_\gamma \sqrt{\int\|\textcolor{#a855f7}{x}-\textcolor{#a855f7}{y}\|^2 d\gamma}$</div>
+        </div>
+
+        <!-- Classifier-Free Guidance -->
+        <div class="bg-black/40 rounded-lg p-3 border border-purple-500/30">
+          <div class="text-sm font-bold text-purple-400 mb-2">Classifier-Free Guidance</div>
+          <div class="text-base">$\textcolor{#22d3ee}{\tilde{s}} = \textcolor{#22d3ee}{s_\varnothing} + w(\textcolor{#22d3ee}{s_c} - \textcolor{#22d3ee}{s_\varnothing})$</div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-gray-700">
+        <h4 class="text-sm font-bold text-white mb-2">Key Insight</h4>
+        <p class="text-sm text-gray-300 leading-relaxed">Denoising and score estimation are equivalent! Training a neural net to predict <span class="var-eps">noise ε</span> is the same as learning <span class="var-s">∇log p</span>. This sidesteps the intractable normalization constant.</p>
+      </div>
+
+      <div class="mt-4 pt-4 border-t border-gray-700">
+        <h4 class="text-sm font-bold text-white mb-2">Try It</h4>
+        <p class="text-sm text-gray-300 leading-relaxed">Draw a shape above, train the score network, then watch forward diffusion scatter your points. Reverse diffusion follows the learned <span class="var-s">score field</span> back!</p>
+      </div>
+    </aside>
+
+  </div>
+</article>
+
+<script>
+// ===== Configuration =====
+const CANVAS_SIZE = 560;
+const GRID_SIZE = 20; // For vector field
+const MAX_POINTS = 2000;
+
+// ===== State =====
+let dataPoints = [];        // Original user-drawn points
+let currentPoints = [];     // Points during diffusion
+let scoreNet = null;        // Trained network
+let isTraining = false;
+let stopTraining = false;
+let diffusionStep = 0;
+let animationId = null;
+let lossHistory = [];
+
+// ===== Canvas Setup =====
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+
+// ===== Simple MLP for Score Estimation =====
+class ScoreNetwork {
+  constructor() {
+    // 2 -> 64 -> 64 -> 2
+    this.w1 = this.randomMatrix(64, 2);
+    this.b1 = new Float32Array(64);
+    this.w2 = this.randomMatrix(64, 64);
+    this.b2 = new Float32Array(64);
+    this.w3 = this.randomMatrix(2, 64);
+    this.b3 = new Float32Array(2);
+  }
+
+  randomMatrix(rows, cols) {
+    const scale = Math.sqrt(2 / cols);
+    const m = new Float32Array(rows * cols);
+    for (let i = 0; i < m.length; i++) {
+      m[i] = (Math.random() - 0.5) * 2 * scale;
+    }
+    return m;
+  }
+
+  forward(x, y) {
+    // Input: [x, y] normalized to [-1, 1]
+    let h = new Float32Array(64);
+
+    // Layer 1
+    for (let i = 0; i < 64; i++) {
+      h[i] = this.w1[i * 2] * x + this.w1[i * 2 + 1] * y + this.b1[i];
+      h[i] = Math.max(0, h[i]); // ReLU
+    }
+
+    // Layer 2
+    let h2 = new Float32Array(64);
+    for (let i = 0; i < 64; i++) {
+      let sum = this.b2[i];
+      for (let j = 0; j < 64; j++) {
+        sum += this.w2[i * 64 + j] * h[j];
+      }
+      h2[i] = Math.max(0, sum); // ReLU
+    }
+
+    // Output layer
+    let sx = this.b3[0], sy = this.b3[1];
+    for (let j = 0; j < 64; j++) {
+      sx += this.w3[j] * h2[j];
+      sy += this.w3[64 + j] * h2[j];
+    }
+
+    return [sx, sy];
+  }
+
+  // Train using denoising score matching
+  train(points, epochs = 100, lr = 0.001, sigma = 0.1) {
+    const losses = [];
+
+    for (let epoch = 0; epoch < epochs; epoch++) {
+      let totalLoss = 0;
+
+      // Mini-batch gradient descent
+      for (let i = 0; i < points.length; i++) {
+        const [px, py] = points[i];
+
+        // Add noise
+        const eps_x = gaussianRandom() * sigma;
+        const eps_y = gaussianRandom() * sigma;
+        const nx = px + eps_x;
+        const ny = py + eps_y;
+
+        // Target score: -epsilon / sigma
+        const target_sx = -eps_x / sigma;
+        const target_sy = -eps_y / sigma;
+
+        // Forward pass with gradient computation (numerical for simplicity)
+        const [pred_sx, pred_sy] = this.forward(nx, ny);
+
+        // Loss
+        const loss = (pred_sx - target_sx) ** 2 + (pred_sy - target_sy) ** 2;
+        totalLoss += loss;
+
+        // Simple gradient update (approximate)
+        this.updateWeights(nx, ny, pred_sx - target_sx, pred_sy - target_sy, lr);
+      }
+
+      losses.push(totalLoss / points.length);
+
+      if (epoch % 10 === 0) {
+        document.getElementById('lossVal').textContent = (totalLoss / points.length).toFixed(4);
+        document.getElementById('epochVal').textContent = epoch;
+      }
+    }
+
+    return losses;
+  }
+
+  updateWeights(x, y, grad_sx, grad_sy, lr) {
+    // Simplified weight update using finite differences
+    const delta = 0.0001;
+
+    // Update output layer
+    for (let j = 0; j < 64; j++) {
+      const h2_j = this.getH2(x, y, j);
+      this.w3[j] -= lr * grad_sx * h2_j;
+      this.w3[64 + j] -= lr * grad_sy * h2_j;
+    }
+    this.b3[0] -= lr * grad_sx;
+    this.b3[1] -= lr * grad_sy;
+  }
+
+  getH2(x, y, idx) {
+    // Get h2[idx] for gradient computation
+    let h = new Float32Array(64);
+    for (let i = 0; i < 64; i++) {
+      h[i] = this.w1[i * 2] * x + this.w1[i * 2 + 1] * y + this.b1[i];
+      h[i] = Math.max(0, h[i]);
+    }
+    let sum = this.b2[idx];
+    for (let j = 0; j < 64; j++) {
+      sum += this.w2[idx * 64 + j] * h[j];
+    }
+    return Math.max(0, sum);
+  }
+}
+
+function gaussianRandom() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+// ===== Drawing =====
+function toCanvas(x, y) {
+  return [(x + 1) * CANVAS_SIZE / 2, (1 - y) * CANVAS_SIZE / 2];
+}
+
+function fromCanvas(cx, cy) {
+  return [cx / CANVAS_SIZE * 2 - 1, 1 - cy / CANVAS_SIZE * 2];
+}
+
+function render() {
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+  // Draw grid
+  ctx.strokeStyle = '#21262d';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= GRID_SIZE; i++) {
+    const pos = i * CANVAS_SIZE / GRID_SIZE;
+    ctx.beginPath();
+    ctx.moveTo(pos, 0);
+    ctx.lineTo(pos, CANVAS_SIZE);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, pos);
+    ctx.lineTo(CANVAS_SIZE, pos);
+    ctx.stroke();
+  }
+
+  // Draw score field if network exists and checkbox checked
+  if (scoreNet && document.getElementById('showField').checked) {
+    drawScoreField();
+  }
+
+  // Draw points if checkbox checked
+  if (document.getElementById('showPoints').checked) {
+    // Draw original data points (faint)
+    ctx.fillStyle = 'rgba(168, 85, 247, 0.3)';
+    for (const [x, y] of dataPoints) {
+      const [cx, cy] = toCanvas(x, y);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Draw current diffusing points
+    ctx.fillStyle = '#fbbf24';
+    for (const [x, y] of currentPoints) {
+      const [cx, cy] = toCanvas(x, y);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Update stats
+  document.getElementById('numPoints').textContent = dataPoints.length;
+  document.getElementById('diffStep').textContent = diffusionStep;
+}
+
+function drawScoreField() {
+  const step = CANVAS_SIZE / GRID_SIZE;
+  const scale = 15;
+
+  ctx.strokeStyle = '#22d3ee';
+  ctx.lineWidth = 1;
+
+  for (let i = 0; i <= GRID_SIZE; i++) {
+    for (let j = 0; j <= GRID_SIZE; j++) {
+      const cx = i * step;
+      const cy = j * step;
+      const [x, y] = fromCanvas(cx, cy);
+
+      const [sx, sy] = scoreNet.forward(x, y);
+
+      // Normalize and scale
+      const mag = Math.sqrt(sx * sx + sy * sy) + 0.001;
+      const nx = sx / mag * scale;
+      const ny = -sy / mag * scale; // Flip y for canvas
+
+      // Draw arrow
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + nx, cy + ny);
+      ctx.stroke();
+
+      // Arrowhead
+      const angle = Math.atan2(ny, nx);
+      ctx.beginPath();
+      ctx.moveTo(cx + nx, cy + ny);
+      ctx.lineTo(cx + nx - 5 * Math.cos(angle - 0.5), cy + ny - 5 * Math.sin(angle - 0.5));
+      ctx.moveTo(cx + nx, cy + ny);
+      ctx.lineTo(cx + nx - 5 * Math.cos(angle + 0.5), cy + ny - 5 * Math.sin(angle + 0.5));
+      ctx.stroke();
+    }
+  }
+}
+
+// ===== User Input =====
+let isDrawing = false;
+
+canvas.addEventListener('mousedown', (e) => {
+  isDrawing = true;
+  addPoint(e);
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (isDrawing) addPoint(e);
+});
+
+canvas.addEventListener('mouseup', () => isDrawing = false);
+canvas.addEventListener('mouseleave', () => isDrawing = false);
+
+function addPoint(e) {
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) * (CANVAS_SIZE / rect.width);
+  const cy = (e.clientY - rect.top) * (CANVAS_SIZE / rect.height);
+  const [x, y] = fromCanvas(cx, cy);
+
+  if (dataPoints.length < MAX_POINTS) {
+    dataPoints.push([x, y]);
+    currentPoints = dataPoints.map(p => [...p]);
+    diffusionStep = 0;
+    render();
+  }
+}
+
+// ===== Presets =====
+function generateCircle(n = 500, r = 0.6) {
+  const points = [];
+  for (let i = 0; i < n; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = r + (Math.random() - 0.5) * 0.1;
+    points.push([Math.cos(angle) * radius, Math.sin(angle) * radius]);
+  }
+  return points;
+}
+
+function generateSpiral(n = 500) {
+  const points = [];
+  for (let i = 0; i < n; i++) {
+    const t = i / n * 3 * Math.PI;
+    const r = 0.1 + t * 0.15;
+    const noise = (Math.random() - 0.5) * 0.05;
+    points.push([Math.cos(t) * r + noise, Math.sin(t) * r + noise]);
+  }
+  return points;
+}
+
+function generateMoons(n = 500) {
+  const points = [];
+  for (let i = 0; i < n / 2; i++) {
+    const angle = Math.random() * Math.PI;
+    const noise = (Math.random() - 0.5) * 0.1;
+    points.push([Math.cos(angle) * 0.5 + noise, Math.sin(angle) * 0.5 + noise - 0.2]);
+  }
+  for (let i = 0; i < n / 2; i++) {
+    const angle = Math.random() * Math.PI + Math.PI;
+    const noise = (Math.random() - 0.5) * 0.1;
+    points.push([Math.cos(angle) * 0.5 + 0.5 + noise, Math.sin(angle) * 0.5 + noise + 0.2]);
+  }
+  return points;
+}
+
+// ===== Training =====
+function renderLossCurve() {
+  const lossCanvas = document.getElementById('lossCanvas');
+  const lctx = lossCanvas.getContext('2d');
+  const w = lossCanvas.width, h = lossCanvas.height;
+
+  lctx.fillStyle = '#0d1117';
+  lctx.fillRect(0, 0, w, h);
+
+  if (lossHistory.length < 2) return;
+
+  const minL = Math.min(...lossHistory);
+  const maxL = Math.max(...lossHistory);
+  const range = maxL - minL || 1;
+
+  // Draw grid
+  lctx.strokeStyle = '#21262d';
+  lctx.lineWidth = 0.5;
+  for (let i = 0; i < 4; i++) {
+    const y = i * h / 3;
+    lctx.beginPath();
+    lctx.moveTo(0, y);
+    lctx.lineTo(w, y);
+    lctx.stroke();
+  }
+
+  // Draw loss curve
+  lctx.strokeStyle = '#a855f7';
+  lctx.lineWidth = 2;
+  lctx.beginPath();
+  lossHistory.forEach((loss, i) => {
+    const x = (i / (lossHistory.length - 1)) * w;
+    const y = h - 5 - ((loss - minL) / range) * (h - 10);
+    i === 0 ? lctx.moveTo(x, y) : lctx.lineTo(x, y);
+  });
+  lctx.stroke();
+
+  // Labels
+  lctx.fillStyle = '#6b7280';
+  lctx.font = '9px monospace';
+  lctx.fillText(maxL.toFixed(2), 2, 10);
+  lctx.fillText(minL.toFixed(2), 2, h - 2);
+}
+
+async function trainNetwork() {
+  if (dataPoints.length < 10) {
+    alert('Draw more points first!');
+    return;
+  }
+
+  if (isTraining) return;
+  isTraining = true;
+  stopTraining = false;
+
+  document.getElementById('trainBtn').classList.add('hidden');
+  document.getElementById('stopBtn').classList.remove('hidden');
+  document.getElementById('modeVal').textContent = 'Training';
+
+  const totalEpochs = parseInt(document.getElementById('epochsSlider').value);
+  document.getElementById('totalEpochs').textContent = totalEpochs;
+
+  // Normalize points
+  const normalized = dataPoints.map(([x, y]) => [x, y]);
+
+  scoreNet = new ScoreNetwork();
+  lossHistory = [];
+
+  const sigma = parseFloat(document.getElementById('sigma').value);
+  const batchSize = 10; // epochs per UI update
+  const lr = 0.005;
+
+  let epoch = 0;
+
+  while (epoch < totalEpochs && !stopTraining) {
+    // Train one batch
+    let batchLoss = 0;
+    for (let b = 0; b < batchSize && epoch < totalEpochs; b++, epoch++) {
+      let epochLoss = 0;
+
+      // Shuffle and train
+      for (let i = 0; i < normalized.length; i++) {
+        const [px, py] = normalized[i];
+        const eps_x = gaussianRandom() * sigma;
+        const eps_y = gaussianRandom() * sigma;
+        const nx = px + eps_x;
+        const ny = py + eps_y;
+
+        const target_sx = -eps_x / sigma;
+        const target_sy = -eps_y / sigma;
+        const [pred_sx, pred_sy] = scoreNet.forward(nx, ny);
+
+        epochLoss += (pred_sx - target_sx) ** 2 + (pred_sy - target_sy) ** 2;
+        scoreNet.updateWeights(nx, ny, pred_sx - target_sx, pred_sy - target_sy, lr);
+      }
+
+      batchLoss = epochLoss / normalized.length;
+    }
+
+    // Record and display
+    lossHistory.push(batchLoss);
+    document.getElementById('lossVal').textContent = batchLoss.toFixed(4);
+    document.getElementById('epochVal').textContent = epoch;
+
+    renderLossCurve();
+    render();
+
+    // Yield to UI
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
+
+  isTraining = false;
+  stopTraining = false;
+  document.getElementById('trainBtn').classList.remove('hidden');
+  document.getElementById('stopBtn').classList.add('hidden');
+  document.getElementById('modeVal').textContent = 'Ready';
+  render();
+}
+
+// ===== Diffusion =====
+function forwardDiffusion() {
+  if (animationId) cancelAnimationFrame(animationId);
+
+  currentPoints = dataPoints.map(p => [...p]);
+  diffusionStep = 0;
+  document.getElementById('modeVal').textContent = 'Forward';
+
+  const sigma = parseFloat(document.getElementById('sigma').value);
+  const maxSteps = 50;
+
+  function step() {
+    if (diffusionStep >= maxSteps) {
+      document.getElementById('modeVal').textContent = 'Noise';
+      return;
+    }
+
+    // Add noise
+    const noiseScale = sigma / Math.sqrt(maxSteps);
+    for (let i = 0; i < currentPoints.length; i++) {
+      currentPoints[i][0] += gaussianRandom() * noiseScale;
+      currentPoints[i][1] += gaussianRandom() * noiseScale;
+    }
+
+    diffusionStep++;
+    render();
+    animationId = requestAnimationFrame(step);
+  }
+
+  step();
+}
+
+function reverseDiffusion() {
+  if (!scoreNet) {
+    alert('Train the score network first!');
+    return;
+  }
+
+  if (animationId) cancelAnimationFrame(animationId);
+  document.getElementById('modeVal').textContent = 'Reverse';
+
+  const eps = parseFloat(document.getElementById('eps').value);
+  const maxSteps = 200;
+  let step_count = 0;
+
+  function step() {
+    if (step_count >= maxSteps) {
+      document.getElementById('modeVal').textContent = 'Done';
+      return;
+    }
+
+    // Follow score field
+    for (let i = 0; i < currentPoints.length; i++) {
+      const [x, y] = currentPoints[i];
+      const [sx, sy] = scoreNet.forward(x, y);
+
+      // Langevin step
+      currentPoints[i][0] += eps * sx + Math.sqrt(2 * eps * 0.1) * gaussianRandom();
+      currentPoints[i][1] += eps * sy + Math.sqrt(2 * eps * 0.1) * gaussianRandom();
+
+      // Clamp to bounds
+      currentPoints[i][0] = Math.max(-1.5, Math.min(1.5, currentPoints[i][0]));
+      currentPoints[i][1] = Math.max(-1.5, Math.min(1.5, currentPoints[i][1]));
+    }
+
+    step_count++;
+    diffusionStep = maxSteps - step_count;
+    render();
+    animationId = requestAnimationFrame(step);
+  }
+
+  step();
+}
+
+function resetToData() {
+  if (animationId) cancelAnimationFrame(animationId);
+  currentPoints = dataPoints.map(p => [...p]);
+  diffusionStep = 0;
+  document.getElementById('modeVal').textContent = 'Draw';
+  render();
+}
+
+// ===== Event Listeners =====
+document.getElementById('clearBtn').onclick = () => {
+  if (animationId) cancelAnimationFrame(animationId);
+  dataPoints = [];
+  currentPoints = [];
+  scoreNet = null;
+  diffusionStep = 0;
+  document.getElementById('modeVal').textContent = 'Draw';
+  document.getElementById('lossVal').textContent = '-';
+  document.getElementById('epochVal').textContent = '0';
+  render();
+};
+
+document.getElementById('presetCircle').onclick = () => {
+  dataPoints = generateCircle();
+  currentPoints = dataPoints.map(p => [...p]);
+  diffusionStep = 0;
+  render();
+};
+
+document.getElementById('presetSpiral').onclick = () => {
+  dataPoints = generateSpiral();
+  currentPoints = dataPoints.map(p => [...p]);
+  diffusionStep = 0;
+  render();
+};
+
+document.getElementById('presetMoons').onclick = () => {
+  dataPoints = generateMoons();
+  currentPoints = dataPoints.map(p => [...p]);
+  diffusionStep = 0;
+  render();
+};
+
+document.getElementById('trainBtn').onclick = trainNetwork;
+document.getElementById('stopBtn').onclick = () => { stopTraining = true; };
+document.getElementById('forwardBtn').onclick = forwardDiffusion;
+document.getElementById('reverseBtn').onclick = reverseDiffusion;
+document.getElementById('resetPosBtn').onclick = resetToData;
+
+document.getElementById('epochsSlider').oninput = () => {
+  document.getElementById('epochsVal').textContent = document.getElementById('epochsSlider').value;
+};
+
+document.getElementById('sigma').oninput = () => {
+  document.getElementById('sigmaVal').textContent = document.getElementById('sigma').value;
+};
+
+document.getElementById('eps').oninput = () => {
+  document.getElementById('epsVal').textContent = document.getElementById('eps').value;
+};
+
+document.getElementById('showField').onchange = render;
+document.getElementById('showPoints').onchange = render;
+
+// ===== Init =====
+render();
+
+renderMathInElement(document.body, {
+  delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
+  throwOnError: false
+});
+</script>
+</body>
+</html>

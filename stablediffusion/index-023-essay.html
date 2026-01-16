@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>The Mathematics of Optimal Transport</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <style>
+    :root { --bg: #05070a; --panel: #0d1117; --border: #21262d; }
+    body { background: var(--bg); color: #c9d1d9; font-family: 'Inter', system-ui, sans-serif; }
+    .stat-card { background: #161b22; border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .eq-box { background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 24px 32px; margin: 24px 0; }
+    .eq-box .katex { font-size: 1.6em; }
+    .eq-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+
+    /* Color-coded variables */
+    .var-mu { color: #3b82f6; font-weight: bold; }
+    .var-nu { color: #22c55e; font-weight: bold; }
+    .var-gamma { color: #fb923c; font-weight: bold; }
+    .var-c { color: #f87171; font-weight: bold; }
+    .var-w { color: #a855f7; font-weight: bold; }
+    .var-t { color: #fbbf24; font-weight: bold; }
+    .var-v { color: #22d3ee; font-weight: bold; }
+    .var-x { color: #c084fc; font-weight: bold; }
+
+    .prose-section { line-height: 1.8; }
+    .prose-section p { margin-bottom: 1.25rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; margin-bottom: 8px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+  </style>
+</head>
+<body class="p-6">
+
+<article class="max-w-5xl mx-auto">
+
+  <header class="border-b border-gray-800 pb-6 mb-8">
+    <h2 class="text-3xl font-bold text-white">The Mathematics of Optimal Transport</h2>
+    <p class="text-gray-500 mt-2">From Monge's dirt-moving problem to modern generative models</p>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Main Content -->
+    <div class="lg:col-span-2 prose-section text-gray-300">
+
+      <!-- Variable Legend -->
+      <div class="eq-box mb-8">
+        <div class="eq-label text-gray-500">Variable Legend</div>
+        <div class="flex flex-wrap text-sm">
+          <span class="legend-item"><span class="legend-dot" style="background:#3b82f6"></span><span class="var-mu">μ</span> Source distribution</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#22c55e"></span><span class="var-nu">ν</span> Target distribution</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#fb923c"></span><span class="var-gamma">γ</span> Transport plan</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#f87171"></span><span class="var-c">c</span> Cost function</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#a855f7"></span><span class="var-w">W</span> Wasserstein distance</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#22d3ee"></span><span class="var-v">v</span> Velocity field</span>
+        </div>
+      </div>
+
+      <!-- Section 1: The Problem -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">1. The Optimal Transport Problem</h3>
+
+        <p>Imagine you have piles of dirt (source <span class="var-mu">μ</span>) and holes to fill (target <span class="var-nu">ν</span>). How do you move the dirt to fill the holes with minimum total effort? This is the essence of optimal transport.</p>
+
+        <p>The <em>cost</em> to move one unit of mass from point <span class="var-x">x</span> to point <span class="var-x">y</span> is given by a cost function <span class="var-c">c</span>(<span class="var-x">x</span>, <span class="var-x">y</span>). The most common choice is squared Euclidean distance:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-red-400">Cost Function</div>
+          <div class="text-center">
+            $$\textcolor{#f87171}{c}(x, y) = \|x - y\|^2$$
+          </div>
+        </div>
+
+        <p>We seek a <span class="var-gamma">transport plan</span> γ that specifies how much mass to move from each source location to each target location, while minimizing the total cost.</p>
+      </section>
+
+      <!-- Section 2: Monge vs Kantorovich -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">2. Monge vs Kantorovich Formulation</h3>
+
+        <p><strong>Monge (1781):</strong> The original formulation requires each grain of dirt to go to exactly one destination. We seek a transport <em>map</em> T: X → Y.</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-blue-400">Monge Problem</div>
+          <div class="text-center">
+            $$\min_T \int \textcolor{#f87171}{c}(x, T(x)) \, d\textcolor{#3b82f6}{\mu}(x) \quad \text{s.t. } T_\#\textcolor{#3b82f6}{\mu} = \textcolor{#22c55e}{\nu}$$
+          </div>
+        </div>
+
+        <p>The constraint T<sub>#</sub>μ = ν means the pushforward of μ through T equals ν—mass is conserved. However, Monge's formulation has a problem: it may not have a solution if you need to split mass!</p>
+
+        <p><strong>Kantorovich (1942):</strong> The key relaxation allows fractional transport. Instead of a map, we have a <span class="var-gamma">coupling</span> γ(x, y)—a joint distribution over source and target.</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-orange-400">Kantorovich Problem</div>
+          <div class="text-center">
+            $$\min_{\textcolor{#fb923c}{\gamma} \in \Pi(\mu, \nu)} \int \textcolor{#f87171}{c}(x, y) \, d\textcolor{#fb923c}{\gamma}(x, y)$$
+          </div>
+        </div>
+
+        <p>The constraint γ ∈ Π(μ, ν) means γ must have marginals μ and ν:</p>
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li>∫ γ(x, y) dy = μ(x) — all source mass is shipped out</li>
+          <li>∫ γ(x, y) dx = ν(y) — all target locations receive the right amount</li>
+        </ul>
+
+        <p>This is a linear program with a guaranteed solution! Kantorovich won the 1975 Nobel Prize in Economics for this work (applied to resource allocation).</p>
+      </section>
+
+      <!-- Section 3: Wasserstein Distance -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">3. The Wasserstein Distance</h3>
+
+        <p>The optimal transport cost defines a metric on probability distributions called the <span class="var-w">Wasserstein distance</span> (or Earth Mover's Distance):</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-purple-400">Wasserstein-p Distance</div>
+          <div class="text-center">
+            $$\textcolor{#a855f7}{W_p}(\textcolor{#3b82f6}{\mu}, \textcolor{#22c55e}{\nu}) = \left( \min_{\textcolor{#fb923c}{\gamma} \in \Pi(\mu, \nu)} \int \|x - y\|^p \, d\textcolor{#fb923c}{\gamma}(x, y) \right)^{1/p}$$
+          </div>
+        </div>
+
+        <p><strong>W<sub>1</sub></strong> (p=1): Measures average distance mass travels. Has a dual form: W<sub>1</sub> = sup<sub>‖f‖<sub>Lip</sub>≤1</sub> ∫f d(μ−ν). This is the basis of Wasserstein GANs.</p>
+
+        <p><strong>W<sub>2</sub></strong> (p=2): Has beautiful geometric properties. The squared W<sub>2</sub> admits a "displacement interpolation"—the geodesic in the space of distributions. Used in flow matching.</p>
+
+        <p><strong>Why Wasserstein over KL divergence?</strong> KL(p||q) is infinite if p and q have non-overlapping support. Wasserstein is always finite and metrizes weak convergence—essential for training generative models!</p>
+      </section>
+
+      <!-- Section 4: Sinkhorn Algorithm -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">4. The Sinkhorn Algorithm</h3>
+
+        <p>Computing exact OT via linear programming is O(n³)—too slow for machine learning. Cuturi (2013) showed that adding entropy regularization yields a fast, GPU-friendly algorithm:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-green-400">Entropy-Regularized OT</div>
+          <div class="text-center">
+            $$\min_{\textcolor{#fb923c}{\gamma} \in \Pi(\mu, \nu)} \langle \textcolor{#f87171}{C}, \textcolor{#fb923c}{\gamma} \rangle - \lambda H(\textcolor{#fb923c}{\gamma})$$
+          </div>
+        </div>
+
+        <p>The entropy term H(γ) = −∑<sub>ij</sub> γ<sub>ij</sub> log γ<sub>ij</sub> "spreads out" the transport plan. The regularized solution has a beautiful product form:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-green-400">Sinkhorn Solution</div>
+          <div class="text-center">
+            $$\textcolor{#fb923c}{\gamma}_{ij} = u_i \cdot K_{ij} \cdot v_j, \quad K_{ij} = e^{-\textcolor{#f87171}{C}_{ij}/\lambda}$$
+          </div>
+        </div>
+
+        <p>The vectors u and v are found by alternating projections:</p>
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li>u ← μ / (K·v) — scale rows to match source marginal</li>
+          <li>v ← ν / (K<sup>T</sup>·u) — scale columns to match target marginal</li>
+        </ul>
+
+        <p>Each iteration is just matrix-vector multiplication—O(n²) and highly parallelizable. Convergence is linear, typically 20-50 iterations suffice.</p>
+      </section>
+
+      <!-- Section 5: Optimal Transport Maps -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">5. Optimal Transport Maps and Brenier's Theorem</h3>
+
+        <p>When does the relaxed Kantorovich problem have a Monge-type solution (a deterministic map)? Brenier's theorem gives a beautiful answer:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-blue-400">Brenier's Theorem</div>
+          <div class="text-center text-sm">
+            If μ is absolutely continuous and c(x,y) = ‖x−y‖², then the optimal transport is a map T = ∇φ for some convex function φ.
+          </div>
+        </div>
+
+        <p>The optimal map is the gradient of a convex potential! This connects OT to:</p>
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li><strong>Convex optimization:</strong> φ is found via the Monge-Ampère equation</li>
+          <li><strong>Normalizing flows:</strong> Invertible transformations with tractable Jacobians</li>
+          <li><strong>Input convex neural networks:</strong> Learn φ as a neural net, T = ∇φ gives the transport</li>
+        </ul>
+      </section>
+
+      <!-- Section 6: Flow Matching -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">6. Flow Matching: OT Meets Generative AI</h3>
+
+        <p>The key insight connecting OT to diffusion models: if we pair samples x<sub>0</sub> ~ μ with x<sub>1</sub> ~ ν using optimal transport, we can interpolate along straight lines!</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-yellow-400">OT Interpolation</div>
+          <div class="text-center">
+            $$x_{\textcolor{#fbbf24}{t}} = (1 - \textcolor{#fbbf24}{t}) \cdot x_0 + \textcolor{#fbbf24}{t} \cdot x_1$$
+          </div>
+        </div>
+
+        <p>Along each OT path, the <span class="var-v">velocity</span> is constant: v = x<sub>1</sub> − x<sub>0</sub>. We train a neural network to predict this velocity:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-cyan-400">Flow Matching Objective</div>
+          <div class="text-center">
+            $$\mathcal{L} = \mathbb{E}_{t, x_0 \sim \mu, x_1 \sim \nu}\left[\|\textcolor{#22d3ee}{v_\theta}(x_t, t) - (x_1 - x_0)\|^2\right]$$
+          </div>
+        </div>
+
+        <p><strong>Advantages over score matching:</strong></p>
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li><strong>Straighter paths:</strong> OT paths are geodesics; score-based paths curve</li>
+          <li><strong>Fewer steps:</strong> 10-20 sampling steps vs 50-1000 for DDPM</li>
+          <li><strong>Simpler training:</strong> No noise schedule to tune</li>
+          <li><strong>Exact likelihood:</strong> Flow gives tractable density computation</li>
+        </ul>
+
+        <p>Stable Diffusion 3 and many state-of-the-art models now use flow matching!</p>
+      </section>
+
+      <!-- Section 7: Connections -->
+      <section class="mb-8">
+        <h3 class="text-xl font-bold text-white mb-4">7. Connecting Everything</h3>
+
+        <p>The beautiful unity of these ideas:</p>
+
+        <div class="bg-black/30 rounded-lg p-4 my-4">
+          <table class="w-full text-sm">
+            <tr class="border-b border-gray-700">
+              <th class="text-left py-2 text-gray-500">Framework</th>
+              <th class="text-left py-2 text-gray-500">Learns</th>
+              <th class="text-left py-2 text-gray-500">Samples by</th>
+            </tr>
+            <tr class="border-b border-gray-800">
+              <td class="py-2 text-blue-400">Score Matching</td>
+              <td class="py-2">∇log p(x)</td>
+              <td class="py-2">Langevin dynamics</td>
+            </tr>
+            <tr class="border-b border-gray-800">
+              <td class="py-2 text-purple-400">DDPM</td>
+              <td class="py-2">ε(x<sub>t</sub>, t)</td>
+              <td class="py-2">Denoising steps</td>
+            </tr>
+            <tr class="border-b border-gray-800">
+              <td class="py-2 text-cyan-400">Flow Matching</td>
+              <td class="py-2">v(x<sub>t</sub>, t)</td>
+              <td class="py-2">ODE integration</td>
+            </tr>
+            <tr>
+              <td class="py-2 text-orange-400">OT Map</td>
+              <td class="py-2">∇φ(x)</td>
+              <td class="py-2">Direct transport</td>
+            </tr>
+          </table>
+        </div>
+
+        <p>All of these are learning different representations of the same underlying transformation: moving a simple distribution (noise) to a complex one (data). The optimal transport perspective reveals that the "best" transformation follows geodesics in the space of probability distributions.</p>
+
+        <p><strong>The punchline:</strong> Diffusion models work because they approximate optimal transport. Understanding OT explains why certain design choices (noise schedules, sampling algorithms, training objectives) work better than others.</p>
+      </section>
+
+    </div>
+
+    <!-- Sidebar: Quick Reference -->
+    <aside class="stat-card h-fit lg:sticky lg:top-6">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-6">Equation Summary</h3>
+
+      <div class="space-y-5">
+        <!-- Cost Function -->
+        <div class="bg-black/40 rounded-lg p-3 border border-red-500/30">
+          <div class="text-sm font-bold text-red-400 mb-2">Cost Function</div>
+          <div class="text-base">$\textcolor{#f87171}{c}(x,y) = \|x-y\|^2$</div>
+        </div>
+
+        <!-- Kantorovich -->
+        <div class="bg-black/40 rounded-lg p-3 border border-orange-500/30">
+          <div class="text-sm font-bold text-orange-400 mb-2">Kantorovich OT</div>
+          <div class="text-base">$\min_{\gamma \in \Pi} \int c \, d\textcolor{#fb923c}{\gamma}$</div>
+        </div>
+
+        <!-- Wasserstein -->
+        <div class="bg-black/40 rounded-lg p-3 border border-purple-500/30">
+          <div class="text-sm font-bold text-purple-400 mb-2">Wasserstein-2</div>
+          <div class="text-base">$\textcolor{#a855f7}{W_2} = \sqrt{\min_\gamma \int \|x-y\|^2 d\gamma}$</div>
+        </div>
+
+        <!-- Sinkhorn -->
+        <div class="bg-black/40 rounded-lg p-3 border border-green-500/30">
+          <div class="text-sm font-bold text-green-400 mb-2">Sinkhorn</div>
+          <div class="text-base">$\gamma_{ij} = u_i K_{ij} v_j$</div>
+        </div>
+
+        <!-- Brenier -->
+        <div class="bg-black/40 rounded-lg p-3 border border-blue-500/30">
+          <div class="text-sm font-bold text-blue-400 mb-2">Brenier Map</div>
+          <div class="text-base">$T = \nabla \phi$</div>
+        </div>
+
+        <!-- Flow Matching -->
+        <div class="bg-black/40 rounded-lg p-3 border border-cyan-500/30">
+          <div class="text-sm font-bold text-cyan-400 mb-2">Flow Matching</div>
+          <div class="text-base">$\textcolor{#22d3ee}{v_\theta}(x_t, t) \approx x_1 - x_0$</div>
+        </div>
+
+        <!-- OT Path -->
+        <div class="bg-black/40 rounded-lg p-3 border border-yellow-500/30">
+          <div class="text-sm font-bold text-yellow-400 mb-2">OT Path</div>
+          <div class="text-base">$x_t = (1-t)x_0 + tx_1$</div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-gray-700">
+        <h4 class="text-sm font-bold text-white mb-2">Key Insight</h4>
+        <p class="text-sm text-gray-300 leading-relaxed">Optimal transport finds geodesics in the space of probability distributions. Flow matching uses these geodesics to transform noise into data along straight paths—faster and simpler than score-based diffusion!</p>
+      </div>
+
+      <div class="mt-4 pt-4 border-t border-gray-700">
+        <h4 class="text-sm font-bold text-white mb-2">Historical Arc</h4>
+        <ul class="text-xs text-gray-400 space-y-1">
+          <li><span class="text-blue-400">1781</span> Monge: dirt-moving problem</li>
+          <li><span class="text-purple-400">1942</span> Kantorovich: relaxation</li>
+          <li><span class="text-green-400">2013</span> Cuturi: Sinkhorn for ML</li>
+          <li><span class="text-orange-400">2022</span> Flow matching: SD3</li>
+        </ul>
+      </div>
+    </aside>
+
+  </div>
+</article>
+
+<script>
+renderMathInElement(document.body, {
+  delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
+  throwOnError: false
+});
+</script>
+</body>
+</html>

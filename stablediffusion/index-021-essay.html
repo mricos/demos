@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Diffusion Models: From Noise to Signal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <style>
+    :root { --bg: #05070a; --panel: #0d1117; --border: #21262d; }
+    body { background: var(--bg); color: #c9d1d9; font-family: 'Inter', system-ui, sans-serif; }
+    .stat-card { background: #161b22; border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .eq-box { background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 24px 32px; margin: 24px 0; }
+    .eq-box .katex { font-size: 1.8em; }
+    .eq-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+
+    /* Color-coded variables */
+    .var-x { color: #4ade80; font-weight: bold; }
+    .var-eps { color: #f43f5e; font-weight: bold; }
+    .var-t { color: #fbbf24; font-weight: bold; }
+    .var-alpha { color: #60a5fa; font-weight: bold; }
+    .var-score { color: #a78bfa; font-weight: bold; }
+
+    .prose-section { line-height: 1.8; }
+    .prose-section p { margin-bottom: 1.25rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; margin-bottom: 8px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+    canvas { border-radius: 8px; image-rendering: pixelated; }
+  </style>
+</head>
+<body class="p-6">
+
+<article class="max-w-5xl mx-auto">
+
+  <header class="border-b border-gray-800 pb-6 mb-8">
+    <h2 class="text-3xl font-bold text-white">Diffusion Models: From Noise to Signal</h2>
+    <p class="text-gray-500 mt-2">The art of learning to reverse destruction</p>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Main Content -->
+    <div class="lg:col-span-2 prose-section text-gray-300">
+
+      <!-- Variable Legend -->
+      <div class="eq-box mb-8">
+        <div class="eq-label text-gray-500">Variable Legend</div>
+        <div class="flex flex-wrap text-sm">
+          <span class="legend-item"><span class="legend-dot" style="background:#4ade80"></span><span class="var-x">x</span> Data/signal</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#f43f5e"></span><span class="var-eps">ε</span> Noise</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#fbbf24"></span><span class="var-t">t</span> Timestep</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#60a5fa"></span><span class="var-alpha">ᾱ</span> Noise schedule</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#a78bfa"></span><span class="var-score">s(x)</span> Score function</span>
+        </div>
+      </div>
+
+      <!-- Section 1: Core Insight -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">1. The Core Insight</h3>
+
+        <p>Imagine taking a photograph and slowly dissolving it into static noise, like a Polaroid fading in reverse. At each moment, you add a tiny bit of random noise until the image becomes pure chaos. <strong>Diffusion models learn to run this process backwards</strong>—starting from pure noise and gradually sculpting it into coherent images.</p>
+
+        <p>This is the same energy-based intuition from Hopfield and Boltzmann machines, but adapted for continuous, high-dimensional data. Instead of binary neurons settling into attractors, we have pixel values flowing along a <span class="var-score">score function</span> that points toward the data distribution.</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-green-400">The Diffusion Equation</div>
+          <div class="text-center">
+            $$\textcolor{#4ade80}{x_t} = \sqrt{\textcolor{#60a5fa}{\bar\alpha_t}}\,\textcolor{#4ade80}{x_0} + \sqrt{1-\textcolor{#60a5fa}{\bar\alpha_t}}\,\textcolor{#f43f5e}{\epsilon}$$
+          </div>
+        </div>
+
+        <p>At any time <span class="var-t">t</span>, the noisy image is a weighted mix of <span class="var-x">signal</span> and <span class="var-eps">noise</span>. The schedule <span class="var-alpha">ᾱₜ</span> controls the mixing ratio.</p>
+      </section>
+
+      <!-- Section 2: Forward Process -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">2. The Forward Process: Destruction</h3>
+
+        <p>The forward process is beautifully simple: we don't learn anything. We just add noise. At each timestep, we mix the current image with Gaussian noise according to a fixed schedule.</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-red-400">Forward Diffusion Step</div>
+          <div class="text-center">
+            $$q(\textcolor{#4ade80}{x_t}|\textcolor{#4ade80}{x_{t-1}}) = \mathcal{N}\left(\sqrt{1-\beta_t}\textcolor{#4ade80}{x_{t-1}}, \beta_t\mathbf{I}\right)$$
+          </div>
+        </div>
+
+        <p>The magic is that this Markov chain has a closed-form solution. We can jump directly from <span class="var-x">x₀</span> to any <span class="var-x">xₜ</span> without computing all the intermediate steps—that's what the <span class="var-alpha">ᾱₜ</span> formula gives us.</p>
+
+        <!-- Interactive Demo -->
+        <div class="stat-card mt-6">
+          <div class="flex justify-between items-center mb-3">
+            <span class="text-xs text-gray-500 uppercase tracking-wide">Interactive Demo</span>
+            <div class="flex gap-2">
+              <button id="forward_step" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-xs">Add Noise</button>
+              <button id="reset_btn" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs">Reset</button>
+              <button id="auto_forward" class="bg-red-800 hover:bg-red-700 text-white px-3 py-1 rounded text-xs">Auto</button>
+            </div>
+          </div>
+          <canvas id="cv_forward" width="800" height="200" class="w-full"></canvas>
+          <div class="flex justify-between text-xs text-gray-500 mt-2">
+            <span>t = <span id="timestep_display" class="text-yellow-400 font-mono">0</span> / <span id="max_steps">50</span></span>
+            <span>Signal: <span id="signal_pct" class="text-green-400">100%</span> · Noise: <span id="noise_pct" class="text-red-400">0%</span></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 3: Reverse Process -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">3. The Reverse Process: Creation</h3>
+
+        <p>Here's where the learning happens. We train a neural network to predict what the noise looks like at each timestep. Given a noisy image <span class="var-x">xₜ</span> and the timestep <span class="var-t">t</span>, the network outputs <span class="var-eps">ε̂θ</span>—its estimate of the noise that was added.</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-blue-400">Training Objective</div>
+          <div class="text-center">
+            $$\mathcal{L} = \mathbb{E}_{t,x_0,\epsilon}\left[\|\textcolor{#f43f5e}{\epsilon} - \textcolor{#f43f5e}{\epsilon_\theta}(\textcolor{#4ade80}{x_t}, \textcolor{#fbbf24}{t})\|^2\right]$$
+          </div>
+        </div>
+
+        <p>The training objective is deceptively simple: minimize the difference between the actual noise and the predicted noise. But this simple objective has profound implications—it's equivalent to learning the <span class="var-score">score function</span> of the data distribution.</p>
+
+        <p>Once trained, we reverse the process. Starting from pure noise <span class="var-x">xT</span>, we repeatedly:</p>
+
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li><strong>Predict the noise:</strong> Run <span class="var-x">xₜ</span> and <span class="var-t">t</span> through the network</li>
+          <li><strong>Estimate clean image:</strong> Use the prediction to guess <span class="var-x">x₀</span></li>
+          <li><strong>Take a step back:</strong> Compute <span class="var-x">xₜ₋₁</span> by partial denoising</li>
+          <li><strong>Add controlled noise:</strong> Inject randomness to explore the distribution</li>
+        </ul>
+
+        <!-- Reverse Demo -->
+        <div class="stat-card mt-6">
+          <div class="flex justify-between items-center mb-3">
+            <span class="text-xs text-gray-500 uppercase tracking-wide">Reverse Sampling</span>
+            <div class="flex gap-2">
+              <button id="reverse_step" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded text-xs">Denoise</button>
+              <button id="start_from_noise" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded text-xs">Start from Noise</button>
+              <button id="auto_reverse" class="bg-green-800 hover:bg-green-700 text-white px-3 py-1 rounded text-xs">Auto</button>
+            </div>
+          </div>
+          <canvas id="cv_reverse" width="800" height="200" class="w-full"></canvas>
+          <p class="text-xs text-gray-500 mt-2 text-center">Watch structure emerge from chaos, guided by the learned <span class="var-score">score function</span>.</p>
+        </div>
+      </section>
+
+      <!-- Section 4: Score Function -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">4. The Score Function: Energy's Gradient</h3>
+
+        <p>The <span class="var-score">score function</span> is the gradient of the log probability: <span class="var-score">∇x log p(x)</span>. It points in the direction where probability increases—toward the modes of the data distribution, toward "real" images.</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-purple-400">Score-Noise Equivalence</div>
+          <div class="text-center">
+            $$\textcolor{#a78bfa}{s_\theta(x_t, t)} = \nabla_x \log p(x_t) \approx -\frac{\textcolor{#f43f5e}{\epsilon_\theta}(x_t, t)}{\sqrt{1-\bar\alpha_t}}$$
+          </div>
+        </div>
+
+        <p>Here's the beautiful connection: <strong>predicting noise is equivalent to learning the score</strong>. The noise prediction <span class="var-eps">ε̂θ</span> is proportional to the negative score. This means diffusion models are implicitly energy-based models!</p>
+
+        <p>If we define energy as E(x) = −log p(x), then the score function is exactly the negative gradient of energy. The network learns to point "downhill"—toward high-probability regions.</p>
+
+        <!-- Score Field Demo -->
+        <div class="stat-card mt-6">
+          <div class="text-xs text-gray-500 uppercase tracking-wide mb-3">Score Field Visualization</div>
+          <canvas id="cv_score" width="800" height="300" class="w-full"></canvas>
+          <p class="text-xs text-gray-500 mt-2 text-center"><span class="var-score">Purple arrows</span> show the score pointing toward data modes. Clarity varies with noise level.</p>
+        </div>
+      </section>
+
+      <!-- Section 5: Why It Works -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">5. Why Diffusion Works So Well</h3>
+
+        <ul class="list-disc list-inside space-y-3 my-4 text-gray-400">
+          <li><strong class="text-green-400">Multi-Scale Denoising:</strong> At high noise, learn coarse structure ("this is a face"). At low noise, learn fine details ("this nostril should be darker"). The timestep acts as a curriculum.</li>
+          <li><strong class="text-blue-400">Mode Coverage:</strong> Unlike GANs which can mode-collapse, diffusion models cover the full data distribution. The training objective directly optimizes likelihood.</li>
+          <li><strong class="text-purple-400">Stable Training:</strong> No adversarial dynamics, no delicate equilibria. Just minimize MSE. Same hyperparameters work across domains.</li>
+          <li><strong class="text-yellow-400">Controllable Generation:</strong> The iterative nature allows guidance at each step. Classifier-free guidance, inpainting, and style transfer emerge naturally.</li>
+        </ul>
+      </section>
+
+      <!-- Section 6: The Big Picture -->
+      <section class="mb-8">
+        <h3 class="text-xl font-bold text-white mb-4">6. The Evolutionary Arc</h3>
+
+        <div class="eq-box">
+          <div class="eq-label text-gray-400">Historical Progression</div>
+          <div class="text-center">
+            $$\underbrace{\text{Hopfield}}_{\text{deterministic}} \rightarrow \underbrace{\text{Boltzmann}}_{\text{stochastic}} \rightarrow \underbrace{\text{RBM}}_{\text{efficient}} \rightarrow \underbrace{\text{Diffusion}}_{\text{continuous}}$$
+          </div>
+        </div>
+
+        <p>The journey from Hopfield networks to diffusion models spans four decades, but the core insight remains: <strong>define an energy landscape where good data sits in the valleys, then learn to roll downhill</strong>.</p>
+
+        <p>Diffusion models trade discrete neurons for continuous pixels, Gibbs sampling for Langevin dynamics, and handcrafted energy functions for learned score networks. The result: photorealistic images, coherent video, and molecular structures.</p>
+      </section>
+
+    </div>
+
+    <!-- Sidebar: Quick Reference -->
+    <aside class="stat-card h-fit lg:sticky lg:top-6">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-6">Equation Summary</h3>
+
+      <div class="space-y-5">
+        <!-- Diffusion Equation -->
+        <div class="bg-black/40 rounded-lg p-3 border border-green-500/30">
+          <div class="text-sm font-bold text-green-400 mb-2">Diffusion Equation</div>
+          <div class="text-base">$\textcolor{#4ade80}{x_t} = \sqrt{\textcolor{#60a5fa}{\bar\alpha_t}}\textcolor{#4ade80}{x_0} + \sqrt{1-\textcolor{#60a5fa}{\bar\alpha_t}}\textcolor{#f43f5e}{\epsilon}$</div>
+        </div>
+
+        <!-- Forward Process -->
+        <div class="bg-black/40 rounded-lg p-3 border border-red-500/30">
+          <div class="text-sm font-bold text-red-400 mb-2">Forward Process</div>
+          <div class="text-base">$q(\textcolor{#4ade80}{x_t}|\textcolor{#4ade80}{x_{t-1}}) = \mathcal{N}(\sqrt{1-\beta_t}\textcolor{#4ade80}{x_{t-1}}, \beta_t I)$</div>
+        </div>
+
+        <!-- Training Loss -->
+        <div class="bg-black/40 rounded-lg p-3 border border-blue-500/30">
+          <div class="text-sm font-bold text-blue-400 mb-2">Training Loss</div>
+          <div class="text-base">$\|\textcolor{#f43f5e}{\epsilon} - \textcolor{#f43f5e}{\epsilon_\theta}(\textcolor{#4ade80}{x_t}, \textcolor{#fbbf24}{t})\|^2$</div>
+        </div>
+
+        <!-- Score Function -->
+        <div class="bg-black/40 rounded-lg p-3 border border-purple-500/30">
+          <div class="text-sm font-bold text-purple-400 mb-2">Score Function</div>
+          <div class="text-base">$\textcolor{#a78bfa}{s_\theta} \approx -\textcolor{#f43f5e}{\epsilon_\theta}/\sqrt{1-\bar\alpha_t}$</div>
+        </div>
+
+        <!-- Reverse Step -->
+        <div class="bg-black/40 rounded-lg p-3 border border-yellow-500/30">
+          <div class="text-sm font-bold text-yellow-400 mb-2">Reverse Step</div>
+          <div class="text-base">$\textcolor{#4ade80}{x_{t-1}} = f(\textcolor{#4ade80}{x_t}, \textcolor{#f43f5e}{\epsilon_\theta}, \textcolor{#fbbf24}{t}) + \sigma_t z$</div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-gray-700">
+        <h4 class="text-sm font-bold text-white mb-2">Key Insight</h4>
+        <p class="text-sm text-gray-300 leading-relaxed">Destruction and creation are two sides of the same coin. By learning how things fall apart, we learn how to put them together. The noise schedule bridges chaos and order.</p>
+      </div>
+    </aside>
+
+  </div>
+</article>
+
+<script>
+// ===== Configuration =====
+const SIZE = 28, N = SIZE * SIZE;
+let T = 50;
+let currentT = 0;
+let x0 = new Float32Array(N);
+let xt = new Float32Array(N);
+let eps = new Float32Array(N);
+let autoRunning = false;
+let autoDirection = null;
+
+const patterns = [];
+
+// ===== Noise Schedule (Cosine) =====
+function getAlphaBar(t, T) {
+  const s = 0.008;
+  const f = (x) => Math.cos(((x / T) + s) / (1 + s) * Math.PI / 2) ** 2;
+  return f(t) / f(0);
+}
+
+function getBeta(t, T) {
+  const ab_t = getAlphaBar(t, T);
+  const ab_t1 = getAlphaBar(t - 1, T);
+  return 1 - ab_t / ab_t1;
+}
+
+// ===== Pattern Generation =====
+function generateDigit(digit) {
+  const p = new Float32Array(N).fill(0);
+  const set = (x, y, v = 1) => { if (x >= 0 && x < 28 && y >= 0 && y < 28) p[y * 28 + x] = v; };
+  const line = (x1, y1, x2, y2, w = 3) => {
+    const steps = Math.max(Math.abs(x2-x1), Math.abs(y2-y1)) || 1;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const cx = Math.round(x1 + (x2-x1)*t), cy = Math.round(y1 + (y2-y1)*t);
+      for (let dy = -w; dy <= w; dy++) for (let dx = -w; dx <= w; dx++)
+        if (dx*dx + dy*dy <= w*w) set(cx+dx, cy+dy);
+    }
+  };
+  const circle = (cx, cy, r, w = 3) => {
+    for (let a = 0; a < Math.PI * 2; a += 0.03) {
+      const x = Math.round(cx + Math.cos(a) * r), y = Math.round(cy + Math.sin(a) * r);
+      for (let dy = -w; dy <= w; dy++) for (let dx = -w; dx <= w; dx++)
+        if (dx*dx + dy*dy <= w*w) set(x+dx, y+dy);
+    }
+  };
+
+  switch(digit) {
+    case 0: circle(14, 14, 8); break;
+    case 1: line(14, 3, 14, 25); line(9, 6, 14, 3); line(9, 25, 19, 25); break;
+    case 4: line(6, 3, 6, 15); line(6, 15, 22, 15); line(18, 3, 18, 25); break;
+    case 7: line(5, 3, 23, 3); line(21, 3, 11, 25); break;
+    case 8: circle(14, 8, 5); circle(14, 19, 6); break;
+  }
+  return p;
+}
+
+function initPatterns() {
+  patterns.length = 0;
+  for (const d of [0, 1, 4, 7, 8]) {
+    patterns.push(generateDigit(d));
+  }
+}
+
+// ===== Diffusion Operations =====
+function randn() {
+  const u1 = Math.random(), u2 = Math.random();
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+
+function forwardStep() {
+  if (currentT >= T) return;
+  currentT++;
+
+  const alphaBar = getAlphaBar(currentT, T);
+  const sqrtAB = Math.sqrt(alphaBar);
+  const sqrtOneMinusAB = Math.sqrt(1 - alphaBar);
+
+  for (let i = 0; i < N; i++) {
+    eps[i] = randn();
+    xt[i] = sqrtAB * x0[i] + sqrtOneMinusAB * eps[i];
+  }
+
+  updateDisplay();
+}
+
+function reverseStep() {
+  if (currentT <= 0) return;
+
+  const alphaBar = getAlphaBar(currentT, T);
+  const beta = getBeta(currentT, T);
+  const score = estimateScore(xt);
+
+  const sqrtAB = Math.sqrt(alphaBar);
+  const sqrtOneMinusAB = Math.sqrt(1 - alphaBar);
+  const sqrtRecipAB = 1 / sqrtAB;
+  const coef = beta / sqrtOneMinusAB;
+
+  for (let i = 0; i < N; i++) {
+    const mu = sqrtRecipAB * (xt[i] - coef * (-sqrtOneMinusAB * score[i]));
+    const sigma = currentT > 1 ? Math.sqrt(beta) * 0.5 : 0;
+    xt[i] = mu + sigma * randn();
+  }
+
+  currentT--;
+  updateDisplay();
+}
+
+function estimateScore(x) {
+  const score = new Float32Array(N);
+  let bestDist = Infinity, bestPattern = null;
+
+  for (const p of patterns) {
+    let dist = 0;
+    for (let i = 0; i < N; i++) dist += (x[i] - p[i]) ** 2;
+    if (dist < bestDist) { bestDist = dist; bestPattern = p; }
+  }
+
+  if (bestPattern) {
+    for (let i = 0; i < N; i++) {
+      score[i] = (bestPattern[i] - x[i]) * 0.5;
+    }
+  }
+
+  return score;
+}
+
+// ===== Rendering =====
+function drawForwardProcess() {
+  const ctx = document.getElementById('cv_forward').getContext('2d');
+  const W = 800, H = 200;
+
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  const nSteps = 6;
+  const imgSize = 80;
+  const spacing = (W - nSteps * imgSize) / (nSteps + 1);
+
+  for (let s = 0; s < nSteps; s++) {
+    const t = Math.floor(s * T / (nSteps - 1));
+    const x = spacing + s * (imgSize + spacing);
+    const y = (H - imgSize) / 2;
+
+    const alphaBar = getAlphaBar(t, T);
+    const sqrtAB = Math.sqrt(alphaBar);
+    const sqrtOneMinusAB = Math.sqrt(1 - alphaBar);
+
+    const scale = imgSize / SIZE;
+    for (let py = 0; py < SIZE; py++) {
+      for (let px = 0; px < SIZE; px++) {
+        const i = py * SIZE + px;
+        const val = sqrtAB * x0[i] + sqrtOneMinusAB * eps[i];
+        const v = Math.floor(Math.max(0, Math.min(1, (val + 1) / 2)) * 255);
+        ctx.fillStyle = `rgb(${v}, ${v}, ${v})`;
+        ctx.fillRect(x + px * scale, y + py * scale, scale, scale);
+      }
+    }
+
+    if (t === currentT) {
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x - 2, y - 2, imgSize + 4, imgSize + 4);
+    } else {
+      ctx.strokeStyle = '#21262d';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, imgSize, imgSize);
+    }
+
+    ctx.fillStyle = t === currentT ? '#fbbf24' : '#6e7681';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(`t=${t}`, x + imgSize / 2, y + imgSize + 16);
+  }
+}
+
+function drawReverseProcess() {
+  const ctx = document.getElementById('cv_reverse').getContext('2d');
+  const W = 800, H = 200;
+
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  const imgSize = 120;
+  const x = (W - imgSize) / 2;
+  const y = (H - imgSize) / 2;
+
+  const scale = imgSize / SIZE;
+  for (let py = 0; py < SIZE; py++) {
+    for (let px = 0; px < SIZE; px++) {
+      const i = py * SIZE + px;
+      const v = Math.floor(Math.max(0, Math.min(1, (xt[i] + 1) / 2)) * 255);
+      ctx.fillStyle = `rgb(${v}, ${v}, ${v})`;
+      ctx.fillRect(x + px * scale, y + py * scale, scale, scale);
+    }
+  }
+
+  ctx.strokeStyle = currentT > 0 ? '#4ade80' : '#21262d';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, imgSize, imgSize);
+
+  ctx.fillStyle = '#6e7681';
+  ctx.font = '12px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText(`t = ${currentT}`, W / 2, y + imgSize + 20);
+
+  ctx.fillStyle = '#3d4450';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText('Patterns:', 20, 20);
+
+  const smallSize = 30;
+  for (let p = 0; p < patterns.length; p++) {
+    const px = 20;
+    const py = 30 + p * (smallSize + 5);
+    const smallScale = smallSize / SIZE;
+
+    for (let iy = 0; iy < SIZE; iy++) {
+      for (let ix = 0; ix < SIZE; ix++) {
+        const i = iy * SIZE + ix;
+        const v = Math.floor(patterns[p][i] * 255);
+        ctx.fillStyle = `rgb(${v}, ${v}, ${v})`;
+        ctx.fillRect(px + ix * smallScale, py + iy * smallScale, smallScale, smallScale);
+      }
+    }
+  }
+}
+
+function drawScoreField() {
+  const ctx = document.getElementById('cv_score').getContext('2d');
+  const W = 800, H = 300;
+
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  const gridSize = 20;
+  const cellW = W / gridSize;
+  const cellH = H / gridSize;
+
+  const centers = [
+    { x: W * 0.3, y: H * 0.5 },
+    { x: W * 0.7, y: H * 0.5 }
+  ];
+
+  for (let gy = 0; gy < gridSize; gy++) {
+    for (let gx = 0; gx < gridSize; gx++) {
+      const cx = (gx + 0.5) * cellW;
+      const cy = (gy + 0.5) * cellH;
+
+      const noiseLevel = currentT / T;
+      const bgVal = 13 + noiseLevel * 20;
+      ctx.fillStyle = `rgb(${bgVal}, ${bgVal + 2}, ${bgVal + 5})`;
+      ctx.fillRect(gx * cellW, gy * cellH, cellW, cellH);
+
+      let sx = 0, sy = 0;
+      for (const c of centers) {
+        const dx = c.x - cx;
+        const dy = c.y - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy) + 1;
+        const weight = 1 / (dist * 0.01);
+        sx += dx * weight;
+        sy += dy * weight;
+      }
+
+      const clarity = 1 - noiseLevel * 0.8;
+      sx *= clarity * 0.003;
+      sy *= clarity * 0.003;
+
+      const mag = Math.sqrt(sx * sx + sy * sy);
+      if (mag > 0.5) {
+        const normX = sx / mag;
+        const normY = sy / mag;
+        const arrowLen = Math.min(mag, cellW * 0.8);
+
+        ctx.strokeStyle = `rgba(167, 139, 250, ${0.3 + clarity * 0.5})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + normX * arrowLen, cy + normY * arrowLen);
+        ctx.stroke();
+
+        const angle = Math.atan2(normY, normX);
+        ctx.beginPath();
+        ctx.moveTo(cx + normX * arrowLen, cy + normY * arrowLen);
+        ctx.lineTo(cx + normX * arrowLen - 5 * Math.cos(angle - 0.5), cy + normY * arrowLen - 5 * Math.sin(angle - 0.5));
+        ctx.lineTo(cx + normX * arrowLen - 5 * Math.cos(angle + 0.5), cy + normY * arrowLen - 5 * Math.sin(angle + 0.5));
+        ctx.closePath();
+        ctx.fillStyle = `rgba(167, 139, 250, ${0.3 + clarity * 0.5})`;
+        ctx.fill();
+      }
+    }
+  }
+
+  ctx.fillStyle = '#4ade80';
+  for (const c of centers) {
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 12, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = '#6e7681';
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('Data modes (low energy)', W / 2, H - 8);
+
+  ctx.fillStyle = '#fbbf24';
+  ctx.textAlign = 'left';
+  ctx.fillText(`Noise: ${Math.round(currentT / T * 100)}%`, 10, 18);
+}
+
+function updateDisplay() {
+  document.getElementById('timestep_display').textContent = currentT;
+
+  const alphaBar = getAlphaBar(currentT, T);
+  document.getElementById('signal_pct').textContent = Math.round(alphaBar * 100) + '%';
+  document.getElementById('noise_pct').textContent = Math.round((1 - alphaBar) * 100) + '%';
+
+  drawForwardProcess();
+  drawReverseProcess();
+  drawScoreField();
+}
+
+// ===== Event Handlers =====
+document.getElementById('forward_step').onclick = forwardStep;
+document.getElementById('reverse_step').onclick = reverseStep;
+
+document.getElementById('reset_btn').onclick = () => {
+  autoRunning = false;
+  currentT = 0;
+  xt.set(x0.map(v => v * 2 - 1));
+  for (let i = 0; i < N; i++) eps[i] = randn();
+  updateDisplay();
+};
+
+document.getElementById('start_from_noise').onclick = () => {
+  autoRunning = false;
+  currentT = T;
+  for (let i = 0; i < N; i++) {
+    eps[i] = randn();
+    xt[i] = eps[i];
+  }
+  updateDisplay();
+};
+
+document.getElementById('auto_forward').onclick = () => {
+  if (autoRunning && autoDirection === 'forward') {
+    autoRunning = false;
+    return;
+  }
+  autoRunning = true;
+  autoDirection = 'forward';
+  const run = () => {
+    if (!autoRunning || autoDirection !== 'forward' || currentT >= T) {
+      if (currentT >= T) autoRunning = false;
+      return;
+    }
+    forwardStep();
+    setTimeout(run, 80);
+  };
+  run();
+};
+
+document.getElementById('auto_reverse').onclick = () => {
+  if (autoRunning && autoDirection === 'reverse') {
+    autoRunning = false;
+    return;
+  }
+  autoRunning = true;
+  autoDirection = 'reverse';
+  const run = () => {
+    if (!autoRunning || autoDirection !== 'reverse' || currentT <= 0) {
+      if (currentT <= 0) autoRunning = false;
+      return;
+    }
+    reverseStep();
+    setTimeout(run, 80);
+  };
+  run();
+};
+
+// ===== Initialize =====
+initPatterns();
+x0.set(patterns[0]);
+xt.set(x0.map(v => v * 2 - 1));
+for (let i = 0; i < N; i++) eps[i] = randn();
+updateDisplay();
+
+renderMathInElement(document.body, {
+  delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
+  throwOnError: false
+});
+</script>
+</body>
+</html>

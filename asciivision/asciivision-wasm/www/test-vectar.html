@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VectorVision - T U B E S</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #0a0a0a;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+        }
+        h1 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #0a0;
+            letter-spacing: 8px;
+        }
+        #game-container {
+            background: #000;
+            border: none;
+            padding: 0;
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            aspect-ratio: 16/9;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #output {
+            font-size: 10px;
+            line-height: 1.0;
+            letter-spacing: 0;
+            white-space: pre;
+            color: #0f0;
+            font-family: monospace;
+            margin: 0;
+            padding: 0;
+        }
+        #hud {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            font-size: 11px;
+            color: #080;
+            opacity: 0.8;
+        }
+        #controls {
+            margin-top: 8px;
+            font-size: 10px;
+            color: #444;
+        }
+        #controls span { color: #0a0; }
+
+        /* REPL */
+        #repl-container {
+            width: 800px;
+            margin-top: 10px;
+            background: #0a0a0a;
+            border: 1px solid #1a1a1a;
+        }
+        #repl-input-container {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        #repl-prompt {
+            color: #0a0;
+            margin-right: 4px;
+        }
+        #repl-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            outline: none;
+        }
+        #repl-output {
+            max-height: 100px;
+            overflow-y: auto;
+            padding: 4px 8px;
+            font-size: 11px;
+            color: #080;
+        }
+        #autocomplete {
+            position: absolute;
+            background: #111;
+            border: 1px solid #333;
+            z-index: 100;
+            display: none;
+            padding: 4px;
+        }
+        #autocomplete-grid {
+            display: grid;
+            grid-template-rows: repeat(4, auto);
+            grid-auto-flow: column;
+            gap: 2px 8px;
+        }
+        .autocomplete-item {
+            padding: 2px 6px;
+            cursor: pointer;
+            font-size: 11px;
+            white-space: nowrap;
+            border-radius: 2px;
+        }
+        .autocomplete-item:hover, .autocomplete-item.selected {
+            background: #0a0;
+            color: #000;
+        }
+        .autocomplete-item .param-value {
+            color: #666;
+            margin-left: 4px;
+            font-size: 10px;
+        }
+        .autocomplete-item.selected .param-value {
+            color: #030;
+        }
+        #inline-slider {
+            position: absolute;
+            background: #111;
+            border: 1px solid #333;
+            padding: 8px;
+            display: none;
+            z-index: 100;
+        }
+        #inline-slider input[type="range"] {
+            width: 150px;
+            accent-color: #0f0;
+        }
+        #inline-slider .value {
+            color: #0f0;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>V E C T O R V I S I O N</h1>
+
+    <div id="game-container">
+        <pre id="output">Loading...</pre>
+        <div id="hud">
+            <div>BPM:<span id="bpm">60</span> Score:<span id="score">0</span> <span id="track-mode">TRACK</span></div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <span>AWSD</span> steer | <span>IK</span> fwd/back | <span>JL</span> turn |
+        <span>SPACE</span> shoot | <span>R</span> reset | <span>ESC</span> exit REPL
+        <br>
+        Resolution: <input type="range" id="res-slider" min="20" max="320" value="100" style="width:150px;vertical-align:middle;">
+        <span id="res-display">100x60</span>
+    </div>
+
+    <div id="repl-container">
+        <div id="repl-input-container">
+            <span id="repl-prompt">&gt;</span>
+            <input type="text" id="repl-input" placeholder="type parameter name, tab to complete...">
+        </div>
+        <div id="repl-output"></div>
+    </div>
+    <div id="autocomplete"><div id="autocomplete-grid"></div></div>
+    <div id="inline-slider">
+        <input type="range" id="slider-input">
+        <span class="value" id="slider-value">0</span>
+    </div>
+
+    <script>
+        var Module = {
+            onRuntimeInitialized: function() { window.wasmReady = true; }
+        };
+    </script>
+    <script src="pkg-c/asciivision.js"></script>
+
+    <script>
+        // ============================================================
+        // VectorVision Controller
+        // ============================================================
+
+        const EVENT = {
+            NONE: 0, RING_PASS: 1, WALL_GRAZE: 2, WALL_HIT: 3,
+            WALL_RUB: 4, JUNCTION_ENTER: 5, JUNCTION_TURN: 6, JUNCTION_BLOCKED: 7,
+            SHOT_FIRED: 8, SHOT_HIT_GOOD: 9, SHOT_HIT_BAD: 10,
+            SHOT_MISS: 11, TARGET_SPAWN: 12, COLUMN_GLOW: 13,
+            PLAYER_HIT: 14, ENTRANCE_CLEAR: 15, ENTER_TUBE: 16
+        };
+
+        const PHASE = { SPACE: 0, TUBE: 1 };
+
+        class VectorVision {
+            constructor() {
+                this.ptr = null;
+                this._ready = false;
+                this._listeners = {};
+
+                // Resolution (mutable)
+                this._cols = 100;
+                this._rows = 60;
+
+                // Exposed parameters for REPL
+                this.params = {
+                    cols:       { get: () => this._cols, set: (v) => { this._cols = Math.round(v); this.resize(this._cols, this._rows); }, min: 40, max: 200, step: 10 },
+                    rows:       { get: () => this._rows, set: (v) => { this._rows = Math.round(v); this.resize(this._cols, this._rows); }, min: 20, max: 100, step: 5 },
+                    segments:   { get: () => this.segments, set: (v) => this.segments = v, min: 4, max: 32, step: 1 },
+                    spacing:    { get: () => this.spacing, set: (v) => this.spacing = v, min: 0.5, max: 5, step: 0.1 },
+                    fov:        { get: () => this.fov, set: (v) => this.fov = v, min: 0.5, max: 3, step: 0.1 },
+                    glowFalloff:{ get: () => this.glowFalloff, set: (v) => this.glowFalloff = v, min: 0.5, max: 0.99, step: 0.01 },
+                    trackMode:  { get: () => this.trackMode, set: (v) => this.trackMode = v, min: 0, max: 1, step: 1 },
+                    speed:      { get: () => this.speed, set: (v) => {}, min: 0, max: 20, step: 1 },
+                    score:      { get: () => this.score, set: (v) => {}, min: 0, max: 10000, step: 100 },
+                    wallDist:   { get: () => this._ready ? Module._game_get_wall_distance(this.ptr) : 1, set: () => {}, min: 0, max: 1, step: 0.1 },
+                    playerX:    { get: () => this._ready ? Module._game_get_player_x(this.ptr) : 0, set: (v) => { if(this._ready) Module._game_set_player_pos(this.ptr, v, this.playerY); }, min: -1, max: 1, step: 0.1 },
+                    playerY:    { get: () => this._ready ? Module._game_get_player_y(this.ptr) : 0, set: (v) => { if(this._ready) Module._game_set_player_pos(this.ptr, this.playerX, v); }, min: -1, max: 1, step: 0.1 },
+                    depth:      { get: () => this.depth, set: () => {}, min: -1000, max: 0, step: 10 },
+                    twist:      { get: () => this.twist, set: () => {}, min: -3.14, max: 3.14, step: 0.1 },
+                };
+            }
+
+            async init(w, h) {
+                await this._waitWasm();
+                this.ptr = Module._game_create(w, h);
+                if (!this.ptr) throw new Error('Failed to create game');
+                this._ready = true;
+                return this;
+            }
+
+            _waitWasm() {
+                return new Promise(r => {
+                    if (window.wasmReady) return r();
+                    const c = setInterval(() => { if (window.wasmReady) { clearInterval(c); r(); } }, 50);
+                });
+            }
+
+            resize(w, h) { if (this._ready) Module._game_resize(this.ptr, w, h); }
+            update(dt, sx, sy, throttle, twist) { if (this._ready) Module._game_update(this.ptr, dt, sx, sy, throttle, twist); }
+            render() {
+                if (!this._ready) return '';
+                Module._game_render(this.ptr);
+                return Module.UTF8ToString(Module._game_get_output(this.ptr));
+            }
+            shoot() { if (this._ready) Module._game_shoot(this.ptr); }
+            reset() { if (this._ready) Module._game_reset(this.ptr); }
+
+            // Getters
+            get speed() { return this._ready ? Module._game_get_speed(this.ptr) : 0; }
+            get depth() { return this._ready ? Module._game_get_camera_z(this.ptr) : 0; }
+            get twist() { return this._ready ? Module._game_get_twist(this.ptr) : 0; }
+            get score() { return this._ready ? Module._game_get_score(this.ptr) : 0; }
+            get bpm() { return Math.abs(this.speed) * 12 + 60; }
+            get segments() { return this._ready ? Module._game_get_segments(this.ptr) : 12; }
+            get spacing() { return this._ready ? Module._game_get_spacing(this.ptr) : 2; }
+            get fov() { return this._ready ? Module._game_get_fov(this.ptr) : 1.2; }
+            get glowFalloff() { return this._ready ? Module._game_get_glow_falloff(this.ptr) : 0.92; }
+
+            // Setters
+            set segments(v) { if (this._ready) Module._game_set_segments(this.ptr, v); }
+            set spacing(v) { if (this._ready) Module._game_set_spacing(this.ptr, v); }
+            set fov(v) { if (this._ready) Module._game_set_fov(this.ptr, v); }
+            set glowFalloff(v) { if (this._ready) Module._game_set_glow_falloff(this.ptr, v); }
+
+            // Track mode
+            get trackMode() { return this._ready ? Module._game_get_track_mode(this.ptr) : 1; }
+            set trackMode(v) { if (this._ready) Module._game_set_track_mode(this.ptr, v ? 1 : 0); }
+            get atJunction() { return this._ready ? Module._game_at_junction(this.ptr) : 0; }
+            get canGoLeft() { return this._ready ? Module._game_can_go_left(this.ptr) : 0; }
+            get canGoRight() { return this._ready ? Module._game_can_go_right(this.ptr) : 0; }
+
+            // Space/Phase
+            get phase() { return this._ready ? Module._game_get_phase(this.ptr) : 0; }
+            get guardsRemaining() { return this._ready ? Module._game_get_guards_remaining(this.ptr) : 0; }
+            get entranceUnlocked() { return this._ready ? Module._game_is_entrance_unlocked(this.ptr) : 0; }
+            get hitFlash() { return this._ready ? Module._game_get_hit_flash(this.ptr) : 0; }
+            get spaceX() { return this._ready ? Module._game_get_space_x(this.ptr) : 0; }
+            get spaceY() { return this._ready ? Module._game_get_space_y(this.ptr) : 0; }
+            get spaceZ() { return this._ready ? Module._game_get_space_z(this.ptr) : 0; }
+
+            // Events
+            on(type, cb) { if (!this._listeners[type]) this._listeners[type] = []; this._listeners[type].push(cb); }
+            pollEvents() {
+                if (!this._ready) return;
+                while (Module._game_event_count(this.ptr) > 0) {
+                    const t = Module._game_poll_event_type(this.ptr);
+                    const v = Module._game_poll_event_value(this.ptr);
+                    Module._game_pop_event(this.ptr);
+                    (this._listeners[t] || []).forEach(cb => cb({ type: t, value: v }));
+                }
+            }
+        }
+
+        // ============================================================
+        // Synth
+        // ============================================================
+
+        class Synth {
+            constructor() { this.ctx = null; this.gain = null; this.on = false; }
+            init() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.gain = this.ctx.createGain();
+                this.gain.gain.value = 0.2;
+                this.gain.connect(this.ctx.destination);
+                this.on = true;
+            }
+            resume() { if (this.ctx?.state === 'suspended') this.ctx.resume(); }
+            blip(f = 440, d = 0.05, t = 'sine') {
+                if (!this.on) return;
+                this.resume();
+                const o = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                o.type = t; o.frequency.value = f;
+                g.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + d);
+                o.connect(g); g.connect(this.gain);
+                o.start(); o.stop(this.ctx.currentTime + d);
+            }
+            ringPass(v) { this.blip(200 + v * 300, 0.03, 'triangle'); }
+            shotFired() { this.blip(300, 0.04, 'square'); }
+            hitBad() { this.blip(500, 0.1, 'sine'); setTimeout(() => this.blip(700, 0.08), 40); }
+            hitGood() { this.blip(150, 0.15, 'sawtooth'); }
+
+            // Wall rubbing - continuous friction sound
+            wallRub(intensity) {
+                if (!this.on) return;
+                this.resume();
+                // White noise burst for friction
+                const bufferSize = this.ctx.sampleRate * 0.05;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * 0.3;
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 300 + intensity * 500;
+                const g = this.ctx.createGain();
+                g.gain.value = intensity * 0.15;
+                noise.connect(filter);
+                filter.connect(g);
+                g.connect(this.gain);
+                noise.start();
+            }
+
+            // Junction approach - ascending tone
+            junctionEnter() {
+                this.blip(400, 0.08, 'sine');
+                setTimeout(() => this.blip(500, 0.06, 'sine'), 50);
+                setTimeout(() => this.blip(600, 0.04, 'sine'), 100);
+            }
+
+            // Junction blocked - thud
+            junctionBlocked() {
+                this.blip(80, 0.15, 'square');
+            }
+
+            // Player hit - impact + pain
+            playerHit() {
+                if (!this.on) return;
+                this.resume();
+                // Low impact
+                this.blip(60, 0.2, 'square');
+                // Higher pain tone
+                setTimeout(() => this.blip(200, 0.1, 'sawtooth'), 30);
+                setTimeout(() => this.blip(150, 0.15, 'sawtooth'), 80);
+            }
+
+            // Entrance clear - victory fanfare
+            entranceClear() {
+                if (!this.on) return;
+                this.resume();
+                this.blip(400, 0.1, 'sine');
+                setTimeout(() => this.blip(500, 0.1, 'sine'), 100);
+                setTimeout(() => this.blip(600, 0.1, 'sine'), 200);
+                setTimeout(() => this.blip(800, 0.2, 'sine'), 300);
+            }
+
+            // Enter tube - whoosh
+            enterTube() {
+                if (!this.on) return;
+                this.resume();
+                // Descending whoosh
+                const o = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                o.type = 'sine';
+                o.frequency.setValueAtTime(600, this.ctx.currentTime);
+                o.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.5);
+                g.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+                o.connect(g);
+                g.connect(this.gain);
+                o.start();
+                o.stop(this.ctx.currentTime + 0.5);
+            }
+        }
+
+        // ============================================================
+        // REPL
+        // ============================================================
+
+        class REPL {
+            constructor(game) {
+                this.game = game;
+                this.input = document.getElementById('repl-input');
+                this.output = document.getElementById('repl-output');
+                this.autocomplete = document.getElementById('autocomplete');
+                this.slider = document.getElementById('inline-slider');
+                this.sliderInput = document.getElementById('slider-input');
+                this.sliderValue = document.getElementById('slider-value');
+                this.history = [];
+                this.historyIdx = -1;
+                this.selectedIdx = 0;
+                this.matches = [];
+                this.activeParam = null;
+
+                this.input.addEventListener('keydown', (e) => this.onKey(e));
+                this.input.addEventListener('input', () => this.onInput());
+                this.sliderInput.addEventListener('input', () => this.onSlider());
+            }
+
+            getParams() { return Object.keys(this.game.params); }
+
+            onKey(e) {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    // Show all params if empty, otherwise complete
+                    if (this.input.value.trim() === '') {
+                        this.matches = this.getParams();
+                        this.selectedIdx = 0;
+                        this.renderAutocomplete();
+                    } else if (this.matches.length > 0) {
+                        this.input.value = this.matches[this.selectedIdx];
+                        this.showSlider(this.matches[this.selectedIdx]);
+                        this.hideAutocomplete();
+                    }
+                } else if (e.key === 'ArrowDown' && this.matches.length > 0) {
+                    e.preventDefault();
+                    this.selectedIdx = (this.selectedIdx + 1) % this.matches.length;
+                    this.renderAutocomplete();
+                } else if (e.key === 'ArrowUp' && this.matches.length > 0) {
+                    e.preventDefault();
+                    this.selectedIdx = (this.selectedIdx - 1 + this.matches.length) % this.matches.length;
+                    this.renderAutocomplete();
+                } else if (e.key === 'Enter') {
+                    this.execute();
+                } else if (e.key === 'Escape') {
+                    this.hideAutocomplete();
+                    this.hideSlider();
+                    this.input.blur(); // Return to game mode
+                }
+            }
+
+            onInput() {
+                const v = this.input.value.trim();
+                if (v.length === 0) { this.hideAutocomplete(); return; }
+
+                this.matches = this.getParams().filter(p => p.toLowerCase().startsWith(v.toLowerCase()));
+                this.selectedIdx = 0;
+                if (this.matches.length > 0) {
+                    this.renderAutocomplete();
+                } else {
+                    this.hideAutocomplete();
+                }
+            }
+
+            renderAutocomplete() {
+                const rect = this.input.getBoundingClientRect();
+                this.autocomplete.style.left = rect.left + 'px';
+                this.autocomplete.style.top = (rect.bottom + 2) + 'px';
+                this.autocomplete.style.display = 'block';
+
+                const grid = document.getElementById('autocomplete-grid');
+                grid.innerHTML = this.matches.map((m, i) => {
+                    const p = this.game.params[m];
+                    const val = p ? p.get() : '?';
+                    const valStr = typeof val === 'number' ? val.toFixed(2) : val;
+                    return `<div class="autocomplete-item${i === this.selectedIdx ? ' selected' : ''}" data-idx="${i}">${m}<span class="param-value">${valStr}</span></div>`;
+                }).join('');
+            }
+
+            hideAutocomplete() { this.autocomplete.style.display = 'none'; }
+
+            showSlider(paramName) {
+                const p = this.game.params[paramName];
+                if (!p) return;
+
+                this.activeParam = paramName;
+                const rect = this.input.getBoundingClientRect();
+                this.slider.style.left = rect.left + 'px';
+                this.slider.style.top = (rect.bottom + 2) + 'px';
+                this.slider.style.display = 'block';
+
+                this.sliderInput.min = p.min;
+                this.sliderInput.max = p.max;
+                this.sliderInput.step = p.step;
+                this.sliderInput.value = p.get();
+                this.sliderValue.textContent = p.get().toFixed(2);
+            }
+
+            hideSlider() { this.slider.style.display = 'none'; this.activeParam = null; }
+
+            onSlider() {
+                if (!this.activeParam) return;
+                const p = this.game.params[this.activeParam];
+                const v = parseFloat(this.sliderInput.value);
+                p.set(v);
+                this.sliderValue.textContent = v.toFixed(2);
+                this.log(`${this.activeParam} = ${v.toFixed(2)}`);
+            }
+
+            execute() {
+                const cmd = this.input.value.trim();
+                if (!cmd) return;
+
+                this.history.push(cmd);
+                this.historyIdx = this.history.length;
+
+                // Try to evaluate
+                try {
+                    const parts = cmd.split('=').map(s => s.trim());
+                    if (parts.length === 2) {
+                        const p = this.game.params[parts[0]];
+                        if (p) {
+                            p.set(parseFloat(parts[1]));
+                            this.log(`${parts[0]} = ${p.get().toFixed(2)}`);
+                        } else {
+                            this.log(`Unknown param: ${parts[0]}`);
+                        }
+                    } else if (this.game.params[cmd]) {
+                        this.log(`${cmd} = ${this.game.params[cmd].get().toFixed(2)}`);
+                    } else {
+                        // Try eval
+                        const result = eval(cmd);
+                        this.log(`${result}`);
+                    }
+                } catch (e) {
+                    this.log(`Error: ${e.message}`);
+                }
+
+                this.input.value = '';
+                this.hideAutocomplete();
+                this.hideSlider();
+            }
+
+            log(msg) {
+                const line = document.createElement('div');
+                line.textContent = msg;
+                this.output.appendChild(line);
+                this.output.scrollTop = this.output.scrollHeight;
+            }
+        }
+
+        // ============================================================
+        // Application
+        // ============================================================
+
+        const game = new VectorVision();
+        const synth = new Synth();
+        let repl;
+        let running = false;
+        let lastTime = 0;
+        let fps = 0, frameCount = 0, fpsTime = 0;
+        let keys = {};
+
+        const output = document.getElementById('output');
+        const bpmEl = document.getElementById('bpm');
+        const scoreEl = document.getElementById('score');
+        const trackModeEl = document.getElementById('track-mode');
+        const gameContainer = document.getElementById('game-container');
+
+        // Screen shake effect
+        function shakeScreen() {
+            let shakeTime = 200;
+            let startTime = performance.now();
+            function shake() {
+                const elapsed = performance.now() - startTime;
+                if (elapsed < shakeTime) {
+                    const intensity = (1 - elapsed / shakeTime) * 8;
+                    const dx = (Math.random() - 0.5) * intensity;
+                    const dy = (Math.random() - 0.5) * intensity;
+                    gameContainer.style.transform = `translate(${dx}px, ${dy}px)`;
+                    requestAnimationFrame(shake);
+                } else {
+                    gameContainer.style.transform = '';
+                }
+            }
+            shake();
+        }
+
+        async function init() {
+            await game.init(game._cols, game._rows);
+            repl = new REPL(game);
+
+            // Update font when resolution changes
+            const origResize = game.resize.bind(game);
+            game.resize = (w, h) => {
+                origResize(w, h);
+                updateOutputStyle(w, h);
+            };
+
+            // Audio on interaction
+            document.addEventListener('click', () => { if (!synth.on) synth.init(); }, { once: true });
+            document.addEventListener('keydown', () => { if (!synth.on) synth.init(); }, { once: true });
+
+            // Events
+            game.on(EVENT.RING_PASS, e => synth.ringPass(e.value));
+            game.on(EVENT.SHOT_FIRED, () => synth.shotFired());
+            game.on(EVENT.SHOT_HIT_BAD, () => synth.hitBad());
+            game.on(EVENT.SHOT_HIT_GOOD, () => synth.hitGood());
+            game.on(EVENT.WALL_RUB, e => synth.wallRub(e.value));
+            game.on(EVENT.JUNCTION_ENTER, () => synth.junctionEnter());
+            game.on(EVENT.JUNCTION_BLOCKED, () => synth.junctionBlocked());
+            game.on(EVENT.PLAYER_HIT, () => { synth.playerHit(); shakeScreen(); });
+            game.on(EVENT.ENTRANCE_CLEAR, () => synth.entranceClear());
+            game.on(EVENT.ENTER_TUBE, () => synth.enterTube());
+
+            setupInput();
+            setupResolutionSlider();
+            updateOutputStyle(game._cols, game._rows);
+
+            running = true;
+            lastTime = performance.now();
+            requestAnimationFrame(loop);
+        }
+
+        function updateOutputStyle(cols, rows) {
+            // Get actual container size
+            const rect = gameContainer.getBoundingClientRect();
+            const cw = rect.width || 800;
+            const ch = rect.height || 450;
+
+            // Calculate font size to fill container
+            // Monospace chars are roughly 0.6 width:height ratio
+            const charRatio = 0.55;
+            const fw = cw / (cols * charRatio);
+            const fh = ch / rows;
+            const fs = Math.max(1, Math.min(fw, fh));
+
+            output.style.fontSize = fs + 'px';
+            output.style.lineHeight = '1.0';
+            output.style.letterSpacing = '0';
+
+            // Update display
+            const resDisplay = document.getElementById('res-display');
+            if (resDisplay) resDisplay.textContent = `${cols}x${rows}`;
+        }
+
+        function setupResolutionSlider() {
+            const slider = document.getElementById('res-slider');
+            slider.addEventListener('input', (e) => {
+                const cols = parseInt(e.target.value);
+                const rows = Math.round(cols * 9 / 16);  // 16:9 aspect
+                game._cols = cols;
+                game._rows = rows;
+                game.resize(cols, rows);
+                updateOutputStyle(cols, rows);
+            });
+
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                updateOutputStyle(game._cols, game._rows);
+            });
+        }
+
+        function setupInput() {
+            document.addEventListener('keydown', e => {
+                // Don't capture when typing in REPL
+                if (document.activeElement.id === 'repl-input') return;
+
+                keys[e.code] = true;
+                if (e.code === 'Space') { game.shoot(); e.preventDefault(); }
+                if (e.code === 'KeyR') game.reset();
+                if (e.code === 'KeyT') game.trackMode = !game.trackMode;
+                if (e.code === 'KeyY') game.segments = Math.max(4, game.segments - 1);
+                if (e.code === 'KeyU') game.segments = Math.min(32, game.segments + 1);
+                if (e.code === 'KeyO') game.spacing = Math.max(0.5, game.spacing - 0.2);
+                if (e.code === 'KeyP') game.spacing = Math.min(5, game.spacing + 0.2);
+            });
+            document.addEventListener('keyup', e => keys[e.code] = false);
+        }
+
+        function processInput() {
+            let sx = 0, sy = 0, throttle = 0, twist = 0;
+
+            // AWSD: left/right/up/down
+            if (keys['KeyA']) sx -= 1;
+            if (keys['KeyD']) sx += 1;
+            if (keys['KeyW']) sy -= 1;
+            if (keys['KeyS']) sy += 1;
+
+            // IK: forward/back
+            if (keys['KeyI']) throttle += 1;
+            if (keys['KeyK']) throttle -= 1;
+
+            // JL: twist
+            if (keys['KeyJ']) twist -= 1;
+            if (keys['KeyL']) twist += 1;
+
+            return { sx, sy, throttle, twist };
+        }
+
+        function loop(time) {
+            if (!running) return;
+
+            const dt = (time - lastTime) / 1000;
+            lastTime = time;
+
+            frameCount++;
+            fpsTime += dt;
+            if (fpsTime >= 1) { fps = frameCount; frameCount = 0; fpsTime = 0; }
+
+            const input = processInput();
+            game.update(dt, input.sx, input.sy, input.throttle, input.twist);
+            game.pollEvents();
+            output.textContent = game.render();
+
+            bpmEl.textContent = game.bpm.toFixed(0);
+            scoreEl.textContent = game.score;
+
+            // Show phase info
+            if (game.phase === PHASE.SPACE) {
+                trackModeEl.textContent = game.entranceUnlocked ? 'ENTER!' : `GUARDS:${game.guardsRemaining}`;
+                trackModeEl.style.color = game.entranceUnlocked ? '#0f0' : '#f80';
+            } else {
+                trackModeEl.textContent = game.trackMode ? 'TRACK' : 'TUBE';
+                trackModeEl.style.color = game.trackMode ? '#0a0' : '#aa0';
+            }
+
+            // Flash effect from C (hit_flash)
+            if (game.hitFlash > 0.3) {
+                output.style.color = '#f00';
+            } else {
+                output.style.color = '#0f0';
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        // Expose for debugging
+        window.game = game;
+        window.synth = synth;
+
+        init().catch(e => {
+            console.error(e);
+            output.textContent = 'Error: ' + e.message;
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Energy-Based Learning: From Hopfield to Diffusion</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --visible: #60a5fa;    /* blue */
+      --hidden: #4ade80;     /* green */
+      --weight: #c084fc;     /* purple */
+      --energy: #f97316;     /* orange */
+      --temp: #f43f5e;       /* red/pink */
+      --bias: #fbbf24;       /* yellow */
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Georgia', serif;
+      line-height: 1.8;
+    }
+    .container { max-width: 900px; margin: 0 auto; padding: 3rem 2rem; }
+    h1 { font-size: 2.5rem; font-weight: bold; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.8rem; font-weight: bold; margin-top: 3rem; margin-bottom: 1rem; color: #fff; }
+    h3 { font-size: 1.3rem; font-weight: bold; margin-top: 2rem; margin-bottom: 0.75rem; color: #d4d4d8; }
+    p { font-size: 1.2rem; margin-bottom: 1.5rem; }
+    .lead { font-size: 1.4rem; color: #a1a1aa; }
+
+    /* Color-coded variable spans */
+    .v-visible { color: var(--visible); font-weight: bold; }
+    .v-hidden { color: var(--hidden); font-weight: bold; }
+    .v-weight { color: var(--weight); font-weight: bold; }
+    .v-energy { color: var(--energy); font-weight: bold; }
+    .v-temp { color: var(--temp); font-weight: bold; }
+    .v-bias { color: var(--bias); font-weight: bold; }
+
+    .equation-box {
+      background: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 2rem 0;
+      text-align: center;
+    }
+    .equation-box .katex { font-size: 1.8rem; }
+
+    .sidebar-note {
+      background: #1c1c22;
+      border-left: 4px solid var(--weight);
+      padding: 1rem 1.5rem;
+      margin: 1.5rem 0;
+      font-size: 1rem;
+    }
+
+    .timeline {
+      border-left: 3px solid #3f3f46;
+      padding-left: 2rem;
+      margin: 2rem 0;
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 2rem;
+    }
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -2.45rem;
+      top: 0.5rem;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #3f3f46;
+    }
+    .timeline-item.active::before { background: var(--visible); }
+
+    canvas { border-radius: 8px; }
+    .canvas-container {
+      background: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 2rem 0;
+    }
+
+    .key-box {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-family: 'Monaco', monospace;
+      font-size: 0.9rem;
+      margin: 0 0.25rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <header class="mb-12">
+    <h1 class="text-white">Energy-Based Learning</h1>
+    <p class="lead">From Hopfield Networks to Diffusion Models: A 40-Year Journey</p>
+  </header>
+
+  <!-- ============ SECTION 1: INTRO ============ -->
+  <section>
+    <h2>The Core Idea</h2>
+
+    <p>
+      All of these models share one profound insight: <strong>learning is about shaping an energy landscape</strong>.
+      We define an <span class="v-energy">energy function E</span> over possible states, and the system naturally
+      flows toward low-energy configurations—the "attractors" that represent learned patterns.
+    </p>
+
+    <div class="equation-box">
+      $$\textcolor{#f97316}{E}(\mathbf{\textcolor{#60a5fa}{v}}, \mathbf{\textcolor{#4ade80}{h}}) = -\mathbf{\textcolor{#fbbf24}{a}}^T\mathbf{\textcolor{#60a5fa}{v}} - \mathbf{\textcolor{#fbbf24}{b}}^T\mathbf{\textcolor{#4ade80}{h}} - \mathbf{\textcolor{#60a5fa}{v}}^T\textcolor{#c084fc}{W}\mathbf{\textcolor{#4ade80}{h}}$$
+    </div>
+
+    <p>Where:</p>
+    <ul class="text-lg space-y-2 mb-6 list-none">
+      <li><span class="v-visible">v</span> = <span class="v-visible">visible units</span> (the data you observe, e.g., pixels)</li>
+      <li><span class="v-hidden">h</span> = <span class="v-hidden">hidden units</span> (learned internal representations)</li>
+      <li><span class="v-weight">W</span> = <span class="v-weight">weight matrix</span> (the learned connections)</li>
+      <li><span class="v-bias">a, b</span> = <span class="v-bias">bias vectors</span> (thresholds for each unit)</li>
+      <li><span class="v-energy">E</span> = <span class="v-energy">energy</span> (lower is better—low energy = probable state)</li>
+    </ul>
+  </section>
+
+  <!-- ============ SECTION 2: TIMELINE ============ -->
+  <section>
+    <h2>Historical Timeline</h2>
+
+    <div class="timeline">
+      <div class="timeline-item active">
+        <h3 class="text-blue-400 mt-0">1982 — Hopfield Networks</h3>
+        <p>
+          John Hopfield introduced networks where every neuron connects to every other.
+          The update rule is <strong>deterministic</strong>: each neuron looks at its neighbors
+          and flips to minimize energy.
+        </p>
+        <div class="equation-box">
+          $$\textcolor{#60a5fa}{s_i} \leftarrow \text{sign}\left(\sum_j \textcolor{#c084fc}{W_{ij}} \textcolor{#60a5fa}{s_j}\right)$$
+        </div>
+        <p>
+          <strong>Problem:</strong> Gets stuck in local minima. If the initial state is between two
+          stored patterns, it might converge to a "spurious" attractor—a ghost pattern that was never learned.
+        </p>
+      </div>
+
+      <div class="timeline-item">
+        <h3 class="text-purple-400 mt-0">1985 — Boltzmann Machines</h3>
+        <p>
+          Hinton and Sejnowski added <strong>stochasticity</strong> via a <span class="v-temp">temperature T</span> parameter.
+          Instead of deterministically flipping, neurons flip probabilistically according to the Boltzmann distribution:
+        </p>
+        <div class="equation-box">
+          $$P(\textcolor{#60a5fa}{s_i}=1) = \sigma\left(\frac{\textcolor{#fbbf24}{h_i}}{\textcolor{#f43f5e}{T}}\right) = \frac{1}{1 + e^{-\textcolor{#fbbf24}{h_i}/\textcolor{#f43f5e}{T}}}$$
+        </div>
+        <p>
+          At high <span class="v-temp">temperature</span>, the network explores randomly.
+          At low <span class="v-temp">temperature</span>, it settles into energy minima.
+          This "simulated annealing" lets it escape local minima.
+        </p>
+        <p>
+          <strong>Key insight:</strong> Hopfield networks are just Boltzmann machines at <span class="v-temp">T → 0</span>.
+        </p>
+      </div>
+
+      <div class="timeline-item">
+        <h3 class="text-green-400 mt-0">2006 — Restricted Boltzmann Machines</h3>
+        <p>
+          The breakthrough: make the network <strong>bipartite</strong>. Connections only exist between
+          <span class="v-visible">visible</span> and <span class="v-hidden">hidden</span> layers—never within a layer.
+        </p>
+        <div class="sidebar-note">
+          <strong>Why "restricted"?</strong> We restrict the connectivity. No <span class="v-visible">v</span>-to-<span class="v-visible">v</span>
+          or <span class="v-hidden">h</span>-to-<span class="v-hidden">h</span> connections. This seemingly small change has huge consequences.
+        </div>
+        <p>
+          This means all <span class="v-hidden">hidden units</span> are <strong>conditionally independent</strong> given the
+          <span class="v-visible">visible units</span> (and vice versa). We can sample all hidden units in parallel!
+        </p>
+      </div>
+
+      <div class="timeline-item">
+        <h3 class="text-orange-400 mt-0">2020s — Diffusion Models</h3>
+        <p>
+          The same energy intuition, but in continuous space with learned score functions.
+          Instead of binary neurons, we have continuous pixel values. Instead of Gibbs sampling,
+          we use Langevin dynamics guided by a neural network that predicts the gradient of the energy.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 3: RBM DETAILS ============ -->
+  <section>
+    <h2>The RBM Architecture</h2>
+
+    <p>
+      An RBM has two layers: <span class="v-visible">visible units v</span> (your input data) and
+      <span class="v-hidden">hidden units h</span> (learned features). They're connected by
+      <span class="v-weight">weights W</span>, but crucially, there are no connections within each layer.
+    </p>
+
+    <div class="canvas-container">
+      <canvas id="cv_architecture" width="800" height="300"></canvas>
+      <p class="text-sm text-gray-500 mt-3 text-center">
+        Bipartite structure: <span class="v-visible">visible (bottom)</span> connects to
+        <span class="v-hidden">hidden (top)</span> via <span class="v-weight">weights</span>.
+        No intra-layer connections.
+      </p>
+    </div>
+
+    <h3>Computing Activations</h3>
+
+    <p>
+      Given <span class="v-visible">visible units</span>, we can compute the probability that each
+      <span class="v-hidden">hidden unit</span> turns on:
+    </p>
+
+    <div class="equation-box">
+      $$P(\textcolor{#4ade80}{h_j}=1 \mid \mathbf{\textcolor{#60a5fa}{v}}) = \sigma\left(\textcolor{#fbbf24}{b_j} + \sum_i \textcolor{#c084fc}{W_{ij}}\textcolor{#60a5fa}{v_i}\right)$$
+    </div>
+
+    <p>
+      And given <span class="v-hidden">hidden units</span>, we can reconstruct the
+      <span class="v-visible">visible units</span>:
+    </p>
+
+    <div class="equation-box">
+      $$P(\textcolor{#60a5fa}{v_i}=1 \mid \mathbf{\textcolor{#4ade80}{h}}) = \sigma\left(\textcolor{#fbbf24}{a_i} + \sum_j \textcolor{#c084fc}{W_{ij}}\textcolor{#4ade80}{h_j}\right)$$
+    </div>
+
+    <p>
+      The <span class="v-bias">biases a and b</span> act as thresholds—they control how easily each unit activates.
+    </p>
+  </section>
+
+  <!-- ============ SECTION 4: GIBBS SAMPLING ============ -->
+  <section>
+    <h2>Gibbs Sampling: The Heartbeat of the RBM</h2>
+
+    <p>
+      Gibbs sampling is how the RBM "thinks." It's a back-and-forth process where we alternate
+      between sampling <span class="v-hidden">hidden</span> from <span class="v-visible">visible</span>,
+      then <span class="v-visible">visible</span> from <span class="v-hidden">hidden</span>, over and over.
+    </p>
+
+    <div class="canvas-container">
+      <div class="flex justify-center gap-4 mb-4">
+        <button id="gibbs_step" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded text-sm">
+          Step Forward
+        </button>
+        <button id="gibbs_reset" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm">
+          Reset
+        </button>
+        <button id="gibbs_auto" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded text-sm">
+          Auto Run
+        </button>
+      </div>
+      <canvas id="cv_gibbs" width="800" height="400"></canvas>
+      <div class="flex justify-between text-sm text-gray-500 mt-3">
+        <span>Step: <span id="gibbs_step_num" class="text-white font-mono">0</span></span>
+        <span>Phase: <span id="gibbs_phase" class="text-white">Ready</span></span>
+      </div>
+    </div>
+
+    <h3>The Four Phases</h3>
+
+    <ol class="text-lg space-y-4 mb-6">
+      <li>
+        <strong class="text-blue-400">1. Start with data:</strong> Clamp <span class="v-visible">v</span> to your input
+        (e.g., an image of a digit)
+      </li>
+      <li>
+        <strong class="text-green-400">2. Sample hidden:</strong> For each <span class="v-hidden">h_j</span>,
+        compute P(<span class="v-hidden">h_j</span>=1|<span class="v-visible">v</span>) and flip a coin
+      </li>
+      <li>
+        <strong class="text-blue-400">3. Reconstruct visible:</strong> For each <span class="v-visible">v_i</span>,
+        compute P(<span class="v-visible">v_i</span>=1|<span class="v-hidden">h</span>) and flip a coin
+      </li>
+      <li>
+        <strong class="text-green-400">4. Repeat:</strong> Keep bouncing back and forth
+      </li>
+    </ol>
+
+    <div class="sidebar-note">
+      <strong>Why does this work?</strong> Each step samples from the conditional distribution.
+      After many steps, the joint distribution P(<span class="v-visible">v</span>,<span class="v-hidden">h</span>)
+      converges to the Boltzmann distribution: P ∝ e<sup>−<span class="v-energy">E</span></sup>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 5: TRAINING ============ -->
+  <section>
+    <h2>Training: Contrastive Divergence</h2>
+
+    <p>
+      Here's the key insight about RBM training: <strong>it's unsupervised</strong>.
+      The network never sees labels. It learns by trying to reconstruct its input.
+    </p>
+
+    <div class="sidebar-note" style="border-color: var(--energy);">
+      <strong>No labels needed!</strong> RBMs learn the <em>structure</em> of the data, not categories.
+      Labels (like "this is a 7") are only for humans to interpret what the network learned.
+      The network just learns "patterns that tend to occur together."
+    </div>
+
+    <h3>The CD-1 Algorithm</h3>
+
+    <p>Contrastive Divergence compares two "phases":</p>
+
+    <div class="grid md:grid-cols-2 gap-6 my-8">
+      <div class="bg-blue-950/30 border border-blue-800 rounded-lg p-6">
+        <h4 class="text-blue-400 font-bold mb-2">Positive Phase (Reality)</h4>
+        <p class="text-base">
+          Clamp <span class="v-visible">v</span> to real data.<br>
+          Sample <span class="v-hidden">h</span> given <span class="v-visible">v</span>.<br>
+          Compute: <span class="v-visible">v</span> · <span class="v-hidden">h</span><sup>T</sup>
+        </p>
+      </div>
+      <div class="bg-purple-950/30 border border-purple-800 rounded-lg p-6">
+        <h4 class="text-purple-400 font-bold mb-2">Negative Phase (Fantasy)</h4>
+        <p class="text-base">
+          Reconstruct <span class="v-visible">v'</span> from <span class="v-hidden">h</span>.<br>
+          Sample <span class="v-hidden">h'</span> given <span class="v-visible">v'</span>.<br>
+          Compute: <span class="v-visible">v'</span> · <span class="v-hidden">h'</span><sup>T</sup>
+        </p>
+      </div>
+    </div>
+
+    <p>The weight update is the difference between reality and fantasy:</p>
+
+    <div class="equation-box">
+      $$\Delta\textcolor{#c084fc}{W} = \eta\left(\mathbf{\textcolor{#60a5fa}{v}}\mathbf{\textcolor{#4ade80}{h}}^T - \mathbf{\textcolor{#60a5fa}{v'}}\mathbf{\textcolor{#4ade80}{h'}}^T\right)$$
+    </div>
+
+    <p>
+      <strong>Intuition:</strong> Strengthen connections that explain the real data.
+      Weaken connections that the model "hallucinates" on its own.
+      Over time, the model's fantasies become indistinguishable from reality.
+    </p>
+  </section>
+
+  <!-- ============ SECTION 6: FEATURES ============ -->
+  <section>
+    <h2>What Does the Network Learn?</h2>
+
+    <p>
+      Each <span class="v-hidden">hidden unit</span> becomes a <strong>feature detector</strong>.
+      Its <span class="v-weight">weight vector W<sub>j</sub></span> (all weights connecting to hidden unit j)
+      can be reshaped into a 28×28 image showing what pattern activates that unit.
+    </p>
+
+    <div class="canvas-container">
+      <p class="text-sm text-gray-400 mb-4">Simulated learned features (actual features emerge from training):</p>
+      <canvas id="cv_features" width="800" height="200"></canvas>
+      <p class="text-sm text-gray-500 mt-3">
+        <span style="color: #facc15;">Yellow</span> = positive weight (excites the unit) ·
+        <span style="color: #3b82f6;">Blue</span> = negative weight (inhibits)
+      </p>
+    </div>
+
+    <p>
+      After training on digits, you'll see hidden units that respond to:
+    </p>
+    <ul class="text-lg space-y-2 mb-6">
+      <li>• Horizontal edges</li>
+      <li>• Vertical edges</li>
+      <li>• Curves and loops</li>
+      <li>• Stroke endpoints</li>
+      <li>• Digit-specific fragments</li>
+    </ul>
+
+    <p>
+      This is <strong>representation learning</strong>—the network discovers useful features
+      without being told what to look for. These features can then be used for downstream tasks
+      like classification.
+    </p>
+  </section>
+
+  <!-- ============ SECTION 7: DREAMING ============ -->
+  <section>
+    <h2>Dreaming: Generative Sampling</h2>
+
+    <p>
+      One magical property of RBMs: they can <strong>generate new data</strong>.
+      Start from random noise and run Gibbs sampling for many steps.
+      The network will "dream" patterns consistent with what it learned.
+    </p>
+
+    <div class="equation-box">
+      $$\text{noise} \xrightarrow{\text{v→h→v→h→...}} \text{dream}$$
+    </div>
+
+    <p>
+      This is the same principle behind modern diffusion models: start from noise,
+      iteratively refine toward the learned data distribution.
+    </p>
+  </section>
+
+  <!-- ============ SECTION 8: CONNECTION ============ -->
+  <section>
+    <h2>The Big Picture</h2>
+
+    <div class="equation-box">
+      $$\underbrace{\text{Hopfield}}_{\textcolor{#f43f5e}{T}=0} \rightarrow \underbrace{\text{Boltzmann}}_{\textcolor{#f43f5e}{T}>0} \rightarrow \underbrace{\text{RBM}}_{\text{bipartite}} \rightarrow \underbrace{\text{Diffusion}}_{\text{continuous}}$$
+    </div>
+
+    <p>
+      All of these models share the same DNA:
+    </p>
+
+    <ol class="text-lg space-y-3 mb-6">
+      <li><strong>1. Energy function:</strong> Define what configurations are "good" (low energy)</li>
+      <li><strong>2. Sampling:</strong> Use stochastic dynamics to explore the energy landscape</li>
+      <li><strong>3. Learning:</strong> Adjust parameters so real data has lower energy than random noise</li>
+    </ol>
+
+    <p>
+      The evolution from Hopfield to diffusion is a story of making these ideas more practical:
+      adding stochasticity (Boltzmann), enabling efficient training (RBM), and scaling to
+      high-dimensional continuous data (diffusion).
+    </p>
+  </section>
+
+</div>
+
+<script>
+// ===== Architecture Diagram =====
+function drawArchitecture() {
+  const ctx = document.getElementById('cv_architecture').getContext('2d');
+  const W = 800, H = 300;
+
+  ctx.fillStyle = '#18181b';
+  ctx.fillRect(0, 0, W, H);
+
+  const vY = H - 50, hY = 50;
+  const nv = 20, nh = 8;
+  const vSpacing = W / (nv + 1);
+  const hSpacing = W / (nh + 1);
+
+  // Draw connections
+  ctx.strokeStyle = 'rgba(192, 132, 252, 0.15)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < nv; i++) {
+    for (let j = 0; j < nh; j++) {
+      ctx.beginPath();
+      ctx.moveTo((i + 1) * vSpacing, vY);
+      ctx.lineTo((j + 1) * hSpacing, hY);
+      ctx.stroke();
+    }
+  }
+
+  // Draw visible layer
+  ctx.fillStyle = '#60a5fa';
+  for (let i = 0; i < nv; i++) {
+    ctx.beginPath();
+    ctx.arc((i + 1) * vSpacing, vY, 12, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw hidden layer
+  ctx.fillStyle = '#4ade80';
+  for (let j = 0; j < nh; j++) {
+    ctx.beginPath();
+    ctx.arc((j + 1) * hSpacing, hY, 15, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Labels
+  ctx.fillStyle = '#71717a';
+  ctx.font = '14px system-ui';
+  ctx.fillText('Visible layer v (784 units)', 20, vY + 35);
+  ctx.fillText('Hidden layer h (64 units)', 20, hY - 25);
+  ctx.fillText('Weights W', W - 100, H / 2);
+
+  // "No connections" annotations
+  ctx.fillStyle = '#f43f5e';
+  ctx.font = '12px system-ui';
+  ctx.fillText('✗ No v↔v connections', W - 180, vY + 35);
+  ctx.fillText('✗ No h↔h connections', W - 180, hY - 25);
+}
+
+// ===== Gibbs Sampling Animation =====
+const gibbsState = {
+  visible: new Array(16).fill(0).map(() => Math.random() > 0.5 ? 1 : 0),
+  hidden: new Array(8).fill(0),
+  step: 0,
+  phase: 'ready',
+  autoRun: false
+};
+
+function sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
+
+function drawGibbs() {
+  const ctx = document.getElementById('cv_gibbs').getContext('2d');
+  const W = 800, H = 400;
+
+  ctx.fillStyle = '#18181b';
+  ctx.fillRect(0, 0, W, H);
+
+  const vY = H - 80, hY = 80;
+  const nv = gibbsState.visible.length;
+  const nh = gibbsState.hidden.length;
+  const vSpacing = (W - 200) / (nv + 1);
+  const hSpacing = (W - 200) / (nh + 1);
+  const offsetX = 100;
+
+  // Draw connections with activity
+  for (let i = 0; i < nv; i++) {
+    for (let j = 0; j < nh; j++) {
+      const active = gibbsState.visible[i] && gibbsState.hidden[j];
+      ctx.strokeStyle = active ? 'rgba(192, 132, 252, 0.6)' : 'rgba(192, 132, 252, 0.1)';
+      ctx.lineWidth = active ? 2 : 1;
+      ctx.beginPath();
+      ctx.moveTo(offsetX + (i + 1) * vSpacing, vY);
+      ctx.lineTo(offsetX + (j + 1) * hSpacing, hY);
+      ctx.stroke();
+    }
+  }
+
+  // Draw visible layer
+  for (let i = 0; i < nv; i++) {
+    const x = offsetX + (i + 1) * vSpacing;
+    ctx.fillStyle = gibbsState.visible[i] ? '#60a5fa' : '#1e3a5f';
+    ctx.beginPath();
+    ctx.arc(x, vY, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = gibbsState.visible[i] ? '#fff' : '#60a5fa';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(gibbsState.visible[i], x, vY + 4);
+  }
+
+  // Draw hidden layer
+  for (let j = 0; j < nh; j++) {
+    const x = offsetX + (j + 1) * hSpacing;
+    ctx.fillStyle = gibbsState.hidden[j] ? '#4ade80' : '#14532d';
+    ctx.beginPath();
+    ctx.arc(x, hY, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = gibbsState.hidden[j] ? '#fff' : '#4ade80';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(gibbsState.hidden[j], x, hY + 5);
+  }
+
+  // Draw arrows showing current phase
+  ctx.fillStyle = '#71717a';
+  ctx.font = '14px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText('v (visible)', 10, vY + 5);
+  ctx.fillText('h (hidden)', 10, hY + 5);
+
+  // Phase arrow
+  const midY = (vY + hY) / 2;
+  ctx.fillStyle = gibbsState.phase === 'v_to_h' ? '#4ade80' : gibbsState.phase === 'h_to_v' ? '#60a5fa' : '#3f3f46';
+  ctx.font = '24px system-ui';
+  ctx.textAlign = 'center';
+  if (gibbsState.phase === 'v_to_h') {
+    ctx.fillText('↑ sampling h from v', W / 2, midY);
+  } else if (gibbsState.phase === 'h_to_v') {
+    ctx.fillText('↓ sampling v from h', W / 2, midY);
+  } else {
+    ctx.fillText('—', W / 2, midY);
+  }
+
+  document.getElementById('gibbs_step_num').textContent = gibbsState.step;
+  document.getElementById('gibbs_phase').textContent = gibbsState.phase === 'v_to_h' ? 'v → h' : gibbsState.phase === 'h_to_v' ? 'h → v' : 'Ready';
+}
+
+function gibbsStep() {
+  if (gibbsState.phase === 'ready' || gibbsState.phase === 'h_to_v') {
+    // Sample hidden from visible
+    gibbsState.phase = 'v_to_h';
+    for (let j = 0; j < gibbsState.hidden.length; j++) {
+      let sum = 0;
+      for (let i = 0; i < gibbsState.visible.length; i++) {
+        sum += gibbsState.visible[i] * (Math.random() - 0.3); // Simulated weights
+      }
+      gibbsState.hidden[j] = Math.random() < sigmoid(sum) ? 1 : 0;
+    }
+  } else {
+    // Sample visible from hidden
+    gibbsState.phase = 'h_to_v';
+    for (let i = 0; i < gibbsState.visible.length; i++) {
+      let sum = 0;
+      for (let j = 0; j < gibbsState.hidden.length; j++) {
+        sum += gibbsState.hidden[j] * (Math.random() - 0.3);
+      }
+      gibbsState.visible[i] = Math.random() < sigmoid(sum) ? 1 : 0;
+    }
+    gibbsState.step++;
+  }
+  drawGibbs();
+}
+
+document.getElementById('gibbs_step').onclick = gibbsStep;
+document.getElementById('gibbs_reset').onclick = () => {
+  gibbsState.visible = new Array(16).fill(0).map(() => Math.random() > 0.5 ? 1 : 0);
+  gibbsState.hidden = new Array(8).fill(0);
+  gibbsState.step = 0;
+  gibbsState.phase = 'ready';
+  gibbsState.autoRun = false;
+  drawGibbs();
+};
+document.getElementById('gibbs_auto').onclick = () => {
+  gibbsState.autoRun = !gibbsState.autoRun;
+  if (gibbsState.autoRun) autoGibbs();
+};
+
+function autoGibbs() {
+  if (!gibbsState.autoRun) return;
+  gibbsStep();
+  setTimeout(autoGibbs, 300);
+}
+
+// ===== Features Visualization =====
+function drawFeatures() {
+  const ctx = document.getElementById('cv_features').getContext('2d');
+  const W = 800, H = 200;
+
+  ctx.fillStyle = '#18181b';
+  ctx.fillRect(0, 0, W, H);
+
+  const size = 60;
+  const gap = 20;
+  const nFeatures = 10;
+  const startX = (W - nFeatures * (size + gap)) / 2;
+
+  for (let f = 0; f < nFeatures; f++) {
+    const x = startX + f * (size + gap);
+    const y = (H - size) / 2;
+
+    // Generate a fake "feature" pattern
+    for (let py = 0; py < size; py++) {
+      for (let px = 0; px < size; px++) {
+        // Create different patterns for each feature
+        let val = 0;
+        switch (f % 5) {
+          case 0: val = (px > size/2) ? 0.5 : -0.5; break; // vertical edge
+          case 1: val = (py > size/2) ? 0.5 : -0.5; break; // horizontal edge
+          case 2: val = Math.sin(px * 0.3) * 0.5; break; // gradient
+          case 3: val = ((px-size/2)**2 + (py-size/2)**2 < 400) ? 0.6 : -0.3; break; // blob
+          case 4: val = (Math.abs(px - py) < 8) ? 0.6 : -0.2; break; // diagonal
+        }
+        val += (Math.random() - 0.5) * 0.3;
+
+        if (val > 0) {
+          ctx.fillStyle = `rgb(${Math.floor(val * 255 + 100)}, ${Math.floor(val * 200 + 100)}, 0)`;
+        } else {
+          ctx.fillStyle = `rgb(0, 0, ${Math.floor(-val * 255 + 50)})`;
+        }
+        ctx.fillRect(x + px, y + py, 1, 1);
+      }
+    }
+
+    // Border
+    ctx.strokeStyle = '#3f3f46';
+    ctx.strokeRect(x, y, size, size);
+
+    // Label
+    ctx.fillStyle = '#71717a';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(`h${f}`, x + size/2, y + size + 15);
+  }
+}
+
+// Initialize
+drawArchitecture();
+drawGibbs();
+drawFeatures();
+
+// Render math
+renderMathInElement(document.body, {
+  delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
+  throwOnError: false
+});
+</script>
+
+</body>
+</html>

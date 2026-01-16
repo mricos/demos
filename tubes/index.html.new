@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TUBES - 3D Stroke Drawing</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <div id="canvas-container">
+            <canvas id="drawing-canvas"></canvas>
+            <canvas id="renderer-canvas"></canvas>
+        </div>
+
+        <div id="side-panel">
+            <div id="panel-toggle">◀</div>
+            <div class="panel-menu" id="panel-menu"></div>
+            <div class="panels-container" id="panels-container"></div>
+        </div>
+
+        <div id="instructions">
+            <strong>Draw:</strong> Click and drag to draw<br>
+            <strong>Select:</strong> Click cylinder | <kbd>Shift+Click</kbd> toggle | <kbd>Ctrl+Shift+Click</kbd> multi-select<br>
+            <strong>Camera:</strong> Right-click + drag to rotate, Scroll to zoom
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- TUBES modules in dependency order -->
+    <script src="js/namespace.js"></script>
+    <script src="js/events.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/registration.js"></script>
+    <script src="js/groups.js"></script>
+    <script src="js/input.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/scene.js"></script>
+    <script src="js/stroke.js"></script>
+    <script src="js/cylinder.js"></script>
+    <script src="js/panels.js"></script>
+    <script src="js/hud.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/boot.js"></script>
+</body>
+</html>

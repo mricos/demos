@@ -1,0 +1,868 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Toy Stable Diffusion (Pixel) + Context Help</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --fg:#d7dde6; --muted:#8a93a3; --panel:#101823; --border:#1f2a3a;
+      --accent:#7aa2f7; --shadow: 0 10px 40px rgba(0,0,0,.45);
+    }
+    html,body{height:100%}
+    body{
+      margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      background:var(--bg); color:var(--fg); display:grid; grid-template-rows:auto 1fr;
+    }
+    header{
+      border-bottom:1px solid var(--border);
+      background: linear-gradient(180deg, #0b0f14, #0b0f14cc);
+      padding:10px 12px;
+      display:grid; gap:10px;
+    }
+    .card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:10px;}
+    .row{display:grid; grid-template-columns:1fr; gap:10px;}
+    @media(min-width:980px){
+      header{grid-template-columns:1.2fr 1fr; align-items:start;}
+      .row{grid-template-columns: 2fr 1fr 1fr 1fr;}
+      .row2{grid-template-columns: 1fr 1fr 1fr 1fr;}
+    }
+    label{
+      display:grid; gap:6px; font-size:12px; color:var(--muted);
+      position:relative;
+    }
+    label.helpable{ cursor:pointer; }
+    label .lbltop{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .helpdot{
+      flex:0 0 auto;
+      width:18px; height:18px; border-radius:999px;
+      border:1px solid var(--border);
+      background:#0c121c;
+      display:grid; place-items:center;
+      color:var(--muted);
+      font-weight:700; font-size:12px; line-height:1;
+    }
+    .helpdot:hover{ border-color:#2a3b58; color:var(--fg); }
+    input[type="text"], input[type="number"], input[type="range"], select{
+      background:#0c121c; color:var(--fg); border:1px solid var(--border);
+      border-radius:10px; padding:8px 10px; outline:none;
+    }
+    input[type="range"]{padding:0;height:26px}
+    .btnbar{display:flex; flex-wrap:wrap; gap:8px;}
+    button{
+      background:#0c121c; color:var(--fg); border:1px solid var(--border);
+      border-radius:10px; padding:8px 10px; cursor:pointer;
+    }
+    button.primary{border-color:#2a3b58; box-shadow:0 0 0 1px #1c2b45 inset;}
+    button:disabled{opacity:.55; cursor:default;}
+
+    main{display:grid; place-items:center; padding:16px;}
+    .stage{display:grid; gap:12px; justify-items:center;}
+    canvas{
+      border-radius:12px; border:1px solid var(--border); background:#000;
+      image-rendering:pixelated; image-rendering:crisp-edges;
+    }
+    .meta{
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+      color:var(--muted); font-size:12px; display:flex; gap:14px; flex-wrap:wrap; justify-content:center;
+    }
+    .pill{padding:2px 8px; border:1px solid var(--border); border-radius:999px; background:#0c121c;}
+    .checkline{display:flex; gap:10px; align-items:center; color:var(--muted); font-size:12px;}
+    .checkline input{transform:translateY(1px);}
+
+    /* Help popover */
+    .help-overlay{
+      position:fixed; inset:0; background:rgba(0,0,0,.35);
+      display:none; z-index:1000;
+    }
+    .help-pop{
+      position:fixed;
+      max-width:min(520px, calc(100vw - 24px));
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:12px;
+      box-shadow:var(--shadow);
+      padding:12px 12px 10px 12px;
+      z-index:1001;
+      display:none;
+    }
+    .help-pop .head{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+      margin-bottom:8px;
+    }
+    .help-pop .title{
+      font-size:13px; color:var(--fg);
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+    }
+    .help-pop .close{
+      width:26px; height:26px; border-radius:10px;
+      border:1px solid var(--border); background:#0c121c; color:var(--muted);
+      cursor:pointer;
+      display:grid; place-items:center;
+    }
+    .help-pop .close:hover{ color:var(--fg); border-color:#2a3b58; }
+    .help-pop .body{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.45;
+    }
+    .help-pop code, .help-pop pre{
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+      font-size:11px;
+      color:#cfe0ff;
+      background:#0c121c;
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:6px 8px;
+      overflow:auto;
+    }
+    .help-pop .kv{
+      display:grid;
+      grid-template-columns: 110px 1fr;
+      gap:6px 10px;
+      margin-top:8px;
+    }
+    .help-pop .k{ color:#aab3c3; font-size:11px; }
+    .help-pop .v{ color:var(--muted); font-size:11px; }
+    .help-pop a{ color:var(--accent); text-decoration:none; }
+    .help-pop a:hover{ text-decoration:underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="card">
+    <div class="row">
+      <label class="helpable" data-help="prompt">
+        <div class="lbltop">
+          <span>Prompt (keywords: sky grass water sand sun moon mountain cloud tree)</span>
+          <span class="helpdot" role="button" tabindex="0" data-help-btn="prompt">?</span>
+        </div>
+        <input id="prompt" type="text" value="sky grass sun cloud" />
+      </label>
+
+      <label class="helpable" data-help="seed">
+        <div class="lbltop">
+          <span>Seed</span>
+          <span class="helpdot" role="button" tabindex="0" data-help-btn="seed">?</span>
+        </div>
+        <input id="seed" type="number" min="0" step="1" value="1" />
+      </label>
+
+      <label class="helpable" data-help="steps">
+        <div class="lbltop">
+          <span>Steps T</span>
+          <span class="helpdot" role="button" tabindex="0" data-help-btn="steps">?</span>
+        </div>
+        <input id="steps" type="number" min="8" max="256" step="1" value="64" />
+      </label>
+
+      <label class="helpable" data-help="guidance">
+        <div class="lbltop">
+          <span>Guidance s</span>
+          <span class="helpdot" role="button" tabindex="0" data-help-btn="guidance">?</span>
+        </div>
+        <input id="guidance" type="range" min="0" max="8" step="0.1" value="4.0" />
+      </label>
+    </div>
+
+    <div class="checkline" style="margin-top:10px;">
+      <label class="helpable" data-help="render_snap" style="display:flex;align-items:center;gap:8px;">
+        <input id="showSnap" type="checkbox" checked />
+        <span>Render palette-snapped</span>
+        <span class="helpdot" role="button" tabindex="0" data-help-btn="render_snap">?</span>
+      </label>
+
+      <label class="helpable" data-help="render_eps" style="display:flex;align-items:center;gap:8px;">
+        <input id="showEps" type="checkbox" />
+        <span>Render |eps| heat (debug)</span>
+        <span class="helpdot" role="button" tabindex="0" data-help-btn="render_eps">?</span>
+      </label>
+    </div>
+
+    <div class="btnbar" style="margin-top:10px;">
+      <button class="primary" id="init" data-help-btn="init">Init x_T</button>
+      <button class="primary" id="stepBtn" data-help-btn="step">Step</button>
+      <button class="primary" id="runBtn" data-help-btn="run">Run</button>
+      <button id="stopBtn" disabled data-help-btn="stop">Stop</button>
+      <button id="resetBtn" data-help-btn="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="font-size:12px;color:var(--muted);line-height:1.4;">
+      <div style="color:var(--fg);margin-bottom:6px;">Technical story index (clickable)</div>
+      <div class="btnbar">
+        <button data-help-btn="sd_overview">Stable Diffusion pipeline</button>
+        <button data-help-btn="ddpm_math">DDPM math</button>
+        <button data-help-btn="cfg_math">Classifier-free guidance</button>
+        <button data-help-btn="toy_denoiser">Toy ε̂ (hand-coded)</button>
+        <button data-help-btn="palette_prior">Pixel-art prior</button>
+      </div>
+      <div style="margin-top:10px;">
+        This SPA implements a DDPM-style reverse chain with a non-learned ε̂. The help popups describe the real SD components and how this simulator maps onto them.
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="meta" id="meta"></div>
+  </div>
+</main>
+
+<!-- Help UI -->
+<div class="help-overlay" id="helpOverlay"></div>
+<div class="help-pop" id="helpPop" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="head">
+    <div class="title" id="helpTitle"></div>
+    <button class="close" id="helpClose" aria-label="Close help">×</button>
+  </div>
+  <div class="body" id="helpBody"></div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------------------------
+  // Help database
+  // ---------------------------
+  const HELP = {
+    sd_overview: {
+      title: "Stable Diffusion: architecture-level overview",
+      body: `
+<div>Real Stable Diffusion (SD) is a latent diffusion model:</div>
+<pre>text -> (text encoder) -> conditioning c
+noise z_T -> (UNet denoiser in latent space) -> z_0
+z_0 -> (VAE decoder) -> image</pre>
+<div>This toy SPA omits text encoder/UNet/VAE and operates directly in pixel space, but keeps the <b>reverse-time iterative denoising</b> concept.</div>
+<div class="kv">
+  <div class="k">Real SD state</div><div class="v">latent z_t (e.g. 64×64×4)</div>
+  <div class="k">Toy state</div><div class="v">pixel x_t (W×H×3)</div>
+  <div class="k">Real denoiser</div><div class="v">UNet predicts ε̂(z_t,t,c)</div>
+  <div class="k">Toy denoiser</div><div class="v">hand-coded ε̂(x_t,t,c)</div>
+  <div class="k">Real c</div><div class="v">CLIP text embedding</div>
+  <div class="k">Toy c</div><div class="v">procedural “layout field” from keywords</div>
+</div>`
+    },
+
+    ddpm_math: {
+      title: "DDPM: forward and reverse equations (used here)",
+      body: `
+<div><b>Forward noising</b> (closed form):</div>
+<pre>x_t = sqrt(ᾱ_t) x_0 + sqrt(1-ᾱ_t) ε,   ε ~ N(0,I)
+α_t = 1-β_t,   ᾱ_t = Π_{i=1..t} α_i</pre>
+<div><b>Reverse sampling</b> (DDPM-style):</div>
+<pre>x_{t-1} = 1/sqrt(α_t) * ( x_t - (β_t / sqrt(1-ᾱ_t)) ε̂(x_t,t,c) ) + σ_t z</pre>
+<div>This SPA precomputes ᾱ_t, invsqrt(α_t), and the coefficient β_t/sqrt(1-ᾱ_t).</div>`
+    },
+
+    cfg_math: {
+      title: "Classifier-free guidance (CFG)",
+      body: `
+<div>SD uses two ε predictions:</div>
+<pre>ε̂_u = ε̂(x_t,t,∅)        // unconditional
+ε̂_c = ε̂(x_t,t,c)        // conditional
+ε̂ = ε̂_u + s(ε̂_c-ε̂_u)  // guidance scale s</pre>
+<div>In practice, larger s increases prompt adherence but can reduce diversity and increase artifacts. In this toy model, s mainly increases the pull toward the prompt-derived target field.</div>`
+    },
+
+    toy_denoiser: {
+      title: "Toy ε̂(x_t,t,c): what replaces the UNet",
+      body: `
+<div>ε̂ is assembled from simple priors and a prompt-conditioned target field m:</div>
+<pre>ε̂ = w_blur(t) (x - blur(x))
+   + w_pal(t)  (x - snap_palette(x))
+   + w_cond(t) (x - m_c)</pre>
+<div>Interpretation:</div>
+<ul>
+  <li><b>blur residual</b>: high-frequency component treated as “noise”.</li>
+  <li><b>palette residual</b>: pulls colors toward a discrete set (pixel-art prior).</li>
+  <li><b>conditioning residual</b>: pushes toward a simple global layout derived from the prompt.</li>
+</ul>`
+    },
+
+    palette_prior: {
+      title: "Pixel-art palette prior",
+      body: `
+<div>Pixel art is dominated by quantization: few colors, sharp regions. This SPA uses nearest-palette snapping as a prior.</div>
+<pre>snap_palette(v) = argmin_{p in P} ||v - p||_2</pre>
+<div>In the sampler, the palette term is time-weighted so it acts more strongly at low t (late steps), mimicking how SD often refines details near the end of the chain.</div>`
+    },
+
+    prompt: {
+      title: "Prompt: conditioning c (toy)",
+      body: `
+<div>In real SD, the prompt is encoded by a text encoder (e.g. CLIP) into a sequence embedding used by cross-attention in the UNet.</div>
+<div>In this toy, the prompt is parsed as a set of keywords that generate a per-pixel target field m_c (bands + masks):</div>
+<pre>sky  -> top rows biased to blue
+grass-> bottom rows biased to green
+sun  -> disk mask
+cloud-> a few ellipses</pre>
+<div>m_c is used via the term (x - m_c) inside ε̂.</div>`
+    },
+
+    seed: {
+      title: "Seed: determinism and sampling noise",
+      body: `
+<div>The seed initializes the PRNG that generates:</div>
+<ul>
+  <li>initial x_T ~ N(0,I)</li>
+  <li>per-step noise z in the reverse update</li>
+  <li>random prompt mask placement (clouds, etc.)</li>
+</ul>
+<div>Same parameters + same seed => same output (modulo browser floating-point details).</div>`
+    },
+
+    steps: {
+      title: "Steps T: discretization of the reverse-time ODE/SDE",
+      body: `
+<div>T controls how many iterations of denoising are performed.</div>
+<ul>
+  <li>larger T: smaller per-step change; potentially more stable</li>
+  <li>smaller T: faster but can overshoot (depends on β schedule and ε̂ quality)</li>
+</ul>
+<div>Real SD uses schedulers (DDIM, Euler, Heun, etc.). This toy uses a DDPM-like update for clarity.</div>`
+    },
+
+    guidance: {
+      title: "Guidance s: strength of conditional pull (CFG)",
+      body: `
+<div>CFG interpolates between unconditional and conditional ε̂:</div>
+<pre>ε̂ = ε̂_u + s(ε̂_c - ε̂_u)</pre>
+<div>Here, ε̂_c differs mainly via (x - m_c). Increasing s increases prompt adherence (layout/color bias) and reduces exploration.</div>`
+    },
+
+    render_snap: {
+      title: "Render palette-snapped: visualization vs sampler state",
+      body: `
+<div>When enabled, the displayed image is snapped to the nearest palette color per pixel.</div>
+<div>The sampler state x_t is still continuous in [-1,1] unless you also weight the palette term inside ε̂ (which this toy does).</div>`
+    },
+
+    render_eps: {
+      title: "Render |ε| heat: debugging signal",
+      body: `
+<div>This shows a proxy for “where the model thinks noise/high-frequency energy is”.</div>
+<div>For performance, it uses the blur residual magnitude ||x - blur(x)|| as a stand-in. A real SD debug view would inspect ε̂ or score magnitude directly.</div>`
+    },
+
+    init: {
+      title: "Init x_T: start from noise",
+      body: `
+<div>Diffusion sampling starts from a high-noise sample:</div>
+<pre>x_T ~ N(0,I)</pre>
+<div>Then the reverse chain iteratively denoises to x_0. This button reinitializes x_T using the current seed.</div>`
+    },
+
+    step: {
+      title: "Step: one reverse diffusion iteration",
+      body: `
+<div>Applies a single update x_t -> x_{t-1} using the current schedule and ε̂.</div>
+<div>This is useful for inspecting intermediate t states.</div>`
+    },
+
+    run: {
+      title: "Run: animate the reverse chain",
+      body: `
+<div>Runs repeated Step operations until t = 0. Internally it executes a small burst of steps per animation frame to reduce UI latency.</div>`
+    },
+
+    stop: {
+      title: "Stop: halt the run loop",
+      body: `
+<div>Stops the requestAnimationFrame loop. State x_t is preserved.</div>`
+    },
+
+    reset: {
+      title: "Reset: clear sampler state",
+      body: `
+<div>Clears the schedule and state so nothing is running. Use Init x_T to restart.</div>`
+    },
+  };
+
+  // ---------------------------
+  // DOM
+  // ---------------------------
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d", { alpha:false });
+  const elPrompt = document.getElementById("prompt");
+  const elSeed = document.getElementById("seed");
+  const elSteps = document.getElementById("steps");
+  const elGuidance = document.getElementById("guidance");
+  const elShowSnap = document.getElementById("showSnap");
+  const elShowEps = document.getElementById("showEps");
+  const elMeta = document.getElementById("meta");
+  const btnInit = document.getElementById("init");
+  const btnStep = document.getElementById("stepBtn");
+  const btnRun = document.getElementById("runBtn");
+  const btnStop = document.getElementById("stopBtn");
+  const btnReset = document.getElementById("resetBtn");
+
+  // Help UI
+  const helpOverlay = document.getElementById("helpOverlay");
+  const helpPop = document.getElementById("helpPop");
+  const helpTitle = document.getElementById("helpTitle");
+  const helpBody = document.getElementById("helpBody");
+  const helpClose = document.getElementById("helpClose");
+
+  function openHelp(key, anchorEl){
+    const h = HELP[key];
+    if(!h) return;
+
+    helpTitle.textContent = h.title;
+    helpBody.innerHTML = h.body;
+
+    helpOverlay.style.display = "block";
+    helpPop.style.display = "block";
+    helpPop.setAttribute("aria-hidden","false");
+
+    // Position near anchor, with viewport clamping.
+    const r = (anchorEl || document.body).getBoundingClientRect();
+    const pad = 12;
+
+    // Prefer right/below; clamp.
+    const popW = Math.min(520, window.innerWidth - 2*pad);
+    helpPop.style.maxWidth = popW + "px";
+
+    // Measure after content set
+    const pr = helpPop.getBoundingClientRect();
+    let x = r.left + Math.min(20, r.width) + 8;
+    let y = r.bottom + 8;
+
+    // If would overflow bottom, place above
+    if(y + pr.height > window.innerHeight - pad){
+      y = r.top - pr.height - 8;
+    }
+    // If would overflow right, shift left
+    if(x + pr.width > window.innerWidth - pad){
+      x = window.innerWidth - pad - pr.width;
+    }
+    // Clamp top/left
+    x = Math.max(pad, x);
+    y = Math.max(pad, y);
+
+    helpPop.style.left = Math.round(x) + "px";
+    helpPop.style.top  = Math.round(y) + "px";
+  }
+
+  function closeHelp(){
+    helpOverlay.style.display = "none";
+    helpPop.style.display = "none";
+    helpPop.setAttribute("aria-hidden","true");
+  }
+
+  helpOverlay.addEventListener("click", closeHelp);
+  helpClose.addEventListener("click", closeHelp);
+  window.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeHelp(); });
+
+  // Event delegation: any element with data-help-btn opens the popup.
+  document.addEventListener("click", (e) => {
+    const t = e.target;
+    const btn = t.closest("[data-help-btn]");
+    if(btn){
+      e.preventDefault();
+      const key = btn.getAttribute("data-help-btn");
+      openHelp(key, btn);
+      return;
+    }
+    const lab = t.closest("label.helpable[data-help]");
+    if(lab){
+      // click on label (not in input) -> help
+      if(t.tagName.toLowerCase() !== "input" && t.tagName.toLowerCase() !== "select"){
+        const key = lab.getAttribute("data-help");
+        openHelp(key, lab);
+      }
+    }
+  });
+
+  // ---------------------------
+  // Toy diffusion implementation
+  // ---------------------------
+  const W = 64, H = 64, C = 3;
+  const N = W * H;
+  const SCALE = 8;
+
+  cv.width = W; cv.height = H;
+  cv.style.width = (W * SCALE) + "px";
+  cv.style.height = (H * SCALE) + "px";
+
+  // Palette in [-1,1]
+  const PAL8 = [
+    [  0,  0,  0], [255,255,255], [ 29, 43, 83], [126, 37, 83],
+    [  0,135, 81], [171, 82, 54], [ 95, 87, 79], [194,195,199],
+    [255,241,232], [255,  0, 77], [255,163,  0], [255,236, 39],
+    [  0,228, 54], [ 41,173,255], [131,118,156], [255,119,168],
+  ];
+  const PALETTE = PAL8.map(([r,g,b]) => [(r/127.5-1),(g/127.5-1),(b/127.5-1)]);
+
+  function mulberry32(seed){
+    let a = seed >>> 0;
+    return () => {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randn(rng){
+    let u=0,v=0; while(u===0) u=rng(); while(v===0) v=rng();
+    return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+  }
+  function clamp1(x){ return x<-1?-1:(x>1?1:x); }
+
+  function nearestPaletteRGB(r,g,b){
+    let best=0, bestD=Infinity;
+    for(let k=0;k<PALETTE.length;k++){
+      const p=PALETTE[k];
+      const d0=r-p[0], d1=g-p[1], d2=b-p[2];
+      const d=d0*d0+d1*d1+d2*d2;
+      if(d<bestD){bestD=d;best=k;}
+    }
+    return PALETTE[best];
+  }
+
+  function buildSchedule(T, beta0, beta1){
+    const betas = new Float32Array(T+1);
+    const alpha = new Float32Array(T+1);
+    const abar  = new Float32Array(T+1);
+    const invSqrtAlpha = new Float32Array(T+1);
+    const coefEps = new Float32Array(T+1);
+    const sigma = new Float32Array(T+1);
+
+    abar[0]=1.0;
+    for(let t=1;t<=T;t++){
+      const u=(t-1)/Math.max(1,(T-1));
+      const b=beta0+(beta1-beta0)*u;
+      betas[t]=b;
+      alpha[t]=1-b;
+      abar[t]=abar[t-1]*alpha[t];
+      invSqrtAlpha[t]=1/Math.sqrt(alpha[t]);
+      coefEps[t]=b/Math.sqrt(1-abar[t]);
+      sigma[t]=(t===1)?0:Math.sqrt(b);
+    }
+    return {T, betas, alpha, abar, invSqrtAlpha, coefEps, sigma};
+  }
+
+  const tmpBlur = new Float32Array(3*N);
+  const epsU = new Float32Array(3*N);
+  const epsC = new Float32Array(3*N);
+  const epsG = new Float32Array(3*N);
+
+  function boxBlur3x3(out, x){
+    const tmp = new Float32Array(3*N);
+    // horiz
+    for(let y=0;y<H;y++){
+      const row=y*W;
+      for(let x0=0;x0<W;x0++){
+        const xm1=(x0===0)?0:-1;
+        const xp1=(x0===W-1)?0:1;
+        const i0=(row+x0)*3;
+        const i1=(row+x0+xm1)*3;
+        const i2=(row+x0+xp1)*3;
+        tmp[i0+0]=(x[i1+0]+x[i0+0]+x[i2+0])/3;
+        tmp[i0+1]=(x[i1+1]+x[i0+1]+x[i2+1])/3;
+        tmp[i0+2]=(x[i1+2]+x[i0+2]+x[i2+2])/3;
+      }
+    }
+    // vert
+    for(let y=0;y<H;y++){
+      const ym1=(y===0)?0:-1;
+      const yp1=(y===H-1)?0:1;
+      for(let x0=0;x0<W;x0++){
+        const i0=(y*W+x0)*3;
+        const i1=((y+ym1)*W+x0)*3;
+        const i2=((y+yp1)*W+x0)*3;
+        out[i0+0]=(tmp[i1+0]+tmp[i0+0]+tmp[i2+0])/3;
+        out[i0+1]=(tmp[i1+1]+tmp[i0+1]+tmp[i2+1])/3;
+        out[i0+2]=(tmp[i1+2]+tmp[i0+2]+tmp[i2+2])/3;
+      }
+    }
+  }
+
+  function buildTargetField(prompt, seed){
+    const m = new Float32Array(3*N);
+    const tokens = new Set(prompt.toLowerCase().split(/[^a-z0-9]+/g).filter(Boolean));
+    const rng2 = mulberry32((seed ^ 0x9E3779B9)>>>0);
+
+    function fillBand(y0,y1,palIdx){
+      const p=PALETTE[palIdx];
+      const ya=Math.max(0,Math.min(H,y0));
+      const yb=Math.max(0,Math.min(H,y1));
+      for(let y=ya;y<yb;y++){
+        for(let x=0;x<W;x++){
+          const i=(y*W+x)*3;
+          m[i+0]=p[0]; m[i+1]=p[1]; m[i+2]=p[2];
+        }
+      }
+    }
+
+    fillBand(0,H,2);
+    if(tokens.has("sky"))   fillBand(0, Math.floor(H*0.55), 13);
+    if(tokens.has("water")) fillBand(Math.floor(H*0.55), Math.floor(H*0.8), 14);
+    if(tokens.has("grass")) fillBand(Math.floor(H*0.6), H, 12);
+    if(tokens.has("sand"))  fillBand(Math.floor(H*0.7), H, 11);
+
+    if(tokens.has("mountain")){
+      const p=PALETTE[6];
+      const baseY=Math.floor(H*(0.62+0.08*rng2()));
+      const peakX=Math.floor(W*(0.25+0.5*rng2()));
+      const peakY=Math.floor(H*(0.25+0.15*rng2()));
+      for(let y=peakY;y<baseY;y++){
+        const t=(y-peakY)/Math.max(1,(baseY-peakY));
+        const half=Math.floor((t*W*0.35)+1);
+        for(let x=Math.max(0,peakX-half); x<Math.min(W,peakX+half); x++){
+          const i=(y*W+x)*3;
+          m[i+0]=p[0]; m[i+1]=p[1]; m[i+2]=p[2];
+        }
+      }
+    }
+
+    if(tokens.has("cloud")){
+      const p=PALETTE[1];
+      const cCount=2+Math.floor(rng2()*4);
+      for(let c=0;c<cCount;c++){
+        const cx=Math.floor(rng2()*W);
+        const cy=Math.floor(rng2()*Math.floor(H*0.45));
+        const rx=6+Math.floor(rng2()*10);
+        const ry=3+Math.floor(rng2()*6);
+        for(let y=Math.max(0,cy-ry); y<Math.min(H,cy+ry); y++){
+          for(let x=Math.max(0,cx-rx); x<Math.min(W,cx+rx); x++){
+            const dx=(x-cx)/rx, dy=(y-cy)/ry;
+            if(dx*dx+dy*dy<=1.0){
+              const i=(y*W+x)*3;
+              m[i+0]=p[0]; m[i+1]=p[1]; m[i+2]=p[2];
+            }
+          }
+        }
+      }
+    }
+
+    if(tokens.has("sun") || tokens.has("moon")){
+      const p=tokens.has("moon") ? PALETTE[9] : PALETTE[11];
+      const cx=Math.floor(W*(0.15+0.7*rng2()));
+      const cy=Math.floor(H*(0.1+0.25*rng2()));
+      const r=4+Math.floor(rng2()*6);
+      for(let y=Math.max(0,cy-r); y<Math.min(H,cy+r); y++){
+        for(let x=Math.max(0,cx-r); x<Math.min(W,cx+r); x++){
+          const dx=x-cx, dy=y-cy;
+          if(dx*dx+dy*dy<=r*r){
+            const i=(y*W+x)*3;
+            m[i+0]=p[0]; m[i+1]=p[1]; m[i+2]=p[2];
+          }
+        }
+      }
+    }
+
+    if(tokens.has("tree")){
+      const trunk=PALETTE[5], leaf=PALETTE[4];
+      const tx=Math.floor(W*(0.2+0.6*rng2()));
+      const baseY=Math.floor(H*0.85);
+      const h=10+Math.floor(rng2()*10);
+      for(let y=baseY-h;y<baseY;y++){
+        for(let x=tx-1;x<=tx+1;x++){
+          if(x<0||x>=W||y<0||y>=H) continue;
+          const i=(y*W+x)*3;
+          m[i+0]=trunk[0]; m[i+1]=trunk[1]; m[i+2]=trunk[2];
+        }
+      }
+      const cy=baseY-h;
+      const r=6+Math.floor(rng2()*6);
+      for(let y=Math.max(0,cy-r); y<Math.min(H,cy+r); y++){
+        for(let x=Math.max(0,tx-r); x<Math.min(W,tx+r); x++){
+          const dx=x-tx, dy=y-cy;
+          if(dx*dx+dy*dy<=r*r){
+            const i=(y*W+x)*3;
+            m[i+0]=leaf[0]; m[i+1]=leaf[1]; m[i+2]=leaf[2];
+          }
+        }
+      }
+    }
+
+    return m;
+  }
+
+  function predictEps(out, x, t, T, condFieldOrNull){
+    boxBlur3x3(tmpBlur, x);
+    const tau = t / T;
+    const w_blur = 0.65;
+    const w_cond = tau * tau;
+    const w_pal  = (1 - tau);
+
+    for(let i=0;i<3*N;i+=3){
+      const x0=x[i+0], x1=x[i+1], x2=x[i+2];
+      const eB0=x0-tmpBlur[i+0], eB1=x1-tmpBlur[i+1], eB2=x2-tmpBlur[i+2];
+      const p=nearestPaletteRGB(x0,x1,x2);
+      const eP0=x0-p[0], eP1=x1-p[1], eP2=x2-p[2];
+
+      let eC0=x0, eC1=x1, eC2=x2; // unconditional target is 0-field
+      if(condFieldOrNull){
+        eC0=x0-condFieldOrNull[i+0];
+        eC1=x1-condFieldOrNull[i+1];
+        eC2=x2-condFieldOrNull[i+2];
+      }
+
+      out[i+0]=w_blur*eB0 + w_pal*eP0 + w_cond*eC0;
+      out[i+1]=w_blur*eB1 + w_pal*eP1 + w_cond*eC1;
+      out[i+2]=w_blur*eB2 + w_pal*eP2 + w_cond*eC2;
+    }
+  }
+
+  // Sampler state
+  let schedule=null;
+  let x=new Float32Array(3*N);
+  let tCur=0;
+  let rng=mulberry32(1);
+  let condField=new Float32Array(3*N);
+  let running=false;
+
+  function initRun(){
+    const seed=(Number(elSeed.value)|0)>>>0;
+    const T=Math.max(8,Math.min(256,Number(elSteps.value)|0));
+    const prompt=elPrompt.value||"";
+    schedule=buildSchedule(T, 0.02, 0.12);
+    rng=mulberry32(seed);
+    condField=buildTargetField(prompt, seed);
+    for(let i=0;i<3*N;i++) x[i]=clamp1(0.6*randn(rng));
+    tCur=T;
+    render();
+    updateMeta();
+  }
+
+  function resetState(){
+    schedule=null; tCur=0; running=false;
+    btnStop.disabled=true; btnRun.disabled=false;
+    render(); updateMeta();
+  }
+
+  function stepOnce(){
+    if(!schedule || tCur<=0) return;
+    const T=schedule.T;
+    const t=tCur;
+
+    predictEps(epsU, x, t, T, null);
+    predictEps(epsC, x, t, T, condField);
+
+    const s=Number(elGuidance.value);
+    const a=1-s;
+    for(let i=0;i<3*N;i++) epsG[i]=a*epsU[i]+s*epsC[i];
+
+    const invSqrtA=schedule.invSqrtAlpha[t];
+    const ce=schedule.coefEps[t];
+    const sig=schedule.sigma[t];
+
+    for(let i=0;i<3*N;i++){
+      const z=(sig===0)?0:randn(rng);
+      x[i]=clamp1(invSqrtA*(x[i]-ce*epsG[i]) + sig*z);
+    }
+
+    tCur--;
+    render();
+    updateMeta();
+  }
+
+  const img=ctx.createImageData(W,H);
+
+  function render(){
+    const showSnap=elShowSnap.checked;
+    const showEps=elShowEps.checked;
+
+    if(showEps){
+      boxBlur3x3(tmpBlur, x);
+      for(let px=0;px<N;px++){
+        const i=px*3;
+        const e0=x[i+0]-tmpBlur[i+0];
+        const e1=x[i+1]-tmpBlur[i+1];
+        const e2=x[i+2]-tmpBlur[i+2];
+        const mag=Math.sqrt(e0*e0+e1*e1+e2*e2);
+        const v=Math.max(0,Math.min(255, Math.round(255*Math.min(1, mag*1.8))));
+        const o=px*4;
+        img.data[o+0]=v; img.data[o+1]=v; img.data[o+2]=v; img.data[o+3]=255;
+      }
+      ctx.putImageData(img,0,0);
+      return;
+    }
+
+    for(let px=0;px<N;px++){
+      const i=px*3;
+      let r=x[i+0], g=x[i+1], b=x[i+2];
+      if(showSnap){
+        const p=nearestPaletteRGB(r,g,b);
+        r=p[0]; g=p[1]; b=p[2];
+      }
+      const o=px*4;
+      img.data[o+0]=Math.max(0,Math.min(255,Math.round((r+1)*127.5)));
+      img.data[o+1]=Math.max(0,Math.min(255,Math.round((g+1)*127.5)));
+      img.data[o+2]=Math.max(0,Math.min(255,Math.round((b+1)*127.5)));
+      img.data[o+3]=255;
+    }
+    ctx.putImageData(img,0,0);
+  }
+
+  function updateMeta(){
+    const T=schedule ? schedule.T : 0;
+    const s=Number(elGuidance.value).toFixed(1);
+    const seed=(Number(elSeed.value)|0)>>>0;
+    const prompt=(elPrompt.value||"").trim();
+    elMeta.innerHTML="";
+    const items=[
+      ["W×H", `${W}×${H}`],
+      ["t", schedule?`${tCur}/${T}`:"-"],
+      ["seed", `${seed}`],
+      ["guidance", `${s}`],
+      ["prompt", prompt?prompt:"(empty)"],
+    ];
+    for(const [k,v] of items){
+      const d=document.createElement("div");
+      d.className="pill";
+      d.textContent=`${k}: ${v}`;
+      elMeta.appendChild(d);
+    }
+  }
+
+  function setRunning(on){
+    running=on;
+    btnStop.disabled=!on;
+    btnRun.disabled=on;
+  }
+
+  function tick(){
+    if(!running) return;
+    const burst=2;
+    for(let k=0;k<burst;k++){
+      if(!schedule || tCur<=0){ setRunning(false); break; }
+      stepOnce();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // ---------------------------
+  // Wiring
+  // ---------------------------
+  btnInit.addEventListener("click", initRun);
+  btnStep.addEventListener("click", stepOnce);
+  btnRun.addEventListener("click", ()=>{ if(!schedule) initRun(); setRunning(true); requestAnimationFrame(tick); });
+  btnStop.addEventListener("click", ()=>setRunning(false));
+  btnReset.addEventListener("click", resetState);
+
+  elShowSnap.addEventListener("change", render);
+  elShowEps.addEventListener("change", render);
+  elGuidance.addEventListener("input", updateMeta);
+
+  function rebuild(){
+    if(!schedule){ updateMeta(); return; }
+    initRun();
+  }
+  elSteps.addEventListener("change", rebuild);
+  elSeed.addEventListener("change", rebuild);
+  elPrompt.addEventListener("change", rebuild);
+
+  resetState();
+  updateMeta();
+})();
+</script>
+</body>
+</html>

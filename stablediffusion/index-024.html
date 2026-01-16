@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Geometry of Optimal Transport</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <style>
+    :root { --bg: #05070a; --panel: #0d1117; --border: #21262d; --accent: #14b8a6; }
+    body { background: var(--bg); color: #c9d1d9; font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+    canvas { border: 1px solid var(--border); background: #000; border-radius: 8px; }
+    .stat-card { background: #161b22; border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .btn { transition: all 0.2s; }
+    .btn:hover { transform: scale(1.02); }
+    .btn:active { transform: scale(0.98); }
+    .mode-active { box-shadow: 0 0 0 2px var(--accent); }
+    .curvature-pos { border-color: #22c55e; }
+    .curvature-zero { border-color: #eab308; }
+    .curvature-neg { border-color: #ef4444; }
+  </style>
+</head>
+<body class="p-6">
+
+<header class="max-w-7xl mx-auto mb-6">
+  <h1 class="text-2xl font-bold text-white">The Geometry of Optimal Transport</h1>
+  <p class="text-sm text-gray-500 mt-1">Wasserstein space as a Riemannian manifold: geodesics, curvature, and gradient flows</p>
+</header>
+
+<main class="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-4 gap-4">
+
+  <!-- Column 1: Controls -->
+  <section class="stat-card">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Visualization Mode</h2>
+
+    <div class="space-y-2 mb-4">
+      <button id="modeGeodesic" class="btn w-full bg-teal-600 hover:bg-teal-500 text-white py-2 rounded text-sm mode-active">Geodesics</button>
+      <button id="modeInterp" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm">Displacement Interpolation</button>
+      <button id="modeFlow" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm">Gradient Flow</button>
+    </div>
+
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 mt-4">Curvature</h2>
+    <div class="space-y-2 mb-4">
+      <button id="curvPos" class="btn w-full bg-green-700 hover:bg-green-600 text-white py-2 rounded text-sm border-2 border-transparent">K > 0 (Sphere)</button>
+      <button id="curvZero" class="btn w-full bg-yellow-700 hover:bg-yellow-600 text-white py-2 rounded text-sm border-2 mode-active curvature-zero">K = 0 (Flat)</button>
+      <button id="curvNeg" class="btn w-full bg-red-700 hover:bg-red-600 text-white py-2 rounded text-sm border-2 border-transparent">K < 0 (Hyperbolic)</button>
+    </div>
+
+    <div class="border-t border-gray-800 pt-3 mb-4">
+      <button id="clearBtn" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm">Clear</button>
+      <button id="presetBtn" class="btn w-full bg-teal-600 hover:bg-teal-500 text-white py-2 rounded text-sm mt-2">Load Preset</button>
+    </div>
+
+    <div class="border-t border-gray-800 pt-3 space-y-3">
+      <button id="animateBtn" class="btn w-full bg-purple-600 hover:bg-purple-500 text-white py-2 rounded text-sm">Animate</button>
+      <button id="resetBtn" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm">Reset Animation</button>
+    </div>
+
+    <div class="border-t border-gray-800 pt-3 mt-4 space-y-3 text-[11px]">
+      <div>
+        <label class="text-gray-500">Time t: <span id="timeVal" class="text-teal-400">0.00</span></label>
+        <input id="timeSlider" type="range" min="0" max="1" step="0.01" value="0" class="w-full">
+      </div>
+      <div>
+        <label class="text-gray-500">Curvature |K|: <span id="curvVal" class="text-yellow-400">0.5</span></label>
+        <input id="curvSlider" type="range" min="0.1" max="2" step="0.1" value="0.5" class="w-full">
+      </div>
+      <div>
+        <label class="text-gray-500">Show: </label>
+        <div class="flex gap-2 mt-1 flex-wrap">
+          <label class="flex items-center gap-1"><input type="checkbox" id="showGrid" checked> <span class="text-gray-400">Grid</span></label>
+          <label class="flex items-center gap-1"><input type="checkbox" id="showPaths" checked> <span class="text-gray-400">Paths</span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800 text-[10px]">
+      <div class="flex justify-between text-gray-500"><span>Mode:</span><span id="modeVal" class="font-mono text-teal-400">Geodesic</span></div>
+      <div class="flex justify-between text-gray-500 mt-1"><span>Curvature:</span><span id="curvDisplay" class="font-mono text-yellow-400">K = 0</span></div>
+      <div class="flex justify-between text-gray-500 mt-1"><span>Points:</span><span id="numPoints" class="font-mono">0</span></div>
+    </div>
+  </section>
+
+  <!-- Column 2-3: Main Visualization -->
+  <section class="stat-card xl:col-span-2">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Geometric Visualization</h2>
+
+    <div class="relative">
+      <canvas id="mainCanvas" width="560" height="560" class="w-full aspect-square cursor-crosshair"></canvas>
+      <div class="absolute top-2 left-2 bg-black/70 px-2 py-1 rounded text-[10px] text-gray-400">
+        Click to place points, drag time slider to animate
+      </div>
+    </div>
+
+    <div class="mt-3 flex justify-between text-[9px] text-gray-600">
+      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500"></span> Start (t=0)</span>
+      <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-teal-400"></span> Geodesic path</span>
+      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-500"></span> End (t=1)</span>
+      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-yellow-500"></span> Current (t)</span>
+    </div>
+  </section>
+
+  <!-- Column 4: Theory Panel -->
+  <section class="stat-card">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Key Concepts</h2>
+
+    <div class="space-y-4 text-[11px]">
+      <div class="p-3 bg-black/30 rounded">
+        <div class="text-teal-400 font-bold mb-1">Geodesics</div>
+        <p class="text-gray-500">Shortest paths in curved space. In Wasserstein space, geodesics are "displacement interpolations" between distributions.</p>
+      </div>
+
+      <div class="p-3 bg-black/30 rounded">
+        <div class="text-yellow-400 font-bold mb-1">Curvature K</div>
+        <p class="text-gray-500">Measures how space bends. K>0: geodesics converge (sphere). K<0: geodesics diverge (hyperbolic). K=0: flat (Euclidean).</p>
+      </div>
+
+      <div class="p-3 bg-black/30 rounded">
+        <div class="text-purple-400 font-bold mb-1">Wasserstein Space</div>
+        <p class="text-gray-500">The space of probability distributions with W₂ distance forms an infinite-dimensional Riemannian manifold.</p>
+      </div>
+
+      <div class="p-3 bg-black/30 rounded">
+        <div class="text-blue-400 font-bold mb-1">Gradient Flows</div>
+        <p class="text-gray-500">Evolution equations as steepest descent in Wasserstein space. Heat equation = gradient flow of entropy!</p>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800">
+      <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-2">Curvature Effects</h3>
+      <div class="text-[10px] text-gray-600 space-y-2">
+        <div><strong class="text-green-400">K > 0:</strong> Geodesics focus, distributions concentrate</div>
+        <div><strong class="text-yellow-400">K = 0:</strong> Geodesics parallel, standard OT</div>
+        <div><strong class="text-red-400">K < 0:</strong> Geodesics spread, distributions disperse</div>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800">
+      <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-2">The Big Idea</h3>
+      <p class="text-[10px] text-gray-500 leading-relaxed">
+        Villani & Lott showed: you can <em>define</em> curvature bounds using optimal transport! A space has Ricci ≥ K if entropy is "K-convex" along geodesics.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<!-- The Big Picture Section -->
+<section class="max-w-7xl mx-auto mt-16 mb-8">
+  <h2 class="text-4xl font-bold text-white mb-2">The Big Picture</h2>
+  <p class="text-lg text-gray-500 mb-10">From Riemann to Villani: geometry meets probability</p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+
+    <!-- Riemann -->
+    <div class="stat-card border-l-4 border-l-blue-500">
+      <div class="text-blue-400 text-sm font-mono mb-1">1854</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Riemannian Geometry</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Riemann defines intrinsic geometry: curvature without embedding. A manifold with a metric tensor g defines distances, angles, geodesics.</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Core Object</div>
+        <div class="text-gray-300">$ds^2 = g_{ij} dx^i dx^j$</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-blue-500/20 text-blue-400 rounded">Foundation</span>
+      </div>
+    </div>
+
+    <!-- Otto -->
+    <div class="stat-card border-l-4 border-l-purple-500">
+      <div class="text-purple-400 text-sm font-mono mb-1">2001</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Otto Calculus</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Felix Otto shows: the space of probability distributions P(M) with W₂ metric is formally a Riemannian manifold. PDEs become gradient flows!</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Key Insight</div>
+        <div class="text-gray-300 text-sm">Heat eq = ∇<sub>W</sub> Entropy</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-purple-500/20 text-purple-400 rounded">PDEs</span>
+        <span class="px-2 py-1 bg-gray-700 text-gray-400 rounded">W₂</span>
+      </div>
+    </div>
+
+    <!-- Lott-Villani -->
+    <div class="stat-card border-l-4 border-l-green-500">
+      <div class="text-green-400 text-sm font-mono mb-1">2009</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Lott-Villani Theory</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Synthetic Ricci curvature: define "Ricci ≥ K" via convexity of entropy along W₂ geodesics. Works on metric spaces without smooth structure!</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">CD(K,N) Condition</div>
+        <div class="text-gray-300 text-sm">Ent is K-convex</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded">Fields Medal</span>
+      </div>
+    </div>
+
+    <!-- Modern ML -->
+    <div class="stat-card border-l-4 border-l-orange-500">
+      <div class="text-orange-400 text-sm font-mono mb-1">2020s</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Geometric Deep Learning</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Diffusion models as gradient flows in Wasserstein space. Riemannian score matching. Curvature-aware generative models.</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Application</div>
+        <div class="text-gray-300 text-sm">Score ≈ W₂ gradient</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-orange-500/20 text-orange-400 rounded">Diffusion</span>
+        <span class="px-2 py-1 bg-gray-700 text-gray-400 rounded">SD3</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Geometry Diagram -->
+<section class="max-w-7xl mx-auto mb-16">
+  <div class="stat-card">
+    <div class="flex flex-col lg:flex-row gap-8">
+
+      <!-- SVG: Three geometries -->
+      <div class="flex-1">
+        <h3 class="text-lg font-bold text-white mb-2">How Curvature Affects Geodesics</h3>
+        <p class="text-sm text-gray-500 mb-4">Parallel transport and geodesic deviation in different geometries</p>
+
+        <svg viewBox="0 0 600 280" class="w-full" style="max-width: 600px;">
+          <defs>
+            <marker id="arrowTeal" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#14b8a6"/>
+            </marker>
+          </defs>
+
+          <!-- Background -->
+          <rect width="600" height="280" fill="#0d1117"/>
+
+          <!-- Positive curvature (sphere) -->
+          <g transform="translate(100, 140)">
+            <ellipse cx="0" cy="0" rx="70" ry="70" fill="none" stroke="#22c55e" stroke-width="2" opacity="0.3"/>
+            <!-- Converging geodesics -->
+            <path d="M -60 50 Q -20 0, 0 -60" stroke="#22c55e" stroke-width="2" fill="none"/>
+            <path d="M 60 50 Q 20 0, 0 -60" stroke="#22c55e" stroke-width="2" fill="none"/>
+            <circle cx="0" cy="-60" r="5" fill="#22c55e"/>
+            <circle cx="-60" cy="50" r="4" fill="#3b82f6"/>
+            <circle cx="60" cy="50" r="4" fill="#3b82f6"/>
+            <text x="0" y="90" text-anchor="middle" fill="#22c55e" font-size="12" font-weight="bold">K > 0</text>
+            <text x="0" y="105" text-anchor="middle" fill="#6b7280" font-size="10">Converge</text>
+          </g>
+
+          <!-- Zero curvature (flat) -->
+          <g transform="translate(300, 140)">
+            <rect x="-70" y="-70" width="140" height="140" fill="none" stroke="#eab308" stroke-width="2" opacity="0.3"/>
+            <!-- Parallel geodesics -->
+            <line x1="-50" y1="50" x2="-50" y2="-50" stroke="#eab308" stroke-width="2"/>
+            <line x1="50" y1="50" x2="50" y2="-50" stroke="#eab308" stroke-width="2"/>
+            <circle cx="-50" cy="-50" r="5" fill="#eab308"/>
+            <circle cx="50" cy="-50" r="5" fill="#eab308"/>
+            <circle cx="-50" cy="50" r="4" fill="#3b82f6"/>
+            <circle cx="50" cy="50" r="4" fill="#3b82f6"/>
+            <text x="0" y="90" text-anchor="middle" fill="#eab308" font-size="12" font-weight="bold">K = 0</text>
+            <text x="0" y="105" text-anchor="middle" fill="#6b7280" font-size="10">Parallel</text>
+          </g>
+
+          <!-- Negative curvature (hyperbolic) -->
+          <g transform="translate(500, 140)">
+            <ellipse cx="0" cy="0" rx="70" ry="50" fill="none" stroke="#ef4444" stroke-width="2" opacity="0.3"/>
+            <!-- Diverging geodesics -->
+            <path d="M -20 50 Q -10 0, -60 -50" stroke="#ef4444" stroke-width="2" fill="none"/>
+            <path d="M 20 50 Q 10 0, 60 -50" stroke="#ef4444" stroke-width="2" fill="none"/>
+            <circle cx="-60" cy="-50" r="5" fill="#ef4444"/>
+            <circle cx="60" cy="-50" r="5" fill="#ef4444"/>
+            <circle cx="-20" cy="50" r="4" fill="#3b82f6"/>
+            <circle cx="20" cy="50" r="4" fill="#3b82f6"/>
+            <text x="0" y="90" text-anchor="middle" fill="#ef4444" font-size="12" font-weight="bold">K < 0</text>
+            <text x="0" y="105" text-anchor="middle" fill="#6b7280" font-size="10">Diverge</text>
+          </g>
+
+          <!-- Labels -->
+          <text x="100" y="30" text-anchor="middle" fill="#22c55e" font-size="11">Sphere</text>
+          <text x="300" y="30" text-anchor="middle" fill="#eab308" font-size="11">Euclidean</text>
+          <text x="500" y="30" text-anchor="middle" fill="#ef4444" font-size="11">Hyperbolic</text>
+
+        </svg>
+      </div>
+
+      <!-- Explanation -->
+      <div class="flex-1 flex flex-col justify-center">
+        <div class="space-y-4">
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+              <span class="text-green-400 font-bold">+</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold mb-1">Positive Curvature (K > 0)</h4>
+              <p class="text-gray-400 text-sm">Like a sphere. Geodesics that start parallel eventually converge and meet. Triangles have angle sum > 180°. Distributions concentrate.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+              <span class="text-yellow-400 font-bold">0</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold mb-1">Zero Curvature (K = 0)</h4>
+              <p class="text-gray-400 text-sm">Flat Euclidean space. Parallel geodesics stay parallel forever. Triangles have angle sum = 180°. Standard optimal transport.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+              <span class="text-red-400 font-bold">−</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold mb-1">Negative Curvature (K < 0)</h4>
+              <p class="text-gray-400 text-sm">Like a saddle or hyperbolic plane. Geodesics diverge exponentially. Triangles have angle sum < 180°. Distributions spread out.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 p-4 bg-teal-500/10 border border-teal-500/30 rounded-lg">
+          <p class="text-teal-300 text-sm"><strong>Villani's Insight:</strong> In Wasserstein space, "curvature" measures how entropy behaves along geodesics. If entropy is convex along geodesics (K ≥ 0), distributions don't spread too fast—this is the CD(K,N) condition!</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Technical Essay Section -->
+<article class="max-w-7xl mx-auto mt-12 mb-16">
+
+  <header class="border-b border-gray-800 pb-6 mb-8">
+    <h2 class="text-3xl font-bold text-white">The Riemannian Structure of Wasserstein Space</h2>
+    <p class="text-gray-500 mt-2">Otto calculus, displacement convexity, and synthetic curvature</p>
+  </header>
+
+  <style>
+    .eq-box { background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 24px 32px; margin: 24px 0; }
+    .eq-box .katex { font-size: 1.5em; }
+    .eq-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+
+    .var-g { color: #14b8a6; font-weight: bold; }
+    .var-w { color: #a855f7; font-weight: bold; }
+    .var-ent { color: #f97316; font-weight: bold; }
+    .var-rho { color: #3b82f6; font-weight: bold; }
+    .var-k { color: #22c55e; font-weight: bold; }
+    .var-t { color: #fbbf24; font-weight: bold; }
+    .var-v { color: #ec4899; font-weight: bold; }
+
+    .prose-section { line-height: 1.8; }
+    .prose-section p { margin-bottom: 1.25rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; margin-bottom: 8px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+  </style>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Main Content -->
+    <div class="lg:col-span-2 prose-section text-gray-300">
+
+      <!-- Variable Legend -->
+      <div class="eq-box mb-8">
+        <div class="eq-label text-gray-500">Variable Legend</div>
+        <div class="flex flex-wrap text-sm">
+          <span class="legend-item"><span class="legend-dot" style="background:#14b8a6"></span><span class="var-g">g</span> Metric tensor</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#a855f7"></span><span class="var-w">W₂</span> Wasserstein distance</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#f97316"></span><span class="var-ent">H</span> Entropy functional</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#3b82f6"></span><span class="var-rho">ρ</span> Density function</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#22c55e"></span><span class="var-k">K</span> Curvature</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#ec4899"></span><span class="var-v">v</span> Velocity field</span>
+        </div>
+      </div>
+
+      <!-- Section 1: Riemannian Manifolds -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">1. Riemannian Manifolds: A Quick Review</h3>
+
+        <p>A <em>Riemannian manifold</em> (M, <span class="var-g">g</span>) is a smooth space equipped with an inner product <span class="var-g">g</span><sub>p</sub> at each point p. This lets us measure:</p>
+
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li><strong>Lengths:</strong> $\|v\| = \sqrt{g(v, v)}$</li>
+          <li><strong>Angles:</strong> $\cos\theta = g(u,v) / (\|u\|\|v\|)$</li>
+          <li><strong>Distances:</strong> $d(p,q) = \inf_\gamma \int \|\dot\gamma(t)\| dt$</li>
+        </ul>
+
+        <div class="eq-box">
+          <div class="eq-label text-teal-400">Riemannian Metric</div>
+          <div class="text-center">
+            $$ds^2 = \textcolor{#14b8a6}{g}_{ij}(x) \, dx^i \, dx^j$$
+          </div>
+        </div>
+
+        <p><strong>Geodesics</strong> are curves that locally minimize distance—the "straight lines" of curved space. On a sphere, geodesics are great circles. On a saddle, they curve outward.</p>
+
+        <p><strong>Curvature</strong> measures how the space bends. The <em>Ricci curvature</em> Ric(v,v) measures how volumes grow along geodesics in direction v. Positive Ricci = volumes grow slower than flat space (focusing). Negative Ricci = volumes grow faster (defocusing).</p>
+      </section>
+
+      <!-- Section 2: Wasserstein Space -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">2. The Space of Probability Measures</h3>
+
+        <p>Let P₂(M) be the space of probability measures on M with finite second moments. The <span class="var-w">Wasserstein-2 distance</span> is:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-purple-400">Wasserstein-2 Distance</div>
+          <div class="text-center">
+            $$\textcolor{#a855f7}{W_2}(\mu, \nu)^2 = \inf_{\gamma \in \Pi(\mu,\nu)} \int_{M \times M} d(x,y)^2 \, d\gamma(x,y)$$
+          </div>
+        </div>
+
+        <p>This defines a metric on P₂(M). But Otto's remarkable observation (2001): this metric comes from a <em>Riemannian structure</em>!</p>
+
+        <p>Think of a probability density <span class="var-rho">ρ</span>(x) as a point in an infinite-dimensional manifold. A tangent vector at <span class="var-rho">ρ</span> is a "direction to perturb" the density. Otto identified the right notion:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-teal-400">Otto's Riemannian Metric on P₂</div>
+          <div class="text-center">
+            $$\langle s_1, s_2 \rangle_{\textcolor{#3b82f6}{\rho}} = \int_M \nabla\phi_1 \cdot \nabla\phi_2 \, d\textcolor{#3b82f6}{\rho}$$
+          </div>
+          <div class="text-center text-sm text-gray-500 mt-2">
+            where $-\nabla \cdot (\rho \nabla \phi_i) = s_i$ (continuity equation)
+          </div>
+        </div>
+
+        <p>A tangent vector s (a perturbation to <span class="var-rho">ρ</span>) corresponds to a velocity field <span class="var-v">v</span> = ∇φ that "pushes" the density. The inner product measures the kinetic energy of this flow!</p>
+      </section>
+
+      <!-- Section 3: Geodesics in Wasserstein Space -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">3. Geodesics: Displacement Interpolation</h3>
+
+        <p>What are the "straight lines" in Wasserstein space? McCann (1997) found them: <em>displacement interpolation</em>.</p>
+
+        <p>Given measures μ₀ and μ₁ with optimal transport map T, the geodesic is:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-yellow-400">McCann Interpolation</div>
+          <div class="text-center">
+            $$\mu_{\textcolor{#fbbf24}{t}} = \left[(1-\textcolor{#fbbf24}{t})\text{Id} + \textcolor{#fbbf24}{t} T\right]_\# \mu_0$$
+          </div>
+        </div>
+
+        <p>In words: each particle at x moves along a straight line toward T(x). At time <span class="var-t">t</span>, it's at (1−<span class="var-t">t</span>)x + <span class="var-t">t</span>T(x). The whole distribution interpolates!</p>
+
+        <p>This is <em>not</em> the same as linear interpolation of densities (which would be (1−t)ρ₀ + tρ₁). Displacement interpolation moves mass; linear interpolation blends values. The difference is crucial for understanding curvature.</p>
+      </section>
+
+      <!-- Section 4: Gradient Flows -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">4. Gradient Flows in Wasserstein Space</h3>
+
+        <p>On a Riemannian manifold, gradient descent on a function F follows:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-pink-400">Gradient Flow</div>
+          <div class="text-center">
+            $$\frac{d\textcolor{#3b82f6}{\rho}}{d\textcolor{#fbbf24}{t}} = -\nabla_{\textcolor{#a855f7}{W}} F(\textcolor{#3b82f6}{\rho})$$
+          </div>
+        </div>
+
+        <p>The remarkable fact: many classical PDEs are gradient flows in Wasserstein space!</p>
+
+        <p><strong>Heat equation:</strong> $\partial_t \rho = \Delta \rho$ is the gradient flow of <em>entropy</em>:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-orange-400">Entropy Functional</div>
+          <div class="text-center">
+            $$\textcolor{#f97316}{H}(\textcolor{#3b82f6}{\rho}) = \int \textcolor{#3b82f6}{\rho}(x) \log \textcolor{#3b82f6}{\rho}(x) \, dx$$
+          </div>
+        </div>
+
+        <p>The Wasserstein gradient of <span class="var-ent">H</span> is ∇<sub>W</sub><span class="var-ent">H</span> = −Δρ. Following this gradient = heat diffusion!</p>
+
+        <p>Other examples:</p>
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li><strong>Fokker-Planck:</strong> Gradient flow of free energy F = H + V</li>
+          <li><strong>Porous medium:</strong> Gradient flow of Rényi entropy</li>
+          <li><strong>Aggregation:</strong> Gradient flow of interaction energy</li>
+        </ul>
+
+        <p><strong>Connection to diffusion models:</strong> The score function ∇log ρ is exactly the Wasserstein gradient of entropy! Score-based diffusion = Wasserstein gradient descent.</p>
+      </section>
+
+      <!-- Section 5: Displacement Convexity -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">5. Displacement Convexity and Curvature</h3>
+
+        <p>A functional F on Wasserstein space is <em>displacement convex</em> if it's convex along geodesics:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-green-400">Displacement Convexity</div>
+          <div class="text-center">
+            $$F(\mu_{\textcolor{#fbbf24}{t}}) \leq (1-\textcolor{#fbbf24}{t}) F(\mu_0) + \textcolor{#fbbf24}{t} F(\mu_1)$$
+          </div>
+        </div>
+
+        <p>McCann proved: entropy <span class="var-ent">H</span> is displacement convex on ℝⁿ! But on curved spaces, it depends on the curvature.</p>
+
+        <p><strong>The Lott-Villani breakthrough:</strong> Define "Ricci curvature ≥ <span class="var-k">K</span>" by requiring entropy to be <span class="var-k">K</span>-convex along geodesics:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-green-400">CD(K, ∞) Condition</div>
+          <div class="text-center">
+            $$\textcolor{#f97316}{H}(\mu_{\textcolor{#fbbf24}{t}}) \leq (1-\textcolor{#fbbf24}{t}) \textcolor{#f97316}{H}(\mu_0) + \textcolor{#fbbf24}{t} \textcolor{#f97316}{H}(\mu_1) - \frac{\textcolor{#22c55e}{K}}{2}\textcolor{#fbbf24}{t}(1-\textcolor{#fbbf24}{t})\textcolor{#a855f7}{W_2}^2(\mu_0, \mu_1)$$
+          </div>
+        </div>
+
+        <p>This is <em>synthetic</em> Ricci curvature—defined purely in terms of optimal transport, without derivatives! It works on:</p>
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li>Smooth Riemannian manifolds (recovers classical Ricci)</li>
+          <li>Metric spaces (no smooth structure needed!)</li>
+          <li>Discrete graphs (combinatorial curvature)</li>
+          <li>Limits of manifolds (Gromov-Hausdorff limits)</li>
+        </ul>
+      </section>
+
+      <!-- Section 6: Consequences -->
+      <section class="mb-8">
+        <h3 class="text-xl font-bold text-white mb-4">6. Why Curvature Matters for ML</h3>
+
+        <p>The curvature of the underlying space affects everything:</p>
+
+        <div class="bg-black/30 rounded-lg p-4 my-4">
+          <table class="w-full text-sm">
+            <tr class="border-b border-gray-700">
+              <th class="text-left py-2 text-gray-500">Curvature</th>
+              <th class="text-left py-2 text-gray-500">Geodesics</th>
+              <th class="text-left py-2 text-gray-500">Entropy</th>
+              <th class="text-left py-2 text-gray-500">Diffusion</th>
+            </tr>
+            <tr class="border-b border-gray-800">
+              <td class="py-2 text-green-400">K > 0</td>
+              <td class="py-2">Converge</td>
+              <td class="py-2">Very convex</td>
+              <td class="py-2">Fast convergence</td>
+            </tr>
+            <tr class="border-b border-gray-800">
+              <td class="py-2 text-yellow-400">K = 0</td>
+              <td class="py-2">Parallel</td>
+              <td class="py-2">Convex</td>
+              <td class="py-2">Standard rate</td>
+            </tr>
+            <tr>
+              <td class="py-2 text-red-400">K < 0</td>
+              <td class="py-2">Diverge</td>
+              <td class="py-2">Less convex</td>
+              <td class="py-2">Slow/unstable</td>
+            </tr>
+          </table>
+        </div>
+
+        <p><strong>For diffusion models:</strong></p>
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li>Data on positively curved manifolds (like spheres) → faster convergence</li>
+          <li>Hyperbolic data (like hierarchies) → need special treatment</li>
+          <li>Flow matching on curved spaces requires Riemannian score functions</li>
+        </ul>
+
+        <p><strong>The punchline:</strong> Understanding geometry isn't optional—it determines how fast your model converges, how many sampling steps you need, and whether the whole thing even works!</p>
+      </section>
+
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="stat-card h-fit lg:sticky lg:top-6">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-6">Key Equations</h3>
+
+      <div class="space-y-5">
+        <div class="bg-black/40 rounded-lg p-3 border border-teal-500/30">
+          <div class="text-sm font-bold text-teal-400 mb-2">Riemannian Metric</div>
+          <div class="text-sm">$ds^2 = \textcolor{#14b8a6}{g}_{ij} dx^i dx^j$</div>
+        </div>
+
+        <div class="bg-black/40 rounded-lg p-3 border border-purple-500/30">
+          <div class="text-sm font-bold text-purple-400 mb-2">Wasserstein</div>
+          <div class="text-sm">$\textcolor{#a855f7}{W_2}^2 = \min \int d^2 d\gamma$</div>
+        </div>
+
+        <div class="bg-black/40 rounded-lg p-3 border border-orange-500/30">
+          <div class="text-sm font-bold text-orange-400 mb-2">Entropy</div>
+          <div class="text-sm">$\textcolor{#f97316}{H}(\rho) = \int \rho \log \rho$</div>
+        </div>
+
+        <div class="bg-black/40 rounded-lg p-3 border border-pink-500/30">
+          <div class="text-sm font-bold text-pink-400 mb-2">Gradient Flow</div>
+          <div class="text-sm">$\partial_t \rho = -\nabla_W F$</div>
+        </div>
+
+        <div class="bg-black/40 rounded-lg p-3 border border-yellow-500/30">
+          <div class="text-sm font-bold text-yellow-400 mb-2">McCann Interpolation</div>
+          <div class="text-sm">$\mu_t = [(1-t)\text{Id} + tT]_\# \mu_0$</div>
+        </div>
+
+        <div class="bg-black/40 rounded-lg p-3 border border-green-500/30">
+          <div class="text-sm font-bold text-green-400 mb-2">CD(K,∞)</div>
+          <div class="text-sm">H is K-convex along W₂ geodesics</div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-gray-700">
+        <h4 class="text-sm font-bold text-white mb-2">The Big Idea</h4>
+        <p class="text-sm text-gray-300 leading-relaxed">Wasserstein space is a Riemannian manifold. PDEs are gradient flows. Curvature bounds = convexity of entropy. All of optimal transport theory connects to geometry!</p>
+      </div>
+
+      <div class="mt-4 pt-4 border-t border-gray-700">
+        <h4 class="text-sm font-bold text-white mb-2">Reading</h4>
+        <ul class="text-xs text-gray-400 space-y-1">
+          <li>Villani, <em>Optimal Transport</em></li>
+          <li>Ambrosio et al., <em>Gradient Flows</em></li>
+          <li>Santambrogio, <em>OT for Applied Math</em></li>
+        </ul>
+      </div>
+    </aside>
+
+  </div>
+</article>
+
+<script>
+// ===== Configuration =====
+const CANVAS_SIZE = 560;
+const CENTER = CANVAS_SIZE / 2;
+
+// ===== State =====
+let points = [];  // {start: [x,y], end: [x,y]}
+let mode = 'geodesic';  // 'geodesic', 'interp', 'flow'
+let curvature = 0;  // -1, 0, 1
+let curvatureMag = 0.5;
+let t = 0;
+let animationId = null;
+let clickState = 'start';  // 'start' or 'end'
+
+// ===== Canvas Setup =====
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+
+// ===== Coordinate Transforms =====
+function toCanvas(x, y) {
+  return [CENTER + x * CENTER * 0.8, CENTER - y * CENTER * 0.8];
+}
+
+function fromCanvas(cx, cy) {
+  return [(cx - CENTER) / (CENTER * 0.8), (CENTER - cy) / (CENTER * 0.8)];
+}
+
+// ===== Geodesic Computation =====
+function geodesic(p0, p1, t, K) {
+  // Simplified geodesic for visualization
+  // K > 0: paths curve inward (converge)
+  // K = 0: straight lines
+  // K < 0: paths curve outward (diverge)
+
+  const [x0, y0] = p0;
+  const [x1, y1] = p1;
+
+  // Linear interpolation
+  let x = (1 - t) * x0 + t * x1;
+  let y = (1 - t) * y0 + t * y1;
+
+  if (K !== 0) {
+    // Add curvature effect: perpendicular displacement
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const len = Math.sqrt(dx * dx + dy * dy);
+
+    // Perpendicular direction
+    const px = -dy / (len + 0.001);
+    const py = dx / (len + 0.001);
+
+    // Curvature displacement: maximum at t=0.5, zero at endpoints
+    const curveAmount = K * curvatureMag * t * (1 - t) * len;
+    x += px * curveAmount;
+    y += py * curveAmount;
+  }
+
+  return [x, y];
+}
+
+// ===== Drawing =====
+function render() {
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+  // Draw grid
+  if (document.getElementById('showGrid').checked) {
+    ctx.strokeStyle = '#21262d';
+    ctx.lineWidth = 0.5;
+    const gridSize = 20;
+    for (let i = 0; i <= gridSize; i++) {
+      const pos = i * CANVAS_SIZE / gridSize;
+      ctx.beginPath();
+      ctx.moveTo(pos, 0);
+      ctx.lineTo(pos, CANVAS_SIZE);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, pos);
+      ctx.lineTo(CANVAS_SIZE, pos);
+      ctx.stroke();
+    }
+  }
+
+  // Draw geodesic paths
+  if (document.getElementById('showPaths').checked) {
+    for (const point of points) {
+      drawGeodesicPath(point.start, point.end);
+    }
+  }
+
+  // Draw points
+  for (const point of points) {
+    // Start point (blue)
+    const [sx, sy] = toCanvas(...point.start);
+    ctx.fillStyle = '#3b82f6';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // End point (green)
+    const [ex, ey] = toCanvas(...point.end);
+    ctx.fillStyle = '#22c55e';
+    ctx.beginPath();
+    ctx.arc(ex, ey, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Current position (yellow)
+    const current = geodesic(point.start, point.end, t, curvature);
+    const [cx, cy] = toCanvas(...current);
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Update stats
+  document.getElementById('numPoints').textContent = points.length;
+  document.getElementById('timeVal').textContent = t.toFixed(2);
+}
+
+function drawGeodesicPath(p0, p1) {
+  ctx.strokeStyle = '#14b8a6';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+
+  const steps = 50;
+  for (let i = 0; i <= steps; i++) {
+    const tt = i / steps;
+    const [x, y] = geodesic(p0, p1, tt, curvature);
+    const [cx, cy] = toCanvas(x, y);
+
+    if (i === 0) {
+      ctx.moveTo(cx, cy);
+    } else {
+      ctx.lineTo(cx, cy);
+    }
+  }
+
+  ctx.stroke();
+}
+
+// ===== User Input =====
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) * (CANVAS_SIZE / rect.width);
+  const cy = (e.clientY - rect.top) * (CANVAS_SIZE / rect.height);
+  const [x, y] = fromCanvas(cx, cy);
+
+  if (clickState === 'start') {
+    points.push({ start: [x, y], end: [x, y] });
+    clickState = 'end';
+  } else {
+    points[points.length - 1].end = [x, y];
+    clickState = 'start';
+  }
+
+  render();
+});
+
+// ===== Animation =====
+function animate() {
+  if (animationId) cancelAnimationFrame(animationId);
+
+  t = 0;
+  const duration = 2000;
+  const startTime = performance.now();
+
+  function step(currentTime) {
+    const elapsed = currentTime - startTime;
+    t = Math.min(1, elapsed / duration);
+
+    document.getElementById('timeSlider').value = t;
+    render();
+
+    if (t < 1) {
+      animationId = requestAnimationFrame(step);
+    }
+  }
+
+  animationId = requestAnimationFrame(step);
+}
+
+function resetAnimation() {
+  if (animationId) cancelAnimationFrame(animationId);
+  t = 0;
+  document.getElementById('timeSlider').value = 0;
+  render();
+}
+
+// ===== Presets =====
+function loadPreset() {
+  points = [];
+
+  // Create a fan of geodesics to show curvature effect
+  const n = 5;
+  for (let i = 0; i < n; i++) {
+    const angle = (i / (n - 1) - 0.5) * Math.PI * 0.6;
+    const startX = -0.6;
+    const startY = (i / (n - 1) - 0.5) * 0.8;
+    const endX = 0.6;
+    const endY = (i / (n - 1) - 0.5) * 0.8;
+
+    points.push({
+      start: [startX, startY],
+      end: [endX, endY]
+    });
+  }
+
+  clickState = 'start';
+  render();
+}
+
+// ===== Event Listeners =====
+document.getElementById('modeGeodesic').onclick = () => {
+  mode = 'geodesic';
+  document.getElementById('modeGeodesic').classList.add('mode-active');
+  document.getElementById('modeInterp').classList.remove('mode-active');
+  document.getElementById('modeFlow').classList.remove('mode-active');
+  document.getElementById('modeVal').textContent = 'Geodesic';
+  render();
+};
+
+document.getElementById('modeInterp').onclick = () => {
+  mode = 'interp';
+  document.getElementById('modeInterp').classList.add('mode-active');
+  document.getElementById('modeGeodesic').classList.remove('mode-active');
+  document.getElementById('modeFlow').classList.remove('mode-active');
+  document.getElementById('modeVal').textContent = 'Interpolation';
+  render();
+};
+
+document.getElementById('modeFlow').onclick = () => {
+  mode = 'flow';
+  document.getElementById('modeFlow').classList.add('mode-active');
+  document.getElementById('modeGeodesic').classList.remove('mode-active');
+  document.getElementById('modeInterp').classList.remove('mode-active');
+  document.getElementById('modeVal').textContent = 'Gradient Flow';
+  render();
+};
+
+document.getElementById('curvPos').onclick = () => {
+  curvature = 1;
+  document.getElementById('curvPos').classList.add('mode-active', 'curvature-pos');
+  document.getElementById('curvZero').classList.remove('mode-active', 'curvature-zero');
+  document.getElementById('curvNeg').classList.remove('mode-active', 'curvature-neg');
+  document.getElementById('curvDisplay').textContent = 'K > 0';
+  document.getElementById('curvDisplay').className = 'font-mono text-green-400';
+  render();
+};
+
+document.getElementById('curvZero').onclick = () => {
+  curvature = 0;
+  document.getElementById('curvZero').classList.add('mode-active', 'curvature-zero');
+  document.getElementById('curvPos').classList.remove('mode-active', 'curvature-pos');
+  document.getElementById('curvNeg').classList.remove('mode-active', 'curvature-neg');
+  document.getElementById('curvDisplay').textContent = 'K = 0';
+  document.getElementById('curvDisplay').className = 'font-mono text-yellow-400';
+  render();
+};
+
+document.getElementById('curvNeg').onclick = () => {
+  curvature = -1;
+  document.getElementById('curvNeg').classList.add('mode-active', 'curvature-neg');
+  document.getElementById('curvPos').classList.remove('mode-active', 'curvature-pos');
+  document.getElementById('curvZero').classList.remove('mode-active', 'curvature-zero');
+  document.getElementById('curvDisplay').textContent = 'K < 0';
+  document.getElementById('curvDisplay').className = 'font-mono text-red-400';
+  render();
+};
+
+document.getElementById('clearBtn').onclick = () => {
+  if (animationId) cancelAnimationFrame(animationId);
+  points = [];
+  t = 0;
+  clickState = 'start';
+  document.getElementById('timeSlider').value = 0;
+  render();
+};
+
+document.getElementById('presetBtn').onclick = loadPreset;
+document.getElementById('animateBtn').onclick = animate;
+document.getElementById('resetBtn').onclick = resetAnimation;
+
+document.getElementById('timeSlider').oninput = () => {
+  t = parseFloat(document.getElementById('timeSlider').value);
+  render();
+};
+
+document.getElementById('curvSlider').oninput = () => {
+  curvatureMag = parseFloat(document.getElementById('curvSlider').value);
+  document.getElementById('curvVal').textContent = curvatureMag.toFixed(1);
+  render();
+};
+
+document.getElementById('showGrid').onchange = render;
+document.getElementById('showPaths').onchange = render;
+
+// ===== Init =====
+render();
+
+renderMathInElement(document.body, {
+  delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
+  throwOnError: false
+});
+</script>
+</body>
+</html>

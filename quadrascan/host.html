@@ -1,0 +1,140 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Pong CRT Host</title>
+<script src="./static/js/pja-iframer.js"></script>
+<script src="./static/js/theme-manager.js"></script>
+<script src="./static/js/pja-sdk.js"></script>
+<link rel="stylesheet" href="./static/css/design-tokens.css">
+<body style="margin:0;background:var(--pja-bg-primary);color:var(--pja-text-primary);font:12px/1.4 var(--pja-font-mono);">
+  <div id="crt-container"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      window.PJAThemeManager = new PJAThemeManager();
+
+      const crtIframer = new PJAIframer({
+        id: 'crt',
+        title: 'CRT Simulator',
+        icon: '📺',
+        src: './crt.iframe.com/crt.simulator.html',
+        buttons: ['reload', 'info', 'cli', 'launch'],
+        logMessages: true
+      });
+
+      crtIframer.render(document.getElementById('crt-container'));
+      setupCRTCommands(crtIframer);
+    });
+
+    function setupCRTCommands(iframer) {
+      let crtAPI = null;
+
+      iframer.on('ready', async () => {
+        try {
+          const iframe = iframer.iframe;
+          const ORIGIN = new URL(iframe.src, window.location.href).origin;
+          crtAPI = await APP.api.attach('crt', iframe, ORIGIN, { timeoutMs: 3000 });
+          iframer.logCLI('success', 'CRT API attached');
+
+          const r = iframe.getBoundingClientRect();
+          crtAPI.viewport.setSize(r.width | 0, r.height | 0, window.devicePixelRatio || 1);
+        } catch (e) {
+          iframer.logCLI('error', `Attach failed: ${e}`);
+        }
+      });
+
+      const ro = new ResizeObserver(() => {
+        if (!crtAPI || !iframer.iframe) return;
+        const r = iframer.iframe.getBoundingClientRect();
+        crtAPI.viewport.setSize(r.width | 0, r.height | 0, window.devicePixelRatio || 1);
+      });
+      ro.observe(document.getElementById('crt-container'));
+
+      const originalExecuteCLI = iframer.executeCLICommand.bind(iframer);
+      iframer.executeCLICommand = function(command) {
+        const parts = command.trim().split(/\s+/);
+        const cmd = (parts[0] || '').toLowerCase();
+        const args = parts.slice(1);
+
+        if (!cmd) return;
+
+        if (cmd === 'crt-help') {
+          this.logCLI('info', 'CRT: tv-on|tv-off|game-on|game-off|degauss');
+          this.logCLI('info', 'CRT: scene <grid|pong>');
+          this.logCLI('info', 'CRT: preset <name>|list');
+          this.logCLI('info', 'CRT: params <json>');
+          this.logCLI('info', 'CRT: status');
+          this.logCLI('info', 'Standard: ping|test|theme|clear|help');
+          return;
+        }
+
+        if (!crtAPI) {
+          this.logCLI('error', 'CRT API not ready');
+          return;
+        }
+
+        switch (cmd) {
+          case 'tv-on':
+            crtAPI.power.tvOn().then(() => this.logCLI('success', 'TV on')).catch(e => this.logCLI('error', String(e)));
+            break;
+
+          case 'tv-off':
+            crtAPI.power.tvOff().then(() => this.logCLI('success', 'TV off')).catch(e => this.logCLI('error', String(e)));
+            break;
+
+          case 'game-on':
+            crtAPI.power.gameOn().then(() => this.logCLI('success', 'Game on')).catch(e => this.logCLI('error', String(e)));
+            break;
+
+          case 'game-off':
+            crtAPI.power.gameOff().then(() => this.logCLI('success', 'Game off')).catch(e => this.logCLI('error', String(e)));
+            break;
+
+          case 'degauss':
+            crtAPI.power.degauss().then(() => this.logCLI('success', 'Degauss')).catch(e => this.logCLI('error', String(e)));
+            break;
+
+          case 'scene':
+            if (!args[0]) {
+              this.logCLI('error', 'Usage: scene <grid|pong>');
+              break;
+            }
+            crtAPI.scene.load(args[0]).then(() => this.logCLI('success', `Scene ${args[0]}`)).catch(e => this.logCLI('error', String(e)));
+            break;
+
+          case 'preset':
+            if (args[0] === 'list') {
+              crtAPI.presets.list().then(list => this.logCLI('info', `Presets: ${list.join(', ')}`)).catch(e => this.logCLI('error', String(e)));
+              break;
+            }
+            if (!args[0]) {
+              this.logCLI('error', 'Usage: preset <name> | preset list');
+              break;
+            }
+            crtAPI.presets.apply(args[0]).then(() => this.logCLI('success', `Preset ${args[0]}`)).catch(e => this.logCLI('error', String(e)));
+            break;
+
+          case 'params':
+            if (args.length === 0) {
+              this.logCLI('error', 'Usage: params {"timing":{"vHoldStability":0.92}}');
+              break;
+            }
+            try {
+              const json = JSON.parse(args.join(' '));
+              crtAPI.setParams(json).then(() => this.logCLI('success', 'Params updated')).catch(e => this.logCLI('error', String(e)));
+            } catch {
+              this.logCLI('error', 'Invalid JSON');
+            }
+            break;
+
+          case 'status':
+            crtAPI.getState().then(s => this.logCLI('info', JSON.stringify(s))).catch(e => this.logCLI('error', String(e)));
+            break;
+
+          default:
+            originalExecuteCLI(command);
+        }
+      };
+    }
+  </script>
+</body>
+

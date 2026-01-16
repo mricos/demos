@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>The Mathematics of Diffusion Models</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <style>
+    :root { --bg: #05070a; --panel: #0d1117; --border: #21262d; }
+    body { background: var(--bg); color: #c9d1d9; font-family: 'Inter', system-ui, sans-serif; }
+    .stat-card { background: #161b22; border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .eq-box { background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 24px 32px; margin: 24px 0; }
+    .eq-box .katex { font-size: 1.8em; }
+    .eq-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+
+    /* Color-coded variables */
+    .var-x { color: #a855f7; font-weight: bold; }
+    .var-s { color: #22d3ee; font-weight: bold; }
+    .var-p { color: #4ade80; font-weight: bold; }
+    .var-sigma { color: #f87171; font-weight: bold; }
+    .var-eps { color: #fbbf24; font-weight: bold; }
+    .var-t { color: #fb923c; font-weight: bold; }
+    .var-theta { color: #60a5fa; font-weight: bold; }
+
+    .prose-section { line-height: 1.8; }
+    .prose-section p { margin-bottom: 1.25rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; margin-bottom: 8px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+  </style>
+</head>
+<body class="p-6">
+
+<article class="max-w-5xl mx-auto">
+
+  <header class="border-b border-gray-800 pb-6 mb-8">
+    <h2 class="text-3xl font-bold text-white">The Mathematics of Diffusion Models</h2>
+    <p class="text-gray-500 mt-2">Score matching, Langevin dynamics, and the connection to optimal transport</p>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Main Content -->
+    <div class="lg:col-span-2 prose-section text-gray-300">
+
+      <!-- Variable Legend -->
+      <div class="eq-box mb-8">
+        <div class="eq-label text-gray-500">Variable Legend</div>
+        <div class="flex flex-wrap text-sm">
+          <span class="legend-item"><span class="legend-dot" style="background:#a855f7"></span><span class="var-x">x</span> Data point</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#22d3ee"></span><span class="var-s">s(x)</span> Score function</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#4ade80"></span><span class="var-p">p(x)</span> Probability density</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#f87171"></span><span class="var-sigma">σ</span> Noise level</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#fbbf24"></span><span class="var-eps">ε</span> Noise / step size</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#fb923c"></span><span class="var-t">t</span> Timestep</span>
+        </div>
+      </div>
+
+      <!-- Section 1: Score Function -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">1. The Score Function</h3>
+
+        <p>The <span class="var-s">score function</span> is the gradient of the log-probability density with respect to the data:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-cyan-400">Score Function Definition</div>
+          <div class="text-center">
+            $$\textcolor{#22d3ee}{s}(\textcolor{#a855f7}{x}) = \nabla_{\textcolor{#a855f7}{x}} \log \textcolor{#4ade80}{p}(\textcolor{#a855f7}{x})$$
+          </div>
+        </div>
+
+        <p>This is a <em>vector field</em> over the data space. At every point <span class="var-x">x</span>, the score <span class="var-s">s(x)</span> points in the direction of steepest increase in probability. Think of it as a map showing "which way to the data."</p>
+
+        <p><strong>Key insight:</strong> You don't need to know the normalizing constant of <span class="var-p">p(x)</span> to compute its score! If <span class="var-p">p(x)</span> = Z<sup>−1</sup>·f(<span class="var-x">x</span>), then <span class="var-s">s(x)</span> = ∇log f(<span class="var-x">x</span>)—the Z cancels out. This makes score-based methods tractable where likelihood-based methods fail.</p>
+      </section>
+
+      <!-- Section 2: Score Matching -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">2. Learning the Score: Denoising Score Matching</h3>
+
+        <p>How do we train a neural network <span class="var-s">s<sub>θ</sub></span> to approximate the true score? The naive approach would require knowing <span class="var-p">p(x)</span>, which we don't have. The solution: <em>denoising score matching</em>.</p>
+
+        <p>Add noise to data points: <span class="var-x">x̃</span> = <span class="var-x">x</span> + <span class="var-sigma">σ</span>·<span class="var-eps">ε</span>, where <span class="var-eps">ε</span> ~ N(0, I). The score of the noisy distribution has a beautiful form:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-cyan-400">Score of Noisy Data</div>
+          <div class="text-center">
+            $$\nabla_{\textcolor{#a855f7}{\tilde{x}}} \log \textcolor{#4ade80}{p}_{\textcolor{#f87171}{\sigma}}(\textcolor{#a855f7}{\tilde{x}}|\textcolor{#a855f7}{x}) = -\frac{\textcolor{#a855f7}{\tilde{x}} - \textcolor{#a855f7}{x}}{\textcolor{#f87171}{\sigma}^2} = -\frac{\textcolor{#fbbf24}{\epsilon}}{\textcolor{#f87171}{\sigma}}$$
+          </div>
+        </div>
+
+        <p>The score points from the noisy point back toward the clean data! This gives us the training objective:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-blue-400">Denoising Score Matching Loss</div>
+          <div class="text-center">
+            $$\mathcal{L}(\textcolor{#60a5fa}{\theta}) = \mathbb{E}_{\textcolor{#a855f7}{x}, \textcolor{#fbbf24}{\epsilon}}\left[\left\|\textcolor{#22d3ee}{s_\theta}(\textcolor{#a855f7}{x} + \textcolor{#f87171}{\sigma}\textcolor{#fbbf24}{\epsilon}) + \frac{\textcolor{#fbbf24}{\epsilon}}{\textcolor{#f87171}{\sigma}}\right\|^2\right]$$
+          </div>
+        </div>
+
+        <p>This is equivalent to training a <em>denoiser</em>! Predicting what noise was added is the same as estimating the score. This is why DDPM and Stable Diffusion train noise predictors.</p>
+      </section>
+
+      <!-- Section 3: Forward Diffusion -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">3. The Forward Process: Data to Noise</h3>
+
+        <p>Define a sequence of noise levels <span class="var-sigma">σ<sub>1</sub></span> < <span class="var-sigma">σ<sub>2</sub></span> < ... < <span class="var-sigma">σ<sub>T</sub></span>. The forward process progressively corrupts data:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-red-400">Forward Diffusion</div>
+          <div class="text-center">
+            $$\textcolor{#a855f7}{x_t} = \textcolor{#a855f7}{x_0} + \textcolor{#f87171}{\sigma_t} \cdot \textcolor{#fbbf24}{\epsilon}, \quad \textcolor{#fbbf24}{\epsilon} \sim \mathcal{N}(0, I)$$
+          </div>
+        </div>
+
+        <p>As <span class="var-t">t</span> increases, the data distribution <span class="var-p">p<sub>0</sub></span>(<span class="var-x">x</span>) gradually transforms into a simple Gaussian <span class="var-p">p<sub>T</sub></span>(<span class="var-x">x</span>) ≈ N(0, <span class="var-sigma">σ<sub>T</sub></span>²I). Information is destroyed, structure is lost—pure noise remains.</p>
+      </section>
+
+      <!-- Section 4: Reverse Diffusion -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">4. The Reverse Process: Noise to Data</h3>
+
+        <p>The magic: if we know the score at each noise level, we can <em>reverse</em> the diffusion! Starting from noise, we follow the score field back toward data:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-green-400">Langevin Dynamics (Reverse Sampling)</div>
+          <div class="text-center">
+            $$\textcolor{#a855f7}{x_{t-1}} = \textcolor{#a855f7}{x_t} + \textcolor{#fbbf24}{\epsilon} \cdot \textcolor{#22d3ee}{s_\theta}(\textcolor{#a855f7}{x_t}, \textcolor{#fb923c}{t}) + \sqrt{2\textcolor{#fbbf24}{\epsilon}} \cdot \textcolor{#fbbf24}{z}$$
+          </div>
+        </div>
+
+        <p>where <span class="var-eps">z</span> ~ N(0, I) is fresh noise for exploration. The score <span class="var-s">s<sub>θ</sub></span>(<span class="var-x">x<sub>t</sub></span>, <span class="var-t">t</span>) tells us which direction leads toward data at noise level <span class="var-t">t</span>. Step by step, the noise organizes itself into structured data.</p>
+
+        <p>This is <em>Langevin dynamics</em>: gradient ascent on log-probability plus noise for exploration. The algorithm samples from the data distribution without ever computing likelihoods!</p>
+      </section>
+
+      <!-- Section 5: Earth Mover / Optimal Transport -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">5. Connection to Optimal Transport</h3>
+
+        <p>The diffusion process can be viewed through the lens of <em>optimal transport</em>. We're moving probability mass from the noise distribution to the data distribution along optimal paths.</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-orange-400">Earth Mover's Distance (Wasserstein-2)</div>
+          <div class="text-center">
+            $$W_2(\textcolor{#4ade80}{p}, \textcolor{#4ade80}{q}) = \inf_{\gamma} \left(\int \|\textcolor{#a855f7}{x} - \textcolor{#a855f7}{y}\|^2 d\gamma(\textcolor{#a855f7}{x}, \textcolor{#a855f7}{y})\right)^{1/2}$$
+          </div>
+        </div>
+
+        <p>The <em>Earth Mover's Distance</em> (Wasserstein distance) measures how much "work" is needed to transform distribution <span class="var-p">p</span> into <span class="var-p">q</span>. The optimal transport map moves each point along the shortest path.</p>
+
+        <p><strong>Flow Matching</strong> (2022): A newer perspective shows diffusion models learn the <em>velocity field</em> of optimal transport between noise and data. This view leads to faster sampling and connections to continuous normalizing flows.</p>
+      </section>
+
+      <!-- Section 6: Bayesian Interpretation -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">6. Bayesian Interpretation</h3>
+
+        <p>Diffusion models have a natural Bayesian interpretation. The noisy observation <span class="var-x">x<sub>t</sub></span> is evidence; we want to infer the clean data <span class="var-x">x<sub>0</sub></span>:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-green-400">Posterior via Bayes</div>
+          <div class="text-center">
+            $$\textcolor{#4ade80}{p}(\textcolor{#a855f7}{x_0}|\textcolor{#a855f7}{x_t}) \propto \textcolor{#4ade80}{p}(\textcolor{#a855f7}{x_t}|\textcolor{#a855f7}{x_0}) \cdot \textcolor{#4ade80}{p}(\textcolor{#a855f7}{x_0})$$
+          </div>
+        </div>
+
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li><strong>Prior <span class="var-p">p</span>(<span class="var-x">x<sub>0</sub></span>):</strong> The data distribution (learned implicitly)</li>
+          <li><strong>Likelihood <span class="var-p">p</span>(<span class="var-x">x<sub>t</sub></span>|<span class="var-x">x<sub>0</sub></span>):</strong> Gaussian noise model (known exactly)</li>
+          <li><strong>Posterior <span class="var-p">p</span>(<span class="var-x">x<sub>0</sub></span>|<span class="var-x">x<sub>t</sub></span>):</strong> Denoised estimate (what we want)</li>
+        </ul>
+
+        <p>The score function gives us the gradient of the posterior! Langevin dynamics performs approximate Bayesian inference, sampling from the posterior distribution of clean data given noisy observations.</p>
+      </section>
+
+      <!-- Section 7: Text Conditioning -->
+      <section class="mb-8">
+        <h3 class="text-xl font-bold text-white mb-4">7. From Score to Stable Diffusion</h3>
+
+        <p>Stable Diffusion extends these ideas with three key innovations:</p>
+
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li><strong>Latent Space:</strong> Diffuse in compressed VAE latent space (64×64×4) instead of pixel space (512×512×3). Much faster!</li>
+          <li><strong>U-Net Denoiser:</strong> Predicts noise <span class="var-eps">ε<sub>θ</sub></span>(<span class="var-x">x<sub>t</sub></span>, <span class="var-t">t</span>, <span class="var-c">c</span>) conditioned on timestep and text embedding</li>
+          <li><strong>Classifier-Free Guidance:</strong> Amplify the text-conditional score: <span class="var-s">s̃</span> = <span class="var-s">s</span><sub>uncond</sub> + w·(<span class="var-s">s</span><sub>cond</sub> − <span class="var-s">s</span><sub>uncond</sub>)</li>
+        </ul>
+
+        <div class="eq-box">
+          <div class="eq-label text-orange-400">Classifier-Free Guidance</div>
+          <div class="text-center">
+            $$\textcolor{#22d3ee}{\tilde{s}}(\textcolor{#a855f7}{x}, c) = \textcolor{#22d3ee}{s}(\textcolor{#a855f7}{x}, \varnothing) + w \cdot \left(\textcolor{#22d3ee}{s}(\textcolor{#a855f7}{x}, c) - \textcolor{#22d3ee}{s}(\textcolor{#a855f7}{x}, \varnothing)\right)$$
+          </div>
+        </div>
+
+        <p>The guidance weight <em>w</em> controls how strongly the generation follows the text prompt. Higher w = more adherence to prompt (but less diversity). This is why you see "guidance scale" in SD interfaces.</p>
+      </section>
+
+    </div>
+
+    <!-- Sidebar: Quick Reference -->
+    <aside class="stat-card h-fit lg:sticky lg:top-6">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-6">Equation Summary</h3>
+
+      <div class="space-y-5">
+        <!-- Score Function -->
+        <div class="bg-black/40 rounded-lg p-3 border border-cyan-500/30">
+          <div class="text-sm font-bold text-cyan-400 mb-2">Score Function</div>
+          <div class="text-base">$\textcolor{#22d3ee}{s}(\textcolor{#a855f7}{x}) = \nabla_{\textcolor{#a855f7}{x}} \log \textcolor{#4ade80}{p}(\textcolor{#a855f7}{x})$</div>
+        </div>
+
+        <!-- Forward Process -->
+        <div class="bg-black/40 rounded-lg p-3 border border-red-500/30">
+          <div class="text-sm font-bold text-red-400 mb-2">Forward Process</div>
+          <div class="text-base">$\textcolor{#a855f7}{x_t} = \textcolor{#a855f7}{x_0} + \textcolor{#f87171}{\sigma_t} \textcolor{#fbbf24}{\epsilon}$</div>
+        </div>
+
+        <!-- Denoising Loss -->
+        <div class="bg-black/40 rounded-lg p-3 border border-blue-500/30">
+          <div class="text-sm font-bold text-blue-400 mb-2">Denoising Loss</div>
+          <div class="text-base">$\|\textcolor{#22d3ee}{s_\theta}(\textcolor{#a855f7}{\tilde{x}}) + \textcolor{#fbbf24}{\epsilon}/\textcolor{#f87171}{\sigma}\|^2$</div>
+        </div>
+
+        <!-- Langevin Dynamics -->
+        <div class="bg-black/40 rounded-lg p-3 border border-green-500/30">
+          <div class="text-sm font-bold text-green-400 mb-2">Langevin Dynamics</div>
+          <div class="text-base">$\textcolor{#a855f7}{x'} = \textcolor{#a855f7}{x} + \textcolor{#fbbf24}{\epsilon} \textcolor{#22d3ee}{s}(\textcolor{#a855f7}{x}) + \sqrt{2\textcolor{#fbbf24}{\epsilon}}\,\textcolor{#fbbf24}{z}$</div>
+        </div>
+
+        <!-- Wasserstein Distance -->
+        <div class="bg-black/40 rounded-lg p-3 border border-orange-500/30">
+          <div class="text-sm font-bold text-orange-400 mb-2">Wasserstein Distance</div>
+          <div class="text-base">$W_2(\textcolor{#4ade80}{p},\textcolor{#4ade80}{q}) = \inf_\gamma \sqrt{\int\|\textcolor{#a855f7}{x}-\textcolor{#a855f7}{y}\|^2 d\gamma}$</div>
+        </div>
+
+        <!-- Classifier-Free Guidance -->
+        <div class="bg-black/40 rounded-lg p-3 border border-purple-500/30">
+          <div class="text-sm font-bold text-purple-400 mb-2">Classifier-Free Guidance</div>
+          <div class="text-base">$\textcolor{#22d3ee}{\tilde{s}} = \textcolor{#22d3ee}{s_\varnothing} + w(\textcolor{#22d3ee}{s_c} - \textcolor{#22d3ee}{s_\varnothing})$</div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-gray-700">
+        <h4 class="text-sm font-bold text-white mb-2">Key Insight</h4>
+        <p class="text-sm text-gray-300 leading-relaxed">Denoising and score estimation are equivalent! Training a neural net to predict <span class="var-eps">noise ε</span> is the same as learning <span class="var-s">∇log p</span>. This sidesteps the intractable normalization constant.</p>
+      </div>
+    </aside>
+
+  </div>
+</article>
+
+<script>
+renderMathInElement(document.body, {
+  delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
+  throwOnError: false
+});
+</script>
+</body>
+</html>

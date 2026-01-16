@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>The Riemannian Structure of Wasserstein Space</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <style>
+    :root { --bg: #05070a; --panel: #0d1117; --border: #21262d; }
+    body { background: var(--bg); color: #c9d1d9; font-family: 'Inter', system-ui, sans-serif; }
+    .stat-card { background: #161b22; border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .eq-box { background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 24px 32px; margin: 24px 0; }
+    .eq-box .katex { font-size: 1.5em; }
+    .eq-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+
+    .var-g { color: #14b8a6; font-weight: bold; }
+    .var-w { color: #a855f7; font-weight: bold; }
+    .var-ent { color: #f97316; font-weight: bold; }
+    .var-rho { color: #3b82f6; font-weight: bold; }
+    .var-k { color: #22c55e; font-weight: bold; }
+    .var-t { color: #fbbf24; font-weight: bold; }
+    .var-v { color: #ec4899; font-weight: bold; }
+    .var-ric { color: #ef4444; font-weight: bold; }
+    .var-phi { color: #8b5cf6; font-weight: bold; }
+
+    .prose-section { line-height: 1.8; }
+    .prose-section p { margin-bottom: 1.25rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; margin-bottom: 8px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+    .def-box { background: #1a1f2e; border-left: 3px solid #3b82f6; padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+    .thm-box { background: #1a1f2e; border-left: 3px solid #22c55e; padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+    .rmk-box { background: #1a1f2e; border-left: 3px solid #f97316; padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+  </style>
+</head>
+<body class="p-6">
+
+<article class="max-w-5xl mx-auto">
+
+  <header class="border-b border-gray-800 pb-6 mb-8">
+    <h1 class="text-3xl font-bold text-white">The Riemannian Structure of Wasserstein Space</h1>
+    <p class="text-gray-500 mt-2">Otto calculus, gradient flows, displacement convexity, and synthetic curvature</p>
+    <p class="text-gray-600 text-sm mt-4">Prerequisites: Basic differential geometry (tangent spaces, metrics), measure theory, and familiarity with optimal transport</p>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Main Content -->
+    <div class="lg:col-span-2 prose-section text-gray-300">
+
+      <!-- Variable Legend -->
+      <div class="eq-box mb-8">
+        <div class="eq-label text-gray-500">Notation</div>
+        <div class="flex flex-wrap text-sm">
+          <span class="legend-item"><span class="legend-dot" style="background:#14b8a6"></span><span class="var-g">g</span> Riemannian metric</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#a855f7"></span><span class="var-w">W₂</span> Wasserstein-2 distance</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#f97316"></span><span class="var-ent">H</span> Entropy</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#3b82f6"></span><span class="var-rho">ρ</span> Probability density</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#22c55e"></span><span class="var-k">K</span> Curvature bound</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#ef4444"></span><span class="var-ric">Ric</span> Ricci curvature</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#8b5cf6"></span><span class="var-phi">φ</span> Kantorovich potential</span>
+        </div>
+      </div>
+
+      <!-- Section 1: Riemannian Manifolds Review -->
+      <section class="mb-12">
+        <h2 class="text-xl font-bold text-white mb-4">1. Riemannian Manifolds: Quick Review</h2>
+
+        <p>A <em>Riemannian manifold</em> (M, <span class="var-g">g</span>) is a smooth manifold equipped with a smoothly-varying inner product <span class="var-g">g</span><sub>p</sub> : T<sub>p</sub>M × T<sub>p</sub>M → ℝ on each tangent space. This structure enables us to measure lengths, angles, and volumes intrinsically.</p>
+
+        <div class="def-box">
+          <div class="text-blue-400 font-bold text-sm mb-2">Definition (Riemannian Metric)</div>
+          <p class="text-gray-300 text-sm mb-0">In local coordinates, the metric is specified by a positive-definite matrix <span class="var-g">g</span><sub>ij</sub>(x), and the squared length element is:</p>
+          <div class="text-center mt-3">$ds^2 = \textcolor{#14b8a6}{g}_{ij}(x) \, dx^i \, dx^j$</div>
+        </div>
+
+        <p><strong>Geodesics</strong> are curves γ(t) that locally minimize arc length. They satisfy the geodesic equation:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-teal-400">Geodesic Equation</div>
+          <div class="text-center">
+            $$\ddot{\gamma}^k + \Gamma^k_{ij} \dot{\gamma}^i \dot{\gamma}^j = 0$$
+          </div>
+        </div>
+
+        <p>where Γ<sup>k</sup><sub>ij</sub> are the Christoffel symbols encoding how the coordinate frame rotates along the manifold.</p>
+
+        <p><strong>Curvature</strong> measures the failure of parallel transport to be path-independent. The <span class="var-ric">Ricci curvature</span> <span class="var-ric">Ric</span>(v, v) measures how the volume of a small ball grows as you move in direction v:</p>
+
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li><span class="var-ric">Ric</span> > 0: Volumes grow slower than in flat space (geodesics converge)</li>
+          <li><span class="var-ric">Ric</span> = 0: Flat, Euclidean-like behavior</li>
+          <li><span class="var-ric">Ric</span> < 0: Volumes grow faster (geodesics diverge)</li>
+        </ul>
+      </section>
+
+      <!-- Section 2: Wasserstein Space -->
+      <section class="mb-12">
+        <h2 class="text-xl font-bold text-white mb-4">2. The Space of Probability Measures</h2>
+
+        <p>Let M be a Riemannian manifold. Define P₂(M) as the space of Borel probability measures μ on M with finite second moment: ∫ d(x, x₀)² dμ(x) < ∞ for some (hence all) x₀ ∈ M.</p>
+
+        <div class="def-box">
+          <div class="text-blue-400 font-bold text-sm mb-2">Definition (Wasserstein-2 Distance)</div>
+          <p class="text-gray-300 text-sm mb-0">For μ, ν ∈ P₂(M), the <span class="var-w">Wasserstein-2 distance</span> is:</p>
+          <div class="text-center mt-3">$\textcolor{#a855f7}{W_2}(\mu, \nu)^2 = \inf_{\gamma \in \Pi(\mu,\nu)} \int_{M \times M} d(x,y)^2 \, d\gamma(x,y)$</div>
+          <p class="text-gray-500 text-xs mt-2">where Π(μ,ν) is the set of couplings with marginals μ and ν.</p>
+        </div>
+
+        <p>The space (P₂(M), <span class="var-w">W₂</span>) is a complete metric space. But Otto's key observation is that it has much more structure: it is (formally) an <em>infinite-dimensional Riemannian manifold</em>.</p>
+      </section>
+
+      <!-- Section 3: Otto Calculus -->
+      <section class="mb-12">
+        <h2 class="text-xl font-bold text-white mb-4">3. Otto Calculus: The Riemannian Structure</h2>
+
+        <p>Consider the subset P₂<sup>ac</sup>(M) of absolutely continuous measures, which we can identify with their densities <span class="var-rho">ρ</span>. What is the "tangent space" at <span class="var-rho">ρ</span>?</p>
+
+        <p>A tangent vector represents an infinitesimal perturbation of <span class="var-rho">ρ</span>. The continuity equation constrains how densities can change:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-blue-400">Continuity Equation</div>
+          <div class="text-center">
+            $$\partial_{\textcolor{#fbbf24}{t}} \textcolor{#3b82f6}{\rho} + \nabla \cdot (\textcolor{#3b82f6}{\rho} \textcolor{#ec4899}{v}) = 0$$
+          </div>
+        </div>
+
+        <p>A velocity field <span class="var-v">v</span> generates a flow that transports mass. Otto identified the tangent space with gradient vector fields:</p>
+
+        <div class="def-box">
+          <div class="text-blue-400 font-bold text-sm mb-2">Definition (Otto's Tangent Space)</div>
+          <p class="text-gray-300 text-sm mb-0">The tangent space at <span class="var-rho">ρ</span> is T<sub>ρ</sub>P₂ = {∇<span class="var-phi">φ</span> : <span class="var-phi">φ</span> ∈ C<sup>∞</sup>(M)}, with inner product:</p>
+          <div class="text-center mt-3">$\langle \nabla \textcolor{#8b5cf6}{\phi}_1, \nabla \textcolor{#8b5cf6}{\phi}_2 \rangle_{\textcolor{#3b82f6}{\rho}} = \int_M \langle \nabla \textcolor{#8b5cf6}{\phi}_1, \nabla \textcolor{#8b5cf6}{\phi}_2 \rangle_{\textcolor{#14b8a6}{g}} \, d\textcolor{#3b82f6}{\rho}$</div>
+        </div>
+
+        <p>This inner product has a beautiful interpretation: it measures the <em>kinetic energy</em> of the velocity field v = ∇φ, weighted by the mass distribution ρ.</p>
+
+        <div class="thm-box">
+          <div class="text-green-400 font-bold text-sm mb-2">Theorem (Benamou-Brenier)</div>
+          <p class="text-gray-300 text-sm mb-0">The Wasserstein distance equals the geodesic distance in Otto's metric:</p>
+          <div class="text-center mt-3">$\textcolor{#a855f7}{W_2}(\mu_0, \mu_1)^2 = \inf_{\rho, v} \int_0^1 \int_M |\textcolor{#ec4899}{v}|^2 \textcolor{#3b82f6}{\rho} \, dx \, dt$</div>
+          <p class="text-gray-500 text-xs mt-2">subject to the continuity equation with ρ(0) = μ₀, ρ(1) = μ₁.</p>
+        </div>
+
+        <p>The infimum is achieved by the optimal transport velocity field, and the minimizing path is the W₂ geodesic!</p>
+      </section>
+
+      <!-- Section 4: Geodesics and McCann Interpolation -->
+      <section class="mb-12">
+        <h2 class="text-xl font-bold text-white mb-4">4. Geodesics: McCann's Displacement Interpolation</h2>
+
+        <p>On ℝⁿ, if T is the optimal transport map from μ₀ to μ₁ (given by Brenier's theorem as T = ∇φ for convex φ), the geodesic has a simple form:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-yellow-400">McCann Interpolation</div>
+          <div class="text-center">
+            $$\mu_{\textcolor{#fbbf24}{t}} = \left[(1-\textcolor{#fbbf24}{t})\text{Id} + \textcolor{#fbbf24}{t} T\right]_\# \mu_0$$
+          </div>
+        </div>
+
+        <p>Each particle at position x moves along a straight line to T(x). At time <span class="var-t">t</span>, it's at position (1−<span class="var-t">t</span>)x + <span class="var-t">t</span>T(x). The entire distribution "displaces" along these linear paths.</p>
+
+        <div class="rmk-box">
+          <div class="text-orange-400 font-bold text-sm mb-2">Important Distinction</div>
+          <p class="text-gray-300 text-sm mb-0"><strong>Displacement interpolation</strong> (μ<sub>t</sub> = T<sub>t#</sub>μ₀) moves mass along geodesics.</p>
+          <p class="text-gray-300 text-sm mb-0 mt-2"><strong>Linear interpolation</strong> ((1−t)ρ₀ + tρ₁) blends density values pointwise.</p>
+          <p class="text-gray-500 text-xs mt-2">These are fundamentally different! Displacement interpolation is the geodesic in W₂; linear interpolation is generally not.</p>
+        </div>
+
+        <p>On curved manifolds M, the formula generalizes using exponential maps: particles move along geodesics of M, not straight lines.</p>
+      </section>
+
+      <!-- Section 5: Gradient Flows -->
+      <section class="mb-12">
+        <h2 class="text-xl font-bold text-white mb-4">5. Gradient Flows in Wasserstein Space</h2>
+
+        <p>Given a functional F : P₂(M) → ℝ, its <em>gradient flow</em> is the curve ρ(t) that descends F as steeply as possible in the W₂ metric:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-pink-400">Wasserstein Gradient Flow</div>
+          <div class="text-center">
+            $$\partial_{\textcolor{#fbbf24}{t}} \textcolor{#3b82f6}{\rho} = -\nabla_{\textcolor{#a855f7}{W}} F(\textcolor{#3b82f6}{\rho})$$
+          </div>
+        </div>
+
+        <p>The Wasserstein gradient ∇<sub>W</sub>F is defined via the first variation: for any test velocity v = ∇φ,</p>
+        <div class="text-center my-4">$\langle \nabla_W F, \nabla\phi \rangle_\rho = \frac{d}{d\epsilon}\Big|_{\epsilon=0} F(\rho_\epsilon)$</div>
+
+        <p>where ρ<sub>ε</sub> is the pushforward of ρ by the flow of v.</p>
+
+        <div class="thm-box">
+          <div class="text-green-400 font-bold text-sm mb-2">Theorem (Otto 2001)</div>
+          <p class="text-gray-300 text-sm mb-0">Many classical PDEs are gradient flows of natural functionals:</p>
+          <table class="w-full text-sm mt-3">
+            <tr class="border-b border-gray-700">
+              <td class="py-2 text-blue-400">Heat equation</td>
+              <td class="py-2">∂<sub>t</sub>ρ = Δρ</td>
+              <td class="py-2">F = Entropy</td>
+            </tr>
+            <tr class="border-b border-gray-700">
+              <td class="py-2 text-purple-400">Fokker-Planck</td>
+              <td class="py-2">∂<sub>t</sub>ρ = Δρ + ∇·(ρ∇V)</td>
+              <td class="py-2">F = Free energy</td>
+            </tr>
+            <tr class="border-b border-gray-700">
+              <td class="py-2 text-green-400">Porous medium</td>
+              <td class="py-2">∂<sub>t</sub>ρ = Δ(ρ<sup>m</sup>)</td>
+              <td class="py-2">F = Rényi entropy</td>
+            </tr>
+            <tr>
+              <td class="py-2 text-orange-400">Aggregation</td>
+              <td class="py-2">∂<sub>t</sub>ρ = ∇·(ρ∇W*ρ)</td>
+              <td class="py-2">F = Interaction</td>
+            </tr>
+          </table>
+        </div>
+
+        <p>The <span class="var-ent">entropy functional</span> is particularly important:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-orange-400">Boltzmann Entropy</div>
+          <div class="text-center">
+            $$\textcolor{#f97316}{H}(\textcolor{#3b82f6}{\rho}) = \int_M \textcolor{#3b82f6}{\rho}(x) \log \textcolor{#3b82f6}{\rho}(x) \, dx$$
+          </div>
+        </div>
+
+        <p>Its Wasserstein gradient is ∇<sub>W</sub><span class="var-ent">H</span> = ∇(log ρ + 1) = ∇log ρ. The gradient flow ∂<sub>t</sub>ρ = −∇·(ρ∇log ρ) = Δρ is exactly the heat equation!</p>
+
+        <div class="rmk-box">
+          <div class="text-orange-400 font-bold text-sm mb-2">Connection to Score-Based Diffusion</div>
+          <p class="text-gray-300 text-sm mb-0">The score function s(x) = ∇log ρ(x) is precisely the Wasserstein gradient of entropy! Score-based generative models perform Wasserstein gradient ascent on log-likelihood.</p>
+        </div>
+      </section>
+
+      <!-- Section 6: Displacement Convexity -->
+      <section class="mb-12">
+        <h2 class="text-xl font-bold text-white mb-4">6. Displacement Convexity</h2>
+
+        <p>A functional F : P₂(M) → ℝ is <em>displacement convex</em> (or geodesically convex) if for any W₂ geodesic μ<sub>t</sub>:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-green-400">Displacement Convexity</div>
+          <div class="text-center">
+            $$F(\mu_{\textcolor{#fbbf24}{t}}) \leq (1-\textcolor{#fbbf24}{t}) F(\mu_0) + \textcolor{#fbbf24}{t} F(\mu_1)$$
+          </div>
+        </div>
+
+        <div class="thm-box">
+          <div class="text-green-400 font-bold text-sm mb-2">Theorem (McCann 1997)</div>
+          <p class="text-gray-300 text-sm mb-0">On ℝⁿ, the entropy <span class="var-ent">H</span>(ρ) = ∫ρ log ρ is displacement convex.</p>
+        </div>
+
+        <p>On curved manifolds, convexity of entropy depends on curvature. This is where the Lott-Sturm-Villani theory enters.</p>
+      </section>
+
+      <!-- Section 7: Synthetic Ricci Curvature -->
+      <section class="mb-12">
+        <h2 class="text-xl font-bold text-white mb-4">7. Synthetic Ricci Curvature: The CD(K,N) Condition</h2>
+
+        <p>The breakthrough insight of Lott-Villani (2009) and Sturm (2006): Ricci curvature bounds can be <em>characterized</em> by convexity of entropy along W₂ geodesics.</p>
+
+        <div class="def-box">
+          <div class="text-blue-400 font-bold text-sm mb-2">Definition (CD(K,∞) Condition)</div>
+          <p class="text-gray-300 text-sm mb-0">A metric measure space (X, d, m) satisfies CD(<span class="var-k">K</span>, ∞) if for any two measures μ₀, μ₁ ∈ P₂(X), there exists a W₂ geodesic μ<sub>t</sub> such that:</p>
+          <div class="text-center mt-3">$\textcolor{#f97316}{H}(\mu_{\textcolor{#fbbf24}{t}}) \leq (1-\textcolor{#fbbf24}{t}) \textcolor{#f97316}{H}(\mu_0) + \textcolor{#fbbf24}{t} \textcolor{#f97316}{H}(\mu_1) - \frac{\textcolor{#22c55e}{K}}{2}\textcolor{#fbbf24}{t}(1-\textcolor{#fbbf24}{t})\textcolor{#a855f7}{W_2}^2(\mu_0, \mu_1)$</div>
+        </div>
+
+        <p>The term −(K/2)t(1−t)W₂² is the <span class="var-k">K</span>-convexity correction. When <span class="var-k">K</span> > 0, entropy is "more convex" than in flat space.</p>
+
+        <div class="thm-box">
+          <div class="text-green-400 font-bold text-sm mb-2">Theorem (Lott-Villani, Sturm)</div>
+          <p class="text-gray-300 text-sm mb-0">For a smooth Riemannian manifold (M, g) with volume measure:</p>
+          <p class="text-gray-300 text-sm mt-2 text-center">CD(<span class="var-k">K</span>, ∞) holds ⟺ <span class="var-ric">Ric</span> ≥ <span class="var-k">K</span>g (Ricci curvature bounded below by K)</p>
+        </div>
+
+        <p>This is extraordinary: a purely metric/measure-theoretic condition (convexity of entropy along optimal transport geodesics) captures the differential-geometric notion of Ricci curvature!</p>
+
+        <p><strong>Why "synthetic"?</strong> This definition makes sense on:</p>
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li>Smooth manifolds (recovers classical Ricci)</li>
+          <li>Metric spaces without smooth structure</li>
+          <li>Discrete spaces like graphs</li>
+          <li>Limits of manifolds (Gromov-Hausdorff limits)</li>
+          <li>Sub-Riemannian manifolds</li>
+        </ul>
+      </section>
+
+      <!-- Section 8: Consequences -->
+      <section class="mb-12">
+        <h2 class="text-xl font-bold text-white mb-4">8. Consequences of Curvature Bounds</h2>
+
+        <p>Ricci curvature bounds have profound implications:</p>
+
+        <div class="thm-box">
+          <div class="text-green-400 font-bold text-sm mb-2">Consequences of Ric ≥ K > 0</div>
+          <ul class="text-gray-300 text-sm space-y-2 mt-2">
+            <li><strong>Bonnet-Myers:</strong> Diameter is bounded by π/√K</li>
+            <li><strong>Bishop-Gromov:</strong> Volume growth is controlled</li>
+            <li><strong>Poincaré inequality:</strong> Spectral gap ≥ K</li>
+            <li><strong>Log-Sobolev:</strong> Fast convergence to equilibrium</li>
+            <li><strong>Concentration:</strong> Measures concentrate on typical sets</li>
+          </ul>
+        </div>
+
+        <p><strong>For gradient flows:</strong> If <span class="var-ric">Ric</span> ≥ <span class="var-k">K</span>, the heat equation converges to equilibrium exponentially fast with rate <span class="var-k">K</span>:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-teal-400">Exponential Convergence</div>
+          <div class="text-center">
+            $$\textcolor{#a855f7}{W_2}(\rho_{\textcolor{#fbbf24}{t}}, \rho_\infty) \leq e^{-\textcolor{#22c55e}{K}\textcolor{#fbbf24}{t}} \textcolor{#a855f7}{W_2}(\rho_0, \rho_\infty)$$
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 9: Applications to ML -->
+      <section class="mb-8">
+        <h2 class="text-xl font-bold text-white mb-4">9. Implications for Machine Learning</h2>
+
+        <p>This geometric framework directly impacts generative modeling:</p>
+
+        <div class="bg-black/30 rounded-lg p-4 my-4">
+          <table class="w-full text-sm">
+            <tr class="border-b border-gray-700">
+              <th class="text-left py-2 text-gray-500">Geometric Concept</th>
+              <th class="text-left py-2 text-gray-500">ML Interpretation</th>
+            </tr>
+            <tr class="border-b border-gray-800">
+              <td class="py-2 text-teal-400">W₂ geodesic</td>
+              <td class="py-2">Optimal interpolation between distributions</td>
+            </tr>
+            <tr class="border-b border-gray-800">
+              <td class="py-2 text-purple-400">Gradient flow</td>
+              <td class="py-2">Diffusion process / score-based generation</td>
+            </tr>
+            <tr class="border-b border-gray-800">
+              <td class="py-2 text-orange-400">Entropy</td>
+              <td class="py-2">Negative log-likelihood</td>
+            </tr>
+            <tr class="border-b border-gray-800">
+              <td class="py-2 text-green-400">Ric ≥ K > 0</td>
+              <td class="py-2">Fast convergence, good mixing</td>
+            </tr>
+            <tr>
+              <td class="py-2 text-red-400">Ric < 0</td>
+              <td class="py-2">Slow convergence, mode collapse risk</td>
+            </tr>
+          </table>
+        </div>
+
+        <p><strong>Flow matching</strong> learns the velocity field along W₂ geodesics from noise to data. The quality of this approximation depends on the geometry of the data manifold.</p>
+
+        <p><strong>Riemannian score matching</strong> extends score-based diffusion to data on manifolds (e.g., protein structures on SO(3), shapes on Stiefel manifolds). The score function becomes ∇<sub>M</sub>log ρ—the Riemannian gradient.</p>
+
+        <p><strong>The punchline:</strong> Understanding the Riemannian structure of Wasserstein space explains why diffusion models work, predicts their convergence properties, and guides the design of better algorithms for non-Euclidean data.</p>
+      </section>
+
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="stat-card h-fit lg:sticky lg:top-6">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-6">Key Equations</h3>
+
+      <div class="space-y-4">
+        <div class="bg-black/40 rounded-lg p-3 border border-teal-500/30">
+          <div class="text-sm font-bold text-teal-400 mb-2">Otto Metric</div>
+          <div class="text-xs">$\langle \nabla\phi_1, \nabla\phi_2 \rangle_\rho = \int \langle \nabla\phi_1, \nabla\phi_2 \rangle_g d\rho$</div>
+        </div>
+
+        <div class="bg-black/40 rounded-lg p-3 border border-purple-500/30">
+          <div class="text-sm font-bold text-purple-400 mb-2">Benamou-Brenier</div>
+          <div class="text-xs">$W_2^2 = \inf \int_0^1 \int |v|^2 \rho \, dx \, dt$</div>
+        </div>
+
+        <div class="bg-black/40 rounded-lg p-3 border border-yellow-500/30">
+          <div class="text-sm font-bold text-yellow-400 mb-2">McCann Interpolation</div>
+          <div class="text-xs">$\mu_t = [(1-t)\text{Id} + tT]_\# \mu_0$</div>
+        </div>
+
+        <div class="bg-black/40 rounded-lg p-3 border border-orange-500/30">
+          <div class="text-sm font-bold text-orange-400 mb-2">Entropy</div>
+          <div class="text-xs">$H(\rho) = \int \rho \log \rho \, dx$</div>
+        </div>
+
+        <div class="bg-black/40 rounded-lg p-3 border border-pink-500/30">
+          <div class="text-sm font-bold text-pink-400 mb-2">Gradient Flow</div>
+          <div class="text-xs">$\partial_t \rho = -\nabla_W F(\rho)$</div>
+        </div>
+
+        <div class="bg-black/40 rounded-lg p-3 border border-green-500/30">
+          <div class="text-sm font-bold text-green-400 mb-2">CD(K,∞)</div>
+          <div class="text-xs">$H(\mu_t) \leq (1-t)H(\mu_0) + tH(\mu_1) - \frac{K}{2}t(1-t)W_2^2$</div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-gray-700">
+        <h4 class="text-sm font-bold text-white mb-2">Central Insight</h4>
+        <p class="text-sm text-gray-300 leading-relaxed">The space of probability distributions is a Riemannian manifold. PDEs are gradient flows. Curvature bounds = entropy convexity. This geometric view unifies optimal transport, PDEs, and generative modeling.</p>
+      </div>
+
+      <div class="mt-4 pt-4 border-t border-gray-700">
+        <h4 class="text-sm font-bold text-white mb-2">Key Contributors</h4>
+        <ul class="text-xs text-gray-400 space-y-1">
+          <li><span class="text-blue-400">Benamou-Brenier</span> (2000): Fluid dynamics formulation</li>
+          <li><span class="text-purple-400">Otto</span> (2001): Riemannian structure</li>
+          <li><span class="text-green-400">Lott-Villani</span> (2009): Synthetic curvature</li>
+          <li><span class="text-orange-400">Sturm</span> (2006): CD(K,N) theory</li>
+        </ul>
+      </div>
+
+      <div class="mt-4 pt-4 border-t border-gray-700">
+        <h4 class="text-sm font-bold text-white mb-2">Further Reading</h4>
+        <ul class="text-xs text-gray-400 space-y-1">
+          <li>Villani, <em>Optimal Transport: Old and New</em></li>
+          <li>Ambrosio et al., <em>Gradient Flows</em></li>
+          <li>Santambrogio, <em>Optimal Transport for Applied Mathematicians</em></li>
+        </ul>
+      </div>
+    </aside>
+
+  </div>
+</article>
+
+<script>
+renderMathInElement(document.body, {
+  delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
+  throwOnError: false
+});
+</script>
+</body>
+</html>

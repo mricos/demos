@@ -1,0 +1,1042 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Hopfield-Boltzmann Network Visualizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <style>
+    :root { --bg: #05070a; --panel: #0d1117; --border: #21262d; --accent: #38bdf8; }
+    body { background: var(--bg); color: #c9d1d9; font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+    canvas { image-rendering: pixelated; border: 1px solid var(--border); background: #000; }
+    .stat-card { background: #161b22; border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .pattern-btn { transition: all 0.2s; }
+    .pattern-btn:hover { transform: scale(1.05); }
+    .pattern-btn.selected { box-shadow: 0 0 0 2px var(--accent); }
+    .timeline-item { border-left: 2px solid var(--border); }
+    .timeline-item.active { border-left-color: var(--accent); }
+  </style>
+</head>
+<body class="p-6">
+
+<header class="max-w-7xl mx-auto mb-6">
+  <h1 class="text-2xl font-bold text-white">Hopfield-Boltzmann Network</h1>
+  <p class="text-sm text-gray-500 mt-1">From deterministic attractors to stochastic sampling</p>
+</header>
+
+<main class="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-4 gap-4">
+
+  <!-- Column 1: Input & Controls -->
+  <section class="stat-card">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Input</h2>
+
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div>
+        <label class="text-[10px] text-gray-600 block mb-1">Draw / Corrupt</label>
+        <canvas id="cv_input" width="28" height="28" class="w-full aspect-square cursor-crosshair"></canvas>
+      </div>
+      <div>
+        <label class="text-[10px] text-gray-600 block mb-1">Network Output</label>
+        <canvas id="cv_state" width="28" height="28" class="w-full aspect-square"></canvas>
+      </div>
+    </div>
+
+    <div class="flex gap-2 mb-4">
+      <button id="clearBtn" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1.5 rounded text-[10px]">CLEAR</button>
+      <button id="recallBtn" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-1.5 rounded text-[10px] font-bold">RECALL</button>
+    </div>
+
+    <div class="space-y-3 text-[10px]">
+      <div>
+        <label class="text-gray-500">Temperature $T$: <span id="tempVal" class="text-blue-400">0.0</span></label>
+        <input id="temp" type="range" min="0" max="2" step="0.05" value="0" class="w-full">
+        <div class="flex justify-between text-[9px] text-gray-600 mt-1">
+          <span>Hopfield (T=0)</span>
+          <span>Boltzmann (T&gt;0)</span>
+        </div>
+      </div>
+      <div>
+        <label class="text-gray-500">Noise: <span id="noiseVal">30%</span></label>
+        <input id="noise" type="range" min="0" max="70" value="30" class="w-full">
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800">
+      <label class="text-[10px] text-gray-500 block mb-2">Stored Patterns (click to load)</label>
+      <div id="patterns" class="flex gap-2 flex-wrap"></div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800 text-[10px]">
+      <div class="flex justify-between text-gray-500"><span>Energy:</span><span id="energyVal" class="text-blue-400 font-mono">0</span></div>
+      <div class="flex justify-between text-gray-500 mt-1"><span>Iteration:</span><span id="iterVal" class="font-mono">0</span></div>
+      <div class="flex justify-between text-gray-500 mt-1"><span>Result:</span><span id="convergedVal" class="font-mono">-</span></div>
+    </div>
+  </section>
+
+  <!-- Column 2: Neuron Grid Visualization -->
+  <section class="stat-card xl:col-span-2">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Neural Activity (784 neurons)</h2>
+
+    <div class="flex gap-4">
+      <div class="flex-1">
+        <label class="text-[10px] text-gray-600 block mb-1">Neuron States $s_i \in \{-1, +1\}$</label>
+        <canvas id="cv_neurons" width="280" height="280" class="w-full aspect-square"></canvas>
+        <div class="flex justify-between text-[9px] text-gray-600 mt-1">
+          <span class="flex items-center gap-1"><span class="w-2 h-2 bg-black border border-gray-700"></span> Off (-1)</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 bg-white"></span> On (+1)</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 bg-red-500"></span> Just flipped</span>
+        </div>
+      </div>
+      <div class="flex-1">
+        <label class="text-[10px] text-gray-600 block mb-1">Local Fields $h_i = \sum_j W_{ij}s_j$</label>
+        <canvas id="cv_fields" width="280" height="280" class="w-full aspect-square"></canvas>
+        <div class="flex justify-between text-[9px] text-gray-600 mt-1">
+          <span class="flex items-center gap-1"><span class="w-2 h-2 bg-blue-600"></span> Strong negative</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 bg-yellow-400"></span> Strong positive</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4 grid grid-cols-2 gap-4">
+      <div>
+        <label class="text-[10px] text-gray-600 block mb-1">Energy Landscape</label>
+        <canvas id="cv_energy" width="280" height="100" class="w-full border border-gray-800 rounded"></canvas>
+      </div>
+      <div>
+        <label class="text-[10px] text-gray-600 block mb-1">Pattern Similarity</label>
+        <div id="overlaps" class="text-[10px] font-mono space-y-1"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Column 3: History & Theory -->
+  <section class="stat-card">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Historical Context</h2>
+
+    <div class="space-y-3 text-[10px]">
+      <div class="timeline-item pl-3 py-2 active">
+        <div class="text-blue-400 font-bold">1982 - Hopfield</div>
+        <p class="text-gray-500 mt-1">Deterministic binary network. Energy always decreases. Gets stuck in local minima.</p>
+        <div class="mt-1 text-gray-600">$s_i \leftarrow \text{sign}(h_i)$</div>
+      </div>
+
+      <div class="timeline-item pl-3 py-2">
+        <div class="text-purple-400 font-bold">1985 - Boltzmann</div>
+        <p class="text-gray-500 mt-1">Hinton & Sejnowski add stochasticity. Can escape local minima via "simulated annealing".</p>
+        <div class="mt-1 text-gray-600">$P(s_i=1) = \sigma(h_i/T)$</div>
+      </div>
+
+      <div class="timeline-item pl-3 py-2">
+        <div class="text-green-400 font-bold">2006 - RBMs</div>
+        <p class="text-gray-500 mt-1">Restricted Boltzmann Machines. Bipartite graph enables efficient training. Pre-training for deep nets.</p>
+      </div>
+
+      <div class="timeline-item pl-3 py-2">
+        <div class="text-orange-400 font-bold">2020s - Diffusion</div>
+        <p class="text-gray-500 mt-1">Score-based models. Same energy intuition, continuous space, learned score function.</p>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800">
+      <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-2">Key Insight</h3>
+      <p class="text-[10px] text-gray-500">At $T=0$: deterministic descent to nearest attractor (Hopfield).</p>
+      <p class="text-[10px] text-gray-500 mt-1">At $T>0$: stochastic sampling from Boltzmann distribution $P(s) \propto e^{-E(s)/T}$</p>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800">
+      <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-2">Equations</h3>
+      <div class="text-[10px] text-gray-600 space-y-2">
+        <div><strong class="text-gray-400">Energy:</strong> $E = -\frac{1}{2}\sum_{ij} W_{ij} s_i s_j$</div>
+        <div><strong class="text-gray-400">Hebbian:</strong> $W_{ij} = \frac{1}{P}\sum_\mu \xi_i^\mu \xi_j^\mu$</div>
+        <div><strong class="text-gray-400">Capacity:</strong> $P_{max} \approx 0.14N$</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- The Big Picture Section -->
+<section class="max-w-7xl mx-auto mt-16 mb-8">
+  <h2 class="text-4xl font-bold text-white mb-2">The Big Picture</h2>
+  <p class="text-lg text-gray-500 mb-10">Four decades of energy-based learning</p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+
+    <!-- 1982 - Hopfield -->
+    <div class="stat-card border-l-4 border-l-blue-500">
+      <div class="text-blue-400 text-sm font-mono mb-1">1982</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Hopfield Networks</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">John Hopfield introduces associative memory as a physical system. Binary neurons, symmetric weights, deterministic dynamics.</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Update Rule</div>
+        <div class="text-gray-300">$s_i \leftarrow \text{sign}(h_i)$</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-blue-500/20 text-blue-400 rounded">Deterministic</span>
+        <span class="px-2 py-1 bg-gray-700 text-gray-400 rounded">T = 0</span>
+      </div>
+    </div>
+
+    <!-- 1985 - Boltzmann -->
+    <div class="stat-card border-l-4 border-l-purple-500">
+      <div class="text-purple-400 text-sm font-mono mb-1">1985</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Boltzmann Machines</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Hinton & Sejnowski add stochasticity via temperature. Network can escape local minima through thermal fluctuations.</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Update Rule</div>
+        <div class="text-gray-300">$P(s_i\!=\!1) = \sigma(2h_i/T)$</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-purple-500/20 text-purple-400 rounded">Stochastic</span>
+        <span class="px-2 py-1 bg-gray-700 text-gray-400 rounded">T &gt; 0</span>
+      </div>
+    </div>
+
+    <!-- 2006 - RBMs -->
+    <div class="stat-card border-l-4 border-l-green-500">
+      <div class="text-green-400 text-sm font-mono mb-1">2006</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Restricted Boltzmann Machines</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Hinton's breakthrough: bipartite graph structure enables efficient layer-wise training. Foundation for deep belief networks.</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Key Innovation</div>
+        <div class="text-gray-300 text-sm">Contrastive Divergence</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded">Bipartite</span>
+        <span class="px-2 py-1 bg-gray-700 text-gray-400 rounded">Tractable</span>
+      </div>
+    </div>
+
+    <!-- 2020s - Diffusion -->
+    <div class="stat-card border-l-4 border-l-orange-500">
+      <div class="text-orange-400 text-sm font-mono mb-1">2020s</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Diffusion Models</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Score-based generative models. Same energy intuition in continuous space. Learn to denoise = learn the score function.</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Key Equation</div>
+        <div class="text-gray-300">$\nabla_x \log p(x)$</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-orange-500/20 text-orange-400 rounded">Continuous</span>
+        <span class="px-2 py-1 bg-gray-700 text-gray-400 rounded">SOTA</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Local Minima Problem Visualization -->
+<section class="max-w-7xl mx-auto mb-16">
+  <div class="stat-card">
+    <div class="flex flex-col lg:flex-row gap-8">
+
+      <!-- SVG Energy Landscape -->
+      <div class="flex-1">
+        <h3 class="text-lg font-bold text-white mb-2">The Local Minima Problem</h3>
+        <p class="text-sm text-gray-500 mb-4">Why Hopfield networks need Boltzmann's stochasticity</p>
+
+        <svg viewBox="0 0 600 280" class="w-full" style="max-width: 600px;">
+          <defs>
+            <!-- Gradient for energy landscape -->
+            <linearGradient id="landscapeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#1e3a5f;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#0d1117;stop-opacity:1" />
+            </linearGradient>
+            <!-- Glow filter -->
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <!-- Ball gradient -->
+            <radialGradient id="ballGrad" cx="30%" cy="30%">
+              <stop offset="0%" style="stop-color:#fbbf24"/>
+              <stop offset="100%" style="stop-color:#d97706"/>
+            </radialGradient>
+            <radialGradient id="ghostBallGrad" cx="30%" cy="30%">
+              <stop offset="0%" style="stop-color:#f87171"/>
+              <stop offset="100%" style="stop-color:#dc2626"/>
+            </radialGradient>
+          </defs>
+
+          <!-- Background -->
+          <rect width="600" height="280" fill="#0d1117"/>
+
+          <!-- Energy landscape curve -->
+          <path d="M 0 180
+                   Q 60 180, 90 120
+                   Q 120 60, 150 100
+                   Q 180 140, 210 130
+                   Q 240 120, 270 160
+                   Q 300 200, 330 140
+                   Q 360 80, 390 50
+                   Q 420 20, 450 60
+                   Q 480 100, 510 90
+                   Q 540 80, 570 120
+                   Q 590 150, 600 150"
+                fill="url(#landscapeGrad)"
+                stroke="#38bdf8"
+                stroke-width="3"/>
+
+          <!-- Deep attractor wells (stored patterns) -->
+          <g filter="url(#glow)">
+            <!-- Pattern A (deep well) -->
+            <circle cx="150" cy="95" r="6" fill="#4ade80"/>
+            <text x="150" y="75" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="bold">Pattern A</text>
+            <text x="150" y="115" text-anchor="middle" fill="#6b7280" font-size="9">"0"</text>
+
+            <!-- Pattern B (deep well) -->
+            <circle cx="390" cy="45" r="6" fill="#4ade80"/>
+            <text x="390" y="25" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="bold">Pattern B</text>
+            <text x="390" y="65" text-anchor="middle" fill="#6b7280" font-size="9">"8"</text>
+          </g>
+
+          <!-- Spurious attractor (shallow well) -->
+          <g filter="url(#glow)">
+            <circle cx="270" cy="155" r="5" fill="#f87171"/>
+            <text x="270" y="180" text-anchor="middle" fill="#f87171" font-size="10" font-weight="bold">Spurious</text>
+            <text x="270" y="193" text-anchor="middle" fill="#6b7280" font-size="9">Ghost pattern</text>
+          </g>
+
+          <!-- Initial state ball -->
+          <circle cx="230" cy="125" r="10" fill="url(#ballGrad)" filter="url(#glow)"/>
+          <text x="230" y="105" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="bold">Initial State</text>
+
+          <!-- Arrows showing descent paths -->
+          <!-- Arrow to spurious (the problem) -->
+          <path d="M 235 130 Q 250 145, 262 152" fill="none" stroke="#f87171" stroke-width="2" marker-end="url(#arrowRed)"/>
+          <defs>
+            <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#f87171"/>
+            </marker>
+          </defs>
+
+          <!-- Energy axis label -->
+          <text x="15" y="30" fill="#6b7280" font-size="11">Energy E</text>
+          <path d="M 20 40 L 20 160" stroke="#6b7280" stroke-width="1"/>
+          <path d="M 17 45 L 20 40 L 23 45" fill="none" stroke="#6b7280" stroke-width="1"/>
+
+          <!-- State space label -->
+          <text x="540" y="270" fill="#6b7280" font-size="11">State space</text>
+          <path d="M 30 250 L 530 250" stroke="#6b7280" stroke-width="1"/>
+          <path d="M 525 247 L 530 250 L 525 253" fill="none" stroke="#6b7280" stroke-width="1"/>
+
+          <!-- Legend -->
+          <g transform="translate(420, 200)">
+            <rect x="0" y="0" width="170" height="75" fill="#161b22" rx="4" stroke="#21262d"/>
+            <circle cx="15" cy="18" r="5" fill="#4ade80"/>
+            <text x="28" y="22" fill="#9ca3af" font-size="10">Stored patterns (attractors)</text>
+            <circle cx="15" cy="38" r="5" fill="#f87171"/>
+            <text x="28" y="42" fill="#9ca3af" font-size="10">Spurious attractor (trap)</text>
+            <circle cx="15" cy="58" r="5" fill="#fbbf24"/>
+            <text x="28" y="62" fill="#9ca3af" font-size="10">Initial/corrupted state</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- Explanation -->
+      <div class="flex-1 flex flex-col justify-center">
+        <div class="space-y-4">
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+              <span class="text-red-400 font-bold">!</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold mb-1">The Problem: Local Minima Traps</h4>
+              <p class="text-gray-400 text-sm">Hopfield's deterministic rule always moves downhill in energy. If the initial state sits between two stored patterns, it may converge to a <span class="text-red-400 font-semibold">spurious attractor</span>—a stable state that was never learned.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+              <span class="text-purple-400 font-bold">T</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold mb-1">Hinton's Solution: Temperature</h4>
+              <p class="text-gray-400 text-sm">At <span class="text-purple-400 font-semibold">T &gt; 0</span>, the network can probabilistically "jump uphill," escaping shallow traps to find deeper, true minima. Higher T = more exploration; lower T = more exploitation.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+              <span class="text-cyan-400 font-bold">~</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold mb-1">Simulated Annealing</h4>
+              <p class="text-gray-400 text-sm">Start hot (explore), cool slowly (settle). The network samples from the Boltzmann distribution: $P(s) \propto e^{-E(s)/T}$, making low-energy states exponentially more probable.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+          <p class="text-amber-300 text-sm"><strong>Try it above:</strong> Set high noise (60-70%) so the initial state is ambiguous between patterns. With T=0, watch it get stuck. Then increase T and see it escape to a true pattern.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Technical Essay Section -->
+<article class="max-w-7xl mx-auto mt-12 mb-16">
+
+  <header class="border-b border-gray-800 pb-6 mb-8">
+    <h2 class="text-3xl font-bold text-white">From Hopfield to Boltzmann: The Mathematics of Associative Memory</h2>
+    <p class="text-gray-500 mt-2">A technical exploration of energy-based neural networks and the role of stochasticity</p>
+  </header>
+
+  <style>
+    .eq-box { background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 24px 32px; margin: 24px 0; }
+    .eq-box .katex { font-size: 1.8em; }
+    .eq-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+
+    /* Color-coded variables */
+    .var-E { color: #38bdf8; font-weight: bold; } /* Energy - cyan */
+    .var-W { color: #c084fc; font-weight: bold; } /* Weights - purple */
+    .var-s { color: #4ade80; font-weight: bold; } /* States - green */
+    .var-h { color: #fbbf24; font-weight: bold; } /* Local field - amber */
+    .var-T { color: #f87171; font-weight: bold; } /* Temperature - red */
+    .var-xi { color: #2dd4bf; font-weight: bold; } /* Patterns - teal */
+    .var-P { color: #fb923c; font-weight: bold; } /* Probability/Count - orange */
+    .var-N { color: #a78bfa; font-weight: bold; } /* Number of neurons - violet */
+
+    .prose-section { line-height: 1.8; }
+    .prose-section p { margin-bottom: 1.25rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; margin-bottom: 8px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+  </style>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Main Content -->
+    <div class="lg:col-span-2 prose-section text-gray-300">
+
+      <!-- Variable Legend -->
+      <div class="eq-box mb-8">
+        <div class="eq-label text-gray-500">Variable Legend</div>
+        <div class="flex flex-wrap text-sm">
+          <span class="legend-item"><span class="legend-dot" style="background:#38bdf8"></span><span class="var-E">E</span> Energy</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#c084fc"></span><span class="var-W">W<sub>ij</sub></span> Weights</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#4ade80"></span><span class="var-s">s<sub>i</sub></span> Neuron states</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#fbbf24"></span><span class="var-h">h<sub>i</sub></span> Local field</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#f87171"></span><span class="var-T">T</span> Temperature</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#2dd4bf"></span><span class="var-xi">ξ<sup>μ</sup></span> Stored patterns</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#fb923c"></span><span class="var-P">P</span> Pattern count</span>
+        </div>
+      </div>
+
+      <!-- Section 1: Hopfield Networks -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">1. The Hopfield Network (1982)</h3>
+
+        <p>John Hopfield's seminal contribution was recognizing that a network of binary neurons could be understood as a <em>physical system</em> with a well-defined energy function. Each neuron <span class="var-s">s<sub>i</sub></span> takes a value of either +1 (active) or −1 (inactive), and the neurons are connected by symmetric weights <span class="var-W">W<sub>ij</sub></span> = <span class="var-W">W<sub>ji</sub></span>.</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-cyan-400">The Energy Function</div>
+          <div class="text-center">
+            $$\textcolor{#38bdf8}{E} = -\frac{1}{2}\sum_{i,j} \textcolor{#c084fc}{W_{ij}} \textcolor{#4ade80}{s_i} \textcolor{#4ade80}{s_j}$$
+          </div>
+        </div>
+
+        <p>This <span class="var-E">energy E</span> measures how "compatible" the current network state is with the stored patterns. The key insight: <strong>when two neurons <span class="var-s">s<sub>i</sub></span> and <span class="var-s">s<sub>j</sub></span> are both active (+1) or both inactive (−1), they contribute <em>negatively</em> to the energy if <span class="var-W">W<sub>ij</sub></span> > 0</strong>. Lower energy means the state is closer to a stored memory.</p>
+
+        <p>To update the network, we compute the <span class="var-h">local field h<sub>i</sub></span> for each neuron—the total input it receives from all other neurons:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-amber-400">Local Field (Net Input)</div>
+          <div class="text-center">
+            $$\textcolor{#fbbf24}{h_i} = \sum_{j} \textcolor{#c084fc}{W_{ij}} \textcolor{#4ade80}{s_j}$$
+          </div>
+        </div>
+
+        <p>The <span class="var-h">local field h<sub>i</sub></span> tells neuron <span class="var-i">i</span> what state it "should" be in, given the current states of all connected neurons weighted by their connection strengths. A positive <span class="var-h">h<sub>i</sub></span> pushes the neuron toward +1; negative pushes toward −1.</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-green-400">Hopfield Update Rule (Deterministic)</div>
+          <div class="text-center">
+            $$\textcolor{#4ade80}{s_i} \leftarrow \text{sign}(\textcolor{#fbbf24}{h_i}) = \begin{cases} +1 & \text{if } \textcolor{#fbbf24}{h_i} \geq 0 \\ -1 & \text{if } \textcolor{#fbbf24}{h_i} < 0 \end{cases}$$
+          </div>
+        </div>
+
+        <p>This update rule guarantees that <span class="var-E">energy E</span> <strong>never increases</strong>. The network flows downhill in the energy landscape until it reaches a local minimum—an <em>attractor</em> that corresponds to a stored memory. This is the essence of associative memory: start from a corrupted pattern, and the dynamics automatically reconstruct the nearest stored pattern.</p>
+      </section>
+
+      <!-- Section 2: Hebbian Learning -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">2. Hebbian Learning: "Neurons That Fire Together Wire Together"</h3>
+
+        <p>How do we choose the weights <span class="var-W">W<sub>ij</sub></span> so that the desired patterns become attractors? The answer comes from Donald Hebb's 1949 postulate: connections strengthen when neurons activate together. Given <span class="var-P">P</span> patterns <span class="var-xi">ξ<sup>μ</sup></span> (where μ = 1, 2, ..., <span class="var-P">P</span>) that we want to store:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-purple-400">Hebbian Learning Rule</div>
+          <div class="text-center">
+            $$\textcolor{#c084fc}{W_{ij}} = \frac{1}{\textcolor{#fb923c}{P}}\sum_{\mu=1}^{\textcolor{#fb923c}{P}} \textcolor{#2dd4bf}{\xi_i^\mu} \textcolor{#2dd4bf}{\xi_j^\mu}$$
+          </div>
+        </div>
+
+        <p>Each stored pattern <span class="var-xi">ξ<sup>μ</sup></span> is a vector of <span class="var-N">N</span> values (±1). The weight <span class="var-W">W<sub>ij</sub></span> is the <em>correlation</em> between neurons <span class="var-i">i</span> and <span class="var-j">j</span> across all stored patterns, normalized by the number of patterns <span class="var-P">P</span>.</p>
+
+        <p><strong>Intuition:</strong> If neurons <span class="var-i">i</span> and <span class="var-j">j</span> tend to have the same sign (+1 together or −1 together) across the stored patterns, then <span class="var-W">W<sub>ij</sub></span> will be positive—they reinforce each other. If they tend to have opposite signs, <span class="var-W">W<sub>ij</sub></span> will be negative—they inhibit each other.</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-orange-400">Storage Capacity</div>
+          <div class="text-center">
+            $$\textcolor{#fb923c}{P_{\text{max}}} \approx 0.14 \cdot \textcolor{#a78bfa}{N}$$
+          </div>
+        </div>
+
+        <p>A network of <span class="var-N">N</span> neurons can reliably store approximately <span class="var-P">0.14N</span> random patterns. Beyond this capacity, patterns begin to interfere—a phenomenon called <em>catastrophic forgetting</em>. For our 28×28 network (<span class="var-N">N</span>=784), this means roughly 110 patterns maximum.</p>
+      </section>
+
+      <!-- Section 3: The Boltzmann Machine -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">3. Hinton's Stochastic Revolution: The Boltzmann Machine (1985)</h3>
+
+        <p>Geoffrey Hinton and Terry Sejnowski identified a critical limitation of Hopfield networks: <strong>deterministic dynamics get trapped in local minima</strong>. The network might converge to a "spurious" attractor—a stable state that doesn't correspond to any stored pattern.</p>
+
+        <p>Their solution drew from statistical mechanics: introduce <em>randomness</em> controlled by a <span class="var-T">temperature T</span> parameter. Instead of deterministically setting <span class="var-s">s<sub>i</sub></span> = sign(<span class="var-h">h<sub>i</sub></span>), we flip to +1 with a <em>probability</em>:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-red-400">Boltzmann (Stochastic) Update Rule</div>
+          <div class="text-center">
+            $$\textcolor{#fb923c}{P}(\textcolor{#4ade80}{s_i} = +1) = \sigma\left(\frac{2\textcolor{#fbbf24}{h_i}}{\textcolor{#f87171}{T}}\right) = \frac{1}{1 + e^{-2\textcolor{#fbbf24}{h_i}/\textcolor{#f87171}{T}}}$$
+          </div>
+        </div>
+
+        <p>The sigmoid function σ(x) = 1/(1+e<sup>−x</sup>) smoothly maps any input to a probability between 0 and 1. The crucial insight is the role of <span class="var-T">temperature T</span>:</p>
+
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li><strong><span class="var-T">T</span> → 0:</strong> The sigmoid becomes a sharp step function. We recover deterministic Hopfield dynamics—neurons flip to match the sign of their local field.</li>
+          <li><strong><span class="var-T">T</span> > 0:</strong> Neurons can flip "against" their local field with some probability. Higher temperature means more randomness.</li>
+          <li><strong><span class="var-T">T</span> → ∞:</strong> The sigmoid flattens to 0.5. Neurons flip randomly, ignoring the weights entirely.</li>
+        </ul>
+
+        <div class="eq-box">
+          <div class="eq-label text-red-400">Boltzmann Distribution (Equilibrium)</div>
+          <div class="text-center">
+            $$\textcolor{#fb923c}{P}(\mathbf{\textcolor{#4ade80}{s}}) \propto e^{-\textcolor{#38bdf8}{E}(\mathbf{\textcolor{#4ade80}{s}})/\textcolor{#f87171}{T}}$$
+          </div>
+        </div>
+
+        <p>At equilibrium, the probability of finding the network in state <span class="var-s">s</span> follows the <em>Boltzmann distribution</em> from statistical physics. Low-energy states are exponentially more probable than high-energy states, with <span class="var-T">temperature T</span> controlling how sharply this preference is enforced.</p>
+      </section>
+
+      <!-- Section 4: Simulated Annealing -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">4. Simulated Annealing: Escaping Local Minima</h3>
+
+        <p>The real power of temperature emerges through <em>simulated annealing</em>—a technique borrowed from metallurgy. The idea: start at high <span class="var-T">T</span> and gradually cool:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-red-400">Annealing Schedule</div>
+          <div class="text-center">
+            $$\textcolor{#f87171}{T}(t) = \textcolor{#f87171}{T_0} \cdot \alpha^t \quad \text{where } \alpha < 1$$
+          </div>
+        </div>
+
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li><strong>High <span class="var-T">T</span> (hot):</strong> The network explores widely, easily crossing energy barriers to escape shallow local minima.</li>
+          <li><strong>Decreasing <span class="var-T">T</span>:</strong> The network progressively settles into lower-energy regions.</li>
+          <li><strong>Low <span class="var-T">T</span> (cold):</strong> The network converges to a deep minimum—ideally a true stored pattern.</li>
+        </ul>
+
+        <p>This is analogous to annealing steel: heating makes atoms mobile, allowing the metal to find a low-energy crystalline structure as it slowly cools. Cooling too fast traps defects (local minima); cooling slowly yields a better structure (global minimum).</p>
+      </section>
+
+      <!-- Section 5: The Energy Landscape -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">5. Visualizing the Energy Landscape</h3>
+
+        <p>Imagine the energy <span class="var-E">E</span> as the height of a mountainous terrain, where each point represents a possible network state. The stored patterns sit at the bottoms of valleys (low-energy attractors).</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-cyan-400">Energy Change from Single Flip</div>
+          <div class="text-center">
+            $$\Delta \textcolor{#38bdf8}{E} = -2 \textcolor{#4ade80}{s_i} \textcolor{#fbbf24}{h_i}$$
+          </div>
+        </div>
+
+        <p>When neuron <span class="var-i">i</span> flips from <span class="var-s">s<sub>i</sub></span> to −<span class="var-s">s<sub>i</sub></span>, the energy changes by Δ<span class="var-E">E</span> = −2<span class="var-s">s<sub>i</sub></span><span class="var-h">h<sub>i</sub></span>. The Hopfield rule (flip when <span class="var-s">s<sub>i</sub></span> disagrees with sign(<span class="var-h">h<sub>i</sub></span>)) guarantees Δ<span class="var-E">E</span> ≤ 0—we only move downhill.</p>
+
+        <p>With the Boltzmann rule, we <em>sometimes</em> accept uphill moves (Δ<span class="var-E">E</span> > 0), with probability proportional to e<sup>−Δ<span class="var-E">E</span>/<span class="var-T">T</span></sup>. This lets us hop over small hills to find deeper valleys.</p>
+      </section>
+
+      <!-- Section 6: Modern Connections -->
+      <section class="mb-8">
+        <h3 class="text-xl font-bold text-white mb-4">6. The Road to Diffusion Models</h3>
+
+        <p>The core insight of Hopfield-Boltzmann networks—<strong>learning an energy landscape and using stochastic dynamics to sample from it</strong>—directly anticipates modern generative AI:</p>
+
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li><strong>Restricted Boltzmann Machines (2006):</strong> Bipartite graph structure enables efficient training via contrastive divergence. Foundation for deep belief networks.</li>
+          <li><strong>Score Matching:</strong> Instead of learning <span class="var-E">E</span> directly, learn its gradient ∇<span class="var-E">E</span>—the "score function" that points toward lower energy.</li>
+          <li><strong>Diffusion Models:</strong> Same principle in continuous space. Add noise (high <span class="var-T">T</span>), then learn to denoise (decrease <span class="var-T">T</span>). The denoising network learns the score function.</li>
+        </ul>
+
+        <p>Stable Diffusion, DALL-E, and modern image generators are spiritual descendants of these 1980s ideas: energy-based models + stochastic sampling + annealing = powerful generative systems.</p>
+      </section>
+
+    </div>
+
+    <!-- Sidebar: Quick Reference -->
+    <aside class="stat-card h-fit lg:sticky lg:top-6">
+      <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Equation Summary</h3>
+
+      <div class="space-y-6 text-sm">
+        <div>
+          <div class="text-[10px] text-gray-600 uppercase mb-2">Energy</div>
+          <div class="text-gray-300">$E = -\frac{1}{2}\sum_{ij} W_{ij} s_i s_j$</div>
+        </div>
+
+        <div>
+          <div class="text-[10px] text-gray-600 uppercase mb-2">Local Field</div>
+          <div class="text-gray-300">$h_i = \sum_j W_{ij} s_j$</div>
+        </div>
+
+        <div>
+          <div class="text-[10px] text-gray-600 uppercase mb-2">Hebbian Weights</div>
+          <div class="text-gray-300">$W_{ij} = \frac{1}{P}\sum_\mu \xi_i^\mu \xi_j^\mu$</div>
+        </div>
+
+        <div>
+          <div class="text-[10px] text-gray-600 uppercase mb-2">Hopfield Update</div>
+          <div class="text-gray-300">$s_i \leftarrow \text{sign}(h_i)$</div>
+        </div>
+
+        <div>
+          <div class="text-[10px] text-gray-600 uppercase mb-2">Boltzmann Update</div>
+          <div class="text-gray-300">$P(s_i=1) = \sigma(2h_i/T)$</div>
+        </div>
+
+        <div>
+          <div class="text-[10px] text-gray-600 uppercase mb-2">Boltzmann Distribution</div>
+          <div class="text-gray-300">$P(\mathbf{s}) \propto e^{-E(\mathbf{s})/T}$</div>
+        </div>
+
+        <div>
+          <div class="text-[10px] text-gray-600 uppercase mb-2">Energy Change</div>
+          <div class="text-gray-300">$\Delta E = -2 s_i h_i$</div>
+        </div>
+
+        <div>
+          <div class="text-[10px] text-gray-600 uppercase mb-2">Capacity</div>
+          <div class="text-gray-300">$P_{\max} \approx 0.14 N$</div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-gray-800">
+        <h4 class="text-[10px] text-gray-600 uppercase mb-2">Key Insight</h4>
+        <p class="text-[11px] text-gray-400">Temperature <span class="var-T">T</span> interpolates between deterministic optimization (<span class="var-T">T</span>=0, Hopfield) and stochastic sampling (<span class="var-T">T</span>>0, Boltzmann). This single parameter connects energy minimization to probabilistic generative modeling.</p>
+      </div>
+
+      <div class="mt-4 pt-4 border-t border-gray-800">
+        <h4 class="text-[10px] text-gray-600 uppercase mb-2">Try It</h4>
+        <p class="text-[11px] text-gray-400">Set <span class="var-T">T</span>=0 in the demo to see Hopfield's deterministic descent. Increase <span class="var-T">T</span> to watch the network escape local minima via thermal fluctuations.</p>
+      </div>
+    </aside>
+
+  </div>
+</article>
+
+<script>
+const W_SIZE = 28, N = W_SIZE * W_SIZE;
+const STORED_DIGITS = [0, 1, 4, 7, 8];
+
+// ===== Pattern Generation =====
+function generateDigitPatterns() {
+  const patterns = [];
+  for (const digit of STORED_DIGITS) {
+    const p = new Float32Array(N).fill(-1);
+    drawDigit(p, digit);
+    patterns.push({ label: digit.toString(), data: p });
+  }
+  return patterns;
+}
+
+function drawDigit(p, digit) {
+  const set = (x, y) => { if (x >= 0 && x < 28 && y >= 0 && y < 28) p[y * 28 + x] = 1; };
+  const line = (x1, y1, x2, y2, w = 3) => {
+    const steps = Math.max(Math.abs(x2-x1), Math.abs(y2-y1)) || 1;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const cx = Math.round(x1 + (x2-x1)*t), cy = Math.round(y1 + (y2-y1)*t);
+      for (let dy = -w; dy <= w; dy++) for (let dx = -w; dx <= w; dx++)
+        if (dx*dx + dy*dy <= w*w) set(cx+dx, cy+dy);
+    }
+  };
+  const arc = (cx, cy, r, a1, a2, w = 3) => {
+    for (let a = a1; a <= a2; a += 0.03) {
+      const x = Math.round(cx + Math.cos(a) * r), y = Math.round(cy + Math.sin(a) * r);
+      for (let dy = -w; dy <= w; dy++) for (let dx = -w; dx <= w; dx++)
+        if (dx*dx + dy*dy <= w*w) set(x+dx, y+dy);
+    }
+  };
+  const circle = (cx, cy, r, w = 3) => arc(cx, cy, r, 0, Math.PI * 2, w);
+
+  switch(digit) {
+    case 0: circle(14, 14, 8); break;
+    case 1: line(14, 3, 14, 25); line(9, 6, 14, 3); line(9, 25, 19, 25); break;
+    case 4: line(6, 3, 6, 15); line(6, 15, 22, 15); line(18, 3, 18, 25); break;
+    case 7: line(5, 3, 23, 3); line(21, 3, 11, 25); break;
+    case 8: circle(14, 8, 5); circle(14, 19, 6); break;
+  }
+}
+
+// ===== Hopfield-Boltzmann Network =====
+class HopfieldBoltzmann {
+  constructor(size) {
+    this.size = size;
+    this.weights = new Float32Array(size * size);
+    this.patterns = [];
+    this.localFields = new Float32Array(size);
+    this.lastFlipped = new Set();
+  }
+
+  train(patterns) {
+    this.patterns = patterns;
+    this.weights.fill(0);
+    const n = patterns.length;
+    for (const pattern of patterns) {
+      for (let i = 0; i < this.size; i++) {
+        for (let j = i + 1; j < this.size; j++) {
+          const w = pattern.data[i] * pattern.data[j];
+          this.weights[i * this.size + j] += w;
+          this.weights[j * this.size + i] += w;
+        }
+      }
+    }
+    for (let i = 0; i < this.weights.length; i++) this.weights[i] /= n;
+  }
+
+  computeLocalField(state, i) {
+    let h = 0;
+    const row = i * this.size;
+    for (let j = 0; j < this.size; j++) h += this.weights[row + j] * state[j];
+    return h;
+  }
+
+  computeAllLocalFields(state) {
+    for (let i = 0; i < this.size; i++) {
+      this.localFields[i] = this.computeLocalField(state, i);
+    }
+  }
+
+  // Sigmoid for Boltzmann
+  sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
+
+  // Update with temperature: T=0 is Hopfield, T>0 is Boltzmann
+  update(state, temperature = 0, numUpdates = 100) {
+    let changed = 0;
+    this.lastFlipped.clear();
+
+    for (let k = 0; k < numUpdates; k++) {
+      const i = Math.floor(Math.random() * this.size);
+      const h = this.computeLocalField(state, i);
+
+      let newVal;
+      if (temperature <= 0.001) {
+        // Hopfield: deterministic
+        newVal = h >= 0 ? 1 : -1;
+      } else {
+        // Boltzmann: stochastic
+        const prob = this.sigmoid(2 * h / temperature);
+        newVal = Math.random() < prob ? 1 : -1;
+      }
+
+      if (state[i] !== newVal) {
+        state[i] = newVal;
+        changed++;
+        this.lastFlipped.add(i);
+      }
+    }
+    return changed;
+  }
+
+  energy(state) {
+    let E = 0;
+    for (let i = 0; i < this.size; i++) {
+      for (let j = i + 1; j < this.size; j++) {
+        E -= this.weights[i * this.size + j] * state[i] * state[j];
+      }
+    }
+    return E;
+  }
+
+  findClosest(state) {
+    let bestMatch = -1, bestOverlap = -Infinity;
+    for (let p = 0; p < this.patterns.length; p++) {
+      let overlap = 0;
+      for (let i = 0; i < this.size; i++) overlap += state[i] * this.patterns[p].data[i];
+      if (overlap > bestOverlap) { bestOverlap = overlap; bestMatch = p; }
+    }
+    return { index: bestMatch, overlap: bestOverlap / this.size, label: this.patterns[bestMatch]?.label };
+  }
+}
+
+// ===== UI State =====
+const network = new HopfieldBoltzmann(N);
+const digitPatterns = generateDigitPatterns();
+network.train(digitPatterns);
+
+let selectedPattern = 0;
+let currentState = new Float32Array(N);
+let isRecalling = false;
+let energyHistory = [];
+
+const ctxInput = document.getElementById('cv_input').getContext('2d');
+const ctxState = document.getElementById('cv_state').getContext('2d');
+const ctxNeurons = document.getElementById('cv_neurons').getContext('2d');
+const ctxFields = document.getElementById('cv_fields').getContext('2d');
+const ctxEnergy = document.getElementById('cv_energy').getContext('2d');
+
+// ===== Rendering =====
+function renderSmall(ctx, data) {
+  const img = ctx.createImageData(28, 28);
+  for (let i = 0; i < data.length; i++) {
+    const v = data[i] > 0 ? 255 : 0;
+    img.data[i*4] = v; img.data[i*4+1] = v; img.data[i*4+2] = v; img.data[i*4+3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function renderNeuronGrid() {
+  const ctx = ctxNeurons;
+  const cellSize = 10;
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, 280, 280);
+
+  for (let y = 0; y < 28; y++) {
+    for (let x = 0; x < 28; x++) {
+      const i = y * 28 + x;
+      const px = x * cellSize, py = y * cellSize;
+
+      if (network.lastFlipped.has(i)) {
+        ctx.fillStyle = currentState[i] > 0 ? '#ef4444' : '#7f1d1d';
+      } else {
+        ctx.fillStyle = currentState[i] > 0 ? '#ffffff' : '#000000';
+      }
+      ctx.fillRect(px + 1, py + 1, cellSize - 2, cellSize - 2);
+    }
+  }
+}
+
+function renderLocalFields() {
+  const ctx = ctxFields;
+  const cellSize = 10;
+  network.computeAllLocalFields(currentState);
+
+  // Find range for normalization
+  let minH = Infinity, maxH = -Infinity;
+  for (let i = 0; i < N; i++) {
+    minH = Math.min(minH, network.localFields[i]);
+    maxH = Math.max(maxH, network.localFields[i]);
+  }
+  const range = Math.max(Math.abs(minH), Math.abs(maxH)) || 1;
+
+  for (let y = 0; y < 28; y++) {
+    for (let x = 0; x < 28; x++) {
+      const i = y * 28 + x;
+      const h = network.localFields[i];
+      const norm = h / range; // -1 to 1
+
+      const px = x * cellSize, py = y * cellSize;
+
+      if (norm > 0) {
+        const intensity = Math.floor(norm * 255);
+        ctx.fillStyle = `rgb(${intensity}, ${intensity}, ${Math.floor(intensity * 0.5)})`;
+      } else {
+        const intensity = Math.floor(-norm * 255);
+        ctx.fillStyle = `rgb(0, ${Math.floor(intensity * 0.5)}, ${intensity})`;
+      }
+      ctx.fillRect(px, py, cellSize, cellSize);
+    }
+  }
+}
+
+function renderEnergyGraph() {
+  const ctx = ctxEnergy;
+  const w = ctx.canvas.width, h = ctx.canvas.height;
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, w, h);
+
+  if (energyHistory.length > 1) {
+    const minE = Math.min(...energyHistory);
+    const maxE = Math.max(...energyHistory);
+    const range = maxE - minE || 1;
+
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    energyHistory.forEach((e, i) => {
+      const x = (i / Math.max(energyHistory.length - 1, 1)) * w;
+      const y = h - 5 - ((e - minE) / range) * (h - 10);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  // Label
+  ctx.fillStyle = '#6b7280';
+  ctx.font = '10px monospace';
+  ctx.fillText(`E = ${energyHistory[energyHistory.length-1]?.toFixed(0) || 0}`, 5, 12);
+}
+
+function updateOverlaps() {
+  const overlapsDiv = document.getElementById('overlaps');
+  overlapsDiv.innerHTML = '';
+  const overlaps = [];
+  for (let p = 0; p < network.patterns.length; p++) {
+    let overlap = 0;
+    for (let i = 0; i < N; i++) overlap += currentState[i] * network.patterns[p].data[i];
+    overlaps.push({ label: network.patterns[p].label, value: overlap / N });
+  }
+  overlaps.sort((a, b) => b.value - a.value);
+  overlaps.forEach(o => {
+    const pct = (o.value * 100).toFixed(0);
+    const bar = Math.max(0, Math.min(100, (o.value + 1) * 50));
+    const color = o.value > 0.5 ? 'text-green-400' : o.value > 0 ? 'text-blue-400' : 'text-gray-500';
+    overlapsDiv.innerHTML += `<div class="flex items-center gap-2">
+      <span class="w-3">${o.label}</span>
+      <div class="flex-1 h-1.5 bg-gray-800 rounded"><div class="h-1.5 rounded ${o.value > 0.5 ? 'bg-green-500' : 'bg-blue-500'}" style="width:${bar}%"></div></div>
+      <span class="${color} w-8 text-right">${pct}%</span>
+    </div>`;
+  });
+}
+
+function updateAll() {
+  renderSmall(ctxState, currentState);
+  renderNeuronGrid();
+  renderLocalFields();
+  renderEnergyGraph();
+  updateOverlaps();
+  document.getElementById('energyVal').textContent = network.energy(currentState).toFixed(0);
+}
+
+// ===== Pattern Buttons =====
+function setupPatternButtons() {
+  const container = document.getElementById('patterns');
+  container.innerHTML = '';
+  digitPatterns.forEach((p, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'pattern-btn rounded overflow-hidden w-10 h-10';
+    const canvas = document.createElement('canvas');
+    canvas.width = 28; canvas.height = 28;
+    canvas.className = 'w-full h-full';
+    renderSmall(canvas.getContext('2d'), p.data);
+    btn.appendChild(canvas);
+    btn.onclick = () => {
+      selectedPattern = i;
+      corrupt();
+    };
+    container.appendChild(btn);
+  });
+}
+
+function corrupt() {
+  const noiseLevel = parseInt(document.getElementById('noise').value) / 100;
+  document.getElementById('noiseVal').textContent = Math.round(noiseLevel * 100) + '%';
+  const original = digitPatterns[selectedPattern].data;
+  for (let i = 0; i < N; i++) {
+    currentState[i] = Math.random() < noiseLevel ? -original[i] : original[i];
+  }
+  renderSmall(ctxInput, currentState);
+  energyHistory = [network.energy(currentState)];
+  document.getElementById('iterVal').textContent = '0';
+  document.getElementById('convergedVal').textContent = '-';
+  updateAll();
+}
+
+// ===== Recall =====
+async function recall() {
+  if (isRecalling) return;
+  isRecalling = true;
+
+  energyHistory = [network.energy(currentState)];
+  let iter = 0;
+  const maxIter = 100;
+  const updatesPerIter = Math.floor(N / 4);
+  const temperature = parseFloat(document.getElementById('temp').value);
+
+  const step = () => {
+    const changed = network.update(currentState, temperature, updatesPerIter);
+    iter++;
+
+    energyHistory.push(network.energy(currentState));
+    document.getElementById('iterVal').textContent = iter;
+    updateAll();
+
+    // For Boltzmann (T>0), don't stop on no change - it's stochastic
+    const shouldContinue = temperature > 0.01 ? iter < maxIter : (changed > 0 && iter < maxIter);
+
+    if (shouldContinue) {
+      requestAnimationFrame(step);
+    } else {
+      const match = network.findClosest(currentState);
+      document.getElementById('convergedVal').textContent = `${match.label} (${(match.overlap * 100).toFixed(0)}%)`;
+      isRecalling = false;
+    }
+  };
+  step();
+}
+
+// ===== Drawing on Input Canvas =====
+let isDrawing = false;
+const inputCanvas = document.getElementById('cv_input');
+
+inputCanvas.onmousedown = (e) => { isDrawing = true; drawOnInput(e); };
+inputCanvas.onmousemove = (e) => { if (isDrawing) drawOnInput(e); };
+inputCanvas.onmouseup = () => isDrawing = false;
+inputCanvas.onmouseleave = () => isDrawing = false;
+
+function drawOnInput(e) {
+  const rect = inputCanvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / rect.width * 28);
+  const y = Math.floor((e.clientY - rect.top) / rect.height * 28);
+  const brushR = 2;
+  for (let dy = -brushR; dy <= brushR; dy++) {
+    for (let dx = -brushR; dx <= brushR; dx++) {
+      if (dx*dx + dy*dy <= brushR*brushR) {
+        const px = x + dx, py = y + dy;
+        if (px >= 0 && px < 28 && py >= 0 && py < 28) {
+          currentState[py * 28 + px] = 1;
+        }
+      }
+    }
+  }
+  renderSmall(ctxInput, currentState);
+  energyHistory = [network.energy(currentState)];
+  updateAll();
+}
+
+// ===== Events =====
+document.getElementById('temp').oninput = () => {
+  const t = parseFloat(document.getElementById('temp').value);
+  document.getElementById('tempVal').textContent = t.toFixed(2);
+  // Highlight timeline based on temperature
+  document.querySelectorAll('.timeline-item').forEach((el, i) => {
+    el.classList.toggle('active', i === (t > 0.01 ? 1 : 0));
+  });
+};
+document.getElementById('noise').oninput = corrupt;
+document.getElementById('clearBtn').onclick = () => {
+  currentState.fill(-1);
+  renderSmall(ctxInput, currentState);
+  energyHistory = [network.energy(currentState)];
+  document.getElementById('iterVal').textContent = '0';
+  document.getElementById('convergedVal').textContent = '-';
+  updateAll();
+};
+document.getElementById('recallBtn').onclick = recall;
+
+// ===== Init =====
+setupPatternButtons();
+corrupt();
+
+renderMathInElement(document.body, {
+  delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
+  throwOnError: false
+});
+</script>
+</body>
+</html>

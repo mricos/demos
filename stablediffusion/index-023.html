@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Earth Mover's Distance Visualizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <style>
+    :root { --bg: #05070a; --panel: #0d1117; --border: #21262d; --accent: #fb923c; }
+    body { background: var(--bg); color: #c9d1d9; font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+    canvas { border: 1px solid var(--border); background: #000; border-radius: 8px; }
+    .stat-card { background: #161b22; border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .btn { transition: all 0.2s; }
+    .btn:hover { transform: scale(1.02); }
+    .btn:active { transform: scale(0.98); }
+    .mode-active { box-shadow: 0 0 0 2px var(--accent); }
+  </style>
+</head>
+<body class="p-6">
+
+<header class="max-w-7xl mx-auto mb-6">
+  <h1 class="text-2xl font-bold text-white">Earth Mover's Distance</h1>
+  <p class="text-sm text-gray-500 mt-1">Optimal transport: finding the best way to move one distribution to another</p>
+</header>
+
+<main class="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-4 gap-4">
+
+  <!-- Column 1: Controls -->
+  <section class="stat-card">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Drawing Mode</h2>
+
+    <div class="space-y-2 mb-4">
+      <button id="modeSource" class="btn w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded text-sm mode-active">Draw Source (Blue)</button>
+      <button id="modeTarget" class="btn w-full bg-green-600 hover:bg-green-500 text-white py-2 rounded text-sm">Draw Target (Green)</button>
+      <button id="clearBtn" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm mt-2">Clear All</button>
+    </div>
+
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 mt-4">Presets</h2>
+    <div class="space-y-2 mb-4">
+      <button id="presetCircles" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm">Circle → Square</button>
+      <button id="presetMoons" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm">Moon → Moon</button>
+      <button id="presetGaussian" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm">Gaussian → Gaussian</button>
+      <button id="presetCollapse" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm">Scatter → Cluster</button>
+    </div>
+
+    <div class="border-t border-gray-800 pt-3 mb-4">
+      <button id="computeBtn" class="btn w-full bg-orange-600 hover:bg-orange-500 text-white py-2.5 rounded text-sm font-bold">Compute Transport</button>
+      <div class="text-[10px] text-gray-600 mt-2 text-center">
+        EMD Cost: <span id="emdCost" class="text-orange-400 font-mono text-lg">-</span>
+      </div>
+    </div>
+
+    <div class="border-t border-gray-800 pt-3 space-y-3">
+      <button id="animateBtn" class="btn w-full bg-purple-600 hover:bg-purple-500 text-white py-2 rounded text-sm">Animate Transport</button>
+      <button id="resetPosBtn" class="btn w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm">Reset Positions</button>
+    </div>
+
+    <div class="border-t border-gray-800 pt-3 mt-4 space-y-3 text-[11px]">
+      <div>
+        <label class="text-gray-500">Animation Speed: <span id="speedVal" class="text-orange-400">1.0</span>x</label>
+        <input id="speedSlider" type="range" min="0.1" max="3" step="0.1" value="1.0" class="w-full">
+      </div>
+      <div>
+        <label class="text-gray-500">Regularization $\lambda$: <span id="regVal" class="text-cyan-400">0.1</span></label>
+        <input id="regSlider" type="range" min="0.01" max="1" step="0.01" value="0.1" class="w-full">
+      </div>
+      <div>
+        <label class="text-gray-500">Show: </label>
+        <div class="flex gap-2 mt-1">
+          <label class="flex items-center gap-1"><input type="checkbox" id="showLines" checked> <span class="text-gray-400">Transport</span></label>
+          <label class="flex items-center gap-1"><input type="checkbox" id="showPoints" checked> <span class="text-gray-400">Points</span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800 text-[10px]">
+      <div class="flex justify-between text-gray-500"><span>Source pts:</span><span id="numSource" class="font-mono text-blue-400">0</span></div>
+      <div class="flex justify-between text-gray-500 mt-1"><span>Target pts:</span><span id="numTarget" class="font-mono text-green-400">0</span></div>
+      <div class="flex justify-between text-gray-500 mt-1"><span>Transport:</span><span id="transportStatus" class="font-mono text-gray-400">Not computed</span></div>
+      <div class="flex justify-between text-gray-500 mt-1"><span>Animation:</span><span id="animProgress" class="font-mono">0%</span></div>
+    </div>
+  </section>
+
+  <!-- Column 2-3: Main Visualization -->
+  <section class="stat-card xl:col-span-2">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Optimal Transport Visualization</h2>
+
+    <div class="relative">
+      <canvas id="mainCanvas" width="560" height="560" class="w-full aspect-square cursor-crosshair"></canvas>
+      <div class="absolute top-2 left-2 bg-black/70 px-2 py-1 rounded text-[10px] text-gray-400">
+        Click/drag to draw points
+      </div>
+    </div>
+
+    <div class="mt-3 flex justify-between text-[9px] text-gray-600">
+      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500"></span> Source distribution</span>
+      <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-orange-400 opacity-50"></span> Transport plan</span>
+      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-500"></span> Target distribution</span>
+    </div>
+  </section>
+
+  <!-- Column 4: Theory Panel -->
+  <section class="stat-card">
+    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">How It Works</h2>
+
+    <div class="space-y-4 text-[11px]">
+      <div class="p-3 bg-black/30 rounded">
+        <div class="text-blue-400 font-bold mb-1">1. Draw Source</div>
+        <p class="text-gray-500">Points represent "dirt" to be moved. Think of it as a pile of sand.</p>
+      </div>
+
+      <div class="p-3 bg-black/30 rounded">
+        <div class="text-green-400 font-bold mb-1">2. Draw Target</div>
+        <p class="text-gray-500">Where you want the dirt to go. The "holes" to fill.</p>
+      </div>
+
+      <div class="p-3 bg-black/30 rounded">
+        <div class="text-orange-400 font-bold mb-1">3. Optimal Transport</div>
+        <p class="text-gray-500">Find the cheapest way to move source → target. Cost = distance × mass moved.</p>
+      </div>
+
+      <div class="p-3 bg-black/30 rounded">
+        <div class="text-purple-400 font-bold mb-1">4. Earth Mover's Distance</div>
+        <p class="text-gray-500">The minimum total cost. Measures how "different" two distributions are.</p>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800">
+      <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-2">Key Equations</h3>
+      <div class="text-[10px] text-gray-600 space-y-2">
+        <div><strong class="text-gray-400">Cost:</strong> $c(x,y) = \|x - y\|^2$</div>
+        <div><strong class="text-gray-400">Transport:</strong> $\gamma(x,y)$ = how much to move</div>
+        <div><strong class="text-gray-400">EMD:</strong> $W_2 = \min_\gamma \sum c_{ij}\gamma_{ij}$</div>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-gray-800">
+      <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-2">Connection to Diffusion</h3>
+      <p class="text-[10px] text-gray-500 leading-relaxed">
+        <strong class="text-orange-400">Flow Matching</strong> learns the velocity field that moves noise → data along optimal transport paths. This is why modern diffusion models (like Stable Diffusion 3) use flow matching!
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<!-- The Big Picture Section -->
+<section class="max-w-7xl mx-auto mt-16 mb-8">
+  <h2 class="text-4xl font-bold text-white mb-2">The Big Picture</h2>
+  <p class="text-lg text-gray-500 mb-10">From moving dirt to generating images</p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+
+    <!-- 1781 - Monge -->
+    <div class="stat-card border-l-4 border-l-blue-500">
+      <div class="text-blue-400 text-sm font-mono mb-1">1781</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Monge's Problem</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Gaspard Monge asks: how to move piles of dirt to build fortifications with minimum effort? Birth of optimal transport theory.</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Original Formulation</div>
+        <div class="text-gray-300">$\min_T \int c(x, T(x)) d\mu(x)$</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-blue-500/20 text-blue-400 rounded">Foundation</span>
+      </div>
+    </div>
+
+    <!-- 1942 - Kantorovich -->
+    <div class="stat-card border-l-4 border-l-purple-500">
+      <div class="text-purple-400 text-sm font-mono mb-1">1942</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Kantorovich Relaxation</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Leonid Kantorovich relaxes Monge: allow "splitting" mass. Transport plan γ can be fractional. Won Nobel Prize (Economics, 1975).</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Linear Program</div>
+        <div class="text-gray-300">$\min_\gamma \langle C, \gamma \rangle$</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-purple-500/20 text-purple-400 rounded">Theory</span>
+        <span class="px-2 py-1 bg-gray-700 text-gray-400 rounded">LP</span>
+      </div>
+    </div>
+
+    <!-- 2013 - Sinkhorn -->
+    <div class="stat-card border-l-4 border-l-green-500">
+      <div class="text-green-400 text-sm font-mono mb-1">2013</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Sinkhorn Algorithm</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Cuturi: add entropy regularization → fast iterative algorithm. Enables OT for machine learning at scale.</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Regularized OT</div>
+        <div class="text-gray-300 text-sm">$\min_\gamma \langle C, \gamma \rangle - \lambda H(\gamma)$</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded">Algorithm</span>
+        <span class="px-2 py-1 bg-gray-700 text-gray-400 rounded">GPU</span>
+      </div>
+    </div>
+
+    <!-- 2022 - Flow Matching -->
+    <div class="stat-card border-l-4 border-l-orange-500">
+      <div class="text-orange-400 text-sm font-mono mb-1">2022</div>
+      <h3 class="text-2xl font-bold text-white mb-3">Flow Matching</h3>
+      <p class="text-gray-400 text-sm leading-relaxed mb-4">Lipman et al.: Learn the velocity field of OT between noise and data. Simpler than score matching, straighter paths, faster sampling.</p>
+      <div class="bg-black/30 rounded p-3 mb-4">
+        <div class="text-[10px] text-gray-600 uppercase mb-1">Velocity Field</div>
+        <div class="text-gray-300 text-sm">$v_\theta(x_t, t) \approx x_1 - x_0$</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2 py-1 bg-orange-500/20 text-orange-400 rounded">Generative</span>
+        <span class="px-2 py-1 bg-gray-700 text-gray-400 rounded">SD3</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Optimal Transport Diagram -->
+<section class="max-w-7xl mx-auto mb-16">
+  <div class="stat-card">
+    <div class="flex flex-col lg:flex-row gap-8">
+
+      <!-- SVG Illustration -->
+      <div class="flex-1">
+        <h3 class="text-lg font-bold text-white mb-2">The Earth Mover's Problem</h3>
+        <p class="text-sm text-gray-500 mb-4">Moving probability mass from source to target at minimum cost</p>
+
+        <svg viewBox="0 0 600 300" class="w-full" style="max-width: 600px;">
+          <defs>
+            <radialGradient id="sourceGrad" cx="50%" cy="50%">
+              <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.6" />
+              <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.1" />
+            </radialGradient>
+            <radialGradient id="targetGrad" cx="50%" cy="50%">
+              <stop offset="0%" style="stop-color:#22c55e;stop-opacity:0.6" />
+              <stop offset="100%" style="stop-color:#22c55e;stop-opacity:0.1" />
+            </radialGradient>
+            <marker id="arrowOrange" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#fb923c"/>
+            </marker>
+            <filter id="glow3" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+              <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- Background -->
+          <rect width="600" height="300" fill="#0d1117"/>
+
+          <!-- Source blob -->
+          <ellipse cx="150" cy="150" rx="80" ry="70" fill="url(#sourceGrad)" filter="url(#glow3)"/>
+
+          <!-- Target blob -->
+          <ellipse cx="450" cy="150" rx="80" ry="70" fill="url(#targetGrad)" filter="url(#glow3)"/>
+
+          <!-- Transport arrows -->
+          <g stroke="#fb923c" stroke-width="2" fill="none" opacity="0.6">
+            <path d="M 200 100 Q 300 80, 400 100" marker-end="url(#arrowOrange)"/>
+            <path d="M 210 140 Q 300 130, 390 140" marker-end="url(#arrowOrange)"/>
+            <path d="M 210 160 Q 300 170, 390 160" marker-end="url(#arrowOrange)"/>
+            <path d="M 200 200 Q 300 220, 400 200" marker-end="url(#arrowOrange)"/>
+          </g>
+
+          <!-- Source points -->
+          <g fill="#3b82f6">
+            <circle cx="120" cy="120" r="6" filter="url(#glow3)"/>
+            <circle cx="150" cy="100" r="6" filter="url(#glow3)"/>
+            <circle cx="180" cy="130" r="6" filter="url(#glow3)"/>
+            <circle cx="130" cy="160" r="6" filter="url(#glow3)"/>
+            <circle cx="160" cy="180" r="6" filter="url(#glow3)"/>
+            <circle cx="140" cy="200" r="6" filter="url(#glow3)"/>
+          </g>
+
+          <!-- Target points -->
+          <g fill="#22c55e">
+            <circle cx="420" cy="110" r="6" filter="url(#glow3)"/>
+            <circle cx="460" cy="100" r="6" filter="url(#glow3)"/>
+            <circle cx="480" cy="140" r="6" filter="url(#glow3)"/>
+            <circle cx="430" cy="170" r="6" filter="url(#glow3)"/>
+            <circle cx="470" cy="190" r="6" filter="url(#glow3)"/>
+            <circle cx="450" cy="210" r="6" filter="url(#glow3)"/>
+          </g>
+
+          <!-- Labels -->
+          <text x="150" y="260" text-anchor="middle" fill="#3b82f6" font-size="14" font-weight="bold">Source μ</text>
+          <text x="450" y="260" text-anchor="middle" fill="#22c55e" font-size="14" font-weight="bold">Target ν</text>
+          <text x="300" y="60" text-anchor="middle" fill="#fb923c" font-size="12">Transport plan γ</text>
+          <text x="300" y="280" text-anchor="middle" fill="#6b7280" font-size="11">Cost = Σ distance × mass moved</text>
+
+        </svg>
+      </div>
+
+      <!-- Explanation -->
+      <div class="flex-1 flex flex-col justify-center">
+        <div class="space-y-4">
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+              <span class="text-blue-400 font-bold">μ</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold mb-1">Source Distribution</h4>
+              <p class="text-gray-400 text-sm">A probability distribution over space. Think of it as "dirt to move" or "where samples come from."</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+              <span class="text-green-400 font-bold">ν</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold mb-1">Target Distribution</h4>
+              <p class="text-gray-400 text-sm">Where we want the mass to end up. "Holes to fill" or "where we want samples."</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+              <span class="text-orange-400 font-bold">γ</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold mb-1">Transport Plan</h4>
+              <p class="text-gray-400 text-sm">γ(x,y) tells us how much mass to move from x to y. The optimal plan minimizes total cost.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+          <p class="text-orange-300 text-sm"><strong>Connection to Generative Models:</strong> In diffusion, source = noise, target = data. Flow matching learns the velocity field that moves noise → data along OT paths. Straighter paths = fewer sampling steps!</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Technical Essay Section -->
+<article class="max-w-7xl mx-auto mt-12 mb-16">
+
+  <header class="border-b border-gray-800 pb-6 mb-8">
+    <h2 class="text-3xl font-bold text-white">The Mathematics of Optimal Transport</h2>
+    <p class="text-gray-500 mt-2">From Monge to Flow Matching: 240 years of moving dirt</p>
+  </header>
+
+  <style>
+    .eq-box { background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 24px 32px; margin: 24px 0; }
+    .eq-box .katex { font-size: 1.6em; }
+    .eq-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+
+    /* Color-coded variables */
+    .var-mu { color: #3b82f6; font-weight: bold; }
+    .var-nu { color: #22c55e; font-weight: bold; }
+    .var-gamma { color: #fb923c; font-weight: bold; }
+    .var-c { color: #f87171; font-weight: bold; }
+    .var-w { color: #a855f7; font-weight: bold; }
+    .var-t { color: #fbbf24; font-weight: bold; }
+    .var-v { color: #22d3ee; font-weight: bold; }
+
+    .prose-section { line-height: 1.8; }
+    .prose-section p { margin-bottom: 1.25rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; margin-bottom: 8px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+  </style>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Main Content -->
+    <div class="lg:col-span-2 prose-section text-gray-300">
+
+      <!-- Variable Legend -->
+      <div class="eq-box mb-8">
+        <div class="eq-label text-gray-500">Variable Legend</div>
+        <div class="flex flex-wrap text-sm">
+          <span class="legend-item"><span class="legend-dot" style="background:#3b82f6"></span><span class="var-mu">μ</span> Source distribution</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#22c55e"></span><span class="var-nu">ν</span> Target distribution</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#fb923c"></span><span class="var-gamma">γ</span> Transport plan</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#f87171"></span><span class="var-c">c</span> Cost function</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#a855f7"></span><span class="var-w">W</span> Wasserstein distance</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#22d3ee"></span><span class="var-v">v</span> Velocity field</span>
+        </div>
+      </div>
+
+      <!-- Section 1: The Problem -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">1. The Optimal Transport Problem</h3>
+
+        <p>Imagine you have piles of dirt (source <span class="var-mu">μ</span>) and holes to fill (target <span class="var-nu">ν</span>). How do you move the dirt to fill the holes with minimum total effort?</p>
+
+        <p>The <em>cost</em> to move mass from point x to point y is <span class="var-c">c</span>(x, y). For Euclidean distance squared:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-red-400">Cost Function</div>
+          <div class="text-center">
+            $$\textcolor{#f87171}{c}(x, y) = \|x - y\|^2$$
+          </div>
+        </div>
+
+        <p>We want to find a <span class="var-gamma">transport plan</span> γ that tells us how much mass to move from each source location to each target location, minimizing the total cost.</p>
+      </section>
+
+      <!-- Section 2: Monge vs Kantorovich -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">2. Monge vs Kantorovich Formulation</h3>
+
+        <p><strong>Monge (1781):</strong> Each grain of dirt goes to exactly one destination. Find a map T: X → Y.</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-blue-400">Monge Problem</div>
+          <div class="text-center">
+            $$\min_T \int \textcolor{#f87171}{c}(x, T(x)) \, d\textcolor{#3b82f6}{\mu}(x) \quad \text{s.t. } T_\#\textcolor{#3b82f6}{\mu} = \textcolor{#22c55e}{\nu}$$
+          </div>
+        </div>
+
+        <p>Problem: What if source and target have different "shapes"? Sometimes you need to split mass!</p>
+
+        <p><strong>Kantorovich (1942):</strong> Allow fractional transport. The plan <span class="var-gamma">γ</span>(x,y) is a joint distribution—a "soft" matching.</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-orange-400">Kantorovich Problem</div>
+          <div class="text-center">
+            $$\min_{\textcolor{#fb923c}{\gamma}} \int \textcolor{#f87171}{c}(x, y) \, d\textcolor{#fb923c}{\gamma}(x, y)$$
+          </div>
+          <div class="text-center text-sm text-gray-500 mt-2">
+            subject to: $\int \gamma(x, y) dy = \mu(x)$ and $\int \gamma(x, y) dx = \nu(y)$
+          </div>
+        </div>
+
+        <p>The constraints ensure all source mass is moved and all target locations receive the right amount. This is a linear program!</p>
+      </section>
+
+      <!-- Section 3: Wasserstein Distance -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">3. The Wasserstein Distance</h3>
+
+        <p>The <span class="var-w">Wasserstein distance</span> (a.k.a. Earth Mover's Distance) is the optimal transport cost:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-purple-400">Wasserstein-p Distance</div>
+          <div class="text-center">
+            $$\textcolor{#a855f7}{W_p}(\textcolor{#3b82f6}{\mu}, \textcolor{#22c55e}{\nu}) = \left( \min_{\textcolor{#fb923c}{\gamma}} \int \|x - y\|^p \, d\textcolor{#fb923c}{\gamma}(x, y) \right)^{1/p}$$
+          </div>
+        </div>
+
+        <p><strong>W<sub>1</sub></strong> (p=1): "How far do you move mass on average?" Used in GANs (Wasserstein GAN).</p>
+
+        <p><strong>W<sub>2</sub></strong> (p=2): "Squared distance moved." Has nice geometric properties. Used in flow matching.</p>
+
+        <p>Key insight: W measures distributional similarity better than KL divergence for distributions with non-overlapping support!</p>
+      </section>
+
+      <!-- Section 4: Sinkhorn Algorithm -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">4. The Sinkhorn Algorithm</h3>
+
+        <p>Computing exact OT is expensive (O(n³) via linear programming). Cuturi (2013) showed that adding entropy regularization makes it fast:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-green-400">Entropy-Regularized OT</div>
+          <div class="text-center">
+            $$\min_{\textcolor{#fb923c}{\gamma}} \int \textcolor{#f87171}{c}(x, y) \, d\textcolor{#fb923c}{\gamma} - \lambda H(\textcolor{#fb923c}{\gamma})$$
+          </div>
+        </div>
+
+        <p>The entropy term H(γ) = −Σγ log γ encourages "spreading out" the transport plan. The solution has a beautiful form:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-green-400">Sinkhorn Iterations</div>
+          <div class="text-center">
+            $$\textcolor{#fb923c}{\gamma}_{ij} = u_i \cdot K_{ij} \cdot v_j, \quad K_{ij} = e^{-\textcolor{#f87171}{c}_{ij}/\lambda}$$
+          </div>
+        </div>
+
+        <p>Alternate updating u and v until convergence. Each iteration is just matrix-vector multiplication—perfect for GPUs!</p>
+      </section>
+
+      <!-- Section 5: Flow Matching -->
+      <section class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4">5. Flow Matching: OT Meets Generative AI</h3>
+
+        <p>The key insight connecting OT to diffusion models: if we know the <em>optimal transport map</em>, we can interpolate along straight lines!</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-cyan-400">Optimal Transport Interpolation</div>
+          <div class="text-center">
+            $$x_{\textcolor{#fbbf24}{t}} = (1 - \textcolor{#fbbf24}{t}) \cdot x_0 + \textcolor{#fbbf24}{t} \cdot x_1$$
+          </div>
+        </div>
+
+        <p>The <span class="var-v">velocity field</span> is constant along each path: v = x₁ − x₀. Train a neural network to predict this:</p>
+
+        <div class="eq-box">
+          <div class="eq-label text-cyan-400">Flow Matching Objective</div>
+          <div class="text-center">
+            $$\mathcal{L} = \mathbb{E}_{t, x_0, x_1}\left[\|\textcolor{#22d3ee}{v_\theta}(x_t, t) - (x_1 - x_0)\|^2\right]$$
+          </div>
+        </div>
+
+        <p><strong>Why this matters:</strong></p>
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li>Straighter paths → fewer sampling steps (10-20 vs 50-1000 for DDPM)</li>
+          <li>Simpler training objective (no noise schedule to tune)</li>
+          <li>Better theoretical properties (exact likelihood computation)</li>
+        </ul>
+
+        <p>Stable Diffusion 3 uses flow matching! This is why it's faster and higher quality.</p>
+      </section>
+
+      <!-- Section 6: Discrete OT Demo -->
+      <section class="mb-8">
+        <h3 class="text-xl font-bold text-white mb-4">6. Understanding the Demo Above</h3>
+
+        <p>The visualization above computes optimal transport between two point clouds:</p>
+
+        <ul class="list-disc list-inside space-y-2 my-4 text-gray-400">
+          <li><strong>Source (blue):</strong> Points you draw represent a discrete distribution</li>
+          <li><strong>Target (green):</strong> Where you want mass to go</li>
+          <li><strong>Transport lines:</strong> Show optimal pairings (thicker = more mass)</li>
+          <li><strong>Animation:</strong> Points move along their transport paths</li>
+          <li><strong>EMD:</strong> Total cost = sum of distances traveled</li>
+        </ul>
+
+        <p>Try the presets to see how different distributions transport! Notice how "scattered → clustered" has high cost (lots of movement), while similar shapes have low cost.</p>
+      </section>
+
+    </div>
+
+    <!-- Sidebar: Quick Reference -->
+    <aside class="stat-card h-fit lg:sticky lg:top-6">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-6">Equation Summary</h3>
+
+      <div class="space-y-5">
+        <!-- Cost Function -->
+        <div class="bg-black/40 rounded-lg p-3 border border-red-500/30">
+          <div class="text-sm font-bold text-red-400 mb-2">Cost Function</div>
+          <div class="text-base">$\textcolor{#f87171}{c}(x,y) = \|x-y\|^2$</div>
+        </div>
+
+        <!-- Kantorovich -->
+        <div class="bg-black/40 rounded-lg p-3 border border-orange-500/30">
+          <div class="text-sm font-bold text-orange-400 mb-2">Kantorovich OT</div>
+          <div class="text-base">$\min_\gamma \int c \, d\textcolor{#fb923c}{\gamma}$</div>
+        </div>
+
+        <!-- Wasserstein -->
+        <div class="bg-black/40 rounded-lg p-3 border border-purple-500/30">
+          <div class="text-sm font-bold text-purple-400 mb-2">Wasserstein-2</div>
+          <div class="text-base">$\textcolor{#a855f7}{W_2} = \sqrt{\min_\gamma \int \|x-y\|^2 d\gamma}$</div>
+        </div>
+
+        <!-- Sinkhorn -->
+        <div class="bg-black/40 rounded-lg p-3 border border-green-500/30">
+          <div class="text-sm font-bold text-green-400 mb-2">Sinkhorn</div>
+          <div class="text-base">$\gamma_{ij} = u_i K_{ij} v_j$</div>
+        </div>
+
+        <!-- Flow Matching -->
+        <div class="bg-black/40 rounded-lg p-3 border border-cyan-500/30">
+          <div class="text-sm font-bold text-cyan-400 mb-2">Flow Matching</div>
+          <div class="text-base">$\textcolor{#22d3ee}{v_\theta}(x_t, t) \approx x_1 - x_0$</div>
+        </div>
+
+        <!-- OT Interpolation -->
+        <div class="bg-black/40 rounded-lg p-3 border border-yellow-500/30">
+          <div class="text-sm font-bold text-yellow-400 mb-2">OT Path</div>
+          <div class="text-base">$x_t = (1-t)x_0 + tx_1$</div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-gray-700">
+        <h4 class="text-sm font-bold text-white mb-2">Key Insight</h4>
+        <p class="text-sm text-gray-300 leading-relaxed">Optimal transport finds the "cheapest" way to transform one distribution into another. Flow matching uses this to move noise → data along straight paths, making generation faster!</p>
+      </div>
+
+      <div class="mt-4 pt-4 border-t border-gray-700">
+        <h4 class="text-sm font-bold text-white mb-2">Try It</h4>
+        <p class="text-sm text-gray-300 leading-relaxed">Draw <span class="var-mu">source</span> and <span class="var-nu">target</span> distributions, then watch the optimal transport unfold!</p>
+      </div>
+    </aside>
+
+  </div>
+</article>
+
+<script>
+// ===== Configuration =====
+const CANVAS_SIZE = 560;
+const MAX_POINTS = 500;
+
+// ===== State =====
+let sourcePoints = [];
+let targetPoints = [];
+let transportPlan = null;  // Array of {i, j, weight}
+let animatedPoints = [];   // Current positions during animation
+let animProgress = 0;
+let animationId = null;
+let drawMode = 'source';   // 'source' or 'target'
+let emdCost = 0;
+
+// ===== Canvas Setup =====
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+
+// ===== Coordinate Transforms =====
+function toCanvas(x, y) {
+  return [(x + 1) * CANVAS_SIZE / 2, (1 - y) * CANVAS_SIZE / 2];
+}
+
+function fromCanvas(cx, cy) {
+  return [cx / CANVAS_SIZE * 2 - 1, 1 - cy / CANVAS_SIZE * 2];
+}
+
+// ===== Drawing =====
+function render() {
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+  // Draw grid
+  ctx.strokeStyle = '#21262d';
+  ctx.lineWidth = 0.5;
+  const gridSize = 20;
+  for (let i = 0; i <= gridSize; i++) {
+    const pos = i * CANVAS_SIZE / gridSize;
+    ctx.beginPath();
+    ctx.moveTo(pos, 0);
+    ctx.lineTo(pos, CANVAS_SIZE);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, pos);
+    ctx.lineTo(CANVAS_SIZE, pos);
+    ctx.stroke();
+  }
+
+  // Draw transport lines if computed and checkbox checked
+  if (transportPlan && document.getElementById('showLines').checked) {
+    drawTransportLines();
+  }
+
+  // Draw points if checkbox checked
+  if (document.getElementById('showPoints').checked) {
+    // Draw source points
+    ctx.fillStyle = '#3b82f6';
+    for (const [x, y] of sourcePoints) {
+      const [cx, cy] = toCanvas(x, y);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Draw target points
+    ctx.fillStyle = '#22c55e';
+    for (const [x, y] of targetPoints) {
+      const [cx, cy] = toCanvas(x, y);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Draw animated points during animation
+    if (animatedPoints.length > 0) {
+      ctx.fillStyle = '#fbbf24';
+      for (const [x, y] of animatedPoints) {
+        const [cx, cy] = toCanvas(x, y);
+        ctx.beginPath();
+        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Update stats
+  document.getElementById('numSource').textContent = sourcePoints.length;
+  document.getElementById('numTarget').textContent = targetPoints.length;
+  document.getElementById('transportStatus').textContent = transportPlan ? 'Computed' : 'Not computed';
+  document.getElementById('animProgress').textContent = Math.round(animProgress * 100) + '%';
+}
+
+function drawTransportLines() {
+  if (!transportPlan) return;
+
+  // Find max weight for normalization
+  const maxWeight = Math.max(...transportPlan.map(t => t.weight));
+
+  ctx.lineCap = 'round';
+
+  for (const {i, j, weight} of transportPlan) {
+    const [sx, sy] = sourcePoints[i];
+    const [tx, ty] = targetPoints[j];
+    const [csx, csy] = toCanvas(sx, sy);
+    const [ctx2, cty] = toCanvas(tx, ty);
+
+    // Line width based on weight
+    const alpha = Math.min(0.8, 0.2 + (weight / maxWeight) * 0.6);
+    ctx.strokeStyle = `rgba(251, 146, 60, ${alpha})`;
+    ctx.lineWidth = 1 + (weight / maxWeight) * 3;
+
+    ctx.beginPath();
+    ctx.moveTo(csx, csy);
+    ctx.lineTo(ctx2, cty);
+    ctx.stroke();
+  }
+}
+
+// ===== Sinkhorn Algorithm for Optimal Transport =====
+function computeTransport() {
+  if (sourcePoints.length < 2 || targetPoints.length < 2) {
+    alert('Draw at least 2 points in each distribution!');
+    return;
+  }
+
+  const n = sourcePoints.length;
+  const m = targetPoints.length;
+
+  // Compute cost matrix
+  const C = [];
+  for (let i = 0; i < n; i++) {
+    C[i] = [];
+    for (let j = 0; j < m; j++) {
+      const dx = sourcePoints[i][0] - targetPoints[j][0];
+      const dy = sourcePoints[i][1] - targetPoints[j][1];
+      C[i][j] = dx * dx + dy * dy;  // Squared distance
+    }
+  }
+
+  // Uniform marginals
+  const mu = new Array(n).fill(1 / n);
+  const nu = new Array(m).fill(1 / m);
+
+  // Sinkhorn algorithm
+  const lambda = parseFloat(document.getElementById('regSlider').value);
+  const K = [];
+  for (let i = 0; i < n; i++) {
+    K[i] = [];
+    for (let j = 0; j < m; j++) {
+      K[i][j] = Math.exp(-C[i][j] / lambda);
+    }
+  }
+
+  // Initialize scaling vectors
+  let u = new Array(n).fill(1);
+  let v = new Array(m).fill(1);
+
+  // Iterate
+  const maxIter = 100;
+  for (let iter = 0; iter < maxIter; iter++) {
+    // Update u
+    for (let i = 0; i < n; i++) {
+      let sum = 0;
+      for (let j = 0; j < m; j++) {
+        sum += K[i][j] * v[j];
+      }
+      u[i] = mu[i] / (sum + 1e-10);
+    }
+
+    // Update v
+    for (let j = 0; j < m; j++) {
+      let sum = 0;
+      for (let i = 0; i < n; i++) {
+        sum += K[i][j] * u[i];
+      }
+      v[j] = nu[j] / (sum + 1e-10);
+    }
+  }
+
+  // Compute transport plan
+  transportPlan = [];
+  emdCost = 0;
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < m; j++) {
+      const gamma_ij = u[i] * K[i][j] * v[j];
+      if (gamma_ij > 1e-6) {
+        transportPlan.push({i, j, weight: gamma_ij});
+        emdCost += gamma_ij * C[i][j];
+      }
+    }
+  }
+
+  document.getElementById('emdCost').textContent = emdCost.toFixed(4);
+  render();
+}
+
+// ===== Animation =====
+function animateTransport() {
+  if (!transportPlan || transportPlan.length === 0) {
+    alert('Compute transport first!');
+    return;
+  }
+
+  if (animationId) cancelAnimationFrame(animationId);
+
+  // Initialize animated points at source positions
+  animatedPoints = sourcePoints.map(p => [...p]);
+  animProgress = 0;
+
+  const speed = parseFloat(document.getElementById('speedSlider').value);
+  const duration = 2000 / speed;  // ms
+  const startTime = performance.now();
+
+  function step(currentTime) {
+    const elapsed = currentTime - startTime;
+    animProgress = Math.min(1, elapsed / duration);
+
+    // Compute current positions along transport paths
+    // For simplicity, move each source point toward its highest-weight target
+    for (let i = 0; i < sourcePoints.length; i++) {
+      // Find primary target for this source point
+      let maxWeight = 0;
+      let targetIdx = 0;
+      for (const {i: si, j, weight} of transportPlan) {
+        if (si === i && weight > maxWeight) {
+          maxWeight = weight;
+          targetIdx = j;
+        }
+      }
+
+      // Interpolate
+      const [sx, sy] = sourcePoints[i];
+      const [tx, ty] = targetPoints[targetIdx];
+      animatedPoints[i][0] = sx + (tx - sx) * animProgress;
+      animatedPoints[i][1] = sy + (ty - sy) * animProgress;
+    }
+
+    render();
+
+    if (animProgress < 1) {
+      animationId = requestAnimationFrame(step);
+    } else {
+      animatedPoints = [];
+      render();
+    }
+  }
+
+  animationId = requestAnimationFrame(step);
+}
+
+function resetPositions() {
+  if (animationId) cancelAnimationFrame(animationId);
+  animatedPoints = [];
+  animProgress = 0;
+  render();
+}
+
+// ===== User Input =====
+let isDrawing = false;
+
+canvas.addEventListener('mousedown', (e) => {
+  isDrawing = true;
+  addPoint(e);
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (isDrawing) addPoint(e);
+});
+
+canvas.addEventListener('mouseup', () => isDrawing = false);
+canvas.addEventListener('mouseleave', () => isDrawing = false);
+
+function addPoint(e) {
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) * (CANVAS_SIZE / rect.width);
+  const cy = (e.clientY - rect.top) * (CANVAS_SIZE / rect.height);
+  const [x, y] = fromCanvas(cx, cy);
+
+  const points = drawMode === 'source' ? sourcePoints : targetPoints;
+  if (points.length < MAX_POINTS) {
+    points.push([x, y]);
+    transportPlan = null;  // Invalidate transport plan
+    document.getElementById('emdCost').textContent = '-';
+    render();
+  }
+}
+
+// ===== Presets =====
+function generateCircle(n, r, cx = 0, cy = 0) {
+  const points = [];
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * Math.PI * 2;
+    const noise = (Math.random() - 0.5) * 0.05;
+    points.push([cx + Math.cos(angle) * (r + noise), cy + Math.sin(angle) * (r + noise)]);
+  }
+  return points;
+}
+
+function generateSquare(n, size, cx = 0, cy = 0) {
+  const points = [];
+  const perSide = Math.floor(n / 4);
+  for (let i = 0; i < perSide; i++) {
+    const t = i / perSide;
+    points.push([cx - size/2 + t * size, cy - size/2]);  // Top
+    points.push([cx + size/2, cy - size/2 + t * size]);  // Right
+    points.push([cx + size/2 - t * size, cy + size/2]);  // Bottom
+    points.push([cx - size/2, cy + size/2 - t * size]);  // Left
+  }
+  return points;
+}
+
+function generateMoon(n, up = true, offset = 0) {
+  const points = [];
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * Math.PI + (up ? 0 : Math.PI);
+    const noise = (Math.random() - 0.5) * 0.08;
+    points.push([Math.cos(angle) * 0.4 + offset, Math.sin(angle) * 0.4 + noise + (up ? 0.2 : -0.2)]);
+  }
+  return points;
+}
+
+function generateGaussian(n, cx, cy, sigma) {
+  const points = [];
+  for (let i = 0; i < n; i++) {
+    const u1 = Math.random(), u2 = Math.random();
+    const z1 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    const z2 = Math.sqrt(-2 * Math.log(u1)) * Math.sin(2 * Math.PI * u2);
+    points.push([cx + z1 * sigma, cy + z2 * sigma]);
+  }
+  return points;
+}
+
+function generateScatter(n) {
+  const points = [];
+  for (let i = 0; i < n; i++) {
+    points.push([(Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.6]);
+  }
+  return points;
+}
+
+function generateCluster(n, cx, cy, r) {
+  const points = [];
+  for (let i = 0; i < n; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = Math.random() * r;
+    points.push([cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius]);
+  }
+  return points;
+}
+
+// ===== Event Listeners =====
+document.getElementById('modeSource').onclick = () => {
+  drawMode = 'source';
+  document.getElementById('modeSource').classList.add('mode-active');
+  document.getElementById('modeTarget').classList.remove('mode-active');
+};
+
+document.getElementById('modeTarget').onclick = () => {
+  drawMode = 'target';
+  document.getElementById('modeTarget').classList.add('mode-active');
+  document.getElementById('modeSource').classList.remove('mode-active');
+};
+
+document.getElementById('clearBtn').onclick = () => {
+  if (animationId) cancelAnimationFrame(animationId);
+  sourcePoints = [];
+  targetPoints = [];
+  transportPlan = null;
+  animatedPoints = [];
+  animProgress = 0;
+  document.getElementById('emdCost').textContent = '-';
+  render();
+};
+
+document.getElementById('presetCircles').onclick = () => {
+  sourcePoints = generateCircle(100, 0.5);
+  targetPoints = generateSquare(100, 1.0);
+  transportPlan = null;
+  document.getElementById('emdCost').textContent = '-';
+  render();
+};
+
+document.getElementById('presetMoons').onclick = () => {
+  sourcePoints = generateMoon(100, true, -0.3);
+  targetPoints = generateMoon(100, false, 0.3);
+  transportPlan = null;
+  document.getElementById('emdCost').textContent = '-';
+  render();
+};
+
+document.getElementById('presetGaussian').onclick = () => {
+  sourcePoints = generateGaussian(100, -0.4, 0, 0.2);
+  targetPoints = generateGaussian(100, 0.4, 0, 0.2);
+  transportPlan = null;
+  document.getElementById('emdCost').textContent = '-';
+  render();
+};
+
+document.getElementById('presetCollapse').onclick = () => {
+  sourcePoints = generateScatter(100);
+  targetPoints = generateCluster(100, 0, 0, 0.2);
+  transportPlan = null;
+  document.getElementById('emdCost').textContent = '-';
+  render();
+};
+
+document.getElementById('computeBtn').onclick = computeTransport;
+document.getElementById('animateBtn').onclick = animateTransport;
+document.getElementById('resetPosBtn').onclick = resetPositions;
+
+document.getElementById('speedSlider').oninput = () => {
+  document.getElementById('speedVal').textContent = document.getElementById('speedSlider').value;
+};
+
+document.getElementById('regSlider').oninput = () => {
+  document.getElementById('regVal').textContent = document.getElementById('regSlider').value;
+};
+
+document.getElementById('showLines').onchange = render;
+document.getElementById('showPoints').onchange = render;
+
+// ===== Init =====
+render();
+
+renderMathInElement(document.body, {
+  delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
+  throwOnError: false
+});
+</script>
+</body>
+</html>

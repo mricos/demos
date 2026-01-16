@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Diffusion Cross-Attention Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --bg: #05070a; --panel: #0d1117; --border: #21262d; }
+    body { background: var(--bg); color: #c9d1d9; font-family: 'Inter', ui-monospace, monospace; }
+    canvas { image-rendering: pixelated; border: 1px solid var(--border); background: #000; width: 100%; }
+    .stat-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+    .label-text { color: #8b949e; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; }
+    input, button { font-size: 13px; }
+  </style>
+</head>
+<body class="p-6">
+
+  <header class="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
+    <div class="stat-card col-span-12 md:col-span-8 flex flex-wrap gap-6 items-end">
+      <div class="flex-1 min-w-[200px]">
+        <span class="label-text">Cross-Attention Prompt (A vs B)</span>
+        <div class="flex gap-2 mt-1">
+          <input id="promptA" type="text" class="bg-[#05070a] border border-gray-700 p-2 w-1/2 rounded" value="sky" />
+          <span class="pt-2 text-gray-500">vs</span>
+          <input id="promptB" type="text" class="bg-[#05070a] border border-gray-700 p-2 w-1/2 rounded" value="lava" />
+        </div>
+      </div>
+      <div>
+        <span class="label-text">Step Count</span>
+        <input id="steps" type="number" class="bg-[#05070a] border border-gray-700 p-2 w-20 rounded block mt-1" value="120" />
+      </div>
+      <div class="flex gap-2">
+        <button id="runBtn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded transition-colors">INIT & RUN</button>
+        <button id="resetBtn" class="border border-gray-600 px-6 py-2 rounded hover:bg-gray-800">RESET</button>
+      </div>
+    </div>
+
+    <div class="stat-card col-span-12 md:col-span-4">
+      <span class="label-text">Inference Engine Status</span>
+      <div class="grid grid-cols-2 gap-2 mt-2 text-xs">
+        <div class="text-gray-500">Step: <span id="stat-t" class="text-white">-</span></div>
+        <div class="text-gray-500">Flux: <span id="stat-work" class="text-white">-</span></div>
+        <div class="text-gray-500">Loss: <span id="stat-mse" class="text-white">-</span></div>
+        <div class="text-gray-500">Entropy: <span id="stat-ent" class="text-white">High</span></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="grid grid-cols-1 md:grid-cols-12 gap-6">
+    <div class="md:col-span-4 space-y-4">
+      <div class="stat-card">
+        <span class="label-text">Generated Reconstruction (x_0 estimate)</span>
+        <canvas id="cv_main" class="mt-2"></canvas>
+      </div>
+      <div class="stat-card">
+        <span class="label-text">RGB Channel Distribution (Refined)</span>
+        <canvas id="cv_hist" class="h-32 mt-2 border-0"></canvas>
+      </div>
+    </div>
+
+    <div class="md:col-span-4 space-y-4">
+      <div class="stat-card">
+        <span class="label-text">Spatial Attention Map (A=Blue / B=Red)</span>
+        <canvas id="cv_attn"></canvas>
+      </div>
+      <div class="stat-card">
+        <span class="label-text">Force Field / Gradient (ε-prediction)</span>
+        <canvas id="cv_grad"></canvas>
+      </div>
+    </div>
+
+    <div class="md:col-span-4 space-y-4">
+      <div class="stat-card">
+        <span class="label-text">Composite Conditioning Target (m_c)</span>
+        <canvas id="cv_target"></canvas>
+      </div>
+      <div class="stat-card">
+        <span class="label-text">Cumulative Flux (Work Curve)</span>
+        <canvas id="cv_flux" class="h-32 mt-2 border-0"></canvas>
+      </div>
+    </div>
+  </main>
+
+<script>
+(() => {
+  const W = 64, H = 64, N = W * H;
+  
+  const VISUAL_DICTIONARY = {
+    sky: (ctx) => { ctx.fillStyle = '#0ea5e9'; ctx.fillRect(0,0,W,H); },
+    grass: (ctx) => { ctx.fillStyle = '#166534'; ctx.fillRect(0,H*0.7,W,H*0.3); },
+    lava: (ctx) => { ctx.fillStyle = '#ef4444'; ctx.fillRect(0,0,W,H); },
+    neon: (ctx) => { ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H); ctx.strokeStyle='#f0f'; ctx.strokeRect(10,10,W-20,H-20); },
+    void: (ctx) => { ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H); }
+  };
+
+  let x = new Float32Array(N*3), target = new Float32Array(N*3), attn = new Float32Array(N);
+  let fluxHistory = [], running = false, t = 0, T = 100;
+
+  const getCtx = id => { const c = document.getElementById(id); c.width = W; c.height = H; return c.getContext('2d'); };
+  const ctxs = {
+    main: getCtx('cv_main'), attn: getCtx('cv_attn'), grad: getCtx('cv_grad'), 
+    target: getCtx('cv_target'), hist: getCtx('cv_hist'), flux: getCtx('cv_flux')
+  };
+
+  function init() {
+    const pA = document.getElementById('promptA').value;
+    const pB = document.getElementById('promptB').value;
+    T = parseInt(document.getElementById('steps').value);
+    
+    // 1. Create Spatial Attention Mask (Perlin-like noise)
+    for(let i=0; i<N; i++) attn[i] = Math.random();
+
+    // 2. Generate Target via Cross-Attention
+    const offA = document.createElement('canvas'), offB = document.createElement('canvas');
+    [offA, offB].forEach(c => { c.width = W; c.height = H; });
+    const ctxA = offA.getContext('2d'), ctxB = offB.getContext('2d');
+    
+    if(VISUAL_DICTIONARY[pA]) VISUAL_DICTIONARY[pA](ctxA);
+    if(VISUAL_DICTIONARY[pB]) VISUAL_DICTIONARY[pB](ctxB);
+
+    const dataA = ctxA.getImageData(0,0,W,H).data, dataB = ctxB.getImageData(0,0,W,H).data;
+    const targetImg = ctxs.target.createImageData(W,H), attnImg = ctxs.attn.createImageData(W,H);
+
+    for(let i=0; i<N; i++) {
+        const mask = attn[i]; // Cross-attention weight
+        for(let c=0; c<3; c++) {
+            const val = (dataA[i*4+c] * mask + dataB[i*4+c] * (1-mask));
+            target[i*3+c] = (val / 127.5) - 1;
+            targetImg.data[i*4+c] = val;
+        }
+        targetImg.data[i*4+3] = 255;
+        attnImg.data[i*4] = mask * 255;   // Red channel = Prompt A
+        attnImg.data[i*4+2] = (1-mask)*255; // Blue channel = Prompt B
+        attnImg.data[i*4+3] = 255;
+    }
+    ctxs.target.putImageData(targetImg, 0, 0);
+    ctxs.attn.putImageData(attnImg, 0, 0);
+
+    // 3. Init x with Gaussian Noise
+    for(let i=0; i<N*3; i++) x[i] = (Math.random()*2)-1;
+    
+    t = T; fluxHistory = []; running = true;
+    requestAnimationFrame(loop);
+  }
+
+  function step() {
+    if(t <= 0) return running = false;
+    let work = 0, mse = 0;
+    const gradImg = ctxs.grad.createImageData(W, H);
+
+    for(let i=0; i<N*3; i++) {
+        const diff = target[i] - x[i];
+        const eps = diff * 0.15; // "Learning Rate"
+        const noise = (Math.random()*2-1) * (t/T) * 0.1;
+        
+        const prev = x[i];
+        x[i] += eps + noise;
+        x[i] = Math.max(-1, Math.min(1, x[i]));
+        
+        work += Math.abs(x[i] - prev);
+        mse += diff * diff;
+
+        if(i % 3 === 0) {
+            const idx = (i/3)*4;
+            gradImg.data[idx] = Math.abs(eps) * 1000;
+            gradImg.data[idx+1] = eps > 0 ? 200 : 50;
+            gradImg.data[idx+3] = 255;
+        }
+    }
+
+    fluxHistory.push(work);
+    ctxs.grad.putImageData(gradImg, 0, 0);
+    document.getElementById('stat-t').innerText = `${t}/${T}`;
+    document.getElementById('stat-work').innerText = work.toFixed(0);
+    document.getElementById('stat-mse').innerText = (mse/N).toFixed(4);
+    
+    renderMain();
+    renderRefinedHistogram();
+    renderFlux();
+    t--;
+  }
+
+  function renderMain() {
+    const img = ctxs.main.createImageData(W, H);
+    for(let i=0; i<N; i++) {
+        img.data[i*4] = (x[i*3]+1)*127.5;
+        img.data[i*4+1] = (x[i*3+1]+1)*127.5;
+        img.data[i*4+2] = (x[i*3+2]+1)*127.5;
+        img.data[i*4+3] = 255;
+    }
+    ctxs.main.putImageData(img, 0, 0);
+  }
+
+  function renderRefinedHistogram() {
+    const h = ctxs.hist, bw = W/20;
+    h.clearRect(0,0,W,H);
+    const bins = [new Array(20).fill(0), new Array(20).fill(0), new Array(20).fill(0)];
+    for(let i=0; i<N; i++) {
+        for(let c=0; c<3; c++) {
+            const b = Math.floor(((x[i*3+c]+1)/2)*19.9);
+            bins[c][b]++;
+        }
+    }
+    const colors = ['#ff4444', '#44ff44', '#4444ff'];
+    bins.forEach((chan, c) => {
+        h.fillStyle = colors[c];
+        h.globalAlpha = 0.5;
+        chan.forEach((v, i) => h.fillRect(i*bw, H, bw-1, -(v/N)*H*3));
+    });
+    h.globalAlpha = 1.0;
+  }
+
+  function renderFlux() {
+    const f = ctxs.flux; f.clearRect(0,0,W,H);
+    f.strokeStyle = '#58a6ff'; f.lineWidth = 1.5; f.beginPath();
+    fluxHistory.forEach((v, i) => {
+        const lx = (i/T)*W, ly = H - (v/1500)*H;
+        i===0 ? f.moveTo(lx,ly) : f.lineTo(lx,ly);
+    });
+    f.stroke();
+  }
+
+  function loop() { if(running) { step(); requestAnimationFrame(loop); } }
+  document.getElementById('runBtn').onclick = init;
+  document.getElementById('resetBtn').onclick = () => { running = false; location.reload(); };
+})();
+</script>
+</body>
+</html>
