@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cann - Neural Cellular Automata</title>
+  <style>
+    :root {
+      --bg: #0d0d1a;
+      --surface: #1a1a2e;
+      --border: #2a2a4e;
+      --text: #e0e0e0;
+      --accent: #e94560;
+      --accent2: #00d9ff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 1rem 2rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 400;
+      color: var(--accent);
+    }
+
+    h1 span {
+      color: var(--text);
+      opacity: 0.6;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      padding: 1rem;
+      gap: 1rem;
+    }
+
+    .canvas-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: var(--surface);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      padding: 1rem;
+    }
+
+    #canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      border: 1px solid var(--border);
+    }
+
+    .sidebar {
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .panel {
+      background: var(--surface);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      padding: 1rem;
+    }
+
+    .panel h2 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent2);
+      margin-bottom: 0.75rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    button {
+      flex: 1;
+      padding: 0.5rem 1rem;
+      background: var(--border);
+      color: var(--text);
+      border: none;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: var(--accent);
+    }
+
+    button.active {
+      background: var(--accent);
+    }
+
+    select {
+      width: 100%;
+      padding: 0.5rem;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.25rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+    }
+
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+
+    .stat-label {
+      opacity: 0.7;
+    }
+
+    .stat-value {
+      font-weight: 600;
+      color: var(--accent2);
+    }
+
+    .slider-row {
+      margin-bottom: 0.75rem;
+    }
+
+    .slider-row label {
+      display: block;
+      font-size: 0.75rem;
+      margin-bottom: 0.25rem;
+      opacity: 0.8;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .mode-toggle {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .mode-toggle button {
+      flex: 1;
+      font-size: 0.75rem;
+    }
+
+    footer {
+      padding: 0.5rem 2rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+      opacity: 0.6;
+      text-align: center;
+    }
+
+    @media (max-width: 768px) {
+      main {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Cann <span>Neural Cellular Automata</span></h1>
+    <div id="gen-counter">Gen: 0</div>
+  </header>
+
+  <main>
+    <div class="canvas-container">
+      <canvas id="canvas" width="256" height="256"></canvas>
+    </div>
+
+    <aside class="sidebar">
+      <div class="panel">
+        <h2>Controls</h2>
+        <div class="controls">
+          <button id="btn-play">Play</button>
+          <button id="btn-step">Step</button>
+          <button id="btn-reset">Reset</button>
+        </div>
+
+        <label for="preset-select" style="font-size: 0.75rem; opacity: 0.8;">Preset</label>
+        <select id="preset-select">
+          <option value="emergence">Emergence</option>
+          <option value="gameOfLife">Game of Life</option>
+          <option value="temporal">Temporal Memory</option>
+          <option value="selfOrganize">Self-Organization</option>
+          <option value="waves">Wave Dynamics</option>
+          <option value="reactionDiffusion">Reaction-Diffusion</option>
+          <option value="attention">Temporal Attention</option>
+          <option value="minimal">Minimal</option>
+        </select>
+
+        <div class="mode-toggle">
+          <button id="mode-markovian" class="active">Markovian</button>
+          <button id="mode-ssm">SSM</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Loss Balance</h2>
+        <div class="slider-row">
+          <label>Local ↔ Global: <span id="blend-value">0.5</span></label>
+          <input type="range" id="loss-blend" min="0" max="1" step="0.01" value="0.5">
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Local Loss</span>
+          <span class="stat-value" id="local-loss">0.000</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Global Loss</span>
+          <span class="stat-value" id="global-loss">0.000</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Total Loss</span>
+          <span class="stat-value" id="total-loss">0.000</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Grid Stats</h2>
+        <div class="stat-row">
+          <span class="stat-label">Density</span>
+          <span class="stat-value" id="stat-density">0%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Mean</span>
+          <span class="stat-value" id="stat-mean">0.000</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">FPS</span>
+          <span class="stat-value" id="stat-fps">0</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Rendering</h2>
+        <div class="mode-toggle">
+          <button id="proj-flat" class="active">Flat</button>
+          <button id="proj-height">Height</button>
+          <button id="proj-iso">Isometric</button>
+        </div>
+        <select id="color-mode">
+          <option value="rgba">RGBA</option>
+          <option value="grayscale">Grayscale</option>
+          <option value="heatmap">Heatmap</option>
+          <option value="palette">Palette</option>
+        </select>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    Cann v0.1.0 | Neural Cellular Automata with dual loss functions
+  </footer>
+
+  <script type="module">
+    import { Cann } from './src/index.js';
+    import { CanvasRenderer } from './src/renderers/CanvasRenderer.js';
+    import { presets } from './src/presets/index.js';
+
+    // DOM elements
+    const canvas = document.getElementById('canvas');
+    const genCounter = document.getElementById('gen-counter');
+    const btnPlay = document.getElementById('btn-play');
+    const btnStep = document.getElementById('btn-step');
+    const btnReset = document.getElementById('btn-reset');
+    const presetSelect = document.getElementById('preset-select');
+    const lossBlend = document.getElementById('loss-blend');
+    const blendValue = document.getElementById('blend-value');
+
+    // Stats elements
+    const localLossEl = document.getElementById('local-loss');
+    const globalLossEl = document.getElementById('global-loss');
+    const totalLossEl = document.getElementById('total-loss');
+    const statDensity = document.getElementById('stat-density');
+    const statMean = document.getElementById('stat-mean');
+    const statFps = document.getElementById('stat-fps');
+
+    // Mode buttons
+    const modeMarkovian = document.getElementById('mode-markovian');
+    const modeSsm = document.getElementById('mode-ssm');
+
+    // Projection buttons
+    const projFlat = document.getElementById('proj-flat');
+    const projHeight = document.getElementById('proj-height');
+    const projIso = document.getElementById('proj-iso');
+
+    const colorMode = document.getElementById('color-mode');
+
+    // State
+    let cann = null;
+    let renderer = null;
+    let isPlaying = false;
+
+    // Initialize
+    function init(presetName = 'emergence') {
+      const preset = presets[presetName] || presets.emergence;
+
+      // Create Cann instance
+      cann = new Cann(preset);
+      cann.seed(preset.init || 'random');
+
+      // Setup renderer
+      canvas.width = cann.grid.width * 4;
+      canvas.height = cann.grid.height * 4;
+
+      renderer = new CanvasRenderer({
+        canvas,
+        cellSize: 4,
+        mode: 'rgba'
+      });
+      cann.attachRenderer(renderer);
+
+      // Setup callbacks
+      cann.on('onStep', updateStats);
+      cann.on('onLoss', updateLoss);
+
+      // Initial render
+      cann.render();
+      updateStats({ generation: 0, metrics: cann.metrics });
+
+      // Update mode buttons
+      updateModeButtons(preset.mode || 'markovian');
+    }
+
+    function updateStats({ generation, metrics }) {
+      genCounter.textContent = `Gen: ${generation}`;
+
+      const stats = cann.grid.getStats();
+      statDensity.textContent = `${(stats.density * 100).toFixed(1)}%`;
+      statMean.textContent = stats.mean[0].toFixed(3);
+      statFps.textContent = Math.round(metrics.fps);
+    }
+
+    function updateLoss(result) {
+      localLossEl.textContent = result.local.toFixed(4);
+      globalLossEl.textContent = result.global.toFixed(4);
+      totalLossEl.textContent = result.total.toFixed(4);
+    }
+
+    function updateModeButtons(mode) {
+      modeMarkovian.classList.toggle('active', mode === 'markovian');
+      modeSsm.classList.toggle('active', mode === 'ssm');
+    }
+
+    function updateProjectionButtons(mode) {
+      projFlat.classList.toggle('active', mode === 'flat');
+      projHeight.classList.toggle('active', mode === 'heightfield');
+      projIso.classList.toggle('active', mode === 'isometric');
+    }
+
+    // Event handlers
+    btnPlay.addEventListener('click', () => {
+      if (isPlaying) {
+        cann.stop();
+        btnPlay.textContent = 'Play';
+        isPlaying = false;
+      } else {
+        cann.run(30);
+        btnPlay.textContent = 'Pause';
+        isPlaying = true;
+      }
+    });
+
+    btnStep.addEventListener('click', () => {
+      cann.step().render();
+    });
+
+    btnReset.addEventListener('click', () => {
+      const preset = presets[presetSelect.value];
+      cann.seed(preset?.init || 'random');
+      cann.loss.reset();
+      cann.render();
+      updateStats({ generation: 0, metrics: cann.metrics });
+    });
+
+    presetSelect.addEventListener('change', () => {
+      if (isPlaying) {
+        cann.stop();
+        btnPlay.textContent = 'Play';
+        isPlaying = false;
+      }
+      init(presetSelect.value);
+    });
+
+    lossBlend.addEventListener('input', () => {
+      const blend = parseFloat(lossBlend.value);
+      blendValue.textContent = blend.toFixed(2);
+      cann.loss.setBlend(blend);
+    });
+
+    // Mode toggle
+    modeMarkovian.addEventListener('click', () => {
+      if (cann.config.mode === 'markovian') return;
+      cann.config.mode = 'markovian';
+      cann._initEvolver('markovian');
+      updateModeButtons('markovian');
+    });
+
+    modeSsm.addEventListener('click', () => {
+      if (cann.config.mode === 'ssm') return;
+      cann.config.mode = 'ssm';
+      cann._initEvolver('ssm');
+      updateModeButtons('ssm');
+    });
+
+    // Projection toggle
+    projFlat.addEventListener('click', () => {
+      renderer.setProjection('flat');
+      updateProjectionButtons('flat');
+      cann.render();
+    });
+
+    projHeight.addEventListener('click', () => {
+      renderer.setProjection('heightfield');
+      updateProjectionButtons('heightfield');
+      cann.render();
+    });
+
+    projIso.addEventListener('click', () => {
+      renderer.setProjection('isometric');
+      updateProjectionButtons('isometric');
+      cann.render();
+    });
+
+    // Color mode
+    colorMode.addEventListener('change', () => {
+      renderer.mode = colorMode.value;
+      cann.render();
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      switch (e.key) {
+        case ' ':
+          btnPlay.click();
+          e.preventDefault();
+          break;
+        case 's':
+          btnStep.click();
+          break;
+        case 'r':
+          btnReset.click();
+          break;
+      }
+    });
+
+    // Start
+    init('emergence');
+  </script>
+</body>
+</html>
