@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>NN Learns FFT - Experiments</title>
+  <link rel="stylesheet" href="css/fftnn.css">
+</head>
+<body>
+
+<header class="header">
+  <div class="header-title">NN &rarr; FFT Lab</div>
+  <div class="header-actions">
+    <button id="btnTrain" class="btn-primary">&#9654; Train</button>
+    <button id="btnStop" class="btn-secondary" disabled>&#9632; Stop</button>
+    <button id="btnReset" class="btn-secondary">Reset</button>
+    <span id="trainStateIndicator" style="font-size:10px; color:#8b949e; margin-left:4px;"></span>
+  </div>
+  <div class="header-stats">
+    <div class="header-stat"><span class="header-stat-val" id="hdrEpoch">-</span><span class="header-stat-lbl">Epoch</span></div>
+    <div class="header-stat"><span class="header-stat-val" id="hdrLoss">-</span><span class="header-stat-lbl">Loss</span></div>
+    <div class="header-stat"><span class="header-stat-val" id="hdrArch">-</span><span class="header-stat-lbl">Arch</span></div>
+  </div>
+  <div class="header-progress">
+    <div class="header-progress-bar" id="hdrProgress"></div>
+  </div>
+  <div class="stale-badge" id="staleBadge" hidden>stale &mdash; retrain</div>
+</header>
+
+<div class="app-body">
+  <div class="sidebar">
+    <details class="accordion">
+      <summary>Signal Generation</summary>
+      <div class="accordion-body">
+        <label>N samples
+          <select id="N">
+            <option value="16">16</option>
+            <option value="32">32</option>
+            <option value="64" selected>64</option>
+            <option value="128">128</option>
+            <option value="256">256</option>
+          </select>
+        </label>
+        <label>Sample rate (Hz) <input type="number" id="fs" value="256" min="32" step="32"></label>
+        <label>Max tones K <input type="number" id="maxK" value="2" min="1" max="3"></label>
+        <div class="k-dist-controls" id="kDistControls">
+          <label>K=0 weight <input type="range" id="kw0" min="0" max="10" step="1" value="3"><span class="val" id="kw0V">33%</span></label>
+          <label>K=1 weight <input type="range" id="kw1" min="0" max="10" step="1" value="3"><span class="val" id="kw1V">33%</span></label>
+          <label>K=2 weight <input type="range" id="kw2" min="0" max="10" step="1" value="3"><span class="val" id="kw2V">33%</span></label>
+          <label style="display:none" id="kw3Label">K=3 weight <input type="range" id="kw3" min="0" max="10" step="1" value="3"><span class="val" id="kw3V">25%</span></label>
+          <div class="k-dist-bar" id="kDistBar"></div>
+        </div>
+        <label>Freq min (Hz) <input type="number" id="freqMin" value="8" min="1" step="1"></label>
+        <label>Freq max (Hz) <input type="number" id="freqMax" value="100" min="10" step="10"></label>
+        <label>Min separation <input type="number" id="freqSep" value="10" min="0" step="1"></label>
+        <label>Amp min <input type="range" id="ampMin" min="0.3" max="1" step="0.1" value="0.6"><span class="val" id="ampMinV">0.6</span></label>
+        <label>Amp max <input type="range" id="ampMax" min="0.5" max="2" step="0.1" value="0.8"><span class="val" id="ampMaxV">0.8</span></label>
+        <label>Noise (SNR dB) <input type="range" id="noiseSNR" min="0" max="60" step="2" value="20"><span class="val" id="noiseSNRV">20dB (&sigma;=0.10)</span></label>
+        <div class="eeg-bands-ref" style="font-size:9px; color:#8b949e; margin-top:6px; line-height:1.4;">
+          <strong>EEG Bands:</strong> B1&delta; 0.5-4Hz | B2&theta; 4-8Hz | B3&alpha; 8-13Hz | B4&beta; 13-30Hz | B5&gamma; 30-100Hz
+        </div>
+      </div>
+    </details>
+
+    <details class="accordion">
+      <summary>Architecture</summary>
+      <div class="accordion-body">
+        <label>Hidden layers <input type="number" id="layers" value="1" min="0" max="3"></label>
+        <label>Neurons
+          <select id="neurons">
+            <option value="16">16</option>
+            <option value="32" selected>32</option>
+            <option value="64">64</option>
+            <option value="128">128</option>
+            <option value="256">256</option>
+          </select>
+        </label>
+        <label>Activation
+          <select id="activation">
+            <option value="tanh">tanh</option>
+            <option value="relu">relu</option>
+            <option value="linear">linear</option>
+          </select>
+        </label>
+        <label>Mode
+          <select id="mode">
+            <option value="fft-simulator">fft-simulator</option>
+            <option value="band-detector">band-detector</option>
+          </select>
+        </label>
+        <label id="fftReprLabel">FFT representation
+          <select id="fftRepr">
+            <option value="absolute">absolute |X[k]|</option>
+            <option value="complex">complex (Re, Im)</option>
+          </select>
+        </label>
+      </div>
+    </details>
+
+    <details class="accordion" open>
+      <summary>Training</summary>
+      <div class="accordion-body">
+        <label>Learn rate <input type="range" id="lr" min="-4" max="-1" step="0.25" value="-2"><span class="val" id="lrV">0.01</span></label>
+        <label>Batch <input type="number" id="batch" value="16" min="4" max="64" step="4"></label>
+        <label>Batches per run <input type="number" id="epochs" value="500" min="10" max="5000" step="50"></label>
+        <label>Seed <input type="number" id="seed" value="12345" min="1"></label>
+        <label>Phase shifts
+          <select id="phaseShifts">
+            <option value="0">0 (off)</option>
+            <option value="1">1 (N/2)</option>
+            <option value="2">2</option>
+            <option value="4">4</option>
+            <option value="8">8</option>
+          </select>
+        </label>
+      </div>
+    </details>
+
+    <details class="accordion">
+      <summary>Detector</summary>
+      <div class="accordion-body">
+        <label>MC samples <input type="number" id="mcSamples" value="200" min="50" max="1000" step="50"></label>
+        <label>Peak threshold <input type="range" id="peakThresh" min="0.1" max="0.5" step="0.05" value="0.2"><span class="val" id="peakThreshV">0.20</span></label>
+        <label>SNR threshold (dB) <input type="range" id="snrThresh" min="2" max="15" step="1" value="6"><span class="val" id="snrThreshV">6</span></label>
+      </div>
+    </details>
+
+    <details class="accordion" id="expDetailAccordion" style="display:none">
+      <summary>Experiment Detail</summary>
+      <div class="accordion-body">
+        <pre id="expDetailText" style="font-size:8px; line-height:1.4; white-space:pre-wrap; color:#c9d1d9; margin:0 0 8px 0; background:#0d1117; padding:6px; border-radius:3px; max-height:300px; overflow-y:auto;"></pre>
+        <div style="display:flex; gap:4px; margin-bottom:8px;">
+          <button id="expDetailCopy" class="btn-secondary" style="font-size:9px; padding:2px 8px;">Copy</button>
+          <button id="expDetailLoad" class="btn-secondary" style="font-size:9px; padding:2px 8px;">Load Settings</button>
+        </div>
+        <details style="margin-top:4px;">
+          <summary style="font-size:9px; color:#8b949e; cursor:pointer;">Field Guide</summary>
+          <div style="font-size:8px; color:#8b949e; line-height:1.5; margin-top:4px;">
+            <strong>Architecture</strong><br>
+            <b>Mode</b>: fft-simulator learns to reproduce FFT output; band-detector classifies 5 EEG bands.<br>
+            <b>Arch</b>: Network layer sizes (input&rarr;hidden&rarr;output). Input=N samples, output=N/2+1 bins (absolute) or N+2 (complex) for FFT, 5 for bands.<br>
+            <b>Activation</b>: Hidden layer nonlinearity (tanh, relu, linear).<br>
+            <b>Params</b>: Total trainable weights + biases.<br>
+            <br>
+            <strong>Signal</strong><br>
+            <b>N</b>: Samples per signal window.<br>
+            <b>fs</b>: Sample rate in Hz.<br>
+            <b>&Delta;f</b>: Frequency resolution = fs/N. Two tones must differ by &ge;2&Delta;f to be resolved by DFT.<br>
+            <b>Freq range</b>: Tone frequencies drawn from this range (EEG bands).<br>
+            <b>Amp</b>: Tone amplitude range (normalized).<br>
+            <b>SNR</b>: Signal-to-noise ratio in dB. Higher = cleaner signal. &sigma; is the Gaussian noise std dev (= 10<sup>-SNR/20</sup>).<br>
+            <b>Max tones K</b>: Each training sample has 0..K tones.<br>
+            <br>
+            <strong>Training</strong><br>
+            <b>lr</b>: Learning rate for gradient descent.<br>
+            <b>batch</b>: Samples per training step.<br>
+            <b>epochs</b>: trained/requested. "auto-stopped" means EMA loss plateaued for 30 epochs.<br>
+            <b>Seed</b>: RNG seed for reproducibility.<br>
+            <br>
+            <strong>Results</strong><br>
+            <b>Final loss</b>: MSE at last epoch.<br>
+            <b>Best loss</b>: Minimum MSE achieved and at which epoch.<br>
+            <b>Loss @10, @50</b>: Early convergence speed &mdash; how fast loss drops.<br>
+            <b>Accuracy</b>: For band-detector: fraction of bands correctly classified. For fft-simulator: Pearson correlation (r) between predicted and true spectrum.<br>
+            <br>
+            <strong>Weights</strong><br>
+            <b>&mu;</b>: Mean weight value. Should be near 0 for balanced networks.<br>
+            <b>&sigma;</b>: Weight std dev. Grows during training as the network learns features.<br>
+            <b>max</b>: Largest absolute weight. Very large = potential instability.<br>
+            <b>Sparsity</b>: % of weights near zero (|w|&lt;0.01). High sparsity = many dead connections.<br>
+            <b>Per-layer</b>: L1 connects input to hidden (learns frequency filters). L2 connects hidden to output (combines features into predictions). B &mu; = mean bias.<br>
+            <br>
+            <strong>FLOPs</strong><br>
+            <b>FFT</b>: ~5N log<sub>2</sub>N operations for a standard FFT.<br>
+            <b>NN</b>: 2 &times; fan_in &times; fan_out per layer. Compares NN inference cost to the FFT it's trying to learn.
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <div class="summary-box" id="summary"></div>
+
+  </div>
+
+  <div class="main">
+    <div class="main-inner">
+    <div class="tabs">
+      <div class="tab active" data-tab="signal">Signal</div>
+      <div class="tab" data-tab="network">Network</div>
+      <div class="tab" data-tab="training">Training</div>
+      <div class="tab" data-tab="detector">Detector</div>
+      <div class="tab" data-tab="theory">Theory</div>
+      <div class="tab" data-tab="experiments">Experiments</div>
+    </div>
+
+    <div class="content active" id="tab-signal">
+      <div class="panel dft-resolution-panel" id="dftResPanel">
+        <h3>DFT Resolution</h3>
+        <div class="dft-res-grid" id="dftResInfo">-</div>
+      </div>
+      <div class="row">
+        <div class="panel">
+          <h3>Input Signal x[n]</h3>
+          <canvas id="cSignal"></canvas>
+          <p id="signalInfo">-</p>
+        </div>
+        <div class="panel">
+          <h3>Target Spectrum |X[k]|</h3>
+          <canvas id="cTarget"></canvas>
+          <div class="legend">
+            <span><i style="background:#3fb950"></i> Magnitude</span>
+            <span><i style="background:#58a6ff"></i> Phase</span>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="panel">
+          <h3>Signal Ensemble (all signals overlaid)</h3>
+          <canvas id="cEnsemble"></canvas>
+          <div class="legend">
+            <span><i style="background:#58a6ff"></i> Individual</span>
+            <span><i style="background:#3fb950"></i> Mean</span>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Spectrum Ensemble</h3>
+          <canvas id="cEnsembleSpec"></canvas>
+          <div class="legend">
+            <span><i style="background:#f0883e"></i> Individual</span>
+            <span><i style="background:#3fb950"></i> Mean</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Batch Samples</h3>
+        <div class="batch-nav">
+          <button id="btnPrevBatch" class="btn-secondary">&laquo; Prev</button>
+          <span>Batch <strong id="batchNum">1</strong> / <strong id="batchTotal">1</strong></span>
+          <button id="btnNextBatch" class="btn-secondary">Next &raquo;</button>
+          <button id="btnNewBatch" class="btn-secondary">Generate New</button>
+        </div>
+        <div class="ensemble-grid" id="batchGrid"></div>
+      </div>
+    </div>
+
+    <div class="content" id="tab-training">
+      <div class="stats-grid">
+        <div class="stat-box"><div class="value" id="statEpoch">0</div><div class="label">Epoch</div></div>
+        <div class="stat-box"><div class="value" id="statLoss">-</div><div class="label">Loss</div></div>
+        <div class="stat-box"><div class="value" id="statParams">-</div><div class="label">Params</div></div>
+        <div class="stat-box"><div class="value" id="statTime">-</div><div class="label">Time</div></div>
+        <div class="stat-box"><div class="value" id="statAcc">-</div><div class="label">Accuracy</div></div>
+        <div class="stat-box"><div class="value" id="statConv">-</div><div class="label">Converged</div></div>
+        <div class="stat-box"><div class="value" id="statFLOPs">-</div><div class="label">FLOPs (FFT/NN)</div></div>
+      </div>
+      <div class="row">
+        <div class="panel">
+          <h3>Loss Curve (MSE on one-hot)</h3>
+          <canvas id="cLoss"></canvas>
+        </div>
+        <div class="panel">
+          <h3>Accuracy Curve</h3>
+          <canvas id="cAccuracy"></canvas>
+        </div>
+      </div>
+      <div class="row">
+        <div class="panel">
+          <h3>Classification Output (current signal)</h3>
+          <canvas id="cClassOutput"></canvas>
+          <p id="classInfo">-</p>
+        </div>
+        <div class="panel">
+          <h3>Target Spectrum (for reference)</h3>
+          <canvas id="cPredMag"></canvas>
+          <div class="legend">
+            <span><i style="background:#3fb950"></i> True |X[k]|</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel" id="reconPanel" style="display:none">
+        <h3>Signal Reconstruction (NN output &rarr; IDFT)</h3>
+        <canvas id="cReconstruction" style="height:150px"></canvas>
+        <div class="legend">
+          <span><i style="background:#3fb950"></i> Original</span>
+          <span><i style="background:#f0883e"></i> Reconstructed</span>
+        </div>
+        <p id="reconInfo">-</p>
+      </div>
+      <div class="panel">
+        <h3>Probe Signal Evolution</h3>
+        <p style="margin-bottom:6px;">Fixed reference signals fed through the network each epoch. Each chart shows how output neuron activations change over training. <strong>Bold line</strong> = true class, faded = others. Click a chart to zoom in.</p>
+        <div class="legend" style="margin-bottom:6px">
+          <span><i style="background:#3fb950"></i> True</span>
+          <span><i style="background:#f85149"></i> Predicted</span>
+        </div>
+        <div class="probe-grid" id="probeGrid">
+          <div class="probe-cell"><canvas id="cProbe0"></canvas></div>
+          <div class="probe-cell"><canvas id="cProbe1"></canvas></div>
+          <div class="probe-cell"><canvas id="cProbe2"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Probe zoom modal -->
+      <div id="probeZoomModal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.85); cursor:pointer; padding:40px; align-items:center; justify-content:center;">
+        <div style="width:90vw; max-width:900px; max-height:100%; display:flex; flex-direction:column; gap:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span id="probeZoomTitle" style="color:#58a6ff; font-size:24px; font-weight:600;"></span>
+            <span style="color:#8b949e; font-size:16px;">Click anywhere to close</span>
+          </div>
+          <canvas id="cProbeZoom" style="width:100%; height:350px; background:#0d1117; border-radius:4px; border:1px solid #30363d;"></canvas>
+          <p id="probeZoomInfo" style="color:#c9d1d9; font-size:18px; line-height:1.6; white-space:pre-wrap;"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="content" id="tab-network">
+      <div class="epoch-slider">
+        <span>Epoch: <strong id="epochNum">0</strong></span>
+        <input type="range" id="epochSlider" min="0" max="0" value="0">
+        <button id="btnPlayEpochs" class="btn-secondary" style="width:50px; padding:3px;">&#9654;</button>
+      </div>
+      <div class="row">
+        <div class="panel col-2">
+          <h3>Network Graph</h3>
+          <canvas id="cNetwork" style="height:250px"></canvas>
+          <p>Lines: weights (blue=neg, red=pos). Circles: neurons (color=bias). Thickness=magnitude.</p>
+        </div>
+        <div class="panel">
+          <h3>Layer Stats</h3>
+          <div id="layerStats"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Activation Heatmap (Probe Signals)</h3>
+        <canvas id="cActivationHeatmap" style="height:120px"></canvas>
+        <p>Rows: probe signals. Columns: hidden neurons. Brighter = higher activation.</p>
+      </div>
+      <div class="panel">
+        <h3>Weight Waveforms (L1 neurons)</h3>
+        <canvas id="cWeightWaveforms" style="height:200px"></canvas>
+        <p>Each row is one hidden neuron's N weights drawn as a curve &mdash; a snapshot at the selected epoch, not time unfolding. The x-axis is input sample position (0 to N-1). If the curve looks like a sine wave, that neuron "listens for" that frequency. The label shows which. Use the epoch slider to watch shapes emerge during training. See Guide for more.</p>
+      </div>
+      <div class="row">
+        <div class="panel">
+          <h3>Weight Distribution</h3>
+          <canvas id="cWeightHist"></canvas>
+        </div>
+        <div class="panel">
+          <h3>Weight Matrix L1</h3>
+          <canvas id="cWeightMatrix"></canvas>
+        </div>
+        <div class="panel">
+          <h3>Biases</h3>
+          <canvas id="cBias"></canvas>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Weight Diagnostics (L1)</h3>
+        <div id="diagMetrics" class="diag-grid"></div>
+        <div class="row">
+          <div class="panel">
+            <h3 style="font-size:11px">Singular Value Spectrum</h3>
+            <canvas id="cSingularValues" style="height:120px"></canvas>
+            <p>DFT &rarr; all &sigma; equal. Condition # &rarr; 1 as network learns.</p>
+          </div>
+          <div class="panel">
+            <h3 style="font-size:11px">Gram Matrix (Row Orthogonality)</h3>
+            <canvas id="cGramMatrix" style="height:120px"></canvas>
+            <p>Off-diagonal &rarr; 0 means neurons detect independent features.</p>
+          </div>
+        </div>
+        <details style="margin-top:8px;">
+          <summary style="font-size:10px; color:#8b949e; cursor:pointer;">Why these metrics?</summary>
+          <div style="font-size:9px; color:#8b949e; line-height:1.5; margin-top:4px;">
+            <p>The DFT matrix is unitary: orthogonal rows, uniform singular values. Deviations reveal what the network has and hasn't learned.</p>
+            <p><strong>Condition #</strong> = &sigma;<sub>max</sub>/&sigma;<sub>min</sub>. DFT ideal: 1.0. High values mean some frequencies are amplified/suppressed.</p>
+            <p><strong>Effective rank</strong> = singular values above 1% of max. Less than full rank means the network uses fewer dimensions than available.</p>
+            <p><strong>Orthogonality</strong> = mean |off-diagonal| of normalized Gram matrix. 0 = perfectly orthogonal rows (independent feature detectors).</p>
+            <p><strong>Spectral purity</strong> = energy in peak &plusmn;1 DFT bin / total. 1.0 = each neuron is a pure sinusoid (frequency-selective).</p>
+            <p><strong>Mean |bias|</strong>: DFT needs no bias offset. Large biases suggest the network is compensating for something.</p>
+            <p><strong>Dead/Redundant</strong>: Dead = near-zero norm (wasted capacity). Redundant = highly correlated pairs (duplicate detectors).</p>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="content" id="tab-detector">
+      <div class="panel">
+        <h3>Test Suite</h3>
+        <div class="tab-action-bar">
+          <p>Run <span id="mcCount">-</span> labeled inference tests &mdash; every result stored</p>
+          <button id="btnDetector" class="btn-primary">Run Tests</button>
+          <select id="testFilter" style="margin-left:8px; font-size:10px; background:#0d1117; color:#c9d1d9; border:1px solid #30363d; border-radius:3px; padding:2px 4px;">
+            <option value="all">All</option>
+            <option value="pass">NN Pass</option>
+            <option value="fail">NN Fail</option>
+            <option value="fft-pass">FFT Pass</option>
+            <option value="fft-fail">FFT Fail</option>
+            <option value="nn-better">NN better than FFT</option>
+            <option value="fft-better">FFT better than NN</option>
+          </select>
+        </div>
+        <div class="detector-results" id="detectorResults">
+          <div class="metric"><div class="val">-</div><div class="lbl">Run tests to see results</div></div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <div id="kBreakdown" style="display:none; flex:1;"></div>
+          <div id="kBreakdownFFT" style="display:none; flex:1;"></div>
+        </div>
+        <div id="detectorCommentary" style="display:none; margin-top:8px; font-size:9px; color:#8b949e; line-height:1.5; padding:8px; background:#0d1117; border-radius:4px; border-left:3px solid #58a6ff;"></div>
+      </div>
+
+      <div class="panel" id="testBrowserPanel" style="display:none">
+        <h3>Test Browser <span style="font-weight:normal; font-size:10px; color:#8b949e;" id="testFilterInfo"></span></h3>
+        <div class="batch-nav">
+          <button id="btnPrevTest" class="btn-secondary">&laquo; Prev</button>
+          <span>Test <strong id="testNum">-</strong> / <strong id="testTotal">-</strong></span>
+          <button id="btnNextTest" class="btn-secondary">Next &raquo;</button>
+          <span id="testPassBadge" style="font-size:10px; font-weight:bold; padding:2px 8px; border-radius:3px; margin-left:8px;"></span>
+        </div>
+        <div id="testDetail" style="margin-top:8px;">
+          <div style="font-size:9px; color:#8b949e; margin-bottom:4px;" id="testMeta">-</div>
+          <div class="row">
+            <div class="panel">
+              <h3 style="font-size:11px;">Input Signal</h3>
+              <canvas id="cTestSignal"></canvas>
+            </div>
+            <div class="panel">
+              <h3 style="font-size:11px;" id="testPredTitle">Prediction vs Truth</h3>
+              <canvas id="cTestPred"></canvas>
+              <div class="legend" id="testPredLegend">
+                <span><i style="background:#3fb950"></i> Truth</span>
+                <span><i style="background:#f85149"></i> Predicted</span>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:9px; margin-top:4px;" id="testErrorDetail">-</div>
+        </div>
+      </div>
+
+      <div class="panel" id="testLogPanel" style="display:none">
+        <h3>Test Log <button id="btnCopyTestLog" class="btn-secondary" style="font-size:9px; padding:2px 8px; margin-left:8px;">Copy All</button></h3>
+        <div id="testLogGrid" style="max-height:250px; overflow-y:auto; font-size:8px; font-family:monospace;"></div>
+      </div>
+
+      <div class="row">
+        <div class="panel">
+          <h3 id="confNNTitle">NN Performance</h3>
+          <canvas id="cConfNN"></canvas>
+          <p id="confNNCaption">-</p>
+        </div>
+        <div class="panel">
+          <h3 id="confFFTTitle">FFT Baseline</h3>
+          <canvas id="cConfFFT"></canvas>
+          <p id="confFFTCaption">-</p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="panel">
+          <h3>Band SNR (current signal)</h3>
+          <canvas id="cBandSNR" style="height:130px"></canvas>
+          <p>Per-band signal-to-noise ratio. Green = detected above threshold.</p>
+        </div>
+        <div class="panel">
+          <h3>Test Signal Activations</h3>
+          <canvas id="cTestActivations" style="height:130px"></canvas>
+          <p>Which neurons activate for band-specific test signals.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="content" id="tab-theory">
+      <div class="theory-content">
+        <div class="panel">
+          <h3>The Experiment</h3>
+          <p>Can a neural network learn the Discrete Fourier Transform? The DFT provides known ground truth with adjustable difficulty, making it an ideal testbed for studying how networks learn signal processing.</p>
+          <p>Two modes are available: <strong>fft-simulator</strong> (regression &mdash; learn the transform itself) and <strong>band-detector</strong> (classification &mdash; learn to detect frequency bands).</p>
+          <p>Input: N real-valued time-domain samples. Output: N/2+1 magnitudes (absolute mode) or N+2 real values encoding Re/Im pairs (complex mode).</p>
+        </div>
+
+        <div class="panel">
+          <h3>Magnitude vs Complex</h3>
+          <p><strong>Absolute:</strong> |X[k]| = sqrt(Re&sup2; + Im&sup2;). Phase is discarded. This is a many-to-one mapping and is non-invertible &mdash; you cannot recover the original signal from magnitudes alone.</p>
+          <p><strong>Complex:</strong> (Re[k], Im[k]) pairs. Full spectral information is preserved. Invertible via the inverse DFT &mdash; signal reconstruction is possible.</p>
+          <p>Magnitude is easier to learn: the target surface is smoother and phase-invariant. Complex is harder because the network must track phase, but the representation is complete.</p>
+        </div>
+
+        <div class="panel">
+          <h3>Phase &mdash; When It Matters</h3>
+          <p>Phase encodes temporal alignment. Shifting a signal in time leaves the magnitude spectrum unchanged but rotates the phase.</p>
+          <p>For detecting <em>what frequencies are present</em>, magnitude suffices. For reconstructing <em>the exact waveform</em>, phase is essential. For internal computation involving interference and superposition, phase matters.</p>
+          <p>For communicating detected phenomena to a downstream system, magnitude is the natural summary.</p>
+          <p>Phase-shift augmentation reinforces invariance in absolute mode (same target despite shifted input) but challenges complex mode (different Re/Im targets for each shift).</p>
+        </div>
+
+        <div class="panel">
+          <h3>FFT as Features vs Classification as Goal</h3>
+          <p>The FFT produces a feature representation (the spectrum), not a decision. Band detection is classification on top of those features.</p>
+          <p>A network can: (a) learn the FFT then classify, or (b) learn end-to-end classification directly from the time-domain signal. The trade-off is interpretability of intermediate FFT features versus efficiency of skipping them.</p>
+          <p>This app lets you compare both paths by switching between fft-simulator and band-detector modes.</p>
+        </div>
+
+        <div class="panel">
+          <h3>Detection &mdash; A Bayesian Framing</h3>
+          <p>Simple detection thresholds magnitude in each band to decide present/absent. A trained neural network implicitly learns P(output|input) from data &mdash; it becomes a posterior estimator.</p>
+          <p>Each prediction integrates evidence across all frequency bins simultaneously. The SNR baseline is a naive threshold detector; the NN learns a smarter decision boundary that accounts for cross-band correlations.</p>
+          <p>Over multiple cycles of a phenomenon, a Bayesian agent would update beliefs with each new observation. The NN's batch training approximates this: each epoch refines the posterior estimate.</p>
+          <p>Pearson r measures structural agreement (shape matching between predicted and true spectra), not just point accuracy.</p>
+        </div>
+
+        <div class="panel">
+          <h3>What the Detector Measures</h3>
+          <p><strong>Monte Carlo:</strong> N random test signals with known ground truth are generated and evaluated.</p>
+          <p><strong>Per-sample metrics:</strong> MSE + Pearson r (fft-simulator) or exact 5-band match (band-detector).</p>
+          <p><strong>Aggregate:</strong> pass rate (r &gt; 0.7), mean r, mean MSE, FLOPs comparison against the FFT.</p>
+          <p><strong>K-class breakdown:</strong> K=0 (silence) should be trivial. K=2+ tests whether the network can handle superposition of multiple tones.</p>
+          <p><strong>Per-bin MSE histogram:</strong> reveals which frequency regions the NN struggles with.</p>
+          <p><strong>Correlation distribution:</strong> whether failures are gradual (low r) or catastrophic (r near 0).</p>
+          <p>The FFT baseline is always perfect for fft-simulator mode because it <em>is</em> the ground truth.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="content" id="tab-experiments">
+      <div class="panel">
+        <h3>Saved Experiments</h3>
+        <div class="tab-action-bar">
+          <p>Select 2 experiments to compare (use checkboxes)</p>
+          <button id="btnSave" class="btn-primary">Save Current</button>
+        </div>
+        <div class="experiments-list" id="experimentsList"></div>
+      </div>
+      <div class="panel" id="comparisonPanel" style="display:none">
+        <h3>Comparison</h3>
+        <div id="comparisonArea"></div>
+      </div>
+    </div>
+
+    </div>
+
+    <div class="doc-panel" id="docPanel">
+      <div class="doc-drag-handle" id="docDragHandle"></div>
+      <div class="doc-header">
+        <span>Guide</span>
+        <button id="btnToggleDoc" class="btn-secondary">X</button>
+      </div>
+      <div class="insight-panel" id="insightPanel">
+        <div class="insight-header">
+          <span class="insight-icon">i</span>
+          <span>Insight</span>
+          <button id="btnToggleInsight" class="btn-secondary">_</button>
+        </div>
+        <div class="insight-body" id="insightBody">Welcome. Configure signal parameters on the left and click Train to begin.</div>
+      </div>
+      <div class="doc-body" id="docBody">
+        <section id="docSignal" class="doc-section active">
+          <h4>Signal Tab</h4>
+          <p>Each training example is a sum of K sinusoidal tones (K=0..3) at random EEG-range frequencies, plus Gaussian noise. Tones are drawn from EEG bands: &delta;(0.5-4Hz), &theta;(4-8Hz), &alpha;(8-13Hz), &beta;(13-30Hz), &gamma;(30-100Hz).</p>
+          <p><strong>DFT Resolution:</strong> &Delta;f = fs/N determines the minimum frequency separation the DFT can resolve.</p>
+          <p><strong>K Distribution:</strong> Controls how often each K value appears in training.</p>
+        </section>
+        <section id="docTraining" class="doc-section">
+          <h4>Training Tab</h4>
+          <p><strong>fft-simulator:</strong> NN learns to reproduce FFT magnitude from raw signal. Output = N/2+1 bins. Loss = MSE vs true spectrum.</p>
+          <p><strong>band-detector:</strong> NN learns which EEG bands have energy. Output = 5 neurons: B1(&delta;), B2(&theta;), B3(&alpha;), B4(&beta;), B5(&gamma;). Loss = MSE on binary band vector.</p>
+          <p><strong>Auto-Stop:</strong> Training halts when EMA-smoothed loss stops improving for 30 consecutive epochs.</p>
+
+          <h4 style="margin-top:12px;">Probe Signals</h4>
+          <p>Probes are <strong>fixed reference signals</strong> that never change during training. While training data is random each epoch, probes let you watch the network's response to the same input evolve over time.</p>
+
+          <p><strong>K=0 (silence):</strong> All-zeros input. A well-trained network should output near-zero everywhere &mdash; no spectral energy. If the K=0 probe shows high outputs, the network is "hallucinating" frequencies.</p>
+
+          <p><strong>K=1 (mid-range tone):</strong> A single sine wave at the midpoint of your frequency range. The network should learn to produce a single peak at that frequency bin. Watch the correct bin's confidence rise from random to dominant.</p>
+
+          <p><strong>K=2 (dual tone):</strong> Two sine waves at 1/3 and 2/3 of your frequency range. This tests whether the network can represent <em>superposition</em> &mdash; two simultaneous peaks. This is harder than K=1 because the network must activate multiple output bins independently.</p>
+
+          <p><strong>Band probes:</strong> One pure tone from each EEG band (delta, theta, alpha, beta, gamma). These test whether the network has learned band-specific features, not just a single frequency.</p>
+
+          <h4 style="margin-top:12px;">Reading the Probe Charts</h4>
+          <p>Each small chart shows <strong>output neuron values over training epochs</strong> (x-axis = epoch, y-axis = activation 0&ndash;1). The <strong>bold line</strong> is the true class; faded lines are other outputs.</p>
+          <p><strong>Good training:</strong> The true-class line rises toward 1.0 while others drop toward 0. <strong>Overfitting:</strong> Lines become noisy or oscillate. <strong>Underfitting:</strong> All lines stay clustered together &mdash; the network can't distinguish this probe from others.</p>
+          <p style="color:#58a6ff;"><em>Click any probe chart to zoom in for a detailed view.</em></p>
+
+          <h4 style="margin-top:12px;">Reconstruction &amp; Reversibility</h4>
+          <p>In complex mode the NN outputs Re and Im coefficients &mdash; enough to run an inverse DFT and recover the original signal. Watch the orange curve converge toward the green original as training progresses. The MSE shows how much information is preserved.</p>
+          <p>In absolute mode, phase is discarded. Many different signals share the same magnitude spectrum (shift a sine wave in time &mdash; magnitudes don't change, only phases do). Reconstruction is impossible &mdash; there's no unique inverse. This is why the reconstruction panel is hidden in absolute mode.</p>
+
+          <h4 style="margin-top:12px;">Phase-Shift Augmentation</h4>
+          <p>Circular shifting rotates the signal in time without changing its frequency content &mdash; the magnitude spectrum is identical, only the phase changes.</p>
+          <p>With shifts ON in absolute mode, the NN sees many examples proving "phase doesn't matter" &mdash; same magnitudes regardless of time offset. Loss should drop faster.</p>
+          <p>With shifts ON in complex mode, each shift produces different Re/Im targets. The NN must learn phase-sensitive features &mdash; a harder task. Compare loss curves and weight waveforms with shifts on vs off.</p>
+          <p>Few shifts = large jumps (N/2, N/4). More shifts = finer increments (down to N/16, N/32). This controls how thoroughly the network explores the phase dimension.</p>
+
+          <h4 style="margin-top:12px;">Hot vs Frozen Parameters</h4>
+          <p><strong>Hot (change anytime):</strong> learning rate, batch size, noise/SNR, frequency range, amplitude, K-weights, epoch target. These are re-read every epoch &mdash; adjust them while training runs.</p>
+          <p><strong>Frozen (require Reset):</strong> N, mode, FFT repr, neurons, layers, activation. These change network dimensions so the current weights become invalid. They are disabled during training/pause.</p>
+        </section>
+        <section id="docNetwork" class="doc-section">
+          <h4>Network Tab</h4>
+          <p>Visualize the network's internal structure at any training epoch. The architecture is shown immediately when you change parameters &mdash; no need to train first.</p>
+
+          <h4 style="margin-top:12px;">Network Graph</h4>
+          <p>Each circle is a neuron. Lines are weights connecting them. <strong>Red lines</strong> = positive weights (excitatory), <strong>blue lines</strong> = negative weights (inhibitory). Line thickness = weight magnitude. Neuron color encodes bias value.</p>
+          <p>Before training, weights are small and random (Xavier initialization), so all lines look thin and similar. After training, you'll see structure emerge: some connections become thick (important features) while others thin out (pruned by learning).</p>
+
+          <h4 style="margin-top:12px;">Weight Waveforms (L1 neurons)</h4>
+          <p>This is the most insightful visualization. Each hidden neuron has N weights &mdash; one per input sample. We simply <strong>draw those N numbers as a curve</strong>, left to right: weight[0], weight[1], ... weight[N-1]. This is a <strong>snapshot</strong> at the currently selected epoch &mdash; nothing is unfolding over time here. The x-axis is "input sample position" (which maps to time position in the original signal, since sample 0 is earliest and sample N-1 is latest). To watch these shapes <em>evolve during training</em>, drag the epoch slider or press play.</p>
+
+          <p>The shape of the curve tells you what pattern the neuron is looking for in the input.</p>
+
+          <p><strong>Why it works:</strong> A neuron multiplies each input sample by its corresponding weight, then adds them all up. That's a dot product: <code>output = w[0]*x[0] + w[1]*x[1] + ... + w[N-1]*x[N-1]</code>. This sum is biggest when the input shape matches the weight shape. So if the weights form a sine wave at 20Hz, the neuron produces a large output when the input signal also contains 20Hz. The neuron has become a <em>frequency detector</em>.</p>
+
+          <p>This is exactly how the DFT works &mdash; each frequency bin is a dot product of the signal with a sine/cosine at that bin's frequency. The network is rediscovering this principle through gradient descent.</p>
+
+          <p><strong>What to expect during training:</strong></p>
+          <p><strong>Epoch 0 (random):</strong> All rows look like noise &mdash; random wiggles with no pattern. The DFT frequency labels will be arbitrary.</p>
+          <p><strong>Early training (10&ndash;50 epochs):</strong> Some rows start developing periodic structure. Neurons are "discovering" that sinusoidal patterns correlate with the training signal's spectral content. The frequency labels start clustering around frequencies present in your training range.</p>
+          <p><strong>Mid training (50&ndash;200 epochs):</strong> Clear sinusoidal rows emerge. You may see multiple neurons tuned to the same frequency (redundancy) or neurons that appear to encode combinations. Some neurons remain noisy &mdash; these are less useful and may have small weights in L2.</p>
+          <p><strong>Converged:</strong> Distinct frequency-selective rows. The network has independently rediscovered Fourier basis functions. The frequency labels should span your signal frequency range. Look for gaps &mdash; missing frequencies indicate regions the network hasn't learned to detect.</p>
+
+          <h4 style="margin-top:12px;">Frequency Grouping</h4>
+          <p>After training, neurons naturally organize into <strong>frequency groups</strong>:</p>
+          <p>&bull; <strong>Low-frequency neurons</strong> (slow oscillation in weights): Detect delta/theta band content. These have few cycles across the N samples.</p>
+          <p>&bull; <strong>Mid-frequency neurons</strong>: Detect alpha/beta. Several cycles visible in the weight pattern.</p>
+          <p>&bull; <strong>High-frequency neurons</strong> (rapid oscillation): Detect gamma band. Many cycles packed into the weight row.</p>
+          <p>&bull; <strong>"DC" neurons</strong> (flat weights): Respond to overall signal amplitude rather than frequency content.</p>
+          <p>The number of hidden neurons limits how many frequencies the network can distinguish. With 32 neurons and N=64 (giving 33 frequency bins), the network must choose which frequencies to specialize in. It typically prioritizes frequencies that appear most often in training data.</p>
+
+          <h4 style="margin-top:12px;">Weight Matrix &amp; Distribution</h4>
+          <p><strong>Weight Matrix L1:</strong> A heatmap view of the same L1 weights. Rows = neurons, columns = input samples. Periodic horizontal bands = frequency-tuned neurons. Compare with the waveform view to spot structure.</p>
+          <p><strong>Weight Distribution:</strong> Histogram of all network weights. Healthy networks show a roughly bell-shaped distribution centered near zero. Very wide distributions (large max weight) suggest instability. Highly sparse distributions (tall peak at zero) suggest many dead connections.</p>
+          <p><strong>Biases:</strong> Each neuron's bias shifts its activation threshold. Large positive = fires easily (sensitive detector). Large negative = requires strong input (selective detector).</p>
+
+          <h4 style="margin-top:12px;">Activation Heatmap</h4>
+          <p>Shows which hidden neurons activate for each probe signal. Each row = one probe, each column = one hidden neuron. Brighter = higher activation.</p>
+          <p>Look for <strong>column patterns</strong>: if a column lights up only for certain probes, that neuron has specialized for a specific signal type. If a column lights up for everything, it's a general-purpose feature detector. Ideally you want a mix of specialized and shared neurons.</p>
+        </section>
+        <section id="docDetector" class="doc-section">
+          <h4>Detector Tab</h4>
+          <p><strong>Results dashboard:</strong> Pass rate = fraction of tests exceeding threshold. Mean r = average Pearson correlation. Mean MSE = average squared error. FLOPs = computational cost comparison (FFT vs NN inference).</p>
+          <p><strong>Pass criteria:</strong> r &gt; 0.7 for fft-simulator mode. All 5 bands correctly classified for band-detector mode.</p>
+          <p><strong>Filters:</strong> Use the dropdown to show NN Pass/Fail, FFT Pass/Fail, NN-better (NN outperforms FFT baseline), or FFT-better cases. This helps identify where the NN succeeds or struggles relative to the classical approach.</p>
+          <p><strong>Test browser:</strong> Navigate individual test cases with Prev/Next. Each case shows the input signal and a prediction-vs-truth overlay so you can visually assess quality.</p>
+          <p><strong>K-breakdown table:</strong> K=0 (silence) should be trivial &mdash; near-perfect scores expected. K=1 tests single-tone detection. K=2+ reveals how well the network handles superposition of multiple simultaneous tones, which is fundamentally harder.</p>
+          <p><strong>Per-bin MSE:</strong> Peaks in the per-bin error histogram indicate frequency regions the NN hasn't learned well. Compare against the DFT resolution panel to see if these correspond to poorly-resolved frequencies.</p>
+          <p><strong>Correlation distribution:</strong> A tight cluster of high-r values means consistent quality. A long left tail means occasional catastrophic failures. A bimodal distribution suggests the network handles some signal types well and others poorly.</p>
+          <p style="color:#58a6ff;"><em>See the Theory tab for deeper background on detection, Bayesian framing, and magnitude vs complex trade-offs.</em></p>
+        </section>
+        <section id="docTheory" class="doc-section">
+          <h4>Theory Tab</h4>
+          <p>Background on DFT learning, phase vs magnitude trade-offs, and Bayesian detection framing. Read this tab for the conceptual foundation behind the experiment.</p>
+        </section>
+        <section id="docExperiments" class="doc-section">
+          <h4>Experiments Tab</h4>
+          <p>Save and compare training runs with different architectures, input modes, and training strategies.</p>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
