@@ -277,6 +277,47 @@ function initApp() {
     updateNetworkViz(0);
   }
 
+  // Sidebar resize drag handle
+  const sidebar = $('sidebar');
+  const sidebarDragHandle = $('sidebarDragHandle');
+  if (sidebarDragHandle && sidebar) {
+    let dragging = false;
+    let startX = 0;
+    let startW = 0;
+    sidebarDragHandle.addEventListener('mousedown', (e) => {
+      dragging = true;
+      startX = e.clientX;
+      startW = sidebar.offsetWidth;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const newW = Math.max(180, Math.min(400, startW + (e.clientX - startX)));
+      sidebar.style.width = newW + 'px';
+      // Scale font: 9px at 180px, 14px at 400px
+      const fontSize = 9 + (newW - 180) / (400 - 180) * 5;
+      sidebar.style.fontSize = fontSize + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+      if (dragging) {
+        dragging = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    });
+  }
+
+  // Main pane font size slider
+  const mainFontSlider = $('mainFontSize');
+  const mainInner = document.querySelector('.main-inner');
+  if (mainFontSlider && mainInner) {
+    mainFontSlider.oninput = function() {
+      mainInner.style.setProperty('--main-font-size', this.value + 'px');
+    };
+  }
+
   // Doc panel resize drag handle
   const docPanel = $('docPanel');
   const docDragHandle = $('docDragHandle');

@@ -24,10 +24,16 @@
     <div class="header-progress-bar" id="hdrProgress"></div>
   </div>
   <div class="stale-badge" id="staleBadge" hidden>stale &mdash; retrain</div>
+  <div class="font-sizer">
+    <span class="font-sizer-label">A</span>
+    <input type="range" id="mainFontSize" min="8" max="16" step="1" value="12" title="Main pane font size">
+    <span class="font-sizer-label" style="font-size:14px;">A</span>
+  </div>
 </header>
 
 <div class="app-body">
-  <div class="sidebar">
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-drag-handle" id="sidebarDragHandle"></div>
     <details class="accordion">
       <summary>Signal Generation</summary>
       <div class="accordion-body">
