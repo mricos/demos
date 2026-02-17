@@ -1,23 +1,46 @@
 /* Dunk - Bass Synthesis Machine */
-/* Dark theme with phosphor green accents */
+/* HP Lab Equipment Aesthetic (90s Test & Measurement) */
+
+@font-face {
+  font-family: 'LCD';
+  src: local('Consolas'), local('Monaco'), local('Courier New');
+}
 
 :root {
-  --bg-dark: #0a0a0a;
-  --bg-panel: #141414;
-  --bg-control: #1a1a1a;
-  --bg-input: #222;
-  --border-color: #333;
-  --text-primary: #e0e0e0;
-  --text-secondary: #888;
-  --accent-green: #00ff00;
-  --accent-green-dim: #00aa00;
-  --accent-green-glow: rgba(0, 255, 0, 0.3);
-  --accent-orange: #ff8800;
-  --accent-red: #ff4444;
-  --accent-blue: #4488ff;
-  --step-active: #00ff00;
-  --step-inactive: #333;
-  --step-current: #ffff00;
+  /* HP Lab Equipment Colors */
+  --bg-dark: #1a1a18;
+  --bg-panel: #2a2a28;
+  --bg-control: #222220;
+  --bg-input: #181816;
+  --bg-bezel: #3a3a38;
+  --border-color: #4a4a48;
+  --border-highlight: #5a5a58;
+  --border-shadow: #0a0a08;
+
+  /* Text Colors */
+  --text-primary: #c8c8c0;
+  --text-secondary: #888880;
+  --text-label: #a0a098;
+
+  /* Indicator Colors - Classic HP */
+  --accent-green: #33ff33;
+  --accent-green-dim: #228822;
+  --accent-green-glow: rgba(51, 255, 51, 0.25);
+  --accent-amber: #ffaa00;
+  --accent-amber-dim: #885500;
+  --accent-amber-glow: rgba(255, 170, 0, 0.25);
+  --accent-red: #ff3333;
+  --accent-blue: #3388ff;
+
+  /* Display Colors */
+  --lcd-bg: #1a1a10;
+  --lcd-text: #33ff33;
+  --lcd-dim: #114411;
+
+  /* Step Sequencer */
+  --step-active: #33ff33;
+  --step-inactive: #2a2a28;
+  --step-current: #ffaa00;
 }
 
 * {
@@ -27,11 +50,12 @@
 }
 
 body {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: 'Consolas', 'Monaco', 'Lucida Console', monospace;
   background: var(--bg-dark);
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
+  font-size: 11px;
 }
 
 #app {
@@ -40,75 +64,173 @@ body {
   min-height: 100vh;
 }
 
-/* HUD */
+/* ============================================
+   HP LAB EQUIPMENT BEZEL STYLING
+   ============================================ */
+
+.bezel {
+  background: var(--bg-bezel);
+  border: 2px solid var(--border-color);
+  border-top-color: var(--border-highlight);
+  border-left-color: var(--border-highlight);
+  border-bottom-color: var(--border-shadow);
+  border-right-color: var(--border-shadow);
+  padding: 3px;
+}
+
+.bezel-inset {
+  background: var(--bg-input);
+  border: 2px solid var(--border-color);
+  border-top-color: var(--border-shadow);
+  border-left-color: var(--border-shadow);
+  border-bottom-color: var(--border-highlight);
+  border-right-color: var(--border-highlight);
+}
+
+/* LCD Display Style */
+.lcd-display {
+  background: var(--lcd-bg);
+  border: 2px solid var(--border-shadow);
+  font-family: 'Consolas', monospace;
+  color: var(--lcd-text);
+  text-shadow: 0 0 8px var(--accent-green-glow);
+  padding: 4px 8px;
+}
+
+/* Seven Segment Style Numbers */
+.seg-display {
+  font-family: 'Consolas', monospace;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+/* ============================================
+   HUD - TOP CONTROL BAR
+   ============================================ */
+
 #hud {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 2px solid var(--border-shadow);
 }
 
-.hud-left, .hud-right {
+.hud-left, .hud-center, .hud-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .hud-control {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .hud-control label {
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--text-label);
+  font-size: 10px;
   text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .hud-control input[type="number"] {
-  width: 60px;
-  padding: 4px 8px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  color: var(--accent-green);
+  width: 50px;
+  padding: 3px 6px;
+  background: var(--lcd-bg);
+  border: 2px inset var(--border-color);
+  color: var(--lcd-text);
   font-family: inherit;
-  font-size: 14px;
-  text-align: center;
+  font-size: 12px;
+  text-align: right;
 }
 
-#status {
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 12px;
+/* Performance Meters */
+#perf-meters {
+  display: flex;
+  gap: 16px;
+  padding: 2px 8px;
+  background: var(--bg-input);
+  border: 1px inset var(--border-color);
+}
+
+.perf-meter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+}
+
+.perf-meter label {
+  color: var(--text-secondary);
   text-transform: uppercase;
 }
 
-.status-idle { background: var(--bg-control); color: var(--text-secondary); }
-.status-running { background: var(--accent-green-dim); color: #000; }
-.status-error { background: var(--accent-red); color: #fff; }
+.perf-meter .value {
+  color: var(--accent-green);
+  font-family: 'Consolas', monospace;
+  min-width: 45px;
+  text-align: right;
+}
 
+.perf-meter .value.warning {
+  color: var(--accent-amber);
+}
+
+.perf-meter .value.critical {
+  color: var(--accent-red);
+}
+
+/* Status Indicator */
+#status {
+  padding: 3px 10px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 1px solid var(--border-color);
+}
+
+.status-idle {
+  background: var(--bg-control);
+  color: var(--text-secondary);
+}
+.status-running {
+  background: var(--accent-green-dim);
+  color: #000;
+  text-shadow: none;
+}
+.status-error {
+  background: var(--accent-red);
+  color: #fff;
+}
+
+/* Transport Controls */
 .transport {
   display: flex;
-  gap: 8px;
+  gap: 4px;
 }
 
 .btn-transport {
-  width: 36px;
-  height: 36px;
-  background: var(--bg-control);
-  border: 1px solid var(--border-color);
+  width: 32px;
+  height: 28px;
+  background: var(--bg-bezel);
+  border: 2px solid var(--border-color);
+  border-top-color: var(--border-highlight);
+  border-left-color: var(--border-highlight);
+  border-bottom-color: var(--border-shadow);
+  border-right-color: var(--border-shadow);
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: 12px;
   cursor: pointer;
-  transition: all 0.15s;
 }
 
-.btn-transport:hover {
-  background: var(--border-color);
-  border-color: var(--accent-green);
+.btn-transport:active {
+  border-top-color: var(--border-shadow);
+  border-left-color: var(--border-shadow);
+  border-bottom-color: var(--border-highlight);
+  border-right-color: var(--border-highlight);
 }
 
 .btn-transport.active {
@@ -116,34 +238,48 @@ body {
   color: #000;
 }
 
-/* Buttons */
+/* ============================================
+   BUTTONS
+   ============================================ */
+
 .btn-primary {
-  padding: 8px 16px;
-  background: var(--accent-green-dim);
-  border: none;
-  color: #000;
+  padding: 6px 14px;
+  background: var(--bg-bezel);
+  border: 2px solid var(--border-color);
+  border-top-color: var(--border-highlight);
+  border-left-color: var(--border-highlight);
+  border-bottom-color: var(--border-shadow);
+  border-right-color: var(--border-shadow);
+  color: var(--text-primary);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 11px;
   font-weight: bold;
   text-transform: uppercase;
+  letter-spacing: 1px;
   cursor: pointer;
-  transition: all 0.15s;
 }
 
-.btn-primary:hover {
-  background: var(--accent-green);
-  box-shadow: 0 0 10px var(--accent-green-glow);
+.btn-primary:active {
+  border-top-color: var(--border-shadow);
+  border-left-color: var(--border-shadow);
+  border-bottom-color: var(--border-highlight);
+  border-right-color: var(--border-highlight);
+}
+
+.btn-primary.active {
+  background: var(--accent-green-dim);
+  color: #000;
 }
 
 .btn-secondary {
-  padding: 6px 12px;
+  padding: 4px 10px;
   background: var(--bg-control);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 12px;
+  font-size: 10px;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.15s;
 }
 
 .btn-secondary:hover {
@@ -157,7 +293,51 @@ body {
   border-color: var(--accent-green);
 }
 
-/* Main Content */
+/* Toggle Switches */
+.toggle-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  display: none;
+}
+
+.toggle-switch .toggle-track {
+  width: 28px;
+  height: 14px;
+  background: var(--bg-input);
+  border: 1px inset var(--border-color);
+  position: relative;
+}
+
+.toggle-switch .toggle-thumb {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--text-secondary);
+  top: 1px;
+  left: 1px;
+  transition: left 0.1s;
+}
+
+.toggle-switch input:checked + .toggle-track .toggle-thumb {
+  left: 15px;
+  background: var(--accent-green);
+}
+
+.toggle-switch span {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--text-label);
+}
+
+/* ============================================
+   MAIN CONTENT AREA
+   ============================================ */
+
 #main-content {
   display: flex;
   flex: 1;
@@ -168,102 +348,310 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  gap: 16px;
+  padding: 8px;
+  gap: 8px;
   overflow-y: auto;
 }
 
-/* Sections */
+/* ============================================
+   SECTIONS - INSTRUMENT PANELS
+   ============================================ */
+
 section {
   background: var(--bg-panel);
-  border: 1px solid var(--border-color);
-  padding: 12px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--border-highlight);
+  border-left-color: var(--border-highlight);
+  border-bottom-color: var(--border-shadow);
+  border-right-color: var(--border-shadow);
+  padding: 8px;
 }
 
-section h3 {
-  font-size: 12px;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
+section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
   border-bottom: 1px solid var(--border-color);
 }
 
-/* Canvas Containers */
-.canvas-container {
-  position: relative;
-  width: 100%;
-  background: #000;
-  border: 1px solid var(--border-color);
+section h3 {
+  font-size: 10px;
+  color: var(--text-label);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: normal;
 }
+
+.section-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ============================================
+   SPECTRUM ANALYZER / FFT DISPLAY
+   ============================================ */
 
 #phosphor-section .canvas-container {
-  height: 150px;
+  height: 140px;
 }
 
-#schematic-section .canvas-container {
-  height: 200px;
+.analyzer-display {
+  position: relative;
+  background: var(--lcd-bg);
+  border: 3px inset var(--border-shadow);
 }
 
-canvas {
+.analyzer-display canvas {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-/* Sequencer */
+/* Tuner Overlay */
+.tuner-overlay {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid var(--border-color);
+  padding: 4px 8px;
+  font-family: 'Consolas', monospace;
+  min-width: 120px;
+}
+
+.tuner-note {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--accent-green);
+  text-align: center;
+}
+
+.tuner-freq {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.tuner-cents {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.tuner-cents-bar {
+  width: 80px;
+  height: 8px;
+  background: var(--bg-input);
+  border: 1px inset var(--border-color);
+  position: relative;
+}
+
+.tuner-cents-center {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--text-secondary);
+}
+
+.tuner-cents-indicator {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  width: 4px;
+  background: var(--accent-green);
+  left: 50%;
+  transform: translateX(-50%);
+  transition: left 0.05s;
+}
+
+.tuner-cents-indicator.flat {
+  background: var(--accent-amber);
+}
+
+.tuner-cents-indicator.sharp {
+  background: var(--accent-amber);
+}
+
+.tuner-cents-value {
+  font-size: 10px;
+  color: var(--accent-green);
+  min-width: 40px;
+  text-align: right;
+}
+
+/* ============================================
+   PHASE METER
+   ============================================ */
+
+#phase-section .canvas-container {
+  height: 100px;
+}
+
+.phase-display {
+  display: flex;
+  gap: 8px;
+}
+
+.phase-scope {
+  flex: 1;
+  background: var(--lcd-bg);
+  border: 3px inset var(--border-shadow);
+  position: relative;
+}
+
+.phase-scope canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.phase-meter-bar {
+  width: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.phase-correlation {
+  flex: 1;
+  background: var(--lcd-bg);
+  border: 2px inset var(--border-shadow);
+  position: relative;
+}
+
+.phase-correlation-bar {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  background: var(--accent-green);
+  transition: height 0.05s;
+}
+
+.phase-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  color: var(--text-secondary);
+}
+
+/* ============================================
+   SIGNAL CHAIN SCHEMATIC
+   ============================================ */
+
+#schematic-section .canvas-container {
+  height: 180px;
+  overflow: auto;
+}
+
+.schematic-viewport {
+  background: var(--lcd-bg);
+  border: 3px inset var(--border-shadow);
+  overflow: auto;
+  cursor: grab;
+}
+
+.schematic-viewport:active {
+  cursor: grabbing;
+}
+
+.schematic-viewport canvas {
+  display: block;
+}
+
+.schematic-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.zoom-control button {
+  width: 20px;
+  height: 20px;
+  background: var(--bg-control);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.zoom-control .zoom-value {
+  font-size: 10px;
+  color: var(--accent-green);
+  min-width: 35px;
+  text-align: center;
+}
+
+/* ============================================
+   SEQUENCER
+   ============================================ */
+
 #sequencer {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 #steps {
   display: flex;
-  gap: 4px;
+  gap: 3px;
   justify-content: center;
 }
 
 .step {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   background: var(--step-inactive);
   border: 2px solid var(--border-color);
+  border-top-color: var(--border-highlight);
+  border-left-color: var(--border-highlight);
+  border-bottom-color: var(--border-shadow);
+  border-right-color: var(--border-shadow);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-secondary);
-  transition: all 0.1s;
   position: relative;
 }
 
-.step:hover {
-  border-color: var(--accent-green);
+.step:active {
+  border-top-color: var(--border-shadow);
+  border-left-color: var(--border-shadow);
+  border-bottom-color: var(--border-highlight);
+  border-right-color: var(--border-highlight);
 }
 
 .step.active {
   background: var(--step-active);
   color: #000;
-  box-shadow: 0 0 8px var(--accent-green-glow);
 }
 
 .step.current {
   border-color: var(--step-current);
-  box-shadow: 0 0 12px rgba(255, 255, 0, 0.5);
-}
-
-.step .voice-indicator {
-  position: absolute;
-  bottom: 2px;
-  font-size: 8px;
+  box-shadow: inset 0 0 8px var(--accent-amber-glow);
 }
 
 #sequencer-controls {
   display: flex;
-  gap: 24px;
+  gap: 20px;
   justify-content: center;
   align-items: center;
 }
@@ -271,33 +659,30 @@ canvas {
 .control-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .control-group label {
-  font-size: 11px;
-  color: var(--text-secondary);
+  font-size: 9px;
+  color: var(--text-label);
   text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 #voice-select {
   display: flex;
-  gap: 4px;
+  gap: 2px;
 }
 
 .voice-btn {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   background: var(--bg-control);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 12px;
+  font-size: 10px;
   cursor: pointer;
-}
-
-.voice-btn:hover {
-  border-color: var(--accent-green);
 }
 
 .voice-btn.active {
@@ -305,11 +690,14 @@ canvas {
   color: #000;
 }
 
-/* Sidepanel */
+/* ============================================
+   SIDEPANEL
+   ============================================ */
+
 #sidepanel {
-  width: 250px;
+  width: 220px;
   background: var(--bg-panel);
-  border-left: 1px solid var(--border-color);
+  border-left: 2px solid var(--border-shadow);
   display: flex;
   flex-direction: column;
 }
@@ -321,91 +709,95 @@ canvas {
 
 .tab-btn {
   flex: 1;
-  padding: 8px 4px;
+  padding: 6px 2px;
   background: none;
   border: none;
   color: var(--text-secondary);
   font-family: inherit;
-  font-size: 10px;
+  font-size: 9px;
   text-transform: uppercase;
+  letter-spacing: 1px;
   cursor: pointer;
-  transition: all 0.15s;
-}
-
-.tab-btn:hover {
-  color: var(--text-primary);
 }
 
 .tab-btn.active {
   color: var(--accent-green);
-  border-bottom: 2px solid var(--accent-green);
+  background: var(--bg-control);
 }
 
 #sidepanel-content {
   flex: 1;
-  padding: 12px;
+  padding: 10px;
   overflow-y: auto;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 #sidepanel-content h4 {
-  color: var(--accent-green);
-  margin-bottom: 8px;
+  color: var(--accent-amber);
+  margin-bottom: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 #sidepanel-content p {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   color: var(--text-secondary);
 }
 
 #sidepanel-content ul {
-  margin-left: 16px;
-  margin-bottom: 12px;
+  margin-left: 12px;
+  margin-bottom: 10px;
 }
 
 #sidepanel-content li {
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   color: var(--text-secondary);
 }
 
-/* Toolbar */
+/* ============================================
+   TOOLBAR
+   ============================================ */
+
 #toolbar {
   display: flex;
   justify-content: space-between;
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: var(--bg-panel);
-  border-top: 1px solid var(--border-color);
+  border-top: 2px solid var(--border-highlight);
 }
 
 .toolbar-left, .toolbar-right {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 
 select {
-  padding: 6px 12px;
+  padding: 4px 8px;
   background: var(--bg-input);
-  border: 1px solid var(--border-color);
+  border: 1px inset var(--border-color);
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 12px;
-  cursor: pointer;
+  font-size: 10px;
 }
 
-select:hover {
-  border-color: var(--accent-green);
-}
+/* ============================================
+   FLOATING PANELS
+   ============================================ */
 
-/* Floating Panels */
 .floating-panel {
   position: fixed;
   background: var(--bg-panel);
-  border: 1px solid var(--accent-green);
-  box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
-  min-width: 300px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--border-highlight);
+  border-left-color: var(--border-highlight);
+  border-bottom-color: var(--border-shadow);
+  border-right-color: var(--border-shadow);
+  min-width: 280px;
   z-index: 1000;
+  box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
 }
 
 .floating-panel.hidden {
@@ -416,26 +808,29 @@ select:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  background: var(--bg-control);
+  padding: 6px 10px;
+  background: var(--bg-bezel);
   border-bottom: 1px solid var(--border-color);
   cursor: move;
 }
 
 .panel-header h4 {
-  font-size: 12px;
+  font-size: 10px;
   text-transform: uppercase;
-  color: var(--accent-green);
+  letter-spacing: 1px;
+  color: var(--accent-amber);
+  font-weight: normal;
 }
 
 .btn-close {
-  width: 24px;
-  height: 24px;
-  background: none;
-  border: none;
+  width: 20px;
+  height: 20px;
+  background: var(--bg-control);
+  border: 1px solid var(--border-color);
   color: var(--text-secondary);
-  font-size: 18px;
+  font-size: 14px;
   cursor: pointer;
+  line-height: 1;
 }
 
 .btn-close:hover {
@@ -443,22 +838,26 @@ select:hover {
 }
 
 .panel-content {
-  padding: 12px;
+  padding: 10px;
 }
 
-/* Control Rows */
+/* ============================================
+   CONTROL ROWS
+   ============================================ */
+
 .control-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
 .control-row label {
-  width: 100px;
-  font-size: 11px;
-  color: var(--text-secondary);
+  width: 90px;
+  font-size: 9px;
+  color: var(--text-label);
   text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .control-row input[type="range"] {
@@ -466,67 +865,72 @@ select:hover {
 }
 
 .control-row span {
-  width: 70px;
-  font-size: 11px;
+  width: 60px;
+  font-size: 10px;
   color: var(--accent-green);
   text-align: right;
+  font-family: 'Consolas', monospace;
 }
 
 .control-row select {
   flex: 1;
 }
 
-.control-row input[type="checkbox"] {
-  width: auto;
-}
+/* ============================================
+   RANGE INPUTS - SLIDER STYLE
+   ============================================ */
 
-/* Range Inputs */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 4px;
+  height: 6px;
   background: var(--bg-input);
-  border-radius: 2px;
+  border: 1px inset var(--border-color);
   outline: none;
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
-  background: var(--accent-green);
-  border-radius: 50%;
+  width: 10px;
+  height: 16px;
+  background: var(--bg-bezel);
+  border: 1px solid var(--border-color);
+  border-top-color: var(--border-highlight);
+  border-left-color: var(--border-highlight);
   cursor: pointer;
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  background: var(--accent-green);
-  border-radius: 50%;
+  width: 10px;
+  height: 16px;
+  background: var(--bg-bezel);
+  border: 1px solid var(--border-color);
   cursor: pointer;
-  border: none;
 }
 
-/* Channel Controls in Voice Panel */
+/* ============================================
+   CHANNEL CONTROLS
+   ============================================ */
+
 .channel-controls {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .channel-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  padding: 4px;
+  gap: 6px;
+  margin-bottom: 4px;
+  padding: 3px;
   background: var(--bg-control);
+  border: 1px solid var(--border-shadow);
 }
 
 .ch-label {
-  width: 50px;
-  font-size: 10px;
-  color: var(--text-secondary);
+  width: 40px;
+  font-size: 9px;
+  color: var(--text-label);
   text-transform: uppercase;
 }
 
@@ -535,68 +939,63 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .ch-mute {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 9px;
   cursor: pointer;
 }
 
-.ch-mute:hover {
-  border-color: var(--accent-orange);
-}
-
 .ch-mute.muted {
-  background: var(--accent-orange);
+  background: var(--accent-amber);
   color: #000;
 }
 
-/* Voice Effects */
-.voice-effects {
-  padding-top: 12px;
-  border-top: 1px solid var(--border-color);
-}
+/* ============================================
+   FILTER / LFO / MASTER PANELS
+   ============================================ */
 
-/* Filter Design Panel */
 #panel-filter-design .canvas-container {
-  height: 120px;
-  margin-bottom: 12px;
+  height: 100px;
+  margin-bottom: 10px;
 }
 
-/* LFO Panel */
 .lfo-controls .control-row span {
   color: var(--accent-blue);
 }
 
-/* Master Panel */
 .master-controls .control-row span {
-  color: var(--accent-orange);
+  color: var(--accent-amber);
 }
 
-/* Scrollbar */
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-dark);
+  background: var(--bg-input);
+  border: 1px inset var(--border-color);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 4px;
+  background: var(--bg-bezel);
+  border: 1px solid var(--border-color);
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
+::-webkit-scrollbar-corner {
+  background: var(--bg-input);
 }
 
-/* MIDI Learn Mode */
-body.midi-learn-mode * {
-  cursor: crosshair !important;
-}
+/* ============================================
+   MIDI LEARN MODE
+   ============================================ */
 
 body.midi-learn-mode [data-midi-target] {
   outline: 2px dashed var(--accent-blue) !important;
@@ -604,18 +1003,20 @@ body.midi-learn-mode [data-midi-target] {
 
 body.midi-learn-mode [data-midi-target]:hover {
   outline-color: var(--accent-green) !important;
-  background: rgba(0, 255, 0, 0.1) !important;
+  background: rgba(51, 255, 51, 0.1) !important;
 }
 
-/* Responsive */
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
 @media (max-width: 900px) {
   #sidepanel {
-    width: 200px;
+    width: 180px;
   }
-
   .step {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
   }
 }
 
@@ -623,25 +1024,19 @@ body.midi-learn-mode [data-midi-target]:hover {
   #main-content {
     flex-direction: column;
   }
-
   #sidepanel {
     width: 100%;
     border-left: none;
-    border-top: 1px solid var(--border-color);
-    max-height: 200px;
+    border-top: 2px solid var(--border-shadow);
+    max-height: 180px;
   }
-
-  #sidepanel-tabs {
-    overflow-x: auto;
-  }
-
   .step {
-    width: 24px;
-    height: 24px;
-    font-size: 8px;
+    width: 22px;
+    height: 22px;
+    font-size: 7px;
   }
-
   #sequencer-controls {
     flex-wrap: wrap;
+    gap: 10px;
   }
 }

@@ -16,6 +16,7 @@ NS.UI = {
     this._initControls();
     this._initSequencerUI();
     this._initKeyboard();
+    this._initMeteringToggles();
 
     console.log('[Dunk] UI initialized');
   },
@@ -530,6 +531,41 @@ NS.UI = {
 
     URL.revokeObjectURL(url);
     this._updateStatus('State exported');
+  },
+
+  /**
+   * Initialize metering toggle switches
+   */
+  _initMeteringToggles() {
+    // FFT toggle
+    const fftToggle = NS.DOM.$('#toggle-fft');
+    if (fftToggle) {
+      NS.DOM.on(fftToggle, 'change', () => {
+        if (NS.Analyser) {
+          NS.Analyser.setFFTEnabled(fftToggle.checked);
+        }
+      });
+    }
+
+    // Tuner toggle
+    const tunerToggle = NS.DOM.$('#toggle-tuner');
+    if (tunerToggle) {
+      NS.DOM.on(tunerToggle, 'change', () => {
+        if (NS.Analyser) {
+          NS.Analyser.setTunerEnabled(tunerToggle.checked);
+        }
+      });
+    }
+
+    // Phase meter toggle
+    const phaseToggle = NS.DOM.$('#toggle-phase');
+    if (phaseToggle) {
+      NS.DOM.on(phaseToggle, 'change', () => {
+        if (NS.Phase) {
+          NS.Phase.setEnabled(phaseToggle.checked);
+        }
+      });
+    }
   },
 
   /**

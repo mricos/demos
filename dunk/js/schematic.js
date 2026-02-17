@@ -1,31 +1,46 @@
 /**
  * Dunk - Schematic Module
- * Signal chain visualization with mixer manual aesthetic
+ * Signal chain visualization with zoom/pan (HP Lab Equipment style)
  */
 
 NS.Schematic = {
   canvas: null,
   ctx: null,
+  viewport: null,
   animationId: null,
   running: false,
 
-  // Layout
-  padding: 20,
-  moduleWidth: 60,
-  moduleHeight: 40,
-  connectionWidth: 30,
+  // Zoom and pan
+  zoom: 1.0,
+  zoomMin: 0.5,
+  zoomMax: 2.0,
+  panX: 0,
+  panY: 0,
+  isDragging: false,
+  dragStart: { x: 0, y: 0 },
+  panStart: { x: 0, y: 0 },
 
-  // Colors
+  // Layout (base dimensions at zoom 1.0)
+  baseWidth: 700,
+  baseHeight: 200,
+  padding: 20,
+  moduleWidth: 55,
+  moduleHeight: 35,
+  connectionWidth: 25,
+
+  // Colors (HP Lab aesthetic)
   colors: {
-    bg: '#000000',
-    module: '#1a1a1a',
-    moduleBorder: '#333333',
-    moduleActive: '#00aa00',
-    text: '#888888',
-    textActive: '#00ff00',
-    wire: '#444444',
-    wireSignal: '#00ff00',
-    masterBg: '#0a0a0a'
+    bg: '#1a1a10',
+    module: '#2a2a28',
+    moduleBorder: '#4a4a48',
+    moduleBorderLight: '#5a5a58',
+    moduleBorderDark: '#2a2a28',
+    moduleActive: '#228822',
+    text: '#888880',
+    textActive: '#33ff33',
+    wire: '#3a3a38',
+    wireSignal: '#33ff33',
+    masterBg: '#222220'
   },
 
   // State
@@ -39,9 +54,10 @@ NS.Schematic = {
   init(canvasElement) {
     this.canvas = canvasElement;
     this.ctx = canvasElement.getContext('2d');
+    this.viewport = canvasElement.parentElement;
 
-    this.resize();
-    window.addEventListener('resize', () => this.resize());
+    this._setupCanvas();
+    this._setupEvents();
 
     // Listen for voice triggers
     NS.Bus.on('voice:triggered', ({ id }) => {
@@ -55,22 +71,115 @@ NS.Schematic = {
   },
 
   /**
-   * Resize canvas
+   * Setup canvas size based on zoom
    */
-  resize() {
-    const container = this.canvas.parentElement;
-    const rect = container.getBoundingClientRect();
+  _setupCanvas() {
+    const width = this.baseWidth * this.zoom;
+    const height = this.baseHeight * this.zoom;
 
-    this.canvas.width = rect.width * window.devicePixelRatio;
-    this.canvas.height = rect.height * window.devicePixelRatio;
+    this.canvas.width = width * window.devicePixelRatio;
+    this.canvas.height = height * window.devicePixelRatio;
+    this.canvas.style.width = width + 'px';
+    this.canvas.style.height = height + 'px';
 
-    this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.scale(window.devicePixelRatio * this.zoom, window.devicePixelRatio * this.zoom);
 
-    this.width = rect.width;
-    this.height = rect.height;
+    this.width = this.baseWidth;
+    this.height = this.baseHeight;
 
-    // Recalculate layout
     this._calculateLayout();
+  },
+
+  /**
+   * Setup event handlers for zoom/pan
+   */
+  _setupEvents() {
+    // Zoom buttons
+    const zoomIn = NS.DOM.$('#zoom-in');
+    const zoomOut = NS.DOM.$('#zoom-out');
+    const zoomFit = NS.DOM.$('#zoom-fit');
+    const zoomValue = NS.DOM.$('#zoom-value');
+
+    if (zoomIn) {
+      NS.DOM.on(zoomIn, 'click', () => this.setZoom(this.zoom + 0.25));
+    }
+    if (zoomOut) {
+      NS.DOM.on(zoomOut, 'click', () => this.setZoom(this.zoom - 0.25));
+    }
+    if (zoomFit) {
+      NS.DOM.on(zoomFit, 'click', () => this.fitToView());
+    }
+
+    // Mouse wheel zoom
+    NS.DOM.on(this.viewport, 'wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      this.setZoom(this.zoom + delta);
+    });
+
+    // Pan with mouse drag
+    NS.DOM.on(this.viewport, 'mousedown', (e) => {
+      if (e.button === 0) {
+        this.isDragging = true;
+        this.dragStart = { x: e.clientX, y: e.clientY };
+        this.panStart = { x: this.viewport.scrollLeft, y: this.viewport.scrollTop };
+        this.viewport.style.cursor = 'grabbing';
+      }
+    });
+
+    NS.DOM.on(document, 'mousemove', (e) => {
+      if (this.isDragging) {
+        const dx = e.clientX - this.dragStart.x;
+        const dy = e.clientY - this.dragStart.y;
+        this.viewport.scrollLeft = this.panStart.x - dx;
+        this.viewport.scrollTop = this.panStart.y - dy;
+      }
+    });
+
+    NS.DOM.on(document, 'mouseup', () => {
+      if (this.isDragging) {
+        this.isDragging = false;
+        this.viewport.style.cursor = 'grab';
+      }
+    });
+
+    // Click on modules
+    NS.DOM.on(this.canvas, 'click', (e) => {
+      if (!this.isDragging) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / this.zoom;
+        const y = (e.clientY - rect.top) / this.zoom;
+        this.handleClick(x, y);
+      }
+    });
+  },
+
+  /**
+   * Set zoom level
+   */
+  setZoom(level) {
+    this.zoom = Math.max(this.zoomMin, Math.min(this.zoomMax, level));
+    this._setupCanvas();
+
+    const zoomValue = NS.DOM.$('#zoom-value');
+    if (zoomValue) {
+      zoomValue.textContent = Math.round(this.zoom * 100) + '%';
+    }
+  },
+
+  /**
+   * Fit schematic to viewport
+   */
+  fitToView() {
+    const viewRect = this.viewport.getBoundingClientRect();
+    const scaleX = (viewRect.width - 20) / this.baseWidth;
+    const scaleY = (viewRect.height - 20) / this.baseHeight;
+    this.setZoom(Math.min(scaleX, scaleY, 1.0));
+
+    // Center in viewport
+    this.viewport.scrollLeft = 0;
+    this.viewport.scrollTop = 0;
   },
 
   /**
@@ -79,10 +188,9 @@ NS.Schematic = {
   _calculateLayout() {
     const { width, height, padding, moduleWidth, moduleHeight, connectionWidth } = this;
 
-    // Voice section
     const voiceStartX = padding;
-    const voiceY = padding + 20;
-    const voiceSpacing = (moduleHeight + 15);
+    const voiceY = padding + 15;
+    const voiceSpacing = (moduleHeight + 10);
 
     this.layout = {
       voices: [],
@@ -101,10 +209,10 @@ NS.Schematic = {
     }
 
     // Master bus section
-    const masterX = voiceStartX + (moduleWidth + connectionWidth) * 4 + 20;
-    const masterY = voiceY + voiceSpacing;
+    const masterX = voiceStartX + (moduleWidth + connectionWidth) * 4 + 15;
+    const masterY = voiceY + voiceSpacing * 0.5;
     const masterWidth = width - masterX - padding;
-    const masterHeight = voiceSpacing * 2;
+    const masterHeight = voiceSpacing * 3;
 
     this.layout.masterBus = {
       x: masterX,
@@ -112,10 +220,11 @@ NS.Schematic = {
       w: masterWidth,
       h: masterHeight,
       modules: {
-        lfo: { x: masterX + 15, y: masterY + 10, w: 50, h: 30 },
-        comp: { x: masterX + 75, y: masterY + 10, w: 50, h: 30 },
-        reverb: { x: masterX + 15, y: masterY + 50, w: 50, h: 30 },
-        output: { x: masterX + 75, y: masterY + 50, w: 50, h: 30 }
+        lfo: { x: masterX + 10, y: masterY + 8, w: 45, h: 28 },
+        comp: { x: masterX + 65, y: masterY + 8, w: 45, h: 28 },
+        reverb: { x: masterX + 10, y: masterY + 44, w: 45, h: 28 },
+        limiter: { x: masterX + 65, y: masterY + 44, w: 45, h: 28 },
+        output: { x: masterX + 35, y: masterY + 80, w: 50, h: 28 }
       }
     };
   },
@@ -154,8 +263,11 @@ NS.Schematic = {
     ctx.fillStyle = colors.bg;
     ctx.fillRect(0, 0, width, height);
 
+    // Draw grid
+    this._drawGrid();
+
     // Update signal flow animation
-    this.signalFlowPhase = (this.signalFlowPhase + 0.05) % 1;
+    this.signalFlowPhase = (this.signalFlowPhase + 0.03) % 1;
 
     // Draw voice chains
     layout.voices.forEach((voice, i) => {
@@ -170,28 +282,52 @@ NS.Schematic = {
   },
 
   /**
+   * Draw background grid
+   */
+  _drawGrid() {
+    const { ctx, width, height, colors } = this;
+
+    ctx.strokeStyle = '#222218';
+    ctx.lineWidth = 0.5;
+
+    // Vertical lines
+    for (let x = 0; x < width; x += 20) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+
+    // Horizontal lines
+    for (let y = 0; y < height; y += 20) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+  },
+
+  /**
    * Draw a voice signal chain
    */
   _drawVoiceChain(voice, index) {
-    const { ctx, colors, activeVoices } = this;
+    const { colors, activeVoices } = this;
     const isActive = activeVoices[index];
 
-    // Draw modules
-    this._drawModule(voice.voice, `V${index}`, isActive, 'voice');
-    this._drawModule(voice.fir, 'FIR', isActive, 'fir');
-    this._drawModule(voice.dist, 'DIST', isActive, 'dist');
-    this._drawModule(voice.out, 'OUT', isActive, 'out');
+    this._drawModule(voice.voice, `V${index}`, isActive, 'voice', index);
+    this._drawModule(voice.fir, 'FIR', isActive, 'fir', index);
+    this._drawModule(voice.dist, 'DIST', isActive, 'dist', index);
+    this._drawModule(voice.out, 'OUT', isActive, 'out', index);
 
-    // Draw connections
     this._drawConnection(voice.voice, voice.fir, isActive);
     this._drawConnection(voice.fir, voice.dist, isActive);
     this._drawConnection(voice.dist, voice.out, isActive);
   },
 
   /**
-   * Draw a module box
+   * Draw a module box (HP bezel style)
    */
-  _drawModule(pos, label, active, type) {
+  _drawModule(pos, label, active, type, index = 0) {
     const { ctx, colors } = this;
     const { x, y, w, h } = pos;
 
@@ -199,20 +335,31 @@ NS.Schematic = {
     ctx.fillStyle = active ? colors.moduleActive : colors.module;
     ctx.fillRect(x, y, w, h);
 
-    // Border
-    ctx.strokeStyle = active ? colors.textActive : colors.moduleBorder;
-    ctx.lineWidth = active ? 2 : 1;
-    ctx.strokeRect(x, y, w, h);
+    // 3D bezel effect
+    ctx.strokeStyle = active ? colors.textActive : colors.moduleBorderLight;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, y + h);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x + w, y);
+    ctx.stroke();
+
+    ctx.strokeStyle = colors.moduleBorderDark;
+    ctx.beginPath();
+    ctx.moveTo(x + w, y);
+    ctx.lineTo(x + w, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.stroke();
 
     // Label
     ctx.fillStyle = active ? '#000' : colors.text;
-    ctx.font = '10px monospace';
+    ctx.font = '9px Consolas, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(label, x + w / 2, y + h / 2);
 
     // Store for click detection
-    this.activeModules[`${type}-${label}`] = { x, y, w, h, type, label };
+    this.activeModules[`${type}-${index}-${label}`] = { x, y, w, h, type, label, index };
   },
 
   /**
@@ -234,25 +381,23 @@ NS.Schematic = {
     ctx.lineWidth = active ? 2 : 1;
     ctx.stroke();
 
-    // Draw arrow
-    const arrowSize = 6;
-    const angle = Math.atan2(endY - startY, endX - startX);
-
+    // Arrow
+    const arrowSize = 4;
     ctx.beginPath();
-    ctx.moveTo(endX - 5, endY);
-    ctx.lineTo(endX - 5 - arrowSize * Math.cos(angle - Math.PI / 6), endY - arrowSize * Math.sin(angle - Math.PI / 6));
-    ctx.lineTo(endX - 5 - arrowSize * Math.cos(angle + Math.PI / 6), endY - arrowSize * Math.sin(angle + Math.PI / 6));
+    ctx.moveTo(endX - 3, endY - arrowSize / 2);
+    ctx.lineTo(endX - 3, endY + arrowSize / 2);
+    ctx.lineTo(endX, endY);
     ctx.closePath();
     ctx.fillStyle = active ? colors.wireSignal : colors.wire;
     ctx.fill();
 
-    // Signal flow dots (when active)
+    // Signal flow dot
     if (active) {
       const dotX = startX + (endX - startX) * signalFlowPhase;
       const dotY = startY + (endY - startY) * signalFlowPhase;
 
       ctx.beginPath();
-      ctx.arc(dotX, dotY, 3, 0, Math.PI * 2);
+      ctx.arc(dotX, dotY, 2, 0, Math.PI * 2);
       ctx.fillStyle = colors.textActive;
       ctx.fill();
     }
@@ -275,38 +420,54 @@ NS.Schematic = {
     ctx.strokeRect(master.x, master.y, master.w, master.h);
 
     // Title
-    ctx.fillStyle = colors.text;
-    ctx.font = '10px monospace';
+    ctx.fillStyle = '#ffaa00';
+    ctx.font = '8px Consolas, monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('MASTER BUS', master.x + master.w / 2, master.y - 5);
+    ctx.fillText('MASTER', master.x + master.w / 2, master.y - 4);
 
     // Draw master modules
     const mods = master.modules;
-    this._drawModule(mods.lfo, 'LFO', false, 'master');
-    this._drawModule(mods.comp, 'CMP', false, 'master');
-    this._drawModule(mods.reverb, 'RVB', false, 'master');
-    this._drawModule(mods.output, 'OUT', false, 'master');
+    this._drawModule(mods.lfo, 'LFO', false, 'master-lfo');
+    this._drawModule(mods.comp, 'CMP', false, 'master-comp');
+    this._drawModule(mods.reverb, 'RVB', false, 'master-reverb');
+    this._drawModule(mods.limiter, 'LIM', false, 'master-limiter');
+    this._drawModule(mods.output, 'OUT', false, 'master-out');
 
     // Internal connections
     ctx.strokeStyle = colors.wire;
     ctx.lineWidth = 1;
 
     // LFO to COMP
-    ctx.beginPath();
-    ctx.moveTo(mods.lfo.x + mods.lfo.w, mods.lfo.y + mods.lfo.h / 2);
-    ctx.lineTo(mods.comp.x, mods.comp.y + mods.comp.h / 2);
-    ctx.stroke();
-
+    this._drawSmallConnection(mods.lfo, mods.comp);
     // COMP to RVB (diagonal)
-    ctx.beginPath();
-    ctx.moveTo(mods.comp.x + mods.comp.w / 2, mods.comp.y + mods.comp.h);
-    ctx.lineTo(mods.reverb.x + mods.reverb.w / 2, mods.reverb.y);
-    ctx.stroke();
+    this._drawSmallConnectionDiag(mods.comp, mods.reverb);
+    // RVB to LIM
+    this._drawSmallConnection(mods.reverb, mods.limiter);
+    // LIM to OUT (diagonal)
+    this._drawSmallConnectionDiag(mods.limiter, mods.output);
+  },
 
-    // RVB to OUT
+  /**
+   * Draw small horizontal connection
+   */
+  _drawSmallConnection(from, to) {
+    const { ctx, colors } = this;
+    ctx.strokeStyle = colors.wire;
     ctx.beginPath();
-    ctx.moveTo(mods.reverb.x + mods.reverb.w, mods.reverb.y + mods.reverb.h / 2);
-    ctx.lineTo(mods.output.x, mods.output.y + mods.output.h / 2);
+    ctx.moveTo(from.x + from.w, from.y + from.h / 2);
+    ctx.lineTo(to.x, to.y + to.h / 2);
+    ctx.stroke();
+  },
+
+  /**
+   * Draw small diagonal connection
+   */
+  _drawSmallConnectionDiag(from, to) {
+    const { ctx, colors } = this;
+    ctx.strokeStyle = colors.wire;
+    ctx.beginPath();
+    ctx.moveTo(from.x + from.w / 2, from.y + from.h);
+    ctx.lineTo(to.x + to.w / 2, to.y);
     ctx.stroke();
   },
 
@@ -318,20 +479,19 @@ NS.Schematic = {
     const master = layout.masterBus;
 
     // Summing point
-    const sumX = master.x - 15;
+    const sumX = master.x - 12;
     const sumY = master.y + master.h / 2;
 
     // Draw summing node
     ctx.beginPath();
-    ctx.arc(sumX, sumY, 8, 0, Math.PI * 2);
+    ctx.arc(sumX, sumY, 6, 0, Math.PI * 2);
     ctx.fillStyle = colors.module;
     ctx.fill();
     ctx.strokeStyle = colors.moduleBorder;
     ctx.stroke();
 
-    // Sum symbol
     ctx.fillStyle = colors.text;
-    ctx.font = '12px monospace';
+    ctx.font = '10px Consolas, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('+', sumX, sumY);
@@ -345,13 +505,8 @@ NS.Schematic = {
       ctx.beginPath();
       ctx.moveTo(startX, startY);
 
-      // Curve to summing point
-      const midX = sumX - 10;
-      ctx.bezierCurveTo(
-        midX, startY,
-        midX, sumY,
-        sumX - 8, sumY
-      );
+      const midX = sumX - 8;
+      ctx.bezierCurveTo(midX, startY, midX, sumY, sumX - 6, sumY);
 
       ctx.strokeStyle = activeVoices[i] ? colors.wireSignal : colors.wire;
       ctx.lineWidth = activeVoices[i] ? 2 : 1;
@@ -360,7 +515,7 @@ NS.Schematic = {
 
     // Line from sum to master input
     ctx.beginPath();
-    ctx.moveTo(sumX + 8, sumY);
+    ctx.moveTo(sumX + 6, sumY);
     ctx.lineTo(master.x, sumY);
     ctx.strokeStyle = colors.wire;
     ctx.lineWidth = 1;
@@ -371,13 +526,13 @@ NS.Schematic = {
    * Handle click on schematic
    */
   handleClick(x, y) {
-    // Check if click is on a module
     for (const [key, mod] of Object.entries(this.activeModules)) {
       if (x >= mod.x && x <= mod.x + mod.w &&
           y >= mod.y && y <= mod.y + mod.h) {
         NS.Bus.emit('schematic:moduleClick', {
           type: mod.type,
-          label: mod.label
+          label: mod.label,
+          index: mod.index
         });
         return;
       }
