@@ -1,0 +1,647 @@
+/* Dunk - Bass Synthesis Machine */
+/* Dark theme with phosphor green accents */
+
+:root {
+  --bg-dark: #0a0a0a;
+  --bg-panel: #141414;
+  --bg-control: #1a1a1a;
+  --bg-input: #222;
+  --border-color: #333;
+  --text-primary: #e0e0e0;
+  --text-secondary: #888;
+  --accent-green: #00ff00;
+  --accent-green-dim: #00aa00;
+  --accent-green-glow: rgba(0, 255, 0, 0.3);
+  --accent-orange: #ff8800;
+  --accent-red: #ff4444;
+  --accent-blue: #4488ff;
+  --step-active: #00ff00;
+  --step-inactive: #333;
+  --step-current: #ffff00;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* HUD */
+#hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.hud-left, .hud-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.hud-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-control label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.hud-control input[type="number"] {
+  width: 60px;
+  padding: 4px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--accent-green);
+  font-family: inherit;
+  font-size: 14px;
+  text-align: center;
+}
+
+#status {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.status-idle { background: var(--bg-control); color: var(--text-secondary); }
+.status-running { background: var(--accent-green-dim); color: #000; }
+.status-error { background: var(--accent-red); color: #fff; }
+
+.transport {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-transport {
+  width: 36px;
+  height: 36px;
+  background: var(--bg-control);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-transport:hover {
+  background: var(--border-color);
+  border-color: var(--accent-green);
+}
+
+.btn-transport.active {
+  background: var(--accent-green-dim);
+  color: #000;
+}
+
+/* Buttons */
+.btn-primary {
+  padding: 8px 16px;
+  background: var(--accent-green-dim);
+  border: none;
+  color: #000;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-primary:hover {
+  background: var(--accent-green);
+  box-shadow: 0 0 10px var(--accent-green-glow);
+}
+
+.btn-secondary {
+  padding: 6px 12px;
+  background: var(--bg-control);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+.btn-secondary.active {
+  background: var(--accent-green-dim);
+  color: #000;
+  border-color: var(--accent-green);
+}
+
+/* Main Content */
+#main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+#main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+/* Sections */
+section {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  padding: 12px;
+}
+
+section h3 {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Canvas Containers */
+.canvas-container {
+  position: relative;
+  width: 100%;
+  background: #000;
+  border: 1px solid var(--border-color);
+}
+
+#phosphor-section .canvas-container {
+  height: 150px;
+}
+
+#schematic-section .canvas-container {
+  height: 200px;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Sequencer */
+#sequencer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#steps {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.step {
+  width: 40px;
+  height: 40px;
+  background: var(--step-inactive);
+  border: 2px solid var(--border-color);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--text-secondary);
+  transition: all 0.1s;
+  position: relative;
+}
+
+.step:hover {
+  border-color: var(--accent-green);
+}
+
+.step.active {
+  background: var(--step-active);
+  color: #000;
+  box-shadow: 0 0 8px var(--accent-green-glow);
+}
+
+.step.current {
+  border-color: var(--step-current);
+  box-shadow: 0 0 12px rgba(255, 255, 0, 0.5);
+}
+
+.step .voice-indicator {
+  position: absolute;
+  bottom: 2px;
+  font-size: 8px;
+}
+
+#sequencer-controls {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  align-items: center;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-group label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+#voice-select {
+  display: flex;
+  gap: 4px;
+}
+
+.voice-btn {
+  width: 28px;
+  height: 28px;
+  background: var(--bg-control);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.voice-btn:hover {
+  border-color: var(--accent-green);
+}
+
+.voice-btn.active {
+  background: var(--accent-green-dim);
+  color: #000;
+}
+
+/* Sidepanel */
+#sidepanel {
+  width: 250px;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+}
+
+#sidepanel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 8px 4px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  color: var(--accent-green);
+  border-bottom: 2px solid var(--accent-green);
+}
+
+#sidepanel-content {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+#sidepanel-content h4 {
+  color: var(--accent-green);
+  margin-bottom: 8px;
+}
+
+#sidepanel-content p {
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+}
+
+#sidepanel-content ul {
+  margin-left: 16px;
+  margin-bottom: 12px;
+}
+
+#sidepanel-content li {
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+}
+
+/* Toolbar */
+#toolbar {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+}
+
+.toolbar-left, .toolbar-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+select {
+  padding: 6px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+select:hover {
+  border-color: var(--accent-green);
+}
+
+/* Floating Panels */
+.floating-panel {
+  position: fixed;
+  background: var(--bg-panel);
+  border: 1px solid var(--accent-green);
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+  min-width: 300px;
+  z-index: 1000;
+}
+
+.floating-panel.hidden {
+  display: none;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg-control);
+  border-bottom: 1px solid var(--border-color);
+  cursor: move;
+}
+
+.panel-header h4 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--accent-green);
+}
+
+.btn-close {
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.btn-close:hover {
+  color: var(--accent-red);
+}
+
+.panel-content {
+  padding: 12px;
+}
+
+/* Control Rows */
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.control-row label {
+  width: 100px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.control-row input[type="range"] {
+  flex: 1;
+}
+
+.control-row span {
+  width: 70px;
+  font-size: 11px;
+  color: var(--accent-green);
+  text-align: right;
+}
+
+.control-row select {
+  flex: 1;
+}
+
+.control-row input[type="checkbox"] {
+  width: auto;
+}
+
+/* Range Inputs */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--bg-input);
+  border-radius: 2px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--accent-green);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--accent-green);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+/* Channel Controls in Voice Panel */
+.channel-controls {
+  margin-bottom: 16px;
+}
+
+.channel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 4px;
+  background: var(--bg-control);
+}
+
+.ch-label {
+  width: 50px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.ch-level {
+  flex: 1;
+}
+
+.ch-mute {
+  width: 24px;
+  height: 24px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.ch-mute:hover {
+  border-color: var(--accent-orange);
+}
+
+.ch-mute.muted {
+  background: var(--accent-orange);
+  color: #000;
+}
+
+/* Voice Effects */
+.voice-effects {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Filter Design Panel */
+#panel-filter-design .canvas-container {
+  height: 120px;
+  margin-bottom: 12px;
+}
+
+/* LFO Panel */
+.lfo-controls .control-row span {
+  color: var(--accent-blue);
+}
+
+/* Master Panel */
+.master-controls .control-row span {
+  color: var(--accent-orange);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* MIDI Learn Mode */
+body.midi-learn-mode * {
+  cursor: crosshair !important;
+}
+
+body.midi-learn-mode [data-midi-target] {
+  outline: 2px dashed var(--accent-blue) !important;
+}
+
+body.midi-learn-mode [data-midi-target]:hover {
+  outline-color: var(--accent-green) !important;
+  background: rgba(0, 255, 0, 0.1) !important;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  #sidepanel {
+    width: 200px;
+  }
+
+  .step {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@media (max-width: 700px) {
+  #main-content {
+    flex-direction: column;
+  }
+
+  #sidepanel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+    max-height: 200px;
+  }
+
+  #sidepanel-tabs {
+    overflow-x: auto;
+  }
+
+  .step {
+    width: 24px;
+    height: 24px;
+    font-size: 8px;
+  }
+
+  #sequencer-controls {
+    flex-wrap: wrap;
+  }
+}
