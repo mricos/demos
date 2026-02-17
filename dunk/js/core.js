@@ -222,9 +222,181 @@ NS.CONSTANTS = {
   PITCH_START: 130,  // Hz
   PITCH_END: 50,     // Hz
   PITCH_TIME: 0.006, // 6ms
+  ATTACK: 0.002,     // 2ms
   DECAY_MIN: 50,     // ms
   DECAY_MAX: 2000,   // ms
   DECAY_DEFAULT: 200 // ms
+};
+
+/**
+ * OSC - Message dispatcher for OSC-like parameter control
+ *
+ * Address format: /category/target/parameter
+ * Examples:
+ *   /voice/0/level
+ *   /voice/1/channel/0/level
+ *   /master/reverb
+ *   /lfo/rate
+ *   /envelope/pitch/start
+ *   /nasty/decayFine
+ */
+NS.OSC = {
+  /**
+   * Send a value to an OSC address
+   * @param {string} address - OSC-style address (e.g., /voice/0/level)
+   * @param {number|string} value - Value to set
+   */
+  send(address, value) {
+    const parts = address.split('/').filter(p => p);
+
+    if (parts.length < 2) {
+      console.warn('[OSC] Invalid address:', address);
+      return;
+    }
+
+    const category = parts[0];
+
+    switch (category) {
+      case 'voice':
+        this._handleVoice(parts, value);
+        break;
+      case 'master':
+        this._handleMaster(parts, value);
+        break;
+      case 'lfo':
+        this._handleLFO(parts, value);
+        break;
+      case 'envelope':
+        this._handleEnvelope(parts, value);
+        break;
+      case 'nasty':
+        this._handleNasty(parts, value);
+        break;
+      case 'filter':
+        this._handleFilter(parts, value);
+        break;
+      case 'sequencer':
+        this._handleSequencer(parts, value);
+        break;
+      default:
+        console.warn('[OSC] Unknown category:', category);
+    }
+
+    // Emit event for logging/UI updates
+    NS.Bus.emit('osc:message', { address, value });
+  },
+
+  /**
+   * Handle /voice/N/... messages
+   */
+  _handleVoice(parts, value) {
+    const voiceIdx = parseInt(parts[1]);
+    if (isNaN(voiceIdx) || voiceIdx < 0 || voiceIdx > 3) return;
+
+    const voice = NS.VoiceBank?.get(voiceIdx);
+    if (!voice) return;
+
+    if (parts[2] === 'level') {
+      NS.Voice?.setLevel(voice, value);
+    } else if (parts[2] === 'channel' && parts.length >= 5) {
+      const channelIdx = parseInt(parts[3]);
+      const param = parts[4];
+      // Handle channel-specific params
+      if (param === 'level') {
+        // Channel level
+      } else if (param === 'mute') {
+        // Channel mute
+      }
+    } else if (parts[2] === 'distortion') {
+      if (parts[3] === 'type') {
+        // Set distortion type
+      } else if (parts[3] === 'amount') {
+        // Set distortion amount
+      }
+    }
+  },
+
+  /**
+   * Handle /master/... messages
+   */
+  _handleMaster(parts, value) {
+    const param = parts.slice(1).join('.');
+    const pathMap = {
+      'level': 'masterLevel',
+      'reverb': 'master.reverbMix',
+      'comp.threshold': 'master.compThreshold',
+      'comp.ratio': 'master.compRatio',
+      'limiter': 'master.limiter',
+      'gate.threshold': 'master.gateThreshold'
+    };
+
+    const statePath = pathMap[param];
+    if (statePath) {
+      NS.State.set(statePath, value);
+    }
+  },
+
+  /**
+   * Handle /lfo/... messages
+   */
+  _handleLFO(parts, value) {
+    const param = parts[1];
+    NS.State.set(`lfo.${param}`, value);
+  },
+
+  /**
+   * Handle /envelope/... messages
+   */
+  _handleEnvelope(parts, value) {
+    const section = parts[1]; // pitch, amp
+    const param = parts[2];   // start, end, time, attack, decay
+
+    if (section === 'pitch') {
+      if (param === 'start') NS.CONSTANTS.PITCH_START = value;
+      else if (param === 'end') NS.CONSTANTS.PITCH_END = value;
+      else if (param === 'time') NS.CONSTANTS.PITCH_TIME = value;
+    } else if (section === 'amp') {
+      if (param === 'attack') NS.CONSTANTS.ATTACK = value;
+      else if (param === 'decay') NS.CONSTANTS.DECAY_DEFAULT = value;
+    }
+
+    NS.State.set(`envelope.${section}${param.charAt(0).toUpperCase() + param.slice(1)}`, value);
+  },
+
+  /**
+   * Handle /nasty/... messages
+   */
+  _handleNasty(parts, value) {
+    const param = parts[1];
+    NS.Nasty?.set(param, value);
+  },
+
+  /**
+   * Handle /filter/... messages
+   */
+  _handleFilter(parts, value) {
+    const param = parts[1];
+    if (param === 'cutoff' && NS.MasterBus) {
+      NS.MasterBus.setFilterCutoff(value);
+    }
+    NS.State.set(`filter.${param}`, value);
+  },
+
+  /**
+   * Handle /sequencer/... messages
+   */
+  _handleSequencer(parts, value) {
+    const cmd = parts[1];
+    if (cmd === 'start') NS.Sequencer?.start();
+    else if (cmd === 'stop') NS.Sequencer?.stop();
+    else if (cmd === 'bpm') NS.State.set('bpm', value);
+    else if (cmd === 'step' && parts.length >= 4) {
+      const stepIdx = parseInt(parts[2]);
+      const action = parts[3];
+      if (action === 'on') NS.Sequencer?.setStep(stepIdx, true);
+      else if (action === 'off') NS.Sequencer?.setStep(stepIdx, false);
+    }
+  }
 };
 
 console.log('[Dunk] Core module loaded');

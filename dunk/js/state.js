@@ -52,7 +52,18 @@ NS.State = {
       compThreshold: -24,
       compRatio: 4,
       reverbMix: 0.1,
-      limiter: -3
+      limiter: -3,
+      gateThreshold: -50,  // Noise gate threshold (dB) - aggressive
+      gateRelease: 0.02    // Noise gate release (seconds) - fast
+    },
+
+    // Envelope settings (808-style defaults)
+    envelope: {
+      pitchStart: 130,    // Hz
+      pitchEnd: 50,       // Hz
+      pitchTime: 0.006,   // seconds (6ms)
+      attack: 0.002,      // seconds (2ms)
+      decay: 200          // ms
     },
 
     // Filter settings
@@ -63,17 +74,17 @@ NS.State = {
       preset: '808-lpf'
     },
 
-    // MIDI mappings
+    // MIDI mappings (VMX8: knobs CC30-37, sliders CC40-47)
     midi: {
       mappings: {
-        20: 'filter.cutoff',
-        21: 'filter.resonance',
-        22: 'distortion.amount',
-        23: 'lfo.rate',
-        24: 'lfo.depth',
-        25: 'master.reverbMix',
-        26: 'master.compThreshold',
-        27: 'masterLevel',
+        30: 'filter.cutoff',
+        31: 'filter.resonance',
+        32: 'distortion.amount',
+        33: 'lfo.rate',
+        34: 'lfo.depth',
+        35: 'master.reverbMix',
+        36: 'master.compThreshold',
+        37: 'masterLevel',
         40: 'voices.0.level',
         41: 'voices.1.level',
         42: 'voices.2.level',
@@ -151,6 +162,28 @@ NS.State = {
     this.current = NS.Utils.clone(this.defaults);
     this.save();
     NS.Bus.emit('state:reset', this.current);
+  },
+
+  // Clear all stored state (full reset including localStorage)
+  clearAll() {
+    localStorage.removeItem(this.STORAGE_KEY);
+    localStorage.removeItem(this.PRESETS_KEY);
+    localStorage.removeItem('dunk-controller-mappings');
+    this.current = NS.Utils.clone(this.defaults);
+    console.log('[Dunk] All state cleared');
+    NS.Bus.emit('state:cleared');
+  },
+
+  // Clear just the sequencer steps
+  clearSequencer() {
+    this.current.sequencer.steps = new Array(16).fill(null).map(() => ({
+      active: false,
+      voice: 0,
+      velocity: 1.0
+    }));
+    this.save();
+    NS.Bus.emit('state:sequencerCleared');
+    console.log('[Dunk] Sequencer cleared');
   },
 
   // Export state as JSON

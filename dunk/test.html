@@ -1,0 +1,1347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MIDI CC / LED Probe (WebMIDI)</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 16px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    h1 { font-size: 16px; margin: 0 0 12px 0; }
+    fieldset { border: 1px solid #444; padding: 12px; margin: 12px 0; }
+    legend { padding: 0 6px; }
+    label { display: inline-block; min-width: 140px; }
+    select, input, button { font-family: inherit; font-size: 13px; }
+    select, input { padding: 4px; background: #111; color: #ddd; border: 1px solid #444; }
+    button { padding: 6px 10px; background: #111; color: #ddd; border: 1px solid #444; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+    .col { display: flex; flex-direction: column; gap: 6px; }
+    #log { white-space: pre; font-size: 12px; background: #0b0b0b; border: 1px solid #333; padding: 10px; height: 340px; overflow: auto; }
+    .log-entry { display: block; cursor: default; padding: 1px 2px; border-radius: 2px; transition: background 0.05s; }
+    .log-entry.replayable { cursor: pointer; }
+    .log-entry.replayable:hover { background: #2a2a4a; }
+    .log-entry.replaying { background: #4a4a8a !important; }
+    .log-entry.dragging { background: #8a5a2a !important; cursor: ew-resize; color: #fff; }
+    .vel-indicator { display: inline-block; margin-left: 8px; background: #fa0; color: #000; padding: 0 4px; font-weight: bold; }
+    .log-check { opacity: 0.15; margin-right: 6px; cursor: pointer; accent-color: #0f0; }
+    .log-entry:hover .log-check, .log-entry:hover .log-copy { opacity: 0.5; }
+    .log-check:checked { opacity: 1; }
+    .log-entry.found { background: #1a3a1a; border-left: 3px solid #0f0; }
+    .log-entry.found .log-check { opacity: 1; }
+    .log-copy { opacity: 0.15; margin-left: 4px; cursor: pointer; font-size: 10px; background: #333; border: 1px solid #555; color: #aaa; padding: 0 3px; border-radius: 2px; }
+    .log-copy:hover { opacity: 1; background: #555; }
+    .small { font-size: 12px; color: #aaa; }
+    .warn { color: #ffb86c; }
+    .ok { color: #8be9fd; }
+    .bad { color: #ff5555; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <h1>MIDI CC / LED Probe (WebMIDI)</h1>
+
+  <fieldset>
+    <legend>1) Connect</legend>
+    <div class="row">
+      <button id="btnEnable">Enable WebMIDI</button>
+      <span id="status" class="small warn">WebMIDI not enabled.</span>
+    </div>
+    <div class="grid">
+      <div class="col">
+        <div class="row">
+          <label for="inSelect">MIDI Input</label>
+          <select id="inSelect" disabled></select>
+          <button id="btnRefresh" disabled>Refresh</button>
+        </div>
+        <div class="small">
+          Input is for observing what the controller sends (CC/Note/etc).
+        </div>
+      </div>
+      <div class="col">
+        <div class="row">
+          <label for="outSelect">MIDI Output</label>
+          <select id="outSelect" disabled></select>
+        </div>
+        <div class="small">
+          Output is for sending LED/state messages to the controller.
+        </div>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>2) Manual Send</legend>
+    <div class="grid">
+      <div class="col">
+        <div class="row">
+          <label for="channel">Channel</label>
+          <input id="channel" type="number" min="1" max="16" value="1" style="width:72px" />
+          <span class="small">(1..16)</span>
+        </div>
+
+        <div class="row">
+          <label for="sendType">Type</label>
+          <select id="sendType" disabled>
+            <option value="cc">CC</option>
+            <option value="note">Note</option>
+            <option value="pc">Program Change</option>
+            <option value="pb">Pitch Bend</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label for="num">Number/Note</label>
+          <input id="num" type="number" min="0" max="127" value="0" style="width:92px" />
+        </div>
+
+        <div class="row">
+          <label for="val">Value/Vel</label>
+          <input id="val" type="number" min="0" max="127" value="127" style="width:92px" />
+          <button id="btnSend" disabled>Send</button>
+        </div>
+
+        <div class="small warn">
+          SysEx is not used here. This tool probes generic LED feedback via standard MIDI messages.
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="row">
+          <label for="panicMs">Inter-send delay</label>
+          <input id="panicMs" type="number" min="0" max="1000" value="30" style="width:92px" />
+          <span class="small">ms</span>
+        </div>
+        <div class="row">
+          <label for="holdMs">Hold time</label>
+          <input id="holdMs" type="number" min="0" max="2000" value="60" style="width:92px" />
+          <span class="small">ms</span>
+        </div>
+        <div class="row">
+          <button id="btnAllOff" disabled>All Notes Off</button>
+          <button id="btnClearLog">Clear Log</button>
+          <button id="btnExportFound">Export Found</button>
+          <button id="btnCopyAll">Copy All</button>
+        </div>
+        <div class="row">
+          <label for="probeStart">Quick probe</label>
+          <input id="probeStart" type="text" value="0x10" style="width:60px" />
+          <span>..</span>
+          <input id="probeEnd" type="text" value="0x1F" style="width:60px" />
+          <select id="probeType">
+            <option value="note">Note</option>
+            <option value="cc">CC</option>
+          </select>
+          <button id="btnQuickProbe" disabled>Probe</button>
+          <button id="btnProbeStop" disabled>Stop</button>
+        </div>
+        <div class="row">
+          <label>SysEx</label>
+          <button id="btnSysexId" disabled>Identity Request</button>
+          <input id="sysexCustom" type="text" placeholder="F0 7E 7F 06 01 F7" style="width:200px" />
+          <button id="btnSysexSend" disabled>Send SysEx</button>
+        </div>
+        <div class="row">
+          <label>Hit Parade</label>
+          <button id="btnMcuInit" disabled>MCU Init</button>
+          <button id="btnHuiInit" disabled>HUI Init</button>
+          <button id="btnMcuLeds" disabled>MCU LEDs</button>
+          <button id="btnAllLeds" disabled>All LEDs On</button>
+          <button id="btnDjInit" disabled>DJ Init</button>
+        </div>
+        <div class="row">
+          <label>MCU Session</label>
+          <button id="btnMcuSession" disabled>Start MCU Session</button>
+          <button id="btnMcuMutes" disabled>Mutes 1-8</button>
+          <button id="btnMcuSolos" disabled>Solos 1-8</button>
+          <button id="btnMcuRecs" disabled>Recs 1-8</button>
+          <button id="btnMcuSels" disabled>Selects 1-8</button>
+          <button id="btnMcuTransport" disabled>Transport LEDs</button>
+        </div>
+        <div class="row">
+          <label>Boot Capture</label>
+          <button id="btnBootCapture" disabled>Start Capture</button>
+          <button id="btnReplayCaptured" disabled>Replay Captured</button>
+          <span id="captureStatus" class="small"></span>
+        </div>
+        <div class="row">
+          <label>Exotic</label>
+          <button id="btnAftertouch" disabled>Aftertouch Probe</button>
+          <button id="btnVelSweep" disabled>Velocity Sweep 0x10</button>
+          <button id="btnPitchBend" disabled>Pitch Bend Probe</button>
+          <button id="btnProgChange" disabled>Program Change Probe</button>
+        </div>
+        <div class="small">
+          “All Notes Off” sends CC123 and CC120/121/124 sequences; does not guarantee LED reset.
+        </div>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>3) Automated Tests</legend>
+    <div class="grid">
+      <div class="col">
+        <div class="row">
+          <label>Test Profile</label>
+          <select id="profile" disabled>
+            <option value="cc_mode">CC Mode (CC sweep + note sweep)</option>
+            <option value="daw_mode">DAW Mode (MCU-ish note patterns + sweeps)</option>
+            <option value="exhaustive">Exhaustive (CC + notes + channels)</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label for="ccStart">CC range</label>
+          <input id="ccStart" type="number" min="0" max="127" value="0" style="width:92px" />
+          <span>..</span>
+          <input id="ccEnd" type="number" min="0" max="127" value="127" style="width:92px" />
+        </div>
+
+        <div class="row">
+          <label for="noteStart">Note range</label>
+          <input id="noteStart" type="number" min="0" max="127" value="0" style="width:92px" />
+          <span>..</span>
+          <input id="noteEnd" type="number" min="0" max="127" value="127" style="width:92px" />
+        </div>
+
+        <div class="row">
+          <label for="chStart">Channel range</label>
+          <input id="chStart" type="number" min="1" max="16" value="1" style="width:92px" />
+          <span>..</span>
+          <input id="chEnd" type="number" min="1" max="16" value="1" style="width:92px" />
+        </div>
+
+        <div class="row">
+          <button id="btnRun" disabled>Run Test</button>
+          <button id="btnStop" disabled>Stop</button>
+        </div>
+
+        <div class="small">
+          Observe whether any controller LEDs change. If nothing changes, the device likely requires a vendor-defined protocol, SysEx, or a specific DAW surface mode.
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="small">
+          DAW mode profile sends a few common “MCU-style” patterns (note-on velocity 127, note-off/vel0) across typical note ranges.
+          This is not a full MCU/HUI implementation; it is a probe.
+        </div>
+        <div class="row">
+          <label for="mcuBank">MCU bank</label>
+          <select id="mcuBank" disabled>
+            <option value="transport">Transport-ish notes (0x5B..0x5F)</option>
+            <option value="channel">Channel strip-ish notes (0x10..0x2F)</option>
+            <option value="function">Function-ish notes (0x30..0x4F)</option>
+          </select>
+          <button id="btnMCUProbe" disabled>MCU Probe</button>
+        </div>
+        <div class="small warn">
+          Some controllers expose separate MIDI ports for DAW feedback (e.g., “DAW” vs “MIDI”). Select the correct Output port.
+        </div>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>4) Log</legend>
+    <div id="log"></div>
+  </fieldset>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  const ui = {
+    btnEnable: $("btnEnable"),
+    btnRefresh: $("btnRefresh"),
+    inSelect: $("inSelect"),
+    outSelect: $("outSelect"),
+    status: $("status"),
+
+    sendType: $("sendType"),
+    channel: $("channel"),
+    num: $("num"),
+    val: $("val"),
+    btnSend: $("btnSend"),
+    btnAllOff: $("btnAllOff"),
+    btnClearLog: $("btnClearLog"),
+    btnExportFound: $("btnExportFound"),
+    btnCopyAll: $("btnCopyAll"),
+    probeStart: $("probeStart"),
+    probeEnd: $("probeEnd"),
+    probeType: $("probeType"),
+    btnQuickProbe: $("btnQuickProbe"),
+    btnProbeStop: $("btnProbeStop"),
+    btnSysexId: $("btnSysexId"),
+    sysexCustom: $("sysexCustom"),
+    btnSysexSend: $("btnSysexSend"),
+    btnMcuInit: $("btnMcuInit"),
+    btnHuiInit: $("btnHuiInit"),
+    btnMcuLeds: $("btnMcuLeds"),
+    btnAllLeds: $("btnAllLeds"),
+    btnDjInit: $("btnDjInit"),
+    btnBootCapture: $("btnBootCapture"),
+    btnReplayCaptured: $("btnReplayCaptured"),
+    captureStatus: $("captureStatus"),
+    btnAftertouch: $("btnAftertouch"),
+    btnVelSweep: $("btnVelSweep"),
+    btnPitchBend: $("btnPitchBend"),
+    btnProgChange: $("btnProgChange"),
+    btnMcuSession: $("btnMcuSession"),
+    btnMcuMutes: $("btnMcuMutes"),
+    btnMcuSolos: $("btnMcuSolos"),
+    btnMcuRecs: $("btnMcuRecs"),
+    btnMcuSels: $("btnMcuSels"),
+    btnMcuTransport: $("btnMcuTransport"),
+
+    profile: $("profile"),
+    ccStart: $("ccStart"),
+    ccEnd: $("ccEnd"),
+    noteStart: $("noteStart"),
+    noteEnd: $("noteEnd"),
+    chStart: $("chStart"),
+    chEnd: $("chEnd"),
+    panicMs: $("panicMs"),
+    holdMs: $("holdMs"),
+    btnRun: $("btnRun"),
+    btnStop: $("btnStop"),
+
+    mcuBank: $("mcuBank"),
+    btnMCUProbe: $("btnMCUProbe"),
+
+    log: $("log"),
+  };
+
+  let midiAccess = null;
+  let input = null;
+  let output = null;
+
+  let stopFlag = false;
+  let currentTask = null;
+
+  function log(line, cls, midiBytes) {
+    const prefix = new Date().toISOString().replace('T',' ').replace('Z','');
+    const text = `[${prefix}] ${line}`;
+    const span = document.createElement("span");
+    span.className = `log-entry${cls ? ' ' + cls : ''}${midiBytes ? ' replayable' : ''}`;
+    span.textContent = text + '\n';
+
+    if (midiBytes) {
+      span.dataset.midi = JSON.stringify(Array.from(midiBytes));
+      const status = midiBytes[0] & 0xF0;
+      const isNote = status === 0x90 || status === 0x80;
+      span.title = isNote ? 'Hover to replay, drag for velocity' : 'Hover to replay';
+      span.onmouseenter = () => replayMidi(span);
+
+      // Ghost checkbox for marking working notes
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'log-check';
+      cb.onclick = (e) => {
+        e.stopPropagation();
+        span.classList.toggle('found', cb.checked);
+      };
+      span.prepend(cb);
+
+      // Copy button
+      const cp = document.createElement('button');
+      cp.className = 'log-copy';
+      cp.textContent = 'cp';
+      cp.onclick = (e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(bytesToHex(midiBytes));
+        cp.textContent = '✓';
+        setTimeout(() => cp.textContent = 'cp', 500);
+      };
+      span.appendChild(cp);
+    }
+
+    ui.log.appendChild(span);
+    ui.log.scrollTop = ui.log.scrollHeight;
+  }
+
+  let dragEntry = null;
+  let lastVel = null;
+
+  function replayMidi(el) {
+    if (!output || dragEntry) return;
+    const bytes = JSON.parse(el.dataset.midi);
+    el.classList.add('replaying');
+    output.send(bytes);
+    setTimeout(() => el.classList.remove('replaying'), 100);
+  }
+
+  function isNoteMsg(bytes) {
+    const status = bytes[0] & 0xF0;
+    return status === 0x90 || status === 0x80;
+  }
+
+  function velocityFromX(e, el) {
+    const rect = el.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    return Math.round(x * 127);
+  }
+
+  function sendNoteWithVel(bytes, vel) {
+    if (!output) return;
+    const ch = bytes[0] & 0x0F;
+    const note = bytes[1];
+    // note off
+    output.send([0x80 | ch, note, 0]);
+    // note on with new velocity
+    output.send([0x90 | ch, note, vel]);
+  }
+
+  ui.log.addEventListener('mousedown', (e) => {
+    const el = e.target.closest('.replayable');
+    if (!el || !output) return;
+    const bytes = JSON.parse(el.dataset.midi);
+    if (!isNoteMsg(bytes)) return;
+
+    // Create velocity indicator
+    const indicator = document.createElement('span');
+    indicator.className = 'vel-indicator';
+    indicator.textContent = 'vel=--';
+    el.appendChild(indicator);
+
+    dragEntry = { el, bytes, indicator };
+    lastVel = null;
+    el.classList.add('dragging');
+    document.body.style.cursor = 'ew-resize';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!dragEntry) return;
+    const vel = velocityFromX(e, dragEntry.el);
+    if (vel !== lastVel) {
+      sendNoteWithVel(dragEntry.bytes, vel);
+      lastVel = vel;
+      dragEntry.indicator.textContent = `vel=${vel}`;
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragEntry) return;
+    const bytes = dragEntry.bytes;
+    const ch = bytes[0] & 0x0F;
+    const note = bytes[1];
+    output.send([0x80 | ch, note, 0]);
+    dragEntry.el.classList.remove('dragging');
+    dragEntry.indicator.remove();
+    document.body.style.cursor = '';
+    dragEntry = null;
+    lastVel = null;
+  });
+
+  function setEnabled(enabled) {
+    for (const el of [
+      ui.btnRefresh, ui.inSelect, ui.outSelect, ui.sendType, ui.btnSend, ui.btnAllOff,
+      ui.profile, ui.btnRun, ui.btnStop, ui.mcuBank, ui.btnMCUProbe,
+      ui.btnQuickProbe, ui.btnProbeStop, ui.btnSysexId, ui.btnSysexSend,
+      ui.btnMcuInit, ui.btnHuiInit, ui.btnMcuLeds, ui.btnAllLeds, ui.btnDjInit,
+      ui.btnBootCapture, ui.btnReplayCaptured,
+      ui.btnAftertouch, ui.btnVelSweep, ui.btnPitchBend, ui.btnProgChange,
+      ui.btnMcuSession, ui.btnMcuMutes, ui.btnMcuSolos, ui.btnMcuRecs, ui.btnMcuSels, ui.btnMcuTransport
+    ]) el.disabled = !enabled;
+  }
+
+  function bytesToHex(a) {
+    return Array.from(a).map(b => b.toString(16).padStart(2, "0")).join(" ");
+  }
+
+  function updatePortDropdowns() {
+    const prevIn = ui.inSelect.value;
+    const prevOut = ui.outSelect.value;
+
+    ui.inSelect.innerHTML = "";
+    ui.outSelect.innerHTML = "";
+
+    const ins = Array.from(midiAccess.inputs.values());
+    const outs = Array.from(midiAccess.outputs.values());
+
+    for (const i of ins) {
+      const opt = document.createElement("option");
+      opt.value = i.id;
+      opt.textContent = `${i.name || "Unnamed"}${i.manufacturer ? " (" + i.manufacturer + ")" : ""}`;
+      ui.inSelect.appendChild(opt);
+    }
+    for (const o of outs) {
+      const opt = document.createElement("option");
+      opt.value = o.id;
+      opt.textContent = `${o.name || "Unnamed"}${o.manufacturer ? " (" + o.manufacturer + ")" : ""}`;
+      ui.outSelect.appendChild(opt);
+    }
+
+    // Restore previous selection if still available
+    if (ins.find(i => i.id === prevIn)) ui.inSelect.value = prevIn;
+    if (outs.find(o => o.id === prevOut)) ui.outSelect.value = prevOut;
+
+    bindSelectedInput();
+    bindSelectedOutput();
+  }
+
+  function refreshPorts() {
+    ui.inSelect.innerHTML = "";
+    ui.outSelect.innerHTML = "";
+
+    const ins = Array.from(midiAccess.inputs.values());
+    const outs = Array.from(midiAccess.outputs.values());
+
+    for (const i of ins) {
+      const opt = document.createElement("option");
+      opt.value = i.id;
+      opt.textContent = `${i.name || "Unnamed"}${i.manufacturer ? " (" + i.manufacturer + ")" : ""}`;
+      ui.inSelect.appendChild(opt);
+    }
+    for (const o of outs) {
+      const opt = document.createElement("option");
+      opt.value = o.id;
+      opt.textContent = `${o.name || "Unnamed"}${o.manufacturer ? " (" + o.manufacturer + ")" : ""}`;
+      ui.outSelect.appendChild(opt);
+    }
+
+    if (ins.length === 0) log("No MIDI inputs found.", "bad");
+    if (outs.length === 0) log("No MIDI outputs found.", "bad");
+
+    // Auto-pick first ports if any
+    if (ins.length) ui.inSelect.value = ins[0].id;
+    if (outs.length) ui.outSelect.value = outs[0].id;
+
+    bindSelectedInput();
+    bindSelectedOutput();
+  }
+
+  function bindSelectedInput() {
+    if (!midiAccess) return;
+    if (input) input.onmidimessage = null;
+
+    const id = ui.inSelect.value;
+    input = midiAccess.inputs.get(id) || null;
+    if (!input) {
+      log("Selected input not available.", "bad");
+      return;
+    }
+    input.onmidimessage = (ev) => {
+      const data = ev.data;
+      log(`IN  ${input.name || input.id}: [${bytesToHex(data)}]`, "ok", data);
+    };
+    log(`Bound input: ${input.name || input.id}`, "ok");
+  }
+
+  function bindSelectedOutput() {
+    if (!midiAccess) return;
+    const id = ui.outSelect.value;
+    output = midiAccess.outputs.get(id) || null;
+    if (!output) {
+      log("Selected output not available.", "bad");
+      return;
+    }
+    log(`Bound output: ${output.name || output.id}`, "ok");
+  }
+
+  function ch0() {
+    const v = parseInt(ui.channel.value, 10);
+    return Math.max(1, Math.min(16, isFinite(v) ? v : 1)) - 1;
+  }
+
+  function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+  }
+
+  function send(bytes, label) {
+    if (!output) throw new Error("No MIDI output bound.");
+    output.send(bytes);
+    log(`OUT ${output.name || output.id}: ${label} [${bytesToHex(bytes)}]`, null, bytes);
+  }
+
+  function sendCC(ch, cc, value) {
+    send([0xB0 | (ch & 0x0F), cc & 0x7F, value & 0x7F], `CC ch=${ch+1} cc=${cc} val=${value}`);
+  }
+
+  function sendNoteOn(ch, note, vel) {
+    send([0x90 | (ch & 0x0F), note & 0x7F, vel & 0x7F], `NOTE_ON ch=${ch+1} note=${note} vel=${vel}`);
+  }
+
+  function sendNoteOff(ch, note, vel=0) {
+    send([0x80 | (ch & 0x0F), note & 0x7F, vel & 0x7F], `NOTE_OFF ch=${ch+1} note=${note} vel=${vel}`);
+  }
+
+  function sendPC(ch, program) {
+    send([0xC0 | (ch & 0x0F), program & 0x7F], `PC ch=${ch+1} program=${program}`);
+  }
+
+  function sendPB(ch, bend14) {
+    const v = Math.max(0, Math.min(16383, bend14|0));
+    const lsb = v & 0x7F;
+    const msb = (v >> 7) & 0x7F;
+    send([0xE0 | (ch & 0x0F), lsb, msb], `PB ch=${ch+1} bend14=${v}`);
+  }
+
+  async function allNotesOff() {
+    if (!output) return;
+    const chs = 16;
+    for (let ch = 0; ch < chs; ch++) {
+      // Panic-ish set: All Sound Off, Reset Controllers, All Notes Off, Omni off, Mono/Poly
+      sendCC(ch, 120, 0);
+      sendCC(ch, 121, 0);
+      sendCC(ch, 123, 0);
+      sendCC(ch, 124, 0);
+      sendCC(ch, 127, 0);
+    }
+    log("Sent panic CC sequence on all channels.", "warn");
+  }
+
+  // --- Test profiles ---
+  async function testCCSweep({chFrom, chTo, ccFrom, ccTo, delayMs}) {
+    log(`TEST: CC sweep ch=${chFrom}..${chTo}, cc=${ccFrom}..${ccTo}, delay=${delayMs}ms`, "warn");
+    for (let ch = chFrom; ch <= chTo; ch++) {
+      for (let cc = ccFrom; cc <= ccTo; cc++) {
+        if (stopFlag) return;
+        // Try values typically used for LED state: 0/127 then 1/64/127.
+        sendCC(ch, cc, 127);
+        await sleep(delayMs);
+        sendCC(ch, cc, 0);
+        await sleep(delayMs);
+        sendCC(ch, cc, 64);
+        await sleep(delayMs);
+        sendCC(ch, cc, 0);
+        await sleep(delayMs);
+      }
+    }
+  }
+
+  async function testNoteSweep({chFrom, chTo, noteFrom, noteTo, delayMs, holdMs}) {
+    log(`TEST: Note sweep ch=${chFrom}..${chTo}, note=${noteFrom}..${noteTo}, delay=${delayMs}ms hold=${holdMs}ms`, "warn");
+    for (let ch = chFrom; ch <= chTo; ch++) {
+      for (let n = noteFrom; n <= noteTo; n++) {
+        if (stopFlag) return;
+        sendNoteOn(ch, n, 127);
+        await sleep(holdMs);
+        // Some devices treat NoteOn vel=0 as off; send both.
+        sendNoteOn(ch, n, 0);
+        sendNoteOff(ch, n, 0);
+        await sleep(delayMs);
+      }
+    }
+  }
+
+  async function testDAWProbe({delayMs, holdMs}) {
+    // Minimal “MCU-ish” probe: common note bands. Not guaranteed for any device.
+    const ch = 0; // often channel 1
+    const bands = [
+      {name: "Transport-ish", a: 0x5B, b: 0x5F},
+      {name: "Channel strip-ish", a: 0x10, b: 0x2F},
+      {name: "Function-ish", a: 0x30, b: 0x4F},
+      {name: "Low band", a: 0x00, b: 0x0F},
+    ];
+    for (const band of bands) {
+      if (stopFlag) return;
+      log(`TEST: DAW probe band=${band.name} notes=0x${band.a.toString(16)}..0x${band.b.toString(16)} on ch=1`, "warn");
+      for (let n = band.a; n <= band.b; n++) {
+        if (stopFlag) return;
+        sendNoteOn(ch, n, 127);
+        await sleep(holdMs);
+        sendNoteOn(ch, n, 0);
+        sendNoteOff(ch, n, 0);
+        await sleep(delayMs);
+      }
+    }
+  }
+
+  async function runProfile() {
+    stopFlag = false;
+    ui.btnRun.disabled = true;
+    ui.btnStop.disabled = false;
+
+    const delayMs = Math.max(0, Math.min(1000, parseInt(ui.panicMs.value, 10) || 0));
+    const holdMs  = Math.max(0, Math.min(2000, parseInt(ui.holdMs.value, 10) || 0));
+
+    const ccFrom = clamp127(parseInt(ui.ccStart.value, 10));
+    const ccTo   = clamp127(parseInt(ui.ccEnd.value, 10));
+    const noteFrom = clamp127(parseInt(ui.noteStart.value, 10));
+    const noteTo   = clamp127(parseInt(ui.noteEnd.value, 10));
+    const chFrom = clamp16(parseInt(ui.chStart.value, 10)) - 1;
+    const chTo   = clamp16(parseInt(ui.chEnd.value, 10)) - 1;
+
+    const profile = ui.profile.value;
+
+    try {
+      log(`RUN profile=${profile} output=${output?.name || "none"}`, "warn");
+
+      if (profile === "cc_mode") {
+        await testCCSweep({chFrom, chTo, ccFrom, ccTo, delayMs});
+        await testNoteSweep({chFrom, chTo, noteFrom, noteTo, delayMs, holdMs});
+      } else if (profile === "daw_mode") {
+        await testDAWProbe({delayMs, holdMs});
+        await testNoteSweep({chFrom, chTo, noteFrom, noteTo, delayMs, holdMs});
+        await testCCSweep({chFrom, chTo, ccFrom, ccTo, delayMs});
+      } else if (profile === "exhaustive") {
+        // Exhaustive: CC sweep + note sweep over channel range.
+        await testCCSweep({chFrom, chTo, ccFrom, ccTo, delayMs});
+        await testNoteSweep({chFrom, chTo, noteFrom, noteTo, delayMs, holdMs});
+        await testDAWProbe({delayMs, holdMs});
+      }
+      log("RUN complete.", "ok");
+    } catch (e) {
+      log(`RUN error: ${e?.message || e}`, "bad");
+    } finally {
+      ui.btnRun.disabled = false;
+      ui.btnStop.disabled = true;
+      stopFlag = false;
+      currentTask = null;
+    }
+  }
+
+  function clamp127(x) {
+    if (!isFinite(x)) return 0;
+    return Math.max(0, Math.min(127, x|0));
+  }
+
+  function clamp16(x) {
+    if (!isFinite(x)) return 1;
+    return Math.max(1, Math.min(16, x|0));
+  }
+
+  // --- Manual send ---
+  function manualSend() {
+    const t = ui.sendType.value;
+    const ch = ch0();
+    const n = clamp127(parseInt(ui.num.value, 10));
+    const v = clamp127(parseInt(ui.val.value, 10));
+
+    if (!output) { log("No output bound.", "bad"); return; }
+
+    try {
+      if (t === "cc") sendCC(ch, n, v);
+      else if (t === "note") {
+        // Interpret v=0 as off; otherwise on.
+        if (v === 0) { sendNoteOn(ch, n, 0); sendNoteOff(ch, n, 0); }
+        else sendNoteOn(ch, n, v);
+      } else if (t === "pc") sendPC(ch, n);
+      else if (t === "pb") {
+        // Map 0..127 -> 0..16383
+        const bend = Math.round((v / 127) * 16383);
+        sendPB(ch, bend);
+      }
+    } catch (e) {
+      log(`Send error: ${e?.message || e}`, "bad");
+    }
+  }
+
+  async function mcuProbe() {
+    if (!output) { log("No output bound.", "bad"); return; }
+    stopFlag = false;
+
+    const delayMs = Math.max(0, Math.min(1000, parseInt(ui.panicMs.value, 10) || 0));
+    const holdMs  = Math.max(0, Math.min(2000, parseInt(ui.holdMs.value, 10) || 0));
+
+    let a = 0x00, b = 0x7F;
+    const sel = ui.mcuBank.value;
+    if (sel === "transport") { a = 0x5B; b = 0x5F; }
+    if (sel === "channel") { a = 0x10; b = 0x2F; }
+    if (sel === "function") { a = 0x30; b = 0x4F; }
+
+    log(`MCU probe notes=0x${a.toString(16)}..0x${b.toString(16)} ch=1`, "warn");
+    for (let n = a; n <= b; n++) {
+      if (stopFlag) return;
+      sendNoteOn(0, n, 127);
+      await sleep(holdMs);
+      sendNoteOn(0, n, 0);
+      sendNoteOff(0, n, 0);
+      await sleep(delayMs);
+    }
+    log("MCU probe complete.", "ok");
+  }
+
+  // --- Wiring ---
+  ui.btnClearLog.onclick = () => ui.log.textContent = "";
+
+  ui.btnCopyAll.onclick = () => {
+    const entries = ui.log.querySelectorAll('.replayable');
+    if (!entries.length) { log("No MIDI entries.", "warn"); return; }
+    const lines = Array.from(entries).map(el => {
+      const midi = JSON.parse(el.dataset.midi);
+      return bytesToHex(midi);
+    });
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      log(`Copied ${lines.length} entries.`, "ok");
+    });
+  };
+
+  ui.btnExportFound.onclick = () => {
+    const found = ui.log.querySelectorAll('.found');
+    if (!found.length) { log("No entries marked.", "warn"); return; }
+    const lines = Array.from(found).map(el => {
+      const midi = JSON.parse(el.dataset.midi);
+      return bytesToHex(midi);
+    });
+    const text = lines.join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      log(`Copied ${lines.length} entries to clipboard.`, "ok");
+    }).catch(() => {
+      log("Clipboard failed. Entries:\n" + text, "warn");
+    });
+  };
+
+  function parseHexOrDec(s) {
+    s = s.trim();
+    if (s.startsWith('0x') || s.startsWith('0X')) return parseInt(s, 16);
+    return parseInt(s, 10);
+  }
+
+  let probeRunning = false;
+
+  async function quickProbe() {
+    if (!output) { log("No output bound.", "bad"); return; }
+    const start = parseHexOrDec(ui.probeStart.value);
+    const end = parseHexOrDec(ui.probeEnd.value);
+    if (!isFinite(start) || !isFinite(end)) { log("Invalid range.", "bad"); return; }
+
+    const delayMs = Math.max(30, parseInt(ui.panicMs.value, 10) || 30);
+    const holdMs = Math.max(60, parseInt(ui.holdMs.value, 10) || 60);
+    const ch = ch0();
+    const isCC = ui.probeType.value === 'cc';
+
+    probeRunning = true;
+    ui.btnQuickProbe.disabled = true;
+    ui.btnProbeStop.disabled = false;
+
+    log(`PROBE ${isCC ? 'CC' : 'notes'} ${start} (0x${start.toString(16)}) .. ${end} (0x${end.toString(16)}) ch=${ch+1}`, "warn");
+
+    for (let n = start; n <= end && probeRunning; n++) {
+      if (isCC) {
+        sendCC(ch, n, 127);
+        await sleep(holdMs);
+        sendCC(ch, n, 0);
+      } else {
+        sendNoteOn(ch, n, 127);
+        await sleep(holdMs);
+        sendNoteOn(ch, n, 0);
+        sendNoteOff(ch, n, 0);
+      }
+      await sleep(delayMs);
+    }
+
+    log("PROBE done.", probeRunning ? "ok" : "warn");
+    probeRunning = false;
+    ui.btnQuickProbe.disabled = false;
+    ui.btnProbeStop.disabled = true;
+  }
+
+  ui.btnQuickProbe.onclick = () => quickProbe();
+  ui.btnProbeStop.onclick = () => { probeRunning = false; log("Probe stopped.", "warn"); };
+
+  function sendSysex(bytes, label) {
+    if (!output) { log("No output bound.", "bad"); return; }
+    output.send(bytes);
+    log(`OUT SYSEX: ${label} [${bytesToHex(bytes)}]`, null, bytes);
+  }
+
+  ui.btnSysexId.onclick = () => {
+    // Universal Identity Request
+    sendSysex([0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7], "Identity Request");
+  };
+
+  ui.btnSysexSend.onclick = () => {
+    const hex = ui.sysexCustom.value.trim();
+    if (!hex) { log("Enter SysEx bytes.", "warn"); return; }
+    const bytes = hex.split(/\s+/).map(s => parseInt(s, 16));
+    if (bytes.some(b => !isFinite(b))) { log("Invalid hex.", "bad"); return; }
+    if (bytes[0] !== 0xF0 || bytes[bytes.length-1] !== 0xF7) {
+      log("SysEx must start with F0 and end with F7.", "warn");
+    }
+    sendSysex(bytes, "Custom");
+  };
+
+  // Hit Parade - common protocol init/test sequences
+  ui.btnMcuInit.onclick = async () => {
+    if (!output) return;
+    log("=== MCU Init Sequence ===", "warn");
+    // Mackie Control Universal init
+    sendSysex([0xF0, 0x00, 0x00, 0x66, 0x14, 0x00, 0xF7], "MCU Device Query");
+    await sleep(100);
+    sendSysex([0xF0, 0x00, 0x00, 0x66, 0x14, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF7], "MCU Host Connect");
+    await sleep(100);
+    // MCU reset faders/meters
+    sendSysex([0xF0, 0x00, 0x00, 0x66, 0x14, 0x08, 0x00, 0xF7], "MCU Reset");
+    await sleep(100);
+    // Try waking up transport LEDs
+    for (let n = 0x5B; n <= 0x5F; n++) {
+      sendNoteOn(0, n, 127);
+      await sleep(50);
+    }
+    log("MCU Init done - check for LED response", "ok");
+  };
+
+  ui.btnHuiInit.onclick = async () => {
+    if (!output) return;
+    log("=== HUI Init Sequence ===", "warn");
+    // HUI uses zone/port addressing
+    sendSysex([0xF0, 0x00, 0x00, 0x66, 0x05, 0x00, 0xF7], "HUI Device Query");
+    await sleep(100);
+    // HUI ping
+    sendSysex([0xF0, 0x00, 0x00, 0x66, 0x05, 0x00, 0x00, 0xF7], "HUI Ping");
+    await sleep(100);
+    // HUI LED test - uses CC for zone select then CC for LED
+    for (let zone = 0; zone < 8; zone++) {
+      sendCC(0, 0x0C, zone);  // Zone select
+      await sleep(30);
+      sendCC(0, 0x2C, 0x40 + zone);  // LED on
+      await sleep(50);
+    }
+    log("HUI Init done - check for LED response", "ok");
+  };
+
+  ui.btnMcuLeds.onclick = async () => {
+    if (!output) return;
+    log("=== MCU LED Test ===", "warn");
+    const ledNotes = [
+      // Rec/Solo/Mute/Select for 8 channels
+      ...Array.from({length: 8}, (_, i) => 0x00 + i), // Rec
+      ...Array.from({length: 8}, (_, i) => 0x08 + i), // Solo
+      ...Array.from({length: 8}, (_, i) => 0x10 + i), // Mute
+      ...Array.from({length: 8}, (_, i) => 0x18 + i), // Select
+      // Transport
+      0x5B, 0x5C, 0x5D, 0x5E, 0x5F, // Rewind, FF, Stop, Play, Record
+      // Function keys
+      0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, // F1-F8
+    ];
+    for (const n of ledNotes) {
+      sendNoteOn(0, n, 127);
+      await sleep(40);
+      sendNoteOn(0, n, 0);
+      await sleep(20);
+    }
+    log("MCU LED test done", "ok");
+  };
+
+  ui.btnAllLeds.onclick = async () => {
+    if (!output) return;
+    log("=== All LEDs On (Note blast) ===", "warn");
+    // Turn on all notes at once
+    for (let n = 0; n < 128; n++) {
+      sendNoteOn(0, n, 127);
+    }
+    log("All notes on - press again to turn off", "ok");
+    // Toggle behavior
+    ui.btnAllLeds._on = !ui.btnAllLeds._on;
+    if (!ui.btnAllLeds._on) {
+      for (let n = 0; n < 128; n++) {
+        sendNoteOn(0, n, 0);
+      }
+      log("All notes off", "ok");
+    }
+  };
+
+  ui.btnDjInit.onclick = async () => {
+    if (!output) return;
+    log("=== DJ Controller Init ===", "warn");
+    // Common DJ SysEx patterns
+    // Native Instruments
+    sendSysex([0xF0, 0x00, 0x21, 0x09, 0x00, 0xF7], "NI Query");
+    await sleep(100);
+    // Pioneer
+    sendSysex([0xF0, 0x00, 0x40, 0x05, 0x00, 0xF7], "Pioneer Query");
+    await sleep(100);
+    // Denon
+    sendSysex([0xF0, 0x00, 0x02, 0x0B, 0x00, 0xF7], "Denon Query");
+    await sleep(100);
+    // Numark
+    sendSysex([0xF0, 0x00, 0x01, 0x3F, 0x00, 0xF7], "Numark Query");
+    await sleep(100);
+    // Generic - try lighting common DJ pads (notes 36-51 typical)
+    log("Testing DJ pad range (36-51)...", "warn");
+    for (let n = 36; n <= 51; n++) {
+      sendNoteOn(0, n, 127);
+      await sleep(60);
+      sendNoteOn(0, n, 0);
+      await sleep(30);
+    }
+    // Try channels 10 (drum channel)
+    log("Testing ch10 drum pads...", "warn");
+    for (let n = 36; n <= 51; n++) {
+      sendNoteOn(9, n, 127);
+      await sleep(60);
+      sendNoteOn(9, n, 0);
+      await sleep(30);
+    }
+    log("DJ Init done", "ok");
+  };
+
+  // Boot capture - enhanced logging during power cycle
+  let bootCapturing = false;
+  let bootMessages = [];
+  let bootStartTime = 0;
+
+  ui.btnBootCapture.onclick = () => {
+    if (!bootCapturing) {
+      // Start capture
+      bootCapturing = true;
+      bootMessages = [];
+      bootStartTime = performance.now();
+      ui.btnBootCapture.textContent = "Stop Capture";
+      ui.captureStatus.textContent = "CAPTURING - power cycle device now...";
+      ui.captureStatus.className = "small warn";
+      log("=== BOOT CAPTURE STARTED ===", "warn");
+      log("Power OFF the VMX8, wait 2 sec, then power ON", "warn");
+      log("Watching ALL ports for any MIDI activity...", "warn");
+
+      // Bind to ALL inputs for capture
+      if (midiAccess) {
+        for (const inp of midiAccess.inputs.values()) {
+          inp.onmidimessage = (ev) => {
+            const ms = (performance.now() - bootStartTime).toFixed(1);
+            const data = ev.data;
+            const hex = bytesToHex(data);
+            const portName = inp.name || inp.id;
+            bootMessages.push({ ms, port: portName, hex, data: Array.from(data) });
+            log(`[+${ms}ms] ${portName}: [${hex}]`, "ok", data);
+          };
+        }
+      }
+    } else {
+      // Stop capture
+      bootCapturing = false;
+      ui.btnBootCapture.textContent = "Start Capture";
+      ui.captureStatus.textContent = `Captured ${bootMessages.length} messages`;
+      ui.captureStatus.className = "small ok";
+      log("=== BOOT CAPTURE STOPPED ===", "warn");
+      log(`Total: ${bootMessages.length} messages`, "ok");
+
+      // Rebind original input
+      bindSelectedInput();
+
+      // Analyze captured messages
+      if (bootMessages.length > 0) {
+        log("--- Captured Messages Summary ---", "warn");
+        const byPort = {};
+        for (const m of bootMessages) {
+          byPort[m.port] = byPort[m.port] || [];
+          byPort[m.port].push(m);
+        }
+        for (const [port, msgs] of Object.entries(byPort)) {
+          log(`${port}: ${msgs.length} messages`, "ok");
+        }
+        // Look for SysEx
+        const sysex = bootMessages.filter(m => m.data[0] === 0xF0);
+        if (sysex.length) {
+          log(`Found ${sysex.length} SysEx messages!`, "warn");
+          for (const s of sysex) {
+            log(`  SysEx: [${s.hex}]`, "ok");
+          }
+        }
+      }
+    }
+  };
+
+  ui.btnReplayCaptured.onclick = async () => {
+    if (!output) { log("No output bound.", "bad"); return; }
+    if (bootMessages.length === 0) { log("No captured messages to replay.", "warn"); return; }
+
+    log("=== REPLAYING CAPTURED BOOT SEQUENCE ===", "warn");
+    let lastMs = 0;
+    for (const m of bootMessages) {
+      const delay = parseFloat(m.ms) - lastMs;
+      if (delay > 0) await sleep(delay);
+      lastMs = parseFloat(m.ms);
+
+      output.send(m.data);
+      log(`REPLAY [+${m.ms}ms]: [${m.hex}]`, "ok", m.data);
+    }
+    log("=== REPLAY COMPLETE ===", "ok");
+  };
+
+  // Exotic probes
+  ui.btnAftertouch.onclick = async () => {
+    if (!output) return;
+    log("=== AFTERTOUCH PROBE ===", "warn");
+    const ch = ch0();
+
+    // Channel pressure (aftertouch) - Dn vv
+    log("Channel Pressure sweep...", "warn");
+    for (let v = 0; v <= 127; v += 16) {
+      const bytes = [0xD0 | ch, v];
+      output.send(bytes);
+      log(`AT ch=${ch+1} pressure=${v} [${bytesToHex(bytes)}]`, null, bytes);
+      await sleep(100);
+    }
+
+    // Poly aftertouch - An nn vv
+    log("Poly Aftertouch on notes 0x10, 0x73...", "warn");
+    for (const note of [0x10, 0x73]) {
+      for (let v = 0; v <= 127; v += 32) {
+        const bytes = [0xA0 | ch, note, v];
+        output.send(bytes);
+        log(`PolyAT ch=${ch+1} note=${note} pressure=${v} [${bytesToHex(bytes)}]`, null, bytes);
+        await sleep(80);
+      }
+    }
+    log("Aftertouch probe done", "ok");
+  };
+
+  ui.btnVelSweep.onclick = async () => {
+    if (!output) return;
+    log("=== VELOCITY SWEEP on Note 0x10 ===", "warn");
+    log("Watch for LED color changes at different velocities...", "warn");
+    const ch = ch0();
+
+    // Common LED velocity mappings:
+    // 0 = off, 1 = dim, 64 = medium, 127 = bright
+    // Or: 1-15 = color1, 16-31 = color2, etc.
+    const velocities = [0, 1, 2, 3, 15, 16, 31, 32, 47, 48, 63, 64, 79, 80, 95, 96, 111, 112, 126, 127];
+
+    for (const vel of velocities) {
+      sendNoteOn(ch, 0x10, vel);
+      log(`Note 0x10 vel=${vel} - observe LED`, "warn");
+      await sleep(500);
+    }
+
+    // Turn off
+    sendNoteOn(ch, 0x10, 0);
+    log("Velocity sweep done", "ok");
+  };
+
+  ui.btnPitchBend.onclick = async () => {
+    if (!output) return;
+    log("=== PITCH BEND PROBE ===", "warn");
+
+    // Pitch bend on all 16 channels
+    for (let ch = 0; ch < 16; ch++) {
+      // Center, min, max
+      for (const bend of [0x2000, 0x0000, 0x3FFF]) {
+        const lsb = bend & 0x7F;
+        const msb = (bend >> 7) & 0x7F;
+        const bytes = [0xE0 | ch, lsb, msb];
+        output.send(bytes);
+        log(`PB ch=${ch+1} bend=${bend} [${bytesToHex(bytes)}]`, null, bytes);
+        await sleep(50);
+      }
+    }
+    log("Pitch bend probe done", "ok");
+  };
+
+  ui.btnProgChange.onclick = async () => {
+    if (!output) return;
+    log("=== PROGRAM CHANGE PROBE ===", "warn");
+    log("Some controllers use PC for LED banks/modes...", "warn");
+    const ch = ch0();
+
+    for (let pc = 0; pc < 128; pc++) {
+      const bytes = [0xC0 | ch, pc];
+      output.send(bytes);
+      log(`PC ch=${ch+1} program=${pc} [${bytesToHex(bytes)}]`, null, bytes);
+      await sleep(60);
+    }
+    log("Program change probe done", "ok");
+  };
+
+  // MCU Session - proper Mackie Control Universal protocol
+  let mcuSessionActive = false;
+
+  ui.btnMcuSession.onclick = async () => {
+    if (!output) return;
+
+    mcuSessionActive = !mcuSessionActive;
+    ui.btnMcuSession.textContent = mcuSessionActive ? "End MCU Session" : "Start MCU Session";
+
+    if (mcuSessionActive) {
+      log("=== STARTING MCU SESSION ===", "warn");
+
+      // 1. Send MCU device query
+      sendSysex([0xF0, 0x00, 0x00, 0x66, 0x14, 0x00, 0xF7], "MCU Device Query");
+      await sleep(100);
+
+      // 2. Send host connection with serial
+      sendSysex([0xF0, 0x00, 0x00, 0x66, 0x14, 0x01,
+        0x56, 0x4D, 0x58, 0x38, // "VMX8" as serial
+        0x00, 0x00, 0x00, 0xF7], "MCU Host Connect (VMX8)");
+      await sleep(100);
+
+      // 3. Send "go offline" then "go online" to reset
+      sendSysex([0xF0, 0x00, 0x00, 0x66, 0x14, 0x0F, 0x7F, 0xF7], "MCU Go Offline");
+      await sleep(50);
+      sendSysex([0xF0, 0x00, 0x00, 0x66, 0x14, 0x0F, 0x00, 0xF7], "MCU Go Online");
+      await sleep(100);
+
+      // 4. LCD init - write spaces to clear
+      const lcdClear = [0xF0, 0x00, 0x00, 0x66, 0x14, 0x12, 0x00];
+      for (let i = 0; i < 56; i++) lcdClear.push(0x20); // spaces
+      lcdClear.push(0xF7);
+      sendSysex(lcdClear, "MCU LCD Clear");
+      await sleep(50);
+
+      // 5. Write track names
+      const names = "  1     2     3     4     5     6     7     8   ";
+      const lcdNames = [0xF0, 0x00, 0x00, 0x66, 0x14, 0x12, 0x00];
+      for (const c of names) lcdNames.push(c.charCodeAt(0));
+      lcdNames.push(0xF7);
+      sendSysex(lcdNames, "MCU LCD Track Names");
+      await sleep(50);
+
+      // 6. Reset all faders to 0
+      log("Resetting faders...", "warn");
+      for (let ch = 0; ch < 8; ch++) {
+        // MCU fader is pitch bend per channel
+        output.send([0xE0 | ch, 0x00, 0x00]); // fader to bottom
+        await sleep(20);
+      }
+
+      // 7. Reset all VU meters
+      log("Resetting meters...", "warn");
+      for (let ch = 0; ch < 8; ch++) {
+        // Channel aftertouch for meters
+        output.send([0xD0 | ch, 0x00]);
+        await sleep(10);
+      }
+
+      // 8. Turn off all LEDs first
+      log("Clearing all LEDs...", "warn");
+      for (let n = 0; n < 0x74; n++) {
+        sendNoteOn(0, n, 0);
+        await sleep(5);
+      }
+
+      log("MCU Session started - try LED buttons", "ok");
+    } else {
+      log("=== ENDING MCU SESSION ===", "warn");
+      // Clear LEDs
+      for (let n = 0; n < 0x74; n++) {
+        sendNoteOn(0, n, 0);
+      }
+      sendSysex([0xF0, 0x00, 0x00, 0x66, 0x14, 0x0F, 0x7F, 0xF7], "MCU Go Offline");
+      log("MCU Session ended", "ok");
+    }
+  };
+
+  // MCU LED rows - note ranges per MCU spec
+  const MCU_LEDS = {
+    rec:    [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07],
+    solo:   [0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F],
+    mute:   [0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17],
+    select: [0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F],
+  };
+
+  async function toggleMcuRow(name, notes) {
+    if (!output) return;
+    log(`=== MCU ${name.toUpperCase()} LEDs ===`, "warn");
+
+    // Turn on all in row
+    for (const n of notes) {
+      sendNoteOn(0, n, 127);
+      await sleep(100);
+    }
+    log(`${name} LEDs ON - waiting 2s...`, "ok");
+    await sleep(2000);
+
+    // Turn off
+    for (const n of notes) {
+      sendNoteOn(0, n, 0);
+      await sleep(50);
+    }
+    log(`${name} LEDs OFF`, "ok");
+  }
+
+  ui.btnMcuMutes.onclick = () => toggleMcuRow("mute", MCU_LEDS.mute);
+  ui.btnMcuSolos.onclick = () => toggleMcuRow("solo", MCU_LEDS.solo);
+  ui.btnMcuRecs.onclick = () => toggleMcuRow("rec", MCU_LEDS.rec);
+  ui.btnMcuSels.onclick = () => toggleMcuRow("select", MCU_LEDS.select);
+
+  // MCU Transport LEDs
+  const MCU_TRANSPORT = {
+    0x5B: "Rewind",
+    0x5C: "Fast Fwd",
+    0x5D: "Stop",
+    0x5E: "Play",
+    0x5F: "Record",
+    0x56: "Cycle/Loop",
+    0x57: "Punch",
+    0x54: "Marker",
+    0x55: "Nudge",
+    0x2E: "Save",
+    0x2F: "Undo",
+    0x32: "Read",
+    0x33: "Write",
+  };
+
+  window.probeTransport = async function() {
+    if (!output) return;
+    log("=== MCU TRANSPORT LED PROBE ===", "warn");
+    const found = [];
+
+    for (const [note, name] of Object.entries(MCU_TRANSPORT)) {
+      const n = parseInt(note);
+      sendNoteOn(0, n, 127);
+      log(`Testing ${name} (0x${n.toString(16)})...`, "warn");
+      await sleep(800);
+      sendNoteOn(0, n, 0);
+      await sleep(200);
+    }
+    log("Transport probe done - check which lit up!", "ok");
+  };
+
+  ui.btnMcuTransport.onclick = () => probeTransport();
+
+  ui.btnEnable.onclick = async () => {
+    try {
+      if (!navigator.requestMIDIAccess) {
+        ui.status.textContent = "WebMIDI not supported in this browser.";
+        ui.status.className = "small bad";
+        return;
+      }
+      midiAccess = await navigator.requestMIDIAccess({ sysex: true });
+
+      ui.status.textContent = "WebMIDI enabled.";
+      ui.status.className = "small ok";
+      setEnabled(true);
+
+      midiAccess.onstatechange = (ev) => {
+        const p = ev.port;
+        log(`STATE ${p.type} ${p.state} ${p.connection} : ${p.name || p.id}`, "warn");
+        // Don't auto-rebind, just update dropdowns preserving selection
+        updatePortDropdowns();
+      };
+
+      refreshPorts();
+    } catch (e) {
+      ui.status.textContent = "WebMIDI enable failed (permissions or browser policy).";
+      ui.status.className = "small bad";
+      log(`Enable error: ${e?.message || e}`, "bad");
+    }
+  };
+
+  ui.btnRefresh.onclick = () => refreshPorts();
+
+  ui.inSelect.onchange = () => bindSelectedInput();
+  ui.outSelect.onchange = () => bindSelectedOutput();
+
+  ui.btnSend.onclick = () => manualSend();
+  ui.btnAllOff.onclick = () => allNotesOff();
+
+  ui.btnRun.onclick = () => {
+    if (!output) { log("No output bound.", "bad"); return; }
+    currentTask = runProfile();
+  };
+
+  ui.btnStop.onclick = () => {
+    stopFlag = true;
+    log("Stop requested.", "warn");
+  };
+
+  ui.btnMCUProbe.onclick = () => {
+    if (!output) { log("No output bound.", "bad"); return; }
+    mcuProbe();
+  };
+
+  // Enable buttons/selects once WebMIDI is enabled.
+  setEnabled(false);
+
+  // Default log header.
+  log("Ready. Click “Enable WebMIDI”.", "warn");
+})();
+</script>
+</body>
+</html>
+

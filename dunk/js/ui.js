@@ -30,7 +30,8 @@ NS.UI = {
       'panel-nasty-range',
       'panel-voice',
       'panel-lfo',
-      'panel-master'
+      'panel-master',
+      'panel-envelope'
     ];
 
     panelIds.forEach(id => {
@@ -66,6 +67,16 @@ NS.UI = {
 
     NS.DOM.on(NS.DOM.$('#btn-nasty-range'), 'click', () => {
       this.togglePanel('panel-nasty-range');
+    });
+
+    NS.DOM.on(NS.DOM.$('#btn-envelope'), 'click', () => {
+      this.togglePanel('panel-envelope');
+    });
+
+    NS.DOM.on(NS.DOM.$('#btn-controller'), 'click', () => {
+      if (NS.Controller) {
+        NS.Controller.toggle();
+      }
     });
 
     // Listen for schematic module clicks
@@ -109,6 +120,18 @@ NS.UI = {
       NS.Sequencer.stop();
       NS.DOM.$('#btn-play').classList.remove('active');
     });
+
+    // One-shot trigger button
+    const oneshotBtn = NS.DOM.$('#btn-oneshot');
+    if (oneshotBtn) {
+      NS.DOM.on(oneshotBtn, 'click', () => {
+        if (!NS.App.audioStarted) return;
+        const voice = NS.Sequencer ? NS.Sequencer.selectedVoice : 0;
+        NS.VoiceBank.trigger(voice, 1.0, NS.Nasty?.getTriggerOptions());
+        oneshotBtn.classList.add('flash');
+        setTimeout(() => oneshotBtn.classList.remove('flash'), 100);
+      });
+    }
 
     // Swing
     const swingInput = NS.DOM.$('#swing');
@@ -159,6 +182,9 @@ NS.UI = {
 
     // Master controls
     this._initMasterControls();
+
+    // Envelope controls
+    this._initEnvelopeControls();
   },
 
   /**
@@ -312,6 +338,99 @@ NS.UI = {
   },
 
   /**
+   * Initialize envelope controls
+   */
+  _initEnvelopeControls() {
+    const controls = [
+      { id: 'env-pitch-start', param: 'pitchStart', unit: ' Hz', key: 'PITCH_START' },
+      { id: 'env-pitch-end', param: 'pitchEnd', unit: ' Hz', key: 'PITCH_END' },
+      { id: 'env-pitch-time', param: 'pitchTime', scale: 0.001, unit: ' ms', key: 'PITCH_TIME' },
+      { id: 'env-amp-attack', param: 'attack', scale: 0.001, unit: ' ms', key: 'ATTACK' },
+      { id: 'env-amp-decay', param: 'decay', unit: ' ms', key: 'DECAY' }
+    ];
+
+    controls.forEach(({ id, param, scale = 1, unit, key }) => {
+      const input = NS.DOM.$(`#${id}`);
+      const valSpan = NS.DOM.$(`#${id}-val`);
+
+      if (input && valSpan) {
+        NS.DOM.on(input, 'input', () => {
+          const raw = parseFloat(input.value);
+          const value = raw * scale;
+
+          // Update constant
+          if (key && NS.CONSTANTS) {
+            NS.CONSTANTS[key] = value;
+          }
+
+          // Store in state
+          NS.State.set(`envelope.${param}`, value);
+
+          // Update display
+          if (scale < 1) {
+            valSpan.textContent = raw + unit;
+          } else {
+            valSpan.textContent = value + unit;
+          }
+
+          // Apply to ganged voices/channels
+          this._applyEnvelopeGanging(param, value);
+        });
+      }
+    });
+
+    // Decay shape control
+    const shapeInput = NS.DOM.$('#env-decay-shape');
+    const shapeVal = NS.DOM.$('#env-decay-shape-val');
+    if (shapeInput && shapeVal) {
+      NS.DOM.on(shapeInput, 'input', () => {
+        const val = parseInt(shapeInput.value);
+        NS.Nasty.set('decayFine', val / 100);
+        const labels = ['Linear', 'Lin/Exp', 'Exp', 'Exp/Log', 'Log'];
+        const idx = Math.floor(val / 25);
+        shapeVal.textContent = labels[Math.min(idx, 4)];
+      });
+    }
+
+    // Gang checkboxes
+    const gangAllCheckbox = NS.DOM.$('#gang-ch-all');
+    if (gangAllCheckbox) {
+      NS.DOM.on(gangAllCheckbox, 'change', () => {
+        const checked = gangAllCheckbox.checked;
+        ['sub', 'body', 'harm'].forEach(ch => {
+          const cb = NS.DOM.$(`#gang-ch-${ch}`);
+          if (cb) cb.checked = checked;
+        });
+      });
+    }
+  },
+
+  /**
+   * Apply envelope parameter to ganged voices/channels
+   */
+  _applyEnvelopeGanging(param, value) {
+    // Get ganged voices
+    const gangVoices = [];
+    for (let i = 0; i < 4; i++) {
+      const cb = NS.DOM.$(`#gang-v${i}`);
+      if (cb && cb.checked) gangVoices.push(i);
+    }
+
+    // Get ganged channels
+    const gangChannels = [];
+    const channelMap = { sub: 0, body: 1, harm: 3 };
+    Object.entries(channelMap).forEach(([name, idx]) => {
+      const cb = NS.DOM.$(`#gang-ch-${name}`);
+      if (cb && cb.checked) gangChannels.push(idx);
+    });
+
+    // Apply to ganged combinations
+    // (This would require voice/channel-level envelope storage,
+    // for now it affects the global constants)
+    NS.Bus.emit('envelope:changed', { param, value, gangVoices, gangChannels });
+  },
+
+  /**
    * Initialize sequencer UI
    */
   _initSequencerUI() {
@@ -329,6 +448,20 @@ NS.UI = {
       });
 
       stepsContainer.appendChild(step);
+    }
+
+    // Sync UI with loaded sequencer state (show any active steps from localStorage)
+    setTimeout(() => {
+      this._syncSequencerUI();
+    }, 100);
+
+    // Clear pattern button
+    const clearBtn = NS.DOM.$('#btn-clear-pattern');
+    if (clearBtn) {
+      NS.DOM.on(clearBtn, 'click', () => {
+        NS.Sequencer.clear();
+        NS.DOM.$$('.step').forEach(el => el.classList.remove('active'));
+      });
     }
 
     // Update step display when steps change
@@ -352,6 +485,20 @@ NS.UI = {
         el.classList.remove('current');
       });
     });
+  },
+
+  /**
+   * Sync sequencer UI with current state
+   */
+  _syncSequencerUI() {
+    if (NS.Sequencer && NS.Sequencer.steps) {
+      NS.Sequencer.steps.forEach((step, i) => {
+        const stepEl = NS.DOM.$(`.step[data-step="${i}"]`);
+        if (stepEl) {
+          stepEl.classList.toggle('active', step.active);
+        }
+      });
+    }
   },
 
   /**

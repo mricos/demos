@@ -34,6 +34,11 @@ NS.App = {
     // Initialize MIDI (can work before audio)
     await NS.MIDI.init();
 
+    // Initialize controller panel
+    if (NS.Controller) {
+      NS.Controller.init();
+    }
+
     // Setup start button
     const startBtn = NS.DOM.$('#btn-start');
     NS.DOM.on(startBtn, 'click', () => this.startAudio());

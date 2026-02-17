@@ -35,6 +35,7 @@
         </div>
       </div>
       <div class="hud-right">
+        <button id="btn-oneshot" class="btn-oneshot" title="One-Shot (T)">&#9679;</button>
         <div class="transport">
           <button id="btn-play" class="btn-transport" title="Play">&#9654;</button>
           <button id="btn-stop" class="btn-transport" title="Stop">&#9632;</button>
@@ -151,6 +152,9 @@
                 <input type="range" id="probability" min="0" max="100" value="100">
                 <span id="prob-val">100%</span>
               </div>
+              <div class="control-group">
+                <button id="btn-clear-pattern" class="btn-mini">Clear</button>
+              </div>
             </div>
           </div>
         </section>
@@ -181,8 +185,17 @@
           <option value="reese-bass">Reese Bass</option>
           <option value="nasty-sub">Nasty Sub</option>
         </select>
-        <button id="btn-filter-design" class="btn-secondary">Filter Design</button>
-        <button id="btn-nasty-range" class="btn-secondary">Nasty Range</button>
+        <button id="btn-filter-design" class="btn-secondary">Filter</button>
+        <button id="btn-nasty-range" class="btn-secondary">Nasty</button>
+        <button id="btn-envelope" class="btn-secondary">Envelope</button>
+        <button id="btn-controller" class="btn-secondary">Controller</button>
+      </div>
+      <div class="toolbar-center">
+        <div id="midi-status" class="midi-status disconnected">
+          <span class="midi-icon">&#9835;</span>
+          <span class="midi-device">No MIDI</span>
+        </div>
+        <span id="footer-midi-activity" class="midi-activity">--</span>
       </div>
       <div class="toolbar-right">
         <button id="btn-midi-learn" class="btn-secondary">MIDI Learn</button>
@@ -436,6 +449,72 @@
         </div>
       </div>
     </div>
+
+    <div id="panel-envelope" class="floating-panel hidden">
+      <div class="panel-header">
+        <h4>Envelope Control</h4>
+        <button class="btn-close">&times;</button>
+      </div>
+      <div class="panel-content">
+        <div class="envelope-section">
+          <h5>Pitch Envelope (808-style)</h5>
+          <div class="control-row">
+            <label>Start Freq</label>
+            <input type="range" id="env-pitch-start" min="60" max="400" value="130">
+            <span id="env-pitch-start-val">130 Hz</span>
+          </div>
+          <div class="control-row">
+            <label>End Freq</label>
+            <input type="range" id="env-pitch-end" min="20" max="100" value="50">
+            <span id="env-pitch-end-val">50 Hz</span>
+          </div>
+          <div class="control-row">
+            <label>Pitch Time</label>
+            <input type="range" id="env-pitch-time" min="2" max="50" value="6">
+            <span id="env-pitch-time-val">6 ms</span>
+          </div>
+        </div>
+        <div class="envelope-section">
+          <h5>Amplitude Envelope</h5>
+          <div class="control-row">
+            <label>Attack</label>
+            <input type="range" id="env-amp-attack" min="0" max="20" value="2">
+            <span id="env-amp-attack-val">2 ms</span>
+          </div>
+          <div class="control-row">
+            <label>Decay</label>
+            <input type="range" id="env-amp-decay" min="50" max="800" value="200">
+            <span id="env-amp-decay-val">200 ms</span>
+          </div>
+          <div class="control-row">
+            <label>Decay Shape</label>
+            <input type="range" id="env-decay-shape" min="0" max="100" value="50">
+            <span id="env-decay-shape-val">Exp</span>
+          </div>
+        </div>
+        <div class="envelope-section">
+          <h5>Ganging</h5>
+          <div class="control-row gang-row">
+            <label>Gang Voices</label>
+            <div class="gang-checkboxes">
+              <label><input type="checkbox" id="gang-v0" checked> V0</label>
+              <label><input type="checkbox" id="gang-v1"> V1</label>
+              <label><input type="checkbox" id="gang-v2"> V2</label>
+              <label><input type="checkbox" id="gang-v3"> V3</label>
+            </div>
+          </div>
+          <div class="control-row gang-row">
+            <label>Gang Channels</label>
+            <div class="gang-checkboxes">
+              <label><input type="checkbox" id="gang-ch-sub" checked> Sub</label>
+              <label><input type="checkbox" id="gang-ch-body" checked> Body</label>
+              <label><input type="checkbox" id="gang-ch-harm"> Harm</label>
+              <label><input type="checkbox" id="gang-ch-all"> ALL</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Scripts -->
@@ -456,6 +535,7 @@
   <script src="js/sidepanel.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/midi.js"></script>
+  <script src="js/controller.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

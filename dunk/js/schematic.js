@@ -220,11 +220,12 @@ NS.Schematic = {
       w: masterWidth,
       h: masterHeight,
       modules: {
-        lfo: { x: masterX + 10, y: masterY + 8, w: 45, h: 28 },
-        comp: { x: masterX + 65, y: masterY + 8, w: 45, h: 28 },
-        reverb: { x: masterX + 10, y: masterY + 44, w: 45, h: 28 },
-        limiter: { x: masterX + 65, y: masterY + 44, w: 45, h: 28 },
-        output: { x: masterX + 35, y: masterY + 80, w: 50, h: 28 }
+        lfo: { x: masterX + 10, y: masterY + 8, w: 40, h: 25 },
+        comp: { x: masterX + 60, y: masterY + 8, w: 40, h: 25 },
+        reverb: { x: masterX + 10, y: masterY + 40, w: 40, h: 25 },
+        limiter: { x: masterX + 60, y: masterY + 40, w: 40, h: 25 },
+        gate: { x: masterX + 10, y: masterY + 72, w: 40, h: 25 },
+        output: { x: masterX + 60, y: masterY + 72, w: 40, h: 25 }
       }
     };
   },
@@ -431,6 +432,7 @@ NS.Schematic = {
     this._drawModule(mods.comp, 'CMP', false, 'master-comp');
     this._drawModule(mods.reverb, 'RVB', false, 'master-reverb');
     this._drawModule(mods.limiter, 'LIM', false, 'master-limiter');
+    this._drawModule(mods.gate, 'GATE', false, 'master-gate');
     this._drawModule(mods.output, 'OUT', false, 'master-out');
 
     // Internal connections
@@ -443,8 +445,10 @@ NS.Schematic = {
     this._drawSmallConnectionDiag(mods.comp, mods.reverb);
     // RVB to LIM
     this._drawSmallConnection(mods.reverb, mods.limiter);
-    // LIM to OUT (diagonal)
-    this._drawSmallConnectionDiag(mods.limiter, mods.output);
+    // LIM to GATE (diagonal)
+    this._drawSmallConnectionDiag(mods.limiter, mods.gate);
+    // GATE to OUT
+    this._drawSmallConnection(mods.gate, mods.output);
   },
 
   /**
