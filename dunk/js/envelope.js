@@ -201,6 +201,7 @@ NS.Envelope = {
 
     const totalDecay = (decay + decayExtend) / 1000 * 2; // Double duration for Reese
     const param = gainNode.gain;
+    const decayEnd = startTime + 0.01 + totalDecay;
 
     param.cancelScheduledValues(startTime);
     param.setValueAtTime(0, startTime);
@@ -212,8 +213,12 @@ NS.Envelope = {
     if (decayFine > 0.66) {
       // Long tail
       param.setTargetAtTime(0.001, startTime + 0.01, totalDecay / 2);
+      // Final cutoff after tail settles
+      param.setValueAtTime(0, decayEnd + totalDecay);
     } else {
-      param.exponentialRampToValueAtTime(0.001, startTime + 0.01 + totalDecay);
+      param.exponentialRampToValueAtTime(0.001, decayEnd);
+      // Final cutoff
+      param.setValueAtTime(0, decayEnd + 0.01);
     }
   },
 
