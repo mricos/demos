@@ -335,6 +335,114 @@ body {
 }
 
 /* ============================================
+   TOPBAR TABS
+   ============================================ */
+
+#topbar-tabs {
+  display: flex;
+  background: var(--bg-control);
+  border-bottom: 1px solid var(--border-shadow);
+  padding: 0 12px;
+}
+
+.topbar-tab {
+  padding: 6px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.topbar-tab:hover {
+  color: var(--text-primary);
+}
+
+.topbar-tab.active {
+  color: var(--accent-green);
+  border-bottom-color: var(--accent-green);
+}
+
+#topbar-content {
+  /* Container for theory/brains panels */
+}
+
+.topbar-panel {
+  background: var(--bg-panel);
+  border-bottom: 2px solid var(--border-shadow);
+  padding: 12px 16px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.topbar-panel.hidden {
+  display: none;
+}
+
+.theory-content, .brains-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.theory-content h3, .brains-content h3 {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--accent-amber);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+  font-weight: normal;
+}
+
+.theory-section, .brains-section {
+  background: var(--bg-control);
+  border: 1px solid var(--border-shadow);
+  padding: 10px;
+}
+
+.theory-section h4, .brains-section h4 {
+  font-size: 10px;
+  color: var(--accent-green);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: normal;
+}
+
+.theory-section p, .brains-section p {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.theory-section ul, .brains-section ul {
+  margin-left: 12px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.theory-section li, .brains-section li {
+  margin-bottom: 3px;
+}
+
+.brains-section pre {
+  background: var(--bg-input);
+  border: 1px solid var(--border-shadow);
+  padding: 8px;
+  font-size: 9px;
+  color: var(--accent-green);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ============================================
    MAIN CONTENT AREA
    ============================================ */
 
@@ -757,6 +865,108 @@ section h3 {
 }
 
 /* ============================================
+   RIGHT SIDEBAR - LAYERS OUTPUT
+   ============================================ */
+
+#layers-panel {
+  width: 140px;
+  background: var(--bg-panel);
+  border-left: 2px solid var(--border-shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.layers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-control);
+}
+
+.layers-header h3 {
+  font-size: 9px;
+  color: var(--text-label);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: normal;
+}
+
+#layers-content {
+  flex: 1;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.layer-meter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px;
+  background: var(--bg-control);
+  border: 1px solid var(--border-shadow);
+}
+
+.layer-meter.master {
+  margin-top: 8px;
+  border-color: var(--accent-amber-dim);
+  background: var(--bg-input);
+}
+
+.layer-label {
+  width: 32px;
+  font-size: 8px;
+  color: var(--text-label);
+  text-transform: uppercase;
+}
+
+.layer-meter.master .layer-label {
+  color: var(--accent-amber);
+}
+
+.layer-bar {
+  flex: 1;
+  height: 10px;
+  background: var(--bg-input);
+  border: 1px inset var(--border-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.layer-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  background: linear-gradient(to right, var(--accent-green-dim), var(--accent-green));
+  transition: width 0.05s;
+}
+
+.layer-meter.master .layer-fill {
+  background: linear-gradient(to right, var(--accent-amber-dim), var(--accent-amber));
+}
+
+.layer-fill.hot {
+  background: linear-gradient(to right, var(--accent-amber), var(--accent-red));
+}
+
+.layer-db {
+  width: 28px;
+  font-size: 8px;
+  color: var(--accent-green);
+  text-align: right;
+  font-family: 'Consolas', monospace;
+}
+
+.layer-meter.master .layer-db {
+  color: var(--accent-amber);
+}
+
+/* ============================================
    TOOLBAR
    ============================================ */
 
@@ -1014,6 +1224,9 @@ body.midi-learn-mode [data-midi-target]:hover {
   #sidepanel {
     width: 180px;
   }
+  #layers-panel {
+    width: 100px;
+  }
   .step {
     width: 30px;
     height: 30px;
@@ -1024,11 +1237,25 @@ body.midi-learn-mode [data-midi-target]:hover {
   #main-content {
     flex-direction: column;
   }
-  #sidepanel {
+  #sidepanel, #layers-panel {
     width: 100%;
     border-left: none;
     border-top: 2px solid var(--border-shadow);
-    max-height: 180px;
+    max-height: 150px;
+  }
+  #layers-content {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .layer-meter {
+    flex: 1;
+    min-width: 80px;
+  }
+  .topbar-panel {
+    max-height: 200px;
+  }
+  .theory-content, .brains-content {
+    grid-template-columns: 1fr;
   }
   .step {
     width: 22px;

@@ -1,10 +1,12 @@
 /**
  * Dunk - Sidepanel Module
  * Tips, help, and history content
+ * Also handles topbar tabs (Theory/Brains)
  */
 
 NS.Sidepanel = {
   currentTab: 'tips',
+  currentTopbarTab: 'main',
 
   content: {
     tips: {
@@ -205,7 +207,42 @@ NS.Sidepanel = {
     // Show initial tab
     this.showTab(this.currentTab);
 
+    // Initialize topbar tabs
+    this.initTopbarTabs();
+
     console.log('[Dunk] Sidepanel initialized');
+  },
+
+  /**
+   * Initialize topbar tabs (Theory/Brains)
+   */
+  initTopbarTabs() {
+    const topbarTabs = NS.DOM.$$('.topbar-tab');
+    const theoryPanel = NS.DOM.$('#tab-theory');
+    const brainsPanel = NS.DOM.$('#tab-brains');
+
+    topbarTabs.forEach(tab => {
+      NS.DOM.on(tab, 'click', () => {
+        const tabId = tab.dataset.tab;
+
+        // Update active state
+        topbarTabs.forEach(t => t.classList.toggle('active', t === tab));
+
+        // Toggle panels
+        if (tabId === 'main') {
+          theoryPanel && theoryPanel.classList.add('hidden');
+          brainsPanel && brainsPanel.classList.add('hidden');
+        } else if (tabId === 'theory') {
+          theoryPanel && theoryPanel.classList.remove('hidden');
+          brainsPanel && brainsPanel.classList.add('hidden');
+        } else if (tabId === 'brains') {
+          theoryPanel && theoryPanel.classList.add('hidden');
+          brainsPanel && brainsPanel.classList.remove('hidden');
+        }
+
+        this.currentTopbarTab = tabId;
+      });
+    });
   },
 
   /**

@@ -43,6 +43,81 @@
       </div>
     </header>
 
+    <!-- Topbar Tabs -->
+    <nav id="topbar-tabs">
+      <button class="topbar-tab active" data-tab="main">Main</button>
+      <button class="topbar-tab" data-tab="theory">Theory</button>
+      <button class="topbar-tab" data-tab="brains">Brains</button>
+    </nav>
+
+    <!-- Tab Content Panels -->
+    <div id="topbar-content">
+      <div id="tab-theory" class="topbar-panel hidden">
+        <div class="theory-content">
+          <h3>Synthesis Theory</h3>
+          <div class="theory-section">
+            <h4>Subtractive Synthesis</h4>
+            <p>Start with harmonically rich waveforms and filter out frequencies. The 808/303 paradigm.</p>
+            <ul>
+              <li><strong>Oscillators:</strong> Generate raw waveforms (sine, saw, square, triangle)</li>
+              <li><strong>Filters:</strong> Shape spectrum by attenuating frequencies</li>
+              <li><strong>Envelopes:</strong> Control parameter changes over time (ADSR)</li>
+              <li><strong>LFOs:</strong> Cyclical modulation for movement and wobble</li>
+            </ul>
+          </div>
+          <div class="theory-section">
+            <h4>Additive Synthesis</h4>
+            <p>Build complex sounds by summing simple sine waves. Fourier theorem in action.</p>
+          </div>
+          <div class="theory-section">
+            <h4>FM Synthesis</h4>
+            <p>Modulate one oscillator's frequency with another. Creates metallic, bell-like tones.</p>
+          </div>
+          <div class="theory-section">
+            <h4>The Sub-Bass Zone</h4>
+            <p>20-80 Hz: Feel more than hear. Critical for 808s and dubstep.</p>
+            <ul>
+              <li>Keep mono below 100Hz for phase coherence</li>
+              <li>Use saturation to add harmonics for small speakers</li>
+              <li>Pitch envelope creates the "kick" attack character</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div id="tab-brains" class="topbar-panel hidden">
+        <div class="brains-content">
+          <h3>Under The Hood</h3>
+          <div class="brains-section">
+            <h4>Voice Architecture</h4>
+            <p>Each voice contains 8 parallel synthesis channels:</p>
+            <ul>
+              <li><strong>Sub (0):</strong> Pure sine at fundamental frequency</li>
+              <li><strong>Body (1):</strong> Triangle one octave up for warmth</li>
+              <li><strong>Click (2):</strong> Filtered noise burst for transient</li>
+              <li><strong>Harmonics (3):</strong> Sawtooth for brightness</li>
+              <li><strong>Sub-Harm (4):</strong> Sine one octave below for weight</li>
+              <li><strong>Formant (5):</strong> Vowel-like resonances</li>
+              <li><strong>Noise (6):</strong> Colored noise layer</li>
+              <li><strong>Reese (7):</strong> Detuned saws for phasing growl</li>
+            </ul>
+          </div>
+          <div class="brains-section">
+            <h4>Signal Flow</h4>
+            <pre>Osc → Channel Mixer → Distortion → FIR Filter → Voice Out
+Voice[0-3] → Master Bus → Compressor → Limiter → Output</pre>
+          </div>
+          <div class="brains-section">
+            <h4>FIR Filter Design</h4>
+            <p>Windowed-sinc lowpass filter with configurable taps (63-255) and window functions (Hamming, Blackman, Kaiser).</p>
+          </div>
+          <div class="brains-section">
+            <h4>Web Audio Graph</h4>
+            <p>All synthesis runs in AudioWorkletProcessor for sample-accurate timing and low latency.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Main Content -->
     <div id="main-content">
       <div id="main-area">
@@ -160,7 +235,7 @@
         </section>
       </div>
 
-      <!-- Sidepanel -->
+      <!-- Sidepanel (Left) -->
       <aside id="sidepanel">
         <nav id="sidepanel-tabs">
           <button class="tab-btn active" data-tab="tips">Tips</button>
@@ -171,6 +246,64 @@
         </nav>
         <div id="sidepanel-content">
           <!-- Content loaded by sidepanel.js -->
+        </div>
+      </aside>
+
+      <!-- Right Sidebar - Layers Output -->
+      <aside id="layers-panel">
+        <div class="layers-header">
+          <h3>Layers Output</h3>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-layers" checked>
+            <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          </label>
+        </div>
+        <div id="layers-content">
+          <div class="layer-meter" data-channel="0">
+            <span class="layer-label">Sub</span>
+            <div class="layer-bar"><div class="layer-fill"></div></div>
+            <span class="layer-db">-∞</span>
+          </div>
+          <div class="layer-meter" data-channel="1">
+            <span class="layer-label">Body</span>
+            <div class="layer-bar"><div class="layer-fill"></div></div>
+            <span class="layer-db">-∞</span>
+          </div>
+          <div class="layer-meter" data-channel="2">
+            <span class="layer-label">Click</span>
+            <div class="layer-bar"><div class="layer-fill"></div></div>
+            <span class="layer-db">-∞</span>
+          </div>
+          <div class="layer-meter" data-channel="3">
+            <span class="layer-label">Harm</span>
+            <div class="layer-bar"><div class="layer-fill"></div></div>
+            <span class="layer-db">-∞</span>
+          </div>
+          <div class="layer-meter" data-channel="4">
+            <span class="layer-label">SubH</span>
+            <div class="layer-bar"><div class="layer-fill"></div></div>
+            <span class="layer-db">-∞</span>
+          </div>
+          <div class="layer-meter" data-channel="5">
+            <span class="layer-label">Form</span>
+            <div class="layer-bar"><div class="layer-fill"></div></div>
+            <span class="layer-db">-∞</span>
+          </div>
+          <div class="layer-meter" data-channel="6">
+            <span class="layer-label">Noise</span>
+            <div class="layer-bar"><div class="layer-fill"></div></div>
+            <span class="layer-db">-∞</span>
+          </div>
+          <div class="layer-meter" data-channel="7">
+            <span class="layer-label">Reese</span>
+            <div class="layer-bar"><div class="layer-fill"></div></div>
+            <span class="layer-db">-∞</span>
+          </div>
+          <div class="layer-meter master">
+            <span class="layer-label">Master</span>
+            <div class="layer-bar"><div class="layer-fill"></div></div>
+            <span class="layer-db">-∞</span>
+          </div>
         </div>
       </aside>
     </div>
@@ -535,6 +668,7 @@
   <script src="js/sidepanel.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/midi.js"></script>
+  <script src="js/slider-bank.js"></script>
   <script src="js/controller.js"></script>
   <script src="js/main.js"></script>
 </body>
