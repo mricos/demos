@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Generating Function Explorer</title>
+
+<link rel="stylesheet"
+ href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<link rel="stylesheet" href="charfun-base.css">
+<script defer
+ src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer
+ src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script src="charfun-base.js"></script>
+
+<style>
+:root{
+  --col-seq:#ff6699;
+  --col-gf:#44dd88;
+  --col-kernel:#00d0ff;
+}
+
+#grid{grid-template-columns:1fr 1fr}
+
+.slider{width:140px}
+.val{width:48px}
+.shape-group{display:flex;align-items:center;gap:6px;transition:opacity 0.15s}
+.shape-group.disabled{opacity:0.3;pointer-events:none}
+
+.readout{
+  padding:8px;margin-bottom:8px;
+  background:var(--col-panel);border:1px solid var(--col-border);border-radius:3px;
+  font-size:12px;line-height:1.6;
+}
+
+.col-right details{border-bottom:1px solid var(--col-border);padding:8px 0}
+.col-right summary{
+  cursor:pointer;font-weight:bold;color:#aaa;padding:4px 0;list-style:none;
+}
+.col-right summary::before{content:'\25b8 ';color:#666}
+.col-right details[open] summary::before{content:'\25be ';color:#999}
+.section-body{padding:6px 0 4px 0;color:#bbb;line-height:1.6}
+.section-body table{width:100%;border-collapse:collapse;margin:6px 0}
+.section-body td,.section-body th{
+  padding:3px 6px;border:1px solid var(--col-border);text-align:left;
+}
+.section-body th{color:#999}
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <label>Seq
+    <select id="seqSelect">
+      <option value="constant">Constant (1,1,1,...)</option>
+      <option value="fibonacci">Fibonacci (1,1,2,3,5,...)</option>
+      <option value="poisson" selected>Poisson(&lambda;)</option>
+      <option value="binomial">Binomial(10,p)</option>
+      <option value="geometric">Geometric(p)</option>
+    </select>
+  </label>
+
+  <label>Transform
+    <select id="transformSelect">
+      <option value="ogf">OGF &mdash; z&#x207F;</option>
+      <option value="egf">EGF &mdash; z&#x207F;/n!</option>
+      <option value="pgf" selected>PGF &mdash; s&#x207F;</option>
+      <option value="mgf">MGF &mdash; e&#x1D57;&#x207F;</option>
+      <option value="cf">CF &mdash; e&#x2071;&#x1D57;&#x207F;</option>
+    </select>
+  </label>
+
+  <label><span id="paramLabel" style="color:#ffcc00">s</span>
+    <input type="range" id="paramSlider" min="-0.5" max="1.5" step="0.01" value="0.50" class="slider">
+    <span id="paramVal" class="val">0.50</span>
+  </label>
+
+  <span class="shape-group" id="shapeGroup">
+    <label><span id="shapeLabelEl" style="color:#aaa">&lambda;</span>
+      <input type="range" id="shapeSlider" min="0.1" max="5" step="0.01" value="2" class="slider" style="accent-color:#aaa">
+      <span id="shapeVal" class="val">2.00</span>
+    </label>
+  </span>
+</div>
+
+<div id="grid">
+
+  <div class="col col-left">
+    <h3>Sequence &mdash; The Data</h3>
+    <div id="formulaSeq" class="formula"></div>
+    <canvas id="seqCanvas" width="600" height="200"></canvas>
+
+    <h3 style="margin-top:10px">Kernel &times; Data</h3>
+    <div id="formulaProduct" class="formula"></div>
+    <canvas id="productCanvas" width="600" height="200"></canvas>
+  </div>
+
+  <div class="col col-right">
+    <h3>Generating Function</h3>
+    <div id="formulaGF" class="formula"></div>
+    <canvas id="gfCanvas" width="600" height="280"></canvas>
+
+    <div id="readout" class="readout"></div>
+
+    <details>
+      <summary>Encoding / Decoding</summary>
+      <div class="section-body" id="secEncoding"></div>
+    </details>
+
+    <details>
+      <summary>Kernel Family</summary>
+      <div class="section-body" id="secKernelFamily"></div>
+    </details>
+
+    <details>
+      <summary>Operations</summary>
+      <div class="section-body" id="secOperations"></div>
+    </details>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+
+var N_TERMS = 20;
+
+// ── Sequence Registry ────────────────────────────────────────
+var SEQUENCES = {
+  constant: {
+    label:"Constant",
+    coeffs:function(){
+      var a=[]; for(var n=0;n<N_TERMS;n++) a.push(1); return a;
+    },
+    hasShape:false,
+    katexSeq:"a_n = 1",
+    isProbability:false,
+    closedForms:{
+      ogf:{fn:function(z){return 1/(1-z);}, katex:"\\frac{1}{1-z}"},
+      egf:{fn:function(z){return Math.exp(z);}, katex:"e^z"},
+      pgf:{fn:function(s){return 1/(1-s);}, katex:"\\frac{1}{1-s}"},
+      mgf:{fn:function(t){return 1/(1-Math.exp(t));}, katex:"\\frac{1}{1-e^t}"},
+      cf:null
+    }
+  },
+  fibonacci: {
+    label:"Fibonacci",
+    coeffs:function(){
+      var a=[1,1];
+      for(var n=2;n<N_TERMS;n++) a.push(a[n-1]+a[n-2]);
+      return a;
+    },
+    hasShape:false,
+    katexSeq:"a_n = a_{n-1}+a_{n-2},\\;a_0\\!=\\!a_1\\!=\\!1",
+    isProbability:false,
+    closedForms:{
+      ogf:{fn:function(z){return 1/(1-z-z*z);}, katex:"\\frac{1}{1-z-z^2}"},
+      egf:null, pgf:null, mgf:null, cf:null
+    }
+  },
+  poisson: {
+    label:"Poisson",
+    coeffs:function(lam){
+      var a=[];
+      for(var n=0;n<N_TERMS;n++) a.push(Math.exp(-lam)*Math.pow(lam,n)/CF.factorial(n));
+      return a;
+    },
+    hasShape:true, shapeLabel:"\u03bb", shapeMin:0.1, shapeMax:5, shapeDefault:2,
+    katexSeq:"a_n = e^{-\\lambda}\\frac{\\lambda^n}{n!}",
+    isProbability:true,
+    mean:function(lam){return lam;},
+    closedForms:{
+      ogf:{fn:function(z,lam){return Math.exp(lam*(z-1));}, katex:"e^{\\lambda(z-1)}"},
+      egf:null,
+      pgf:{fn:function(s,lam){return Math.exp(lam*(s-1));}, katex:"e^{\\lambda(s-1)}"},
+      mgf:{fn:function(t,lam){return Math.exp(lam*(Math.exp(t)-1));}, katex:"e^{\\lambda(e^t-1)}"},
+      cf:{
+        fn:function(t,lam){
+          var r=Math.exp(lam*(Math.cos(t)-1));
+          return {re:r*Math.cos(lam*Math.sin(t)), im:r*Math.sin(lam*Math.sin(t))};
+        },
+        katex:"e^{\\lambda(e^{it}-1)}"
+      }
+    }
+  },
+  binomial: {
+    label:"Binomial(10,p)",
+    coeffs:function(p){
+      var q=1-p, a=[];
+      for(var n=0;n<N_TERMS;n++)
+        a.push(n>10 ? 0 : CF.binomCoeff(10,n)*Math.pow(p,n)*Math.pow(q,10-n));
+      return a;
+    },
+    hasShape:true, shapeLabel:"p", shapeMin:0.05, shapeMax:0.95, shapeDefault:0.5,
+    katexSeq:"a_n = \\binom{10}{n}p^n(1\\!-\\!p)^{10-n}",
+    isProbability:true,
+    mean:function(p){return 10*p;},
+    closedForms:{
+      ogf:{fn:function(z,p){return Math.pow(1-p+p*z,10);}, katex:"(q+pz)^{10}"},
+      egf:null,
+      pgf:{fn:function(s,p){return Math.pow(1-p+p*s,10);}, katex:"(q+ps)^{10}"},
+      mgf:{fn:function(t,p){return Math.pow(1-p+p*Math.exp(t),10);}, katex:"(q+pe^t)^{10}"},
+      cf:{
+        fn:function(t,p){
+          var q=1-p;
+          return CF.complexPow(q+p*Math.cos(t), p*Math.sin(t), 10);
+        },
+        katex:"(q+pe^{it})^{10}"
+      }
+    }
+  },
+  geometric: {
+    label:"Geometric",
+    coeffs:function(p){
+      var q=1-p, a=[];
+      for(var n=0;n<N_TERMS;n++) a.push(p*Math.pow(q,n));
+      return a;
+    },
+    hasShape:true, shapeLabel:"p", shapeMin:0.05, shapeMax:0.95, shapeDefault:0.3,
+    katexSeq:"a_n = p(1\\!-\\!p)^n",
+    isProbability:true,
+    mean:function(p){return (1-p)/p;},
+    closedForms:{
+      ogf:{fn:function(z,p){return p/(1-(1-p)*z);}, katex:"\\frac{p}{1-qz}"},
+      egf:{fn:function(z,p){return p*Math.exp((1-p)*z);}, katex:"pe^{qz}"},
+      pgf:{fn:function(s,p){return p/(1-(1-p)*s);}, katex:"\\frac{p}{1-qs}"},
+      mgf:{fn:function(t,p){return p/(1-(1-p)*Math.exp(t));}, katex:"\\frac{p}{1-qe^t}"},
+      cf:{
+        fn:function(t,p){
+          var q=1-p;
+          var dRe=1-q*Math.cos(t), dIm=-q*Math.sin(t);
+          var mag2=dRe*dRe+dIm*dIm;
+          if(mag2<1e-15) return {re:1e10,im:0};
+          return {re:p*dRe/mag2, im:-p*dIm/mag2};
+        },
+        katex:"\\frac{p}{1-qe^{it}}"
+      }
+    }
+  }
+};
+
+// ── Transform Registry ───────────────────────────────────────
+var TRANSFORMS = {
+  ogf: {
+    label:"OGF", paramName:"z", range:[-1.5,1.5], step:0.01, defaultVal:0.5,
+    kernel:function(z,n){return {re:Math.pow(z,n),im:0};},
+    isComplex:false,
+    katexKernel:"z^n",
+    katexDef:"G(z)=\\sum_{n=0}^{N-1}a_n\\,z^n"
+  },
+  egf: {
+    label:"EGF", paramName:"z", range:[-4,4], step:0.05, defaultVal:1,
+    kernel:function(z,n){return {re:Math.pow(z,n)/CF.factorial(n),im:0};},
+    isComplex:false,
+    katexKernel:"\\frac{z^n}{n!}",
+    katexDef:"\\hat G(z)=\\sum_{n=0}^{N-1}a_n\\,\\frac{z^n}{n!}"
+  },
+  pgf: {
+    label:"PGF", paramName:"s", range:[-0.5,1.5], step:0.01, defaultVal:0.5,
+    kernel:function(s,n){return {re:Math.pow(s,n),im:0};},
+    isComplex:false,
+    katexKernel:"s^n",
+    katexDef:"G(s)=\\sum_{n=0}^{N-1}a_n\\,s^n"
+  },
+  mgf: {
+    label:"MGF", paramName:"t", range:[-2,2], step:0.01, defaultVal:0.5,
+    kernel:function(t,n){return {re:Math.exp(t*n),im:0};},
+    isComplex:false,
+    katexKernel:"e^{tn}",
+    katexDef:"M(t)=\\sum_{n=0}^{N-1}a_n\\,e^{tn}"
+  },
+  cf: {
+    label:"CF", paramName:"t", range:[-Math.PI,Math.PI], step:0.01, defaultVal:1,
+    kernel:function(t,n){return {re:Math.cos(t*n),im:Math.sin(t*n)};},
+    isComplex:true,
+    katexKernel:"e^{itn}",
+    katexDef:"\\varphi(t)=\\sum_{n=0}^{N-1}a_n\\,e^{itn}"
+  }
+};
+
+// ── DOM refs ─────────────────────────────────────────────────
+var el=function(id){return document.getElementById(id);};
+var seqSelect=el("seqSelect"), transformSelect=el("transformSelect");
+var paramSlider=el("paramSlider"), shapeSlider=el("shapeSlider");
+var paramLabel=el("paramLabel"), paramValEl=el("paramVal");
+var shapeLabelEl=el("shapeLabelEl"), shapeValEl=el("shapeVal");
+var shapeGroup=el("shapeGroup");
+var seqCanvas=el("seqCanvas"), productCanvas=el("productCanvas"), gfCanvas=el("gfCanvas");
+
+// ── State ────────────────────────────────────────────────────
+function getState(){
+  return {
+    seq: seqSelect.value,
+    transform: transformSelect.value,
+    param: parseFloat(paramSlider.value),
+    shape: parseFloat(shapeSlider.value)
+  };
+}
+
+// ── Sync slider ranges on dropdown change ────────────────────
+function syncSliders(){
+  var tr=TRANSFORMS[transformSelect.value];
+  paramSlider.min=tr.range[0];
+  paramSlider.max=tr.range[1];
+  paramSlider.step=tr.step;
+  paramLabel.textContent=tr.paramName;
+
+  var v=parseFloat(paramSlider.value);
+  if(v<tr.range[0]||v>tr.range[1]) paramSlider.value=tr.defaultVal;
+
+  var seq=SEQUENCES[seqSelect.value];
+  if(seq.hasShape){
+    shapeGroup.classList.remove("disabled");
+    shapeSlider.disabled=false;
+    shapeSlider.min=seq.shapeMin;
+    shapeSlider.max=seq.shapeMax;
+    shapeSlider.step=0.01;
+    shapeLabelEl.textContent=seq.shapeLabel;
+    var sv=parseFloat(shapeSlider.value);
+    if(sv<seq.shapeMin||sv>seq.shapeMax) shapeSlider.value=seq.shapeDefault;
+  } else {
+    shapeGroup.classList.add("disabled");
+    shapeSlider.disabled=true;
+    shapeLabelEl.textContent="\u2014";
+  }
+}
+
+// ── Compute everything ───────────────────────────────────────
+function computeAll(state){
+  var seq=SEQUENCES[state.seq];
+  var tr=TRANSFORMS[state.transform];
+  var coeffs=seq.coeffs(state.shape);
+  var param=state.param;
+
+  // Products at current param
+  var products=[];
+  var sumRe=0, sumIm=0;
+  for(var n=0;n<coeffs.length;n++){
+    var k=tr.kernel(param,n);
+    products.push({re:coeffs[n]*k.re, im:coeffs[n]*k.im});
+    sumRe+=coeffs[n]*k.re;
+    sumIm+=coeffs[n]*k.im;
+  }
+
+  // Sweep across param range
+  var sweepN=400;
+  var sweepRe=new Float64Array(sweepN);
+  var sweepIm=new Float64Array(sweepN);
+  for(var i=0;i<sweepN;i++){
+    var p=tr.range[0]+(i/(sweepN-1))*(tr.range[1]-tr.range[0]);
+    var sRe=0, sIm=0;
+    for(var n=0;n<coeffs.length;n++){
+      var k=tr.kernel(p,n);
+      sRe+=coeffs[n]*k.re;
+      sIm+=coeffs[n]*k.im;
+    }
+    sweepRe[i]=sRe;
+    sweepIm[i]=sIm;
+  }
+
+  // Closed form sweep
+  var cfEntry=seq.closedForms[state.transform];
+  var closedRe=null, closedIm=null;
+  if(cfEntry){
+    closedRe=new Float64Array(sweepN);
+    closedIm=new Float64Array(sweepN);
+    for(var i=0;i<sweepN;i++){
+      var p=tr.range[0]+(i/(sweepN-1))*(tr.range[1]-tr.range[0]);
+      var val=cfEntry.fn(p,state.shape);
+      if(typeof val==='number'){
+        closedRe[i]=isFinite(val)?val:NaN;
+        closedIm[i]=0;
+      } else {
+        closedRe[i]=isFinite(val.re)?val.re:NaN;
+        closedIm[i]=isFinite(val.im)?val.im:NaN;
+      }
+    }
+  }
+
+  // Closed form at current param
+  var closedAtParam=null;
+  if(cfEntry){
+    var val=cfEntry.fn(param,state.shape);
+    if(typeof val==='number') closedAtParam={re:val,im:0};
+    else closedAtParam=val;
+  }
+
+  return {
+    coeffs:coeffs,
+    products:products,
+    sumRe:sumRe, sumIm:sumIm,
+    sweepRe:sweepRe, sweepIm:sweepIm,
+    sweepN:sweepN,
+    closedRe:closedRe, closedIm:closedIm,
+    closedAtParam:closedAtParam
+  };
+}
+
+// ── Draw Sequence bar chart ──────────────────────────────────
+function drawSequence(data){
+  var info=CF.canvasSize(seqCanvas);
+  var w=info.w, h=info.h, ctx=info.ctx;
+  ctx.clearRect(0,0,w,h);
+
+  var coeffs=data.coeffs;
+  var n=coeffs.length;
+  var maxVal=0;
+  for(var i=0;i<n;i++) if(Math.abs(coeffs[i])>maxVal) maxVal=Math.abs(coeffs[i]);
+  if(maxVal<1e-10) maxVal=1;
+
+  var ml=40, mr=10, mt=10, mb=24;
+  var pw=w-ml-mr, ph=h-mt-mb;
+  var bw=pw/n*0.7, gap=pw/n*0.3;
+  var baseline=mt+ph;
+
+  ctx.strokeStyle="#333";ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(ml,baseline);ctx.lineTo(w-mr,baseline);ctx.stroke();
+
+  for(var i=0;i<n;i++){
+    var x=ml+i*(bw+gap)+gap/2;
+    var barH=coeffs[i]/maxVal*ph*0.85;
+    if(barH>=0){
+      ctx.fillStyle="#ff6699";
+      ctx.fillRect(x,baseline-barH,bw,barH);
+    } else {
+      ctx.fillStyle="#cc4466";
+      ctx.fillRect(x,baseline,bw,-barH);
+    }
+    if(i%5===0){
+      ctx.fillStyle="#555";ctx.font="9px monospace";ctx.textAlign="center";
+      ctx.fillText(i,x+bw/2,baseline+12);
+    }
+  }
+
+  ctx.fillStyle="#555";ctx.font="9px monospace";ctx.textAlign="right";
+  ctx.fillText(maxVal.toPrecision(3),ml-4,mt+12);
+  ctx.fillText("0",ml-4,baseline+3);
+
+  ctx.fillStyle="#ff6699";ctx.font="11px monospace";ctx.textAlign="left";
+  ctx.fillText("a_n  (N="+n+")",ml+4,mt+14);
+}
+
+// ── Draw Product bars ────────────────────────────────────────
+function drawProduct(data,state){
+  var info=CF.canvasSize(productCanvas);
+  var w=info.w, h=info.h, ctx=info.ctx;
+  ctx.clearRect(0,0,w,h);
+
+  var tr=TRANSFORMS[state.transform];
+  var products=data.products;
+  var n=products.length;
+
+  // Show real part of products as bars
+  var vals=[];
+  for(var i=0;i<n;i++) vals.push(products[i].re);
+  var absVals=vals.map(function(v){return Math.abs(v);});
+  var maxVal=CF.percentile95(absVals);
+  if(maxVal<1e-10) maxVal=1;
+
+  var ml=40, mr=10, mt=20, mb=24;
+  var pw=w-ml-mr, ph=h-mt-mb;
+  var bw=pw/n*0.7, gap=pw/n*0.3;
+  var mid=mt+ph/2;
+
+  ctx.strokeStyle="#333";ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(ml,mid);ctx.lineTo(w-mr,mid);ctx.stroke();
+
+  for(var i=0;i<n;i++){
+    var x=ml+i*(bw+gap)+gap/2;
+    var v=vals[i];
+    var barH=v/maxVal*(ph/2)*0.85;
+    barH=Math.max(-ph/2,Math.min(ph/2,barH));
+    ctx.fillStyle=v>=0 ? "rgba(0,200,100,0.7)" : "rgba(220,50,50,0.7)";
+    if(barH>=0){
+      ctx.fillRect(x,mid-barH,bw,barH);
+    } else {
+      ctx.fillRect(x,mid,bw,-barH);
+    }
+    if(i%5===0){
+      ctx.fillStyle="#555";ctx.font="9px monospace";ctx.textAlign="center";
+      ctx.fillText(i,x+bw/2,h-4);
+    }
+  }
+
+  // Sum annotation
+  var sumStr;
+  if(tr.isComplex){
+    sumStr="Sum = "+data.sumRe.toFixed(4)+" + "+data.sumIm.toFixed(4)+"i";
+  } else {
+    sumStr="Sum = G("+tr.paramName+"="+state.param.toFixed(2)+") = "+data.sumRe.toFixed(4);
+  }
+  ctx.fillStyle="#ffcc00";ctx.font="11px monospace";ctx.textAlign="left";
+  ctx.fillText(sumStr,ml+4,mt-4);
+
+  if(tr.isComplex){
+    ctx.fillStyle="#888";ctx.font="9px monospace";
+    ctx.fillText("(showing Re of each term)",ml+4,h-14);
+  }
+}
+
+// ── Draw GF sweep ────────────────────────────────────────────
+function drawGF(data,state){
+  var info=CF.canvasSize(gfCanvas);
+  var w=info.w, h=info.h, ctx=info.ctx;
+  ctx.clearRect(0,0,w,h);
+
+  var tr=TRANSFORMS[state.transform];
+  var sweepN=data.sweepN;
+  var ml=40, mr=10, mt=16, mb=24;
+  var pw=w-ml-mr, ph=h-mt-mb;
+
+  // Compute magnitudes for auto-scaling
+  var allVals=[];
+  if(tr.isComplex){
+    for(var i=0;i<sweepN;i++){
+      var mag=Math.sqrt(data.sweepRe[i]*data.sweepRe[i]+data.sweepIm[i]*data.sweepIm[i]);
+      allVals.push(Math.abs(mag));
+      allVals.push(Math.abs(data.sweepRe[i]));
+      allVals.push(Math.abs(data.sweepIm[i]));
+    }
+  } else {
+    for(var i=0;i<sweepN;i++) allVals.push(Math.abs(data.sweepRe[i]));
+    if(data.closedRe){
+      for(var i=0;i<sweepN;i++){
+        if(isFinite(data.closedRe[i])) allVals.push(Math.abs(data.closedRe[i]));
+      }
+    }
+  }
+  var yMax=CF.percentile95(allVals);
+  if(yMax<1e-10) yMax=1;
+  yMax*=1.1;
+
+  var mid=mt+ph/2;
+
+  function xOf(i){return ml+(i/(sweepN-1))*pw;}
+  function yOf(v){
+    var clamped=Math.max(-yMax,Math.min(yMax,v));
+    return mid-clamped/yMax*(ph/2);
+  }
+
+  // Grid lines
+  ctx.strokeStyle="#333";ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(ml,mid);ctx.lineTo(w-mr,mid);ctx.stroke();
+  ctx.setLineDash([2,4]);
+  ctx.beginPath();ctx.moveTo(ml,mt);ctx.lineTo(w-mr,mt);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(ml,mt+ph);ctx.lineTo(w-mr,mt+ph);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // y-axis labels
+  ctx.fillStyle="#444";ctx.font="9px monospace";ctx.textAlign="right";
+  ctx.fillText(yMax.toPrecision(3),ml-4,mt+8);
+  ctx.fillText("0",ml-4,mid+3);
+  ctx.fillText("-"+yMax.toPrecision(3),ml-4,mt+ph);
+
+  // x-axis labels
+  ctx.textAlign="center";
+  var pRange=tr.range[1]-tr.range[0];
+  var tickStep=pRange<=4?0.5:1;
+  if(pRange<=2) tickStep=0.5;
+  if(pRange>6) tickStep=2;
+  for(var pv=Math.ceil(tr.range[0]/tickStep)*tickStep;pv<=tr.range[1];pv+=tickStep){
+    var frac=(pv-tr.range[0])/pRange;
+    var px=ml+frac*pw;
+    ctx.fillStyle="#444";ctx.fillText(pv.toFixed(1),px,h-4);
+    ctx.strokeStyle="#222";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(px,mt);ctx.lineTo(px,mt+ph);ctx.stroke();
+  }
+
+  // Helper: draw a curve from sweep data
+  function drawCurve(vals, color, dash, lineW){
+    ctx.strokeStyle=color;ctx.lineWidth=lineW||1.5;
+    if(dash) ctx.setLineDash(dash);
+    ctx.beginPath();
+    var started=false;
+    for(var i=0;i<sweepN;i++){
+      var v=vals[i];
+      if(!isFinite(v)){started=false;continue;}
+      var px=xOf(i), py=yOf(v);
+      if(!started){ctx.moveTo(px,py);started=true;}
+      else ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+    if(dash) ctx.setLineDash([]);
+  }
+
+  if(tr.isComplex){
+    // Compute magnitude array
+    var magArr=new Float64Array(sweepN);
+    for(var i=0;i<sweepN;i++){
+      magArr[i]=Math.sqrt(data.sweepRe[i]*data.sweepRe[i]+data.sweepIm[i]*data.sweepIm[i]);
+    }
+
+    // Closed form |G| (white dashed)
+    if(data.closedRe){
+      var closedMag=new Float64Array(sweepN);
+      for(var i=0;i<sweepN;i++){
+        var cr=data.closedRe[i], ci=data.closedIm[i];
+        closedMag[i]=(isFinite(cr)&&isFinite(ci))?Math.sqrt(cr*cr+ci*ci):NaN;
+      }
+      ctx.globalAlpha=0.6;
+      drawCurve(closedMag,"#ffffff",[4,4],1.5);
+      ctx.globalAlpha=1.0;
+    }
+
+    // |G| solid green
+    drawCurve(magArr,"#44dd88",null,2);
+    // Re muted
+    drawCurve(data.sweepRe,"#cc8866",[6,3],1.5);
+    // Im muted
+    drawCurve(data.sweepIm,"#8866aa",[2,3],1.5);
+
+    // Legend
+    ctx.font="10px monospace";ctx.textAlign="left";
+    ctx.strokeStyle="#44dd88";ctx.lineWidth=1.5;ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(ml+8,mt+6);ctx.lineTo(ml+26,mt+6);ctx.stroke();
+    ctx.fillStyle="#44dd88";ctx.fillText("|G|",ml+28,mt+10);
+
+    ctx.strokeStyle="#cc8866";ctx.setLineDash([6,3]);
+    ctx.beginPath();ctx.moveTo(ml+56,mt+6);ctx.lineTo(ml+74,mt+6);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle="#cc8866";ctx.fillText("Re",ml+76,mt+10);
+
+    ctx.strokeStyle="#8866aa";ctx.setLineDash([2,3]);
+    ctx.beginPath();ctx.moveTo(ml+96,mt+6);ctx.lineTo(ml+114,mt+6);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle="#8866aa";ctx.fillText("Im",ml+116,mt+10);
+
+    if(data.closedRe){
+      ctx.strokeStyle="#ffffff";ctx.globalAlpha=0.6;ctx.setLineDash([4,4]);
+      ctx.beginPath();ctx.moveTo(ml+140,mt+6);ctx.lineTo(ml+158,mt+6);ctx.stroke();
+      ctx.setLineDash([]);ctx.globalAlpha=1.0;
+      ctx.fillStyle="#999";ctx.fillText("closed",ml+160,mt+10);
+    }
+
+    // Yellow dot at current param on |G| curve
+    var paramFrac=(state.param-tr.range[0])/pRange;
+    var dotIdx=Math.round(paramFrac*(sweepN-1));
+    dotIdx=Math.max(0,Math.min(sweepN-1,dotIdx));
+    var dotY=yOf(magArr[dotIdx]);
+    ctx.fillStyle="#ffcc00";
+    ctx.beginPath();ctx.arc(xOf(dotIdx),dotY,5,0,2*Math.PI);ctx.fill();
+
+  } else {
+    // Real transform
+
+    // Closed form (white dashed)
+    if(data.closedRe){
+      ctx.globalAlpha=0.6;
+      drawCurve(data.closedRe,"#ffffff",[4,4],1.5);
+      ctx.globalAlpha=1.0;
+    }
+
+    // Partial sum (green solid)
+    drawCurve(data.sweepRe,"#44dd88",null,2);
+
+    // Legend
+    ctx.font="10px monospace";ctx.textAlign="left";
+    ctx.strokeStyle="#44dd88";ctx.lineWidth=2;ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(ml+8,mt+6);ctx.lineTo(ml+26,mt+6);ctx.stroke();
+    ctx.fillStyle="#44dd88";ctx.fillText("partial sum (N="+N_TERMS+")",ml+28,mt+10);
+
+    if(data.closedRe){
+      ctx.strokeStyle="#ffffff";ctx.globalAlpha=0.6;ctx.setLineDash([4,4]);ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.moveTo(ml+200,mt+6);ctx.lineTo(ml+218,mt+6);ctx.stroke();
+      ctx.setLineDash([]);ctx.globalAlpha=1.0;
+      ctx.fillStyle="#999";ctx.fillText("closed form",ml+220,mt+10);
+    }
+
+    // Yellow dot at current param
+    var paramFrac=(state.param-tr.range[0])/pRange;
+    var dotIdx=Math.round(paramFrac*(sweepN-1));
+    dotIdx=Math.max(0,Math.min(sweepN-1,dotIdx));
+    var dotY=yOf(data.sweepRe[dotIdx]);
+    ctx.fillStyle="#ffcc00";
+    ctx.beginPath();ctx.arc(xOf(dotIdx),dotY,5,0,2*Math.PI);ctx.fill();
+  }
+
+  // Current param vertical line
+  var paramPx=ml+(state.param-tr.range[0])/pRange*pw;
+  ctx.strokeStyle="#ffcc00";ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(paramPx,mt);ctx.lineTo(paramPx,mt+ph);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle="#ffcc00";ctx.font="10px monospace";ctx.textAlign="center";
+  ctx.fillText(tr.paramName+"="+state.param.toFixed(2),paramPx,h-12);
+}
+
+// ── Update KaTeX formulas ────────────────────────────────────
+function updateFormulas(state){
+  var seq=SEQUENCES[state.seq];
+  var tr=TRANSFORMS[state.transform];
+
+  el("formulaSeq").innerHTML=
+    '\\[\\textcolor{#ff6699}{'+seq.katexSeq+'}\\]';
+
+  el("formulaProduct").innerHTML=
+    '\\[\\textcolor{#ff6699}{a_n}\\cdot\\textcolor{#00d0ff}{'+tr.katexKernel+'}\\]';
+
+  el("formulaGF").innerHTML=
+    '\\[\\textcolor{#44dd88}{'+tr.katexDef+'}\\]';
+
+  var targets=["formulaSeq","formulaProduct","formulaGF"];
+  for(var i=0;i<targets.length;i++){
+    renderMathInElement(el(targets[i]),{
+      delimiters:[{left:"\\[",right:"\\]",display:true}],throwOnError:false
+    });
+  }
+}
+
+// ── Update readout ───────────────────────────────────────────
+function updateReadout(data,state){
+  var seq=SEQUENCES[state.seq];
+  var tr=TRANSFORMS[state.transform];
+  var html="";
+
+  // Current value
+  if(tr.isComplex){
+    var mag=Math.sqrt(data.sumRe*data.sumRe+data.sumIm*data.sumIm);
+    html+='<div style="color:#44dd88"><strong>G('+tr.paramName+'='+state.param.toFixed(2)+')</strong> = '+
+      data.sumRe.toFixed(4)+' + '+data.sumIm.toFixed(4)+'i</div>';
+    html+='<div style="color:#44dd88">|G| = '+mag.toFixed(4)+'</div>';
+  } else {
+    html+='<div style="color:#44dd88"><strong>G('+tr.paramName+'='+state.param.toFixed(2)+')</strong> = '+
+      data.sumRe.toFixed(4)+'</div>';
+  }
+
+  // Closed form value
+  var cfEntry=seq.closedForms[state.transform];
+  if(cfEntry && data.closedAtParam){
+    var cv=data.closedAtParam;
+    if(tr.isComplex){
+      var cmag=Math.sqrt(cv.re*cv.re+cv.im*cv.im);
+      if(isFinite(cv.re)&&isFinite(cv.im)){
+        html+='<div style="color:#999">Closed: $'+cfEntry.katex+'$ = '+
+          cv.re.toFixed(4)+' + '+cv.im.toFixed(4)+'i (|'+cmag.toFixed(4)+'|)</div>';
+      } else {
+        html+='<div style="color:#999">Closed: $'+cfEntry.katex+'$ = diverges</div>';
+      }
+    } else {
+      if(isFinite(cv.re)){
+        html+='<div style="color:#999">Closed: $'+cfEntry.katex+'$ = '+cv.re.toFixed(4)+'</div>';
+      } else {
+        html+='<div style="color:#999">Closed: $'+cfEntry.katex+'$ = diverges</div>';
+      }
+    }
+  }
+
+  // PGF properties for probability sequences
+  if(state.transform==="pgf" && seq.isProbability){
+    // G(1) - compute explicitly
+    var coeffs=data.coeffs;
+    var g1=0;
+    for(var n=0;n<coeffs.length;n++) g1+=coeffs[n];
+    // G'(1) = sum n*a_n
+    var gp1=0;
+    for(var n=0;n<coeffs.length;n++) gp1+=n*coeffs[n];
+
+    html+='<div style="margin-top:4px;border-top:1px solid #333;padding-top:4px">';
+    html+='<div style="color:#00d0ff">G(1) = '+g1.toFixed(4)+' <span style="color:#666">(should be 1)</span></div>';
+    html+='<div style="color:#00d0ff">G\'(1) = E[X] = '+gp1.toFixed(4);
+    if(seq.mean){
+      html+=' <span style="color:#666">(exact: '+seq.mean(state.shape).toFixed(4)+')</span>';
+    }
+    html+='</div>';
+    html+='</div>';
+  }
+
+  el("readout").innerHTML=html;
+
+  // Render any KaTeX in readout
+  renderMathInElement(el("readout"),{
+    delimiters:[{left:"$",right:"$",display:false}],throwOnError:false
+  });
+}
+
+// ── Populate theory sections ─────────────────────────────────
+function populateTheory(){
+  el("secEncoding").innerHTML=
+    '<p>All generating functions share the same pattern:</p>'+
+    '$$G(z)=\\sum_{n=0}^{\\infty}a_n\\,K(z,n)$$'+
+    '<p>The sequence $\\{a_n\\}$ is the <strong>data</strong>. '+
+    'The kernel $K(z,n)$ is the <strong>encoding</strong>. '+
+    'Different kernels highlight different properties of the sequence.</p>'+
+    '<p><strong>Encoding:</strong> multiply each $a_n$ by $K(z,n)$ and sum &mdash; '+
+    'the infinite sequence collapses to a single analytic function $G(z)$.</p>'+
+    '<p><strong>Decoding:</strong></p>'+
+    '<table>'+
+    '<tr><th>Type</th><th>Recover $a_n$</th></tr>'+
+    '<tr><td>OGF</td><td>$a_n=G^{(n)}(0)/n!$</td></tr>'+
+    '<tr><td>EGF</td><td>$a_n=G^{(n)}(0)$</td></tr>'+
+    '<tr><td>PGF</td><td>$P(X=n)=G^{(n)}(0)/n!$</td></tr>'+
+    '<tr><td>MGF</td><td>$E[X^n]=M^{(n)}(0)$ (moments)</td></tr>'+
+    '<tr><td>CF</td><td>$P(X=n)$ via inverse FT</td></tr>'+
+    '</table>';
+
+  el("secKernelFamily").innerHTML=
+    '<p>Five kernels, one pattern:</p>'+
+    '<table>'+
+    '<tr><th>Type</th><th>Kernel $K(z,n)$</th><th>Param</th><th>Use</th></tr>'+
+    '<tr><td style="color:#44dd88">OGF</td><td>$z^n$</td><td>$z$</td><td>Combinatorics</td></tr>'+
+    '<tr><td style="color:#44dd88">EGF</td><td>$z^n/n!$</td><td>$z$</td><td>Labelled structures</td></tr>'+
+    '<tr><td style="color:#44dd88">PGF</td><td>$s^n$</td><td>$s\\in[0,1]$</td><td>Discrete probability</td></tr>'+
+    '<tr><td style="color:#44dd88">MGF</td><td>$e^{tn}$</td><td>$t\\in\\mathbb{R}$</td><td>Moment extraction</td></tr>'+
+    '<tr><td style="color:#44dd88">CF</td><td>$e^{itn}$</td><td>$t\\in\\mathbb{R}$</td><td>Fourier / prob theory</td></tr>'+
+    '</table>'+
+    '<p>OGF and PGF use the same kernel ($z^n=s^n$) but differ in interpretation: '+
+    'OGF treats $\\{a_n\\}$ as any sequence; PGF assumes $a_n=P(X=n)$ and enforces '+
+    '$G(1)=1$.</p>'+
+    '<p>MGF = OGF evaluated at $z=e^t$ (exponential change of variable).</p>'+
+    '<p>CF = MGF evaluated at $t=i\\tau$ (Wick rotation to imaginary axis).</p>';
+
+  el("secOperations").innerHTML=
+    '<p>Operations on $\\{a_n\\}$ become algebra on $G(z)$:</p>'+
+    '<table>'+
+    '<tr><th>Sequence operation</th><th>OGF effect</th></tr>'+
+    '<tr><td>Right shift $b_n=a_{n-1}$</td><td>$z\\cdot G(z)$</td></tr>'+
+    '<tr><td>Prefix sum $b_n=\\sum_{k=0}^n a_k$</td><td>$G(z)/(1-z)$</td></tr>'+
+    '<tr><td>Convolution $c_n=\\sum_k a_k b_{n-k}$</td><td>$G_a(z)\\cdot G_b(z)$</td></tr>'+
+    '<tr><td>Scale $b_n=c^n a_n$</td><td>$G(cz)$</td></tr>'+
+    '<tr><td>Differentiate</td><td>$na_n \\leftrightarrow z\\,G\'(z)$</td></tr>'+
+    '</table>'+
+    '<p><strong>PGF-specific properties</strong> (when $\\sum a_n=1$):</p>'+
+    '<table>'+
+    '<tr><td>$G(1)=1$</td><td>Normalization</td></tr>'+
+    '<tr><td>$G\'(1)=E[X]$</td><td>Mean</td></tr>'+
+    '<tr><td>$G\'\'(1)+G\'(1)-G\'(1)^2$</td><td>$\\text{Var}(X)$</td></tr>'+
+    '<tr><td>$G^{(k)}(1)$</td><td>$E[X(X-1)\\cdots(X-k+1)]$</td></tr>'+
+    '</table>';
+
+  renderMathInElement(document.querySelector(".col-right"),{
+    delimiters:[
+      {left:"$$",right:"$$",display:true},
+      {left:"$",right:"$",display:false}
+    ],
+    throwOnError:false
+  });
+}
+
+// ── Main update ──────────────────────────────────────────────
+function update(){
+  var state=getState();
+  paramValEl.textContent=state.param.toFixed(2);
+  shapeValEl.textContent=state.shape.toFixed(2);
+
+  var data=computeAll(state);
+  drawSequence(data);
+  drawProduct(data,state);
+  drawGF(data,state);
+  updateFormulas(state);
+  updateReadout(data,state);
+}
+
+// ── Wire events ──────────────────────────────────────────────
+paramSlider.addEventListener("input",update);
+shapeSlider.addEventListener("input",update);
+
+seqSelect.addEventListener("change",function(){syncSliders();update();});
+transformSelect.addEventListener("change",function(){syncSliders();update();});
+
+window.addEventListener("resize",update);
+
+// ── Canvas hover + keyboard ──────────────────────────────────
+CF.setupCanvasHover(gfCanvas,
+  function(){ return TRANSFORMS[transformSelect.value].range; },
+  paramSlider, update,
+  {marginLeft:40, marginRight:10});
+
+CF.setupKeyboard(paramSlider,
+  function(){ return TRANSFORMS[transformSelect.value].step * 5; },
+  update);
+
+// ── Init ─────────────────────────────────────────────────────
+syncSliders();
+populateTheory();
+update();
+
+});
+</script>
+</body>
+</html>

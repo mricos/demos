@@ -1,0 +1,81 @@
+/* charfun-base.css — shared styles for charfun explorer pages */
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Courier New',monospace;background:var(--col-bg);color:#ddd;font-size:13px}
+
+:root{
+  --col-param:#ffcc00;
+  --col-bg:#111;
+  --col-panel:#1a1a1a;
+  --col-ctrl:#222;
+  --col-border:#333;
+  --sidebar-w:280px;
+}
+
+/* Controls bar */
+#controls{
+  display:flex;flex-wrap:wrap;align-items:center;gap:12px;
+  padding:8px 16px;background:var(--col-ctrl);border-bottom:1px solid var(--col-border);
+}
+#controls label{white-space:nowrap}
+#controls .group{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 10px;border:1px solid var(--col-border);border-radius:4px;
+}
+.slider{width:100px;accent-color:var(--col-param)}
+select{background:#333;color:#ddd;border:1px solid #555;padding:2px 4px;border-radius:3px;font-size:12px}
+.val{display:inline-block;width:40px;text-align:right;color:var(--col-param);font-size:12px}
+
+/* Grid layout */
+#grid{
+  display:grid;
+  height:calc(100vh - 50px);
+  gap:0;
+}
+.col{padding:12px;overflow-y:auto;border-right:1px solid var(--col-border)}
+.col:last-child{border-right:none}
+.col h3{font-size:13px;margin-bottom:8px;color:#999;text-transform:uppercase;letter-spacing:1px}
+
+/* Canvas */
+canvas{background:#000;display:block;width:100%;border-radius:3px;margin-bottom:10px}
+
+/* Formula */
+.formula{margin-bottom:6px;min-height:1.6em}
+
+/* Resize handle */
+#resizeHandle{
+  background:var(--col-border);cursor:col-resize;
+  display:flex;align-items:center;justify-content:center;
+  user-select:none;
+}
+#resizeHandle:hover,#resizeHandle.active{background:#555}
+#resizeHandle::after{
+  content:'';display:block;width:2px;height:32px;
+  border-left:1px solid #666;border-right:1px solid #666;
+}
+
+/* Theory sidebar */
+.col-theory{background:var(--col-panel);line-height:1.6}
+.col-theory details{
+  border-bottom:1px solid var(--col-border);padding:8px 0;
+}
+.col-theory summary{
+  cursor:pointer;font-weight:bold;color:#aaa;padding:4px 0;
+  list-style:none;
+}
+.col-theory summary::before{content:'\25b8 ';color:#666}
+.col-theory details[open] summary::before{content:'\25be ';color:#999}
+.col-theory .section-body{padding:6px 0 4px 0;color:#bbb}
+.col-theory table{width:100%;border-collapse:collapse;margin:6px 0}
+.col-theory td,.col-theory th{
+  padding:3px 6px;border:1px solid var(--col-border);text-align:left;
+}
+.col-theory th{color:#999}
+#currentValues .cv-row{margin:4px 0}
+
+/* Dark scrollbars */
+*{scrollbar-width:thin;scrollbar-color:#444 #1a1a1a}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:#1a1a1a}
+::-webkit-scrollbar-thumb{background:#444;border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:#555}

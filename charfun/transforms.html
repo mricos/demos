@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Probability Transform Explorer</title>
+
+<link rel="stylesheet"
+ href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<link rel="stylesheet" href="charfun-base.css">
+<script defer
+ src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer
+ src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script src="charfun-base.js"></script>
+
+<style>
+:root{
+  --col-a:#ff6699;
+  --col-probe:#00d0ff;
+  --col-mgf:#44dd88;
+}
+
+#grid{grid-template-columns:1fr 1fr 6px var(--sidebar-w)}
+
+#controls .group-a{border-color:var(--col-a)}
+.slider-a{accent-color:var(--col-a)}
+.label-a{color:var(--col-a)}
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <button id="playBtn" style="background:#333;color:#ddd;border:1px solid #555;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:14px" title="Play/Pause t sweep">&#9654;</button>
+
+  <label>Transform
+    <select id="modeSelect">
+      <option value="cf">CF &mdash; &phi;(t) = E[e<sup>itX</sup>]</option>
+      <option value="mgf">MGF &mdash; M(t) = E[e<sup>tX</sup>]</option>
+    </select>
+  </label>
+
+  <label><span style="color:var(--col-param)">t</span>
+    <input type="range" id="tSlider" min="-15" max="15" step="0.05" value="1" class="slider">
+    <span id="tVal" class="val">1.00</span>
+  </label>
+
+  <div class="group group-a">
+    <select id="typeA">
+      <option value="gaussian">Gaussian</option>
+      <option value="laplace">Laplace</option>
+      <option value="uniform">Uniform</option>
+      <option value="cauchy">Cauchy</option>
+    </select>
+    <label class="label-a">&mu;<input type="range" id="muA" min="-4" max="4" step="0.05" value="0" class="slider slider-a">
+      <span id="muAVal" class="val">0.00</span></label>
+    <label class="label-a">&sigma;<input type="range" id="sigA" min="0.2" max="4" step="0.05" value="1" class="slider slider-a">
+      <span id="sigAVal" class="val">1.00</span></label>
+  </div>
+</div>
+
+<div id="grid">
+
+  <div class="col col-spatial">
+    <h3>Spatial Domain</h3>
+    <div id="formulaLeft" class="formula"></div>
+    <canvas id="pdfCanvas" width="600" height="260"></canvas>
+    <h3 style="margin-top:20px">Kernel Probe</h3>
+    <div id="formulaProbe" class="formula"></div>
+    <canvas id="probeCanvas" width="600" height="140"></canvas>
+  </div>
+
+  <div class="col col-dual">
+    <h3 id="dualTitle">Dual Domain (Phasor)</h3>
+    <div id="formulaRight" class="formula"></div>
+    <canvas id="cfCanvas" width="600" height="300"></canvas>
+    <h3 id="traceTitle">&phi;(t) vs t</h3>
+    <canvas id="traceCanvas" width="600" height="200"></canvas>
+  </div>
+
+  <div id="resizeHandle"></div>
+
+  <div class="col col-theory" id="theoryCol">
+    <h3>Theory</h3>
+
+    <details open>
+      <summary>CF vs MGF</summary>
+      <div class="section-body" id="secCompare"></div>
+    </details>
+
+    <details>
+      <summary>Kernel Connection</summary>
+      <div class="section-body" id="secKernel"></div>
+    </details>
+
+    <details>
+      <summary>When MGF Exists</summary>
+      <div class="section-body" id="secExistence"></div>
+    </details>
+
+    <details>
+      <summary>Moment Extraction</summary>
+      <div class="section-body" id="secMoments"></div>
+    </details>
+
+    <details>
+      <summary>Tail &harr; Transform Decay</summary>
+      <div class="section-body" id="secDecay"></div>
+    </details>
+
+    <details open>
+      <summary>Current Values</summary>
+      <div class="section-body" id="currentValues"></div>
+    </details>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+
+// ── Distribution Registry ──────────────────────────────────
+var SQRT2PI = Math.sqrt(2*Math.PI);
+
+var DISTRIBUTIONS = {
+  gaussian: {
+    label: "Gaussian",
+    pdf: function(x, s){ return Math.exp(-0.5*(x/s)*(x/s)) / (s*SQRT2PI); },
+    cf_re: function(t, s){ return Math.exp(-s*s*t*t/2); },
+    cf_im: function(t, s){ return 0; },
+    mgf: function(t, s){ return Math.exp(s*s*t*t/2); },
+    mgfExists: true,
+    vari: function(s){ return s*s; },
+    paramName: "\u03c3"
+  },
+  laplace: {
+    label: "Laplace",
+    pdf: function(x, b){ return Math.exp(-Math.abs(x)/b) / (2*b); },
+    cf_re: function(t, b){ return 1/(1 + b*b*t*t); },
+    cf_im: function(t, b){ return 0; },
+    mgf: function(t, b){ return Math.abs(b*t) < 1 ? 1/(1 - b*b*t*t) : NaN; },
+    mgfExists: true,
+    mgfRadius: function(b){ return 1/b; },
+    vari: function(b){ return 2*b*b; },
+    paramName: "b"
+  },
+  uniform: {
+    label: "Uniform",
+    pdf: function(x, a){ return Math.abs(x) <= a ? 1/(2*a) : 0; },
+    cf_re: function(t, a){
+      var ta = t*a;
+      if(Math.abs(ta) < 1e-10) return 1;
+      return Math.sin(ta)/ta;
+    },
+    cf_im: function(t, a){ return 0; },
+    mgf: function(t, a){
+      var ta = t*a;
+      if(Math.abs(ta) < 1e-10) return 1;
+      return (Math.exp(ta) - Math.exp(-ta)) / (2*ta);
+    },
+    mgfExists: true,
+    vari: function(a){ return a*a/3; },
+    paramName: "a"
+  },
+  cauchy: {
+    label: "Cauchy",
+    pdf: function(x, g){ return 1/(Math.PI*g*(1+(x/g)*(x/g))); },
+    cf_re: function(t, g){ return Math.exp(-g*Math.abs(t)); },
+    cf_im: function(t, g){ return 0; },
+    mgf: function(t, g){ return NaN; },
+    mgfExists: false,
+    vari: function(g){ return Infinity; },
+    paramName: "\u03b3"
+  }
+};
+
+// ── DOM refs ───────────────────────────────────────────────
+var el = function(id){ return document.getElementById(id); };
+var pdfCanvas  = el("pdfCanvas");
+var probeCanvas= el("probeCanvas");
+var cfCanvas   = el("cfCanvas");
+var traceCanvas= el("traceCanvas");
+
+var tSlider = el("tSlider");
+var typeA=el("typeA"), muA=el("muA"), sigA=el("sigA");
+var modeSelect=el("modeSelect");
+var theoryCol=el("theoryCol");
+
+// ── State ──────────────────────────────────────────────────
+function getState(){
+  return {
+    t: parseFloat(tSlider.value),
+    a: { type:typeA.value, mu:parseFloat(muA.value), sig:parseFloat(sigA.value) },
+    mode: modeSelect.value
+  };
+}
+
+// ── Draw PDF ───────────────────────────────────────────────
+function drawPDF(s){
+  var info=CF.canvasSize(pdfCanvas);
+  var w=info.w, h=info.h, ctx=info.ctx;
+  ctx.clearRect(0,0,w,h);
+  var xmin=-8, xmax=8;
+  var baseline = h - 45;
+  var scale = baseline - 20;
+
+  // axis
+  ctx.strokeStyle="#333";ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,baseline);ctx.lineTo(w,baseline);ctx.stroke();
+  for(var xi=Math.ceil(xmin);xi<=Math.floor(xmax);xi++){
+    var px=(xi-xmin)/(xmax-xmin)*w;
+    ctx.beginPath();ctx.moveTo(px,baseline);ctx.lineTo(px,baseline+5);ctx.stroke();
+    if(xi%2===0){ctx.fillStyle="#555";ctx.font="10px monospace";ctx.textAlign="center";ctx.fillText(xi,px,baseline+14);}
+  }
+
+  var distA = DISTRIBUTIONS[s.a.type];
+
+  // Integration shading: p(x)*kernel_re(t,x)
+  var prev = null;
+  for(var i=0;i<w;i++){
+    var x = xmin + (i/w)*(xmax-xmin);
+    var p = distA.pdf(x - s.a.mu, s.a.sig);
+    var v;
+    if(s.mode === "cf"){
+      v = p * Math.cos(s.t * x);
+    } else {
+      v = p * Math.exp(s.t * x);
+      // Clamp for display
+      v = Math.max(-2, Math.min(2, v));
+    }
+    var py = baseline - v * scale;
+    if(prev !== null){
+      ctx.fillStyle = v >= 0 ? "rgba(0,200,100,0.35)" : "rgba(220,50,50,0.35)";
+      ctx.beginPath();
+      ctx.moveTo(i-1, baseline);
+      ctx.lineTo(i-1, prev);
+      ctx.lineTo(i, py);
+      ctx.lineTo(i, baseline);
+      ctx.closePath();
+      ctx.fill();
+    }
+    prev = py;
+  }
+
+  // PDF curve
+  ctx.strokeStyle="#ff6699";ctx.lineWidth=2;
+  ctx.beginPath();
+  for(var i=0;i<w;i++){
+    var x = xmin + (i/w)*(xmax-xmin);
+    var y = distA.pdf(x - s.a.mu, s.a.sig);
+    var py = baseline - y*scale;
+    if(i===0) ctx.moveTo(i,py); else ctx.lineTo(i,py);
+  }
+  ctx.stroke();
+}
+
+// ── Draw Probe ─────────────────────────────────────────────
+function drawProbe(s){
+  var info=CF.canvasSize(probeCanvas);
+  var w=info.w, h=info.h, ctx=info.ctx;
+  ctx.clearRect(0,0,w,h);
+  var xmin=-8,xmax=8;
+  var mid=h/2, amp=h/2-10;
+
+  ctx.strokeStyle="#333";ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,mid);ctx.lineTo(w,mid);ctx.stroke();
+
+  if(s.mode === "cf"){
+    // cos(tx)
+    ctx.strokeStyle="#00d0ff";ctx.lineWidth=1.5;
+    ctx.beginPath();
+    for(var i=0;i<w;i++){
+      var x=xmin+(i/w)*(xmax-xmin);
+      var y=Math.cos(s.t*x);
+      if(i===0)ctx.moveTo(i,mid-y*amp);else ctx.lineTo(i,mid-y*amp);
+    }
+    ctx.stroke();
+
+    // sin(tx)
+    ctx.strokeStyle="#00ff88";ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+    ctx.beginPath();
+    for(var i=0;i<w;i++){
+      var x=xmin+(i/w)*(xmax-xmin);
+      var y=Math.sin(s.t*x);
+      if(i===0)ctx.moveTo(i,mid-y*amp);else ctx.lineTo(i,mid-y*amp);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.font="11px monospace";
+    ctx.fillStyle="#00d0ff";ctx.fillText("cos(tx)",6,14);
+    ctx.fillStyle="#00ff88";ctx.fillText("sin(tx)",80,14);
+  } else {
+    // e^{tx} — exponential kernel
+    ctx.strokeStyle="#44dd88";ctx.lineWidth=1.5;
+    ctx.beginPath();
+    for(var i=0;i<w;i++){
+      var x=xmin+(i/w)*(xmax-xmin);
+      var y=Math.exp(s.t*x);
+      // Normalize to fit display
+      y=Math.min(y,10)/10;
+      if(i===0)ctx.moveTo(i,mid-y*amp);else ctx.lineTo(i,mid-y*amp);
+    }
+    ctx.stroke();
+
+    // e^{-tx} dashed for reference
+    ctx.strokeStyle="#888";ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();
+    for(var i=0;i<w;i++){
+      var x=xmin+(i/w)*(xmax-xmin);
+      var y=Math.exp(-s.t*x);
+      y=Math.min(y,10)/10;
+      if(i===0)ctx.moveTo(i,mid-y*amp);else ctx.lineTo(i,mid-y*amp);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.font="11px monospace";
+    ctx.fillStyle="#44dd88";ctx.fillText("e^{tx}",6,14);
+    ctx.fillStyle="#888";ctx.fillText("e^{-tx}",80,14);
+  }
+}
+
+// ── Draw Phasor / MGF value ────────────────────────────────
+function drawDual(s){
+  var info=CF.canvasSize(cfCanvas);
+  var w=info.w, h=info.h, ctx=info.ctx;
+  ctx.clearRect(0,0,w,h);
+  var distA = DISTRIBUTIONS[s.a.type];
+
+  if(s.mode === "cf"){
+    // ── CF phasor on unit circle ──
+    var cx=w/2, cy=h/2, R=Math.min(w,h)/2-30;
+
+    ctx.strokeStyle="#333";ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(cx,cy,R,0,2*Math.PI);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx-R-10,cy);ctx.lineTo(cx+R+10,cy);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx,cy-R-10);ctx.lineTo(cx,cy+R+10);ctx.stroke();
+
+    ctx.font="11px monospace";ctx.fillStyle="#555";
+    ctx.textAlign="center";
+    ctx.fillText("Re",cx+R+16,cy+4);
+    ctx.fillText("Im",cx+4,cy-R-12);
+
+    // Phasor trail
+    var N=400, tmin=-15, tmax=15;
+    ctx.strokeStyle="#ff6699";ctx.lineWidth=1;ctx.globalAlpha=0.4;
+    ctx.beginPath();
+    for(var i=0;i<=N;i++){
+      var tt=tmin+(i/N)*(tmax-tmin);
+      var cf=CF.cfWithMean(distA, tt, s.a.sig, s.a.mu);
+      var px=cx+cf.re*R, py=cy-cf.im*R;
+      if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+    ctx.globalAlpha=1.0;
+
+    // Current phasor arm
+    var cfNow=CF.cfWithMean(distA, s.t, s.a.sig, s.a.mu);
+    var mag=Math.sqrt(cfNow.re*cfNow.re+cfNow.im*cfNow.im);
+    ctx.strokeStyle="#ff6699";ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+cfNow.re*R,cy-cfNow.im*R);ctx.stroke();
+    ctx.fillStyle="#ff6699";
+    ctx.beginPath();ctx.arc(cx+cfNow.re*R,cy-cfNow.im*R,4,0,2*Math.PI);ctx.fill();
+
+    ctx.font="11px monospace";ctx.fillStyle="#ff6699";ctx.textAlign="left";
+    ctx.fillText("\u03c6: |"+mag.toFixed(3)+"|",cx+cfNow.re*R+8,cy-cfNow.im*R-6);
+
+    return cfNow;
+  } else {
+    // ── MGF real-valued display ──
+    var margin=40;
+    var plotW=w-margin*2, plotH=h-margin*2;
+    var cx=w/2, cy=h/2;
+
+    // Sweep M(t) to find scale
+    var N=400, tmin=-15, tmax=15;
+    var vals=new Float64Array(N+1);
+    var maxVal=0;
+    for(var i=0;i<=N;i++){
+      var tt=tmin+(i/N)*(tmax-tmin);
+      var m=CF.mgfWithMean(distA, tt, s.a.sig, s.a.mu);
+      vals[i]=isFinite(m)?m:NaN;
+      if(isFinite(m)&&Math.abs(m)<1e6) maxVal=Math.max(maxVal,Math.abs(m));
+    }
+    // 95th percentile scaling
+    var sorted=[];
+    for(var i=0;i<=N;i++) if(isFinite(vals[i])) sorted.push(Math.abs(vals[i]));
+    sorted.sort(function(a,b){return a-b;});
+    var yMax=sorted[Math.floor(sorted.length*0.95)]||1;
+    yMax*=1.1;
+
+    function yOf(v){return cy-Math.max(-yMax,Math.min(yMax,v))/yMax*(plotH/2);}
+
+    // Grid
+    ctx.strokeStyle="#333";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(margin,cy);ctx.lineTo(w-margin,cy);ctx.stroke();
+    ctx.setLineDash([2,4]);
+    ctx.beginPath();ctx.moveTo(margin,cy-plotH/2);ctx.lineTo(w-margin,cy-plotH/2);ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.font="9px monospace";ctx.fillStyle="#444";ctx.textAlign="right";
+    ctx.fillText(yMax.toPrecision(3),margin-4,cy-plotH/2+8);
+    ctx.fillText("0",margin-4,cy+3);
+    ctx.fillText("1",margin-4,yOf(1)+3);
+
+    // t-axis labels
+    ctx.textAlign="center";
+    for(var ti=-15;ti<=15;ti+=5){
+      var px=margin+(ti-tmin)/(tmax-tmin)*plotW;
+      ctx.fillStyle="#444";ctx.fillText(ti,px,h-margin+14);
+    }
+
+    // M(1) = 1 reference
+    ctx.strokeStyle="#555";ctx.setLineDash([2,4]);
+    ctx.beginPath();ctx.moveTo(margin,yOf(1));ctx.lineTo(w-margin,yOf(1));ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Sweep curve
+    ctx.strokeStyle="#44dd88";ctx.lineWidth=2;
+    ctx.beginPath();
+    var started=false;
+    for(var i=0;i<=N;i++){
+      var v=vals[i];
+      if(!isFinite(v)){started=false;continue;}
+      var px=margin+(i/N)*plotW;
+      var py=yOf(v);
+      if(!started){ctx.moveTo(px,py);started=true;}
+      else ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+
+    // Current t marker
+    var tFrac=(s.t-tmin)/(tmax-tmin);
+    var tPx=margin+tFrac*plotW;
+    var mNow=CF.mgfWithMean(distA,s.t,s.a.sig,s.a.mu);
+    ctx.strokeStyle="#ffcc00";ctx.lineWidth=1;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(tPx,cy-plotH/2);ctx.lineTo(tPx,cy+plotH/2);ctx.stroke();
+    ctx.setLineDash([]);
+
+    if(isFinite(mNow)){
+      ctx.fillStyle="#ffcc00";
+      ctx.beginPath();ctx.arc(tPx,yOf(mNow),5,0,2*Math.PI);ctx.fill();
+    }
+
+    ctx.fillStyle="#ffcc00";ctx.font="10px monospace";ctx.textAlign="center";
+    ctx.fillText("t="+s.t.toFixed(1),tPx,h-margin+4);
+
+    // Label
+    ctx.font="11px monospace";ctx.fillStyle="#44dd88";ctx.textAlign="left";
+    ctx.fillText("M(t) = E[e^{tX}]",margin+8,margin-8);
+
+    if(!distA.mgfExists){
+      ctx.fillStyle="#cc4444";ctx.font="13px monospace";ctx.textAlign="center";
+      ctx.fillText("MGF does not exist for "+distA.label,cx,cy-20);
+      ctx.fillText("(moments are infinite)",cx,cy+5);
+    }
+
+    return {re:isFinite(mNow)?mNow:0, im:0};
+  }
+}
+
+// ── Draw Trace ─────────────────────────────────────────────
+var TRACE_TMIN = -15, TRACE_TMAX = 15;
+
+function drawTrace(s){
+  var info=CF.canvasSize(traceCanvas);
+  var w=info.w, h=info.h, ctx=info.ctx;
+  ctx.clearRect(0,0,w,h);
+  var tmin=TRACE_TMIN, tmax=TRACE_TMAX;
+  var margin=16;
+  var mid=h/2;
+  var yScale=(h/2 - margin);
+
+  var distA=DISTRIBUTIONS[s.a.type];
+  var N=400;
+
+  if(s.mode === "cf"){
+    // ── CF trace: |phi|, Re, Im vs t ──
+    function yOf(v){ return mid - v*yScale; }
+
+    ctx.strokeStyle="#333";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,yOf(0));ctx.lineTo(w,yOf(0));ctx.stroke();
+    ctx.setLineDash([2,4]);
+    ctx.beginPath();ctx.moveTo(0,yOf(1));ctx.lineTo(w,yOf(1));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,yOf(-1));ctx.lineTo(w,yOf(-1));ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.font="10px monospace";ctx.fillStyle="#444";ctx.textAlign="right";
+    ctx.fillText("1",14,yOf(1)+10);
+    ctx.fillText("0",14,yOf(0)-3);
+    ctx.fillText("-1",14,yOf(-1)-3);
+
+    ctx.textAlign="center";
+    for(var ti=-15;ti<=15;ti+=5){
+      var px=(ti-tmin)/(tmax-tmin)*w;
+      ctx.fillStyle="#444";ctx.fillText(ti,px,h-2);
+    }
+
+    function drawCurve(valFn, color, dash){
+      ctx.strokeStyle=color;ctx.lineWidth=1.5;
+      if(dash) ctx.setLineDash(dash);
+      ctx.beginPath();
+      for(var i=0;i<=N;i++){
+        var tt=tmin+(i/N)*(tmax-tmin);
+        var v=valFn(tt);
+        var px=(i/N)*w;
+        if(i===0) ctx.moveTo(px,yOf(v)); else ctx.lineTo(px,yOf(v));
+      }
+      ctx.stroke();
+      if(dash) ctx.setLineDash([]);
+    }
+
+    // |phi| solid
+    drawCurve(function(tt){
+      var cf=CF.cfWithMean(distA,tt,s.a.sig,s.a.mu);
+      return Math.sqrt(cf.re*cf.re+cf.im*cf.im);
+    }, "#ff6699", null);
+    // Re dotted
+    drawCurve(function(tt){
+      return CF.cfWithMean(distA,tt,s.a.sig,s.a.mu).re;
+    }, "#cc8866", [6,3]);
+    // Im dashed
+    drawCurve(function(tt){
+      return CF.cfWithMean(distA,tt,s.a.sig,s.a.mu).im;
+    }, "#8866aa", [2,3]);
+
+    // vertical indicator
+    var tpx=(s.t-tmin)/(tmax-tmin)*w;
+    ctx.strokeStyle="#ffcc00";ctx.lineWidth=1;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(tpx,yOf(1));ctx.lineTo(tpx,yOf(-1));ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle="#ffcc00";ctx.font="10px monospace";ctx.textAlign="center";
+    ctx.fillText("t="+s.t.toFixed(1),tpx,h-2);
+
+    // legend
+    ctx.font="10px monospace";ctx.textAlign="left";
+    ctx.strokeStyle="#ff6699";ctx.lineWidth=1.5;ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(6,9);ctx.lineTo(26,9);ctx.stroke();
+    ctx.fillStyle="#ff6699";ctx.fillText("|\u03c6|",28,12);
+    ctx.strokeStyle="#cc8866";ctx.setLineDash([6,3]);
+    ctx.beginPath();ctx.moveTo(62,9);ctx.lineTo(82,9);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle="#cc8866";ctx.fillText("Re",84,12);
+    ctx.strokeStyle="#8866aa";ctx.setLineDash([2,3]);
+    ctx.beginPath();ctx.moveTo(102,9);ctx.lineTo(122,9);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle="#8866aa";ctx.fillText("Im",124,12);
+
+  } else {
+    // ── MGF trace: M(t) vs t with auto-scale ──
+    // Compute values
+    var vals=new Float64Array(N+1);
+    var absVals=[];
+    for(var i=0;i<=N;i++){
+      var tt=tmin+(i/N)*(tmax-tmin);
+      var m=CF.mgfWithMean(distA,tt,s.a.sig,s.a.mu);
+      vals[i]=isFinite(m)?m:NaN;
+      if(isFinite(m)) absVals.push(Math.abs(m));
+    }
+    absVals.sort(function(a,b){return a-b;});
+    var yMax=absVals[Math.floor(absVals.length*0.95)]||1;
+    yMax*=1.1;
+
+    function yOf2(v){
+      var clamped=Math.max(-yMax,Math.min(yMax,v));
+      return mid-clamped/yMax*(h/2-margin);
+    }
+
+    // Grid
+    ctx.strokeStyle="#333";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,yOf2(0));ctx.lineTo(w,yOf2(0));ctx.stroke();
+    ctx.setLineDash([2,4]);
+    ctx.beginPath();ctx.moveTo(0,yOf2(1));ctx.lineTo(w,yOf2(1));ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.font="10px monospace";ctx.fillStyle="#444";ctx.textAlign="right";
+    ctx.fillText(yMax.toPrecision(3),34,margin+4);
+    ctx.fillText("0",14,yOf2(0)-3);
+    ctx.fillText("1",14,yOf2(1)+10);
+
+    ctx.textAlign="center";
+    for(var ti=-15;ti<=15;ti+=5){
+      var px=(ti-tmin)/(tmax-tmin)*w;
+      ctx.fillStyle="#444";ctx.fillText(ti,px,h-2);
+    }
+
+    // M(t) curve
+    ctx.strokeStyle="#44dd88";ctx.lineWidth=2;
+    ctx.beginPath();
+    var started=false;
+    for(var i=0;i<=N;i++){
+      var v=vals[i];
+      if(!isFinite(v)){started=false;continue;}
+      var px=(i/N)*w;
+      if(!started){ctx.moveTo(px,yOf2(v));started=true;}
+      else ctx.lineTo(px,yOf2(v));
+    }
+    ctx.stroke();
+
+    // Vertical indicator
+    var tpx=(s.t-tmin)/(tmax-tmin)*w;
+    ctx.strokeStyle="#ffcc00";ctx.lineWidth=1;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(tpx,margin);ctx.lineTo(tpx,h-margin);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle="#ffcc00";ctx.font="10px monospace";ctx.textAlign="center";
+    ctx.fillText("t="+s.t.toFixed(1),tpx,h-2);
+
+    // Legend
+    ctx.font="10px monospace";ctx.textAlign="left";
+    ctx.strokeStyle="#44dd88";ctx.lineWidth=2;ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(6,9);ctx.lineTo(26,9);ctx.stroke();
+    ctx.fillStyle="#44dd88";ctx.fillText("M(t)",28,12);
+
+    if(!distA.mgfExists){
+      ctx.fillStyle="#cc4444";ctx.font="11px monospace";ctx.textAlign="center";
+      ctx.fillText("MGF undefined (heavy tails)",w/2,mid);
+    }
+  }
+}
+
+// ── Populate static theory sections ────────────────────────
+function populateTheory(){
+  el("secCompare").innerHTML =
+    '<p>Both transforms encode a distribution into an analytic function via a kernel:</p>'+
+    '<table>'+
+    '<tr><th></th><th>CF $\\varphi(t)$</th><th>MGF $M(t)$</th></tr>'+
+    '<tr><td>Kernel</td><td>$e^{itx}$ (oscillatory)</td><td>$e^{tx}$ (exponential)</td></tr>'+
+    '<tr><td>Definition</td><td>$E[e^{itX}]$</td><td>$E[e^{tX}]$</td></tr>'+
+    '<tr><td>Output</td><td>Complex</td><td>Real</td></tr>'+
+    '<tr><td>Exists?</td><td>Always</td><td>Sometimes</td></tr>'+
+    '<tr><td>At $t\\!=\\!0$</td><td>$\\varphi(0)=1$</td><td>$M(0)=1$</td></tr>'+
+    '</table>';
+
+  el("secKernel").innerHTML =
+    '<p>The CF and MGF are related by:</p>'+
+    '$$M(t) = \\varphi(-it)$$'+
+    '<p>The CF evaluates the kernel on the <strong>imaginary axis</strong> ($e^{itx}$), '+
+    'while the MGF evaluates it on the <strong>real axis</strong> ($e^{tx}$).</p>'+
+    '<p>The CF kernel $e^{itx}$ oscillates (bounded), so the integral always converges. '+
+    'The MGF kernel $e^{tx}$ grows exponentially, so convergence depends on how fast '+
+    'the PDF tails decay.</p>';
+
+  el("secExistence").innerHTML =
+    '<p>The MGF $M(t) = E[e^{tX}]$ exists in a strip $|t| < R$ when tails decay '+
+    'fast enough to beat the exponential growth of $e^{tx}$.</p>'+
+    '<table>'+
+    '<tr><th>Distribution</th><th>MGF exists?</th><th>Radius $R$</th></tr>'+
+    '<tr><td>Gaussian</td><td>Yes</td><td>$\\infty$</td></tr>'+
+    '<tr><td>Laplace($b$)</td><td>Yes</td><td>$1/b$</td></tr>'+
+    '<tr><td>Uniform</td><td>Yes</td><td>$\\infty$</td></tr>'+
+    '<tr><td>Cauchy</td><td><strong>No</strong></td><td>0</td></tr>'+
+    '</table>'+
+    '<p>Cauchy tails decay as $1/x^2$ &mdash; too slow to overcome $e^{tx}$ growth '+
+    'for any $t \\neq 0$.</p>';
+
+  el("secMoments").innerHTML =
+    '<p>Both transforms encode moments of $X$:</p>'+
+    '$$M(t) = \\sum_{n=0}^{\\infty} \\frac{E[X^n]}{n!}\\,t^n$$'+
+    '<p>So $M^{(n)}(0) = E[X^n]$. The MGF is the <strong>exponential generating function</strong> '+
+    'of the moment sequence.</p>'+
+    '<p>For the CF:</p>'+
+    '$$\\varphi^{(n)}(0) = i^n\\,E[X^n]$$'+
+    '<p>Moments can be extracted from either, but the MGF gives them directly '+
+    'while the CF requires dividing by powers of $i$.</p>';
+
+  el("secDecay").innerHTML =
+    '<p>Light tails $\\Rightarrow$ MGF converges everywhere, CF decays fast.</p>'+
+    '<p>Heavy tails $\\Rightarrow$ MGF may not exist, CF decays slowly.</p>'+
+    '<table>'+
+    '<tr><th>Distribution</th><th>Tail</th><th>$|\\varphi(t)|$ decay</th><th>MGF behavior</th></tr>'+
+    '<tr><td>Gaussian</td><td>$e^{-x^2/2}$</td><td>$e^{-t^2/2}$</td><td>$e^{t^2/2}$ (grows)</td></tr>'+
+    '<tr><td>Laplace</td><td>$e^{-|x|}$</td><td>$1/(1+t^2)$</td><td>$1/(1-t^2)$, $|t|<1$</td></tr>'+
+    '<tr><td>Uniform</td><td>compact</td><td>$\\text{sinc}(t)$</td><td>$\\sinh(t)/t$</td></tr>'+
+    '<tr><td>Cauchy</td><td>$1/x^2$</td><td>$e^{-|t|}$</td><td>DNE</td></tr>'+
+    '</table>';
+
+  renderMathInElement(document.querySelector(".col-theory"),{
+    delimiters:[
+      {left:"$$",right:"$$",display:true},
+      {left:"$",right:"$",display:false}
+    ],
+    throwOnError:false
+  });
+}
+
+// ── Update dynamic values ──────────────────────────────────
+function updateCurrentValues(s, val){
+  var distA=DISTRIBUTIONS[s.a.type];
+  var html='';
+
+  if(s.mode === "cf"){
+    var mag=Math.sqrt(val.re*val.re+val.im*val.im);
+    var ang=Math.atan2(val.im,val.re);
+    html +=
+      '<div class="cv-row">'+
+      '<strong style="color:#ff6699">'+distA.label+'</strong><br>'+
+      '<span style="color:#ff6699">|\u03c6| = '+mag.toFixed(4)+'</span>, '+
+      '\u2220 = '+(ang*180/Math.PI).toFixed(1)+'\u00b0<br>'+
+      '<span style="color:#cc8866">Re = '+val.re.toFixed(4)+'</span> '+
+      '<span style="color:#8866aa">Im = '+val.im.toFixed(4)+'</span>'+
+      '</div>';
+  } else {
+    var mVal=CF.mgfWithMean(distA,s.t,s.a.sig,s.a.mu);
+    html +=
+      '<div class="cv-row">'+
+      '<strong style="color:#44dd88">'+distA.label+'</strong><br>';
+    if(distA.mgfExists && isFinite(mVal)){
+      html += '<span style="color:#44dd88">M(t) = '+mVal.toFixed(4)+'</span><br>';
+      html += '<span style="color:#888">M(0) = 1</span>';
+      if(distA.mgfRadius){
+        html += '<br><span style="color:#888">Converges for |t| < '+
+          distA.mgfRadius(s.a.sig).toFixed(2)+'</span>';
+      }
+    } else if(!distA.mgfExists){
+      html += '<span style="color:#cc4444">MGF does not exist</span><br>'+
+        '<span style="color:#888">Moments are infinite (heavy tails)</span>';
+    } else {
+      html += '<span style="color:#cc4444">M(t) = diverges at this t</span>';
+    }
+    html += '</div>';
+  }
+
+  // Always show CF value for comparison
+  if(s.mode === "mgf"){
+    var cfNow=CF.cfWithMean(distA,s.t,s.a.sig,s.a.mu);
+    var cfMag=Math.sqrt(cfNow.re*cfNow.re+cfNow.im*cfNow.im);
+    html +=
+      '<div class="cv-row" style="margin-top:4px;border-top:1px solid #333;padding-top:4px">'+
+      '<span style="color:#888">CF always exists:</span><br>'+
+      '<span style="color:#ff6699">|\u03c6(t)| = '+cfMag.toFixed(4)+'</span>'+
+      '</div>';
+  }
+
+  el("currentValues").innerHTML=html;
+}
+
+// ── Resize handle ──────────────────────────────────────────
+CF.setupResizeHandle("resizeHandle", "grid", update,
+  function(){ CF.scaleSidebarFont(theoryCol); });
+
+// ── Main update ────────────────────────────────────────────
+function update(){
+  var s=getState();
+
+  el("tVal").textContent=s.t.toFixed(2);
+  el("muAVal").textContent=s.a.mu.toFixed(2);
+  el("sigAVal").textContent=s.a.sig.toFixed(2);
+
+  // Update section titles based on mode
+  el("dualTitle").textContent = s.mode==="cf" ? "Dual Domain (Phasor)" : "Dual Domain (MGF)";
+  el("traceTitle").innerHTML = s.mode==="cf" ? "&phi;(t) vs t" : "M(t) vs t";
+
+  drawPDF(s);
+  drawProbe(s);
+  var val=drawDual(s);
+  drawTrace(s);
+
+  // KaTeX formulas
+  var distA=DISTRIBUTIONS[s.a.type];
+  var pName=distA.paramName;
+  el("formulaLeft").innerHTML =
+    '\\[\\textcolor{#ff6699}{p(x)} \\sim \\text{' + distA.label + '}' +
+    '\\;(\\mu=' + s.a.mu.toFixed(1) + ',\\,' + pName + '=' + s.a.sig.toFixed(1) + ')\\]';
+
+  if(s.mode === "cf"){
+    el("formulaProbe").innerHTML =
+      '\\[\\textcolor{#00d0ff}{e^{i\\,\\textcolor{#ffcc00}{t}\\,x}}' +
+      '= \\cos(\\textcolor{#ffcc00}{t}x)' +
+      '+ i\\sin(\\textcolor{#ffcc00}{t}x)\\]';
+    el("formulaRight").innerHTML =
+      '\\[\\varphi(\\textcolor{#ffcc00}{t})' +
+      '= \\int' +
+      '\\textcolor{#00d0ff}{e^{i\\,\\textcolor{#ffcc00}{t}x}}' +
+      '\\,\\textcolor{#ff6699}{p(x)}\\,dx\\]';
+  } else {
+    el("formulaProbe").innerHTML =
+      '\\[\\textcolor{#44dd88}{e^{\\textcolor{#ffcc00}{t}\\,x}}\\]';
+    el("formulaRight").innerHTML =
+      '\\[M(\\textcolor{#ffcc00}{t})' +
+      '= \\int' +
+      '\\textcolor{#44dd88}{e^{\\textcolor{#ffcc00}{t}x}}' +
+      '\\,\\textcolor{#ff6699}{p(x)}\\,dx\\]';
+  }
+
+  var targets=["formulaLeft","formulaProbe","formulaRight"];
+  for(var i=0;i<targets.length;i++){
+    renderMathInElement(el(targets[i]),{
+      delimiters:[{left:"\\[",right:"\\]",display:true}], throwOnError:false});
+  }
+
+  updateCurrentValues(s, val);
+}
+
+// ── Play/pause animation ───────────────────────────────────
+var anim = CF.setupPlayPause("playBtn", animStep);
+
+function animStep(){
+  if(!anim.animating) return;
+  var t = parseFloat(tSlider.value);
+  t += 0.12;
+  if(t > 15) t = -15;
+  tSlider.value = t.toFixed(2);
+  update();
+  anim.animId = requestAnimationFrame(animStep);
+}
+
+// ── Wire controls ──────────────────────────────────────────
+var sliders = [tSlider,muA,sigA];
+for(var i=0;i<sliders.length;i++) sliders[i].addEventListener("input",update);
+typeA.addEventListener("change",update);
+modeSelect.addEventListener("change",update);
+
+window.addEventListener("resize", function(){ CF.scaleSidebarFont(theoryCol); update(); });
+
+// ── Canvas hover + keyboard ─────────────────────────────────
+CF.setupCanvasHover(traceCanvas, [TRACE_TMIN, TRACE_TMAX], tSlider, update,
+  {animatingFn: function(){ return anim.animating; }});
+
+CF.setupKeyboard(tSlider, 0.1, update, "playBtn");
+
+// ── Init ───────────────────────────────────────────────────
+populateTheory();
+CF.scaleSidebarFont(theoryCol);
+update();
+
+});
+</script>
+</body>
+</html>
