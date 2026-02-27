@@ -200,7 +200,7 @@ The PDF tells you what the distribution looks like. The CF tells you what the di
 
 ---
 
-*This concludes the foundational theory. The ten articles form a self-contained development of the characteristic function from first principles:*
+*The foundational theory is complete. The remaining articles extend it to new transforms and applications.*
 
 | | Article | Core idea |
 |---|---|---|
@@ -214,3 +214,7 @@ The PDF tells you what the distribution looks like. The CF tells you what the di
 | 008 | [Stable Distributions](008_stable-distributions-and-generalized-clt.md) | Generalized CLT; $\alpha$-stable family |
 | 009 | [Joint CF and Dependence](009_joint-cf-and-dependence.md) | Dependence lives off the axes |
 | 010 | [Complete Invariant](010_the-cf-as-complete-invariant.md) | The CF determines everything |
+
+---
+
+*Next: [011: The Scale Transform -- Bridging Fourier and Laplace](011_the-scale-transform.md)*
