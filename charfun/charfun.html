@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Characteristic Function Explorer</title>
+
+<link rel="stylesheet"
+ href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<link rel="stylesheet" href="charfun-base.css">
+<script defer
+ src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer
+ src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script src="charfun-base.js"></script>
+
+<style>
+:root{
+  --col-a:#ff6699;
+  --col-b:#66ccff;
+  --col-probe:#00d0ff;
+  --col-clt:#44dd88;
+  --col-conv:#dddd44;
+}
+
+#grid{grid-template-columns:1fr 1fr 6px var(--sidebar-w)}
+
+#controls .group-a{border-color:var(--col-a)}
+#controls .group-b{border-color:var(--col-b)}
+#controls .group-b .b-inner{transition:opacity 0.15s}
+#controls .group-b.disabled .b-inner{opacity:0.25;pointer-events:none}
+.slider-a{accent-color:var(--col-a)}
+.slider-b{accent-color:var(--col-b)}
+.label-a{color:var(--col-a)}
+.label-b{color:var(--col-b)}
+
+/* CLT +/- stepper */
+.clt-stepper{display:flex;align-items:center;gap:4px}
+.clt-stepper button{
+  background:#333;color:#44dd88;border:1px solid #44dd88;border-radius:3px;
+  width:22px;height:22px;font-size:14px;line-height:1;cursor:pointer;
+  padding:0;display:flex;align-items:center;justify-content:center;
+}
+.clt-stepper button:hover{background:#44dd88;color:#111}
+.clt-stepper .clt-label{color:#44dd88;font-size:12px;min-width:80px;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <button id="playBtn" style="background:#333;color:#ddd;border:1px solid #555;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:14px" title="Play/Pause t sweep">&#9654;</button>
+  <label><span style="color:var(--col-param)">t</span>
+    <input type="range" id="tSlider" min="-15" max="15" step="0.05" value="1" class="slider">
+    <span id="tVal" class="val">1.00</span>
+  </label>
+
+  <div class="group group-a">
+    <span class="label-a">A</span>
+    <select id="typeA">
+      <option value="gaussian">Gaussian</option>
+      <option value="laplace">Laplace</option>
+      <option value="uniform">Uniform</option>
+      <option value="cauchy">Cauchy</option>
+    </select>
+    <label class="label-a">&mu;<input type="range" id="muA" min="-4" max="4" step="0.05" value="0" class="slider slider-a">
+      <span id="muAVal" class="val">0.00</span></label>
+    <label class="label-a">&sigma;<input type="range" id="sigA" min="0.2" max="4" step="0.05" value="1" class="slider slider-a">
+      <span id="sigAVal" class="val">1.00</span></label>
+  </div>
+
+  <div class="group group-b disabled" id="groupB">
+    <label><input type="checkbox" id="toggleB"> <span class="label-b">B</span></label>
+    <span class="b-inner">
+      <select id="typeB">
+        <option value="gaussian">Gaussian</option>
+        <option value="laplace" selected>Laplace</option>
+        <option value="uniform">Uniform</option>
+        <option value="cauchy">Cauchy</option>
+      </select>
+      <label class="label-b">&mu;<input type="range" id="muB" min="-4" max="4" step="0.05" value="0" class="slider slider-b">
+        <span id="muBVal" class="val">0.00</span></label>
+      <label class="label-b">&sigma;<input type="range" id="sigB" min="0.2" max="4" step="0.05" value="1" class="slider slider-b">
+        <span id="sigBVal" class="val">1.00</span></label>
+    </span>
+  </div>
+
+  <div class="group" style="border-color:#44dd88">
+    <div class="clt-stepper">
+      <button id="nMinus" title="Decrease N">&minus;</button>
+      <span id="nLabel" class="clt-label">N=1</span>
+      <button id="nPlus" title="Increase N">+</button>
+    </div>
+    <input type="hidden" id="nSlider" value="1">
+  </div>
+</div>
+
+<div id="grid">
+
+  <div class="col col-spatial">
+    <h3>Spatial Domain</h3>
+    <div id="formulaLeft" class="formula"></div>
+    <canvas id="pdfCanvas" width="600" height="260"></canvas>
+    <h3 style="margin-top:20px">Oscillatory Probe</h3>
+    <div id="formulaProbe" class="formula"></div>
+    <canvas id="probeCanvas" width="600" height="140"></canvas>
+  </div>
+
+  <div class="col col-dual">
+    <h3>Dual Domain (Phasor)</h3>
+    <div id="formulaRight" class="formula"></div>
+    <canvas id="cfCanvas" width="600" height="300"></canvas>
+    <h3>&phi;(t) vs t</h3>
+    <canvas id="traceCanvas" width="600" height="200"></canvas>
+  </div>
+
+  <div id="resizeHandle"></div>
+
+  <div class="col col-theory" id="theoryCol">
+    <h3>Theory</h3>
+
+    <details open>
+      <summary>Definition</summary>
+      <div class="section-body" id="secDefinition"></div>
+    </details>
+
+    <details>
+      <summary>Probe &harr; Trace Connection</summary>
+      <div class="section-body" id="secConnection"></div>
+    </details>
+
+    <details>
+      <summary>Eigenfunction of Translation</summary>
+      <div class="section-body" id="secEigen"></div>
+    </details>
+
+    <details>
+      <summary>Convolution Theorem</summary>
+      <div class="section-body" id="secConvolution"></div>
+    </details>
+
+    <details>
+      <summary>Uniqueness</summary>
+      <div class="section-body" id="secUniqueness"></div>
+    </details>
+
+    <details>
+      <summary>Tail &harr; CF Decay</summary>
+      <div class="section-body" id="secDecay"></div>
+    </details>
+
+    <details>
+      <summary>Central Limit Theorem</summary>
+      <div class="section-body" id="secCLT"></div>
+    </details>
+
+    <details open>
+      <summary>Current Values</summary>
+      <div class="section-body" id="currentValues"></div>
+    </details>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+
+// ── Distribution Registry ──────────────────────────────────
+var SQRT2PI = Math.sqrt(2*Math.PI);
+
+var DISTRIBUTIONS = {
+  gaussian: {
+    label: "Gaussian",
+    pdf: function(x, s){ return Math.exp(-0.5*(x/s)*(x/s)) / (s*SQRT2PI); },
+    cf_re: function(t, s){ return Math.exp(-s*s*t*t/2); },
+    cf_im: function(t, s){ return 0; },
+    vari: function(s){ return s*s; },
+    alpha: 2,
+    paramName: "\u03c3"
+  },
+  laplace: {
+    label: "Laplace",
+    pdf: function(x, b){ return Math.exp(-Math.abs(x)/b) / (2*b); },
+    cf_re: function(t, b){ return 1/(1 + b*b*t*t); },
+    cf_im: function(t, b){ return 0; },
+    vari: function(b){ return 2*b*b; },
+    alpha: 2,
+    paramName: "b"
+  },
+  uniform: {
+    label: "Uniform",
+    pdf: function(x, a){ return Math.abs(x) <= a ? 1/(2*a) : 0; },
+    cf_re: function(t, a){
+      var ta = t*a;
+      if(Math.abs(ta) < 1e-10) return 1;
+      return Math.sin(ta)/ta;
+    },
+    cf_im: function(t, a){ return 0; },
+    vari: function(a){ return a*a/3; },
+    alpha: 2,
+    paramName: "a"
+  },
+  cauchy: {
+    label: "Cauchy",
+    pdf: function(x, g){ return 1/(Math.PI*g*(1+(x/g)*(x/g))); },
+    cf_re: function(t, g){ return Math.exp(-g*Math.abs(t)); },
+    cf_im: function(t, g){ return 0; },
+    vari: function(g){ return Infinity; },
+    alpha: 1,
+    paramName: "\u03b3"
+  }
+};
+
+// ── DOM refs ───────────────────────────────────────────────
+var el = function(id){ return document.getElementById(id); };
+var pdfCanvas  = el("pdfCanvas");
+var probeCanvas= el("probeCanvas");
+var cfCanvas   = el("cfCanvas");
+var traceCanvas= el("traceCanvas");
+
+var tSlider = el("tSlider");
+var typeA=el("typeA"), muA=el("muA"), sigA=el("sigA");
+var typeB=el("typeB"), muB=el("muB"), sigB=el("sigB");
+var toggleB=el("toggleB"), groupB=el("groupB");
+var nSlider=el("nSlider");
+var nMinus=el("nMinus"), nPlus=el("nPlus"), nLabel=el("nLabel");
+var theoryCol=el("theoryCol");
+
+// ── State ──────────────────────────────────────────────────
+function getState(){
+  return {
+    t: parseFloat(tSlider.value),
+    a: { type:typeA.value, mu:parseFloat(muA.value), sig:parseFloat(sigA.value) },
+    b: { type:typeB.value, mu:parseFloat(muB.value), sig:parseFloat(sigB.value), on:toggleB.checked },
+    n: parseInt(nSlider.value)
+  };
+}
+
+// ── CLT CF: phi(t / N^{1/alpha})^N ──────────────────────────
+function cltCF(dist, t, sig, n){
+  var norm = Math.pow(n, 1/dist.alpha);
+  var ts = t / norm;
+  var re0 = dist.cf_re(ts, sig);
+  var im0 = dist.cf_im(ts, sig);
+  return CF.complexPow(re0, im0, n);
+}
+
+// ── Inverse FT: compute PDF from CF function ────────────────
+function computePDFviaCF(cfFn, xmin, xmax, Nx){
+  var tmax = 25, Nt = 256;
+  var dt = 2*tmax/Nt;
+  var result = new Float64Array(Nx);
+  for(var ix=0; ix<Nx; ix++){
+    var x = xmin + (ix/(Nx-1))*(xmax-xmin);
+    var sum = 0;
+    for(var it=0; it<Nt; it++){
+      var t = -tmax + it*dt;
+      var cf = cfFn(t);
+      sum += (cf.re*Math.cos(t*x) + cf.im*Math.sin(t*x)) * dt;
+    }
+    result[ix] = sum / (2*Math.PI);
+  }
+  return result;
+}
+
+// ── Draw PDF ───────────────────────────────────────────────
+function drawPDF(s){
+  var info=CF.canvasSize(pdfCanvas);
+  var w=info.w, h=info.h, ctx=info.ctx;
+  ctx.clearRect(0,0,w,h);
+  var xmin=-8, xmax=8;
+  var baseline = h - 45;
+  var scale = baseline - 20;
+
+  // axis
+  ctx.strokeStyle="#333";ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,baseline);ctx.lineTo(w,baseline);ctx.stroke();
+  for(var xi=Math.ceil(xmin);xi<=Math.floor(xmax);xi++){
+    var px=(xi-xmin)/(xmax-xmin)*w;
+    ctx.beginPath();ctx.moveTo(px,baseline);ctx.lineTo(px,baseline+5);ctx.stroke();
+    if(xi%2===0){ctx.fillStyle="#555";ctx.font="10px monospace";ctx.textAlign="center";ctx.fillText(xi,px,baseline+14);}
+  }
+
+  function drawCurve(dist, mu, sig, color){
+    ctx.strokeStyle=color;ctx.lineWidth=2;
+    ctx.beginPath();
+    for(var i=0;i<w;i++){
+      var x = xmin + (i/w)*(xmax-xmin);
+      var y = dist.pdf(x - mu, sig);
+      var py = baseline - y*scale;
+      if(i===0) ctx.moveTo(i,py); else ctx.lineTo(i,py);
+    }
+    ctx.stroke();
+  }
+
+  // ── Integration shading: p(x)*cos(tx) ──────────────────
+  function drawIntegrand(dist, mu, sig, posColor, negColor){
+    var prev = null;
+    for(var i=0;i<w;i++){
+      var x = xmin + (i/w)*(xmax-xmin);
+      var p = dist.pdf(x - mu, sig);
+      var v = p * Math.cos(s.t * x);
+      var py = baseline - v * scale;
+      if(prev !== null){
+        ctx.fillStyle = v >= 0 ? posColor : negColor;
+        ctx.beginPath();
+        ctx.moveTo(i-1, baseline);
+        ctx.lineTo(i-1, prev);
+        ctx.lineTo(i, py);
+        ctx.lineTo(i, baseline);
+        ctx.closePath();
+        ctx.fill();
+      }
+      prev = py;
+    }
+  }
+
+  var distA = DISTRIBUTIONS[s.a.type];
+  drawIntegrand(distA, s.a.mu, s.a.sig, "rgba(0,200,100,0.35)", "rgba(220,50,50,0.35)");
+
+  if(s.b.on){
+    var distB = DISTRIBUTIONS[s.b.type];
+    drawIntegrand(distB, s.b.mu, s.b.sig, "rgba(0,150,220,0.25)", "rgba(180,80,200,0.25)");
+  }
+
+  // Draw PDF curves on top of shading
+  drawCurve(DISTRIBUTIONS[s.a.type], s.a.mu, s.a.sig, "#ff6699");
+
+  if(s.b.on){
+    drawCurve(DISTRIBUTIONS[s.b.type], s.b.mu, s.b.sig, "#66ccff");
+  }
+
+  // ── CLT PDF via inverse FT (green) ────────────────────────
+  if(s.n > 1){
+    var distAclt = DISTRIBUTIONS[s.a.type];
+    var vclt = distAclt.vari(s.a.sig);
+
+    // Gaussian limit PDF reference (underneath, dashed)
+    if(isFinite(vclt)){
+      ctx.strokeStyle="#ffffff";ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+      ctx.globalAlpha=0.6;
+      ctx.beginPath();
+      for(var i=0;i<w;i++){
+        var x = xmin + (i/w)*(xmax-xmin);
+        var y = Math.exp(-0.5*x*x/vclt) / (Math.sqrt(2*Math.PI*vclt));
+        var py = baseline - y*scale;
+        if(i===0) ctx.moveTo(i,py); else ctx.lineTo(i,py);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);ctx.globalAlpha=1.0;
+    }
+
+    // CLT sum PDF (solid green)
+    var Npx = Math.round(w);
+    var pdfData = computePDFviaCF(function(t){
+      return cltCF(distAclt, t, s.a.sig, s.n);
+    }, xmin, xmax, Npx);
+    ctx.strokeStyle="#44dd88";ctx.lineWidth=2;
+    ctx.beginPath();
+    for(var i=0;i<pdfData.length;i++){
+      var py = baseline - Math.max(0, pdfData[i]) * scale;
+      if(i===0) ctx.moveTo(i,py); else ctx.lineTo(i,py);
+    }
+    ctx.stroke();
+
+    // Labels
+    var normStr = distAclt.alpha===1 ? "N" : "\u221aN";
+    ctx.font="10px monospace";ctx.textAlign="left";
+    ctx.fillStyle="#44dd88";
+    ctx.fillText("PDF of S\u2099 = (X\u2081+\u2026+X\u2099)/"+normStr, 6, 14);
+    if(distAclt.alpha===1){
+      ctx.fillStyle="#888";
+      ctx.fillText("Cauchy: stable under summation, stays Cauchy(\u03b3)", 6, 26);
+    } else if(isFinite(vclt)){
+      ctx.fillStyle="#888";
+      ctx.fillText("-- N(0,\u03c3\u00b2) limit", 6, 26);
+    }
+  }
+
+  // ── A*B convolution PDF (yellow) when B is on ──────────────
+  if(s.b.on){
+    var dA = DISTRIBUTIONS[s.a.type];
+    var dB = DISTRIBUTIONS[s.b.type];
+    var Npx2 = Math.round(w);
+    var convPdf = computePDFviaCF(function(t){
+      var cfA = CF.cfWithMean(dA, t, s.a.sig, s.a.mu);
+      var cfB = CF.cfWithMean(dB, t, s.b.sig, s.b.mu);
+      return CF.complexMul(cfA, cfB);
+    }, xmin, xmax, Npx2);
+    ctx.strokeStyle="#dddd44";ctx.lineWidth=2;
+    ctx.beginPath();
+    for(var i=0;i<convPdf.length;i++){
+      var py = baseline - Math.max(0, convPdf[i]) * scale;
+      if(i===0) ctx.moveTo(i,py); else ctx.lineTo(i,py);
+    }
+    ctx.stroke();
+  }
+}
+
+// ── Draw Probe ─────────────────────────────────────────────
+function drawProbe(s){
+  var info=CF.canvasSize(probeCanvas);
+  var w=info.w, h=info.h, ctx=info.ctx;
+  ctx.clearRect(0,0,w,h);
+  var xmin=-8,xmax=8;
+  var mid=h/2, amp=h/2-10;
+
+  ctx.strokeStyle="#333";ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,mid);ctx.lineTo(w,mid);ctx.stroke();
+
+  ctx.strokeStyle="#00d0ff";ctx.lineWidth=1.5;
+  ctx.beginPath();
+  for(var i=0;i<w;i++){
+    var x=xmin+(i/w)*(xmax-xmin);
+    var y=Math.cos(s.t*x);
+    if(i===0)ctx.moveTo(i,mid-y*amp);else ctx.lineTo(i,mid-y*amp);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle="#00ff88";ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  for(var i=0;i<w;i++){
+    var x=xmin+(i/w)*(xmax-xmin);
+    var y=Math.sin(s.t*x);
+    if(i===0)ctx.moveTo(i,mid-y*amp);else ctx.lineTo(i,mid-y*amp);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.font="11px monospace";
+  ctx.fillStyle="#00d0ff";ctx.fillText("cos(tx)",6,14);
+  ctx.fillStyle="#00ff88";ctx.fillText("sin(tx)",80,14);
+}
+
+// ── Draw Phasor (unit circle) ──────────────────────────────
+function drawPhasor(s){
+  var info=CF.canvasSize(cfCanvas);
+  var w=info.w, h=info.h, ctx=info.ctx;
+  ctx.clearRect(0,0,w,h);
+  var cx=w/2, cy=h/2, R=Math.min(w,h)/2-30;
+
+  ctx.strokeStyle="#333";ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(cx,cy,R,0,2*Math.PI);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-R-10,cy);ctx.lineTo(cx+R+10,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,cy-R-10);ctx.lineTo(cx,cy+R+10);ctx.stroke();
+
+  ctx.font="11px monospace";ctx.fillStyle="#555";
+  ctx.textAlign="center";
+  ctx.fillText("Re",cx+R+16,cy+4);
+  ctx.fillText("Im",cx+4,cy-R-12);
+
+  // ── Phasor trail: full parametric CF curve phi(t) ──────────
+  function drawTrail(dist, sig, mu, color){
+    var N = 400;
+    var tmin = -15, tmax = 15;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.4;
+    ctx.beginPath();
+    for(var i=0;i<=N;i++){
+      var tt = tmin + (i/N)*(tmax - tmin);
+      var cf = CF.cfWithMean(dist, tt, sig, mu);
+      var px = cx + cf.re * R;
+      var py = cy - cf.im * R;
+      if(i===0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1.0;
+
+    // Bright dot at current t on the trail
+    var cfNow = CF.cfWithMean(dist, s.t, sig, mu);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx + cfNow.re*R, cy - cfNow.im*R, 3, 0, 2*Math.PI);
+    ctx.fill();
+  }
+
+  var distA = DISTRIBUTIONS[s.a.type];
+  drawTrail(distA, s.a.sig, s.a.mu, "#ff6699");
+  if(s.b.on){
+    drawTrail(DISTRIBUTIONS[s.b.type], s.b.sig, s.b.mu, "#66ccff");
+  }
+
+  function drawArm(re, im, color, label){
+    var mag=Math.sqrt(re*re+im*im);
+    ctx.strokeStyle=color;ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+re*R,cy-im*R);ctx.stroke();
+    ctx.fillStyle=color;
+    ctx.beginPath();ctx.arc(cx+re*R,cy-im*R,4,0,2*Math.PI);ctx.fill();
+    ctx.font="11px monospace";ctx.fillStyle=color;ctx.textAlign="left";
+    ctx.fillText(label+": |"+mag.toFixed(3)+"|",cx+re*R+8,cy-im*R-6);
+  }
+
+  var cfA=CF.cfWithMean(distA,s.t,s.a.sig,s.a.mu);
+  drawArm(cfA.re, cfA.im, "#ff6699", "A");
+
+  if(s.b.on){
+    var distB=DISTRIBUTIONS[s.b.type];
+    var cfB=CF.cfWithMean(distB,s.t,s.b.sig,s.b.mu);
+    drawArm(cfB.re, cfB.im, "#66ccff", "B");
+    // A*B product arm (yellow)
+    var cfAB=CF.complexMul(cfA,cfB);
+    drawArm(cfAB.re, cfAB.im, "#dddd44", "A\u00b7B");
+  }
+
+  // CLT arm: phi(t/sqrt(N))^N (green)
+  if(s.n > 1){
+    var cfCLT=cltCF(distA, s.t, s.a.sig, s.n);
+    drawArm(cfCLT.re, cfCLT.im, "#44dd88", "N="+s.n);
+  }
+
+  return cfA;
+}
+
+// ── Draw CF trace: Re, Im, |phi| vs t ────────────────────────
+var TRACE_TMIN = -15, TRACE_TMAX = 15;
+
+function drawTrace(s){
+  var info=CF.canvasSize(traceCanvas);
+  var w=info.w, h=info.h, ctx=info.ctx;
+  ctx.clearRect(0,0,w,h);
+  var tmin=TRACE_TMIN, tmax=TRACE_TMAX;
+  var margin=16;
+  var mid=h/2;
+  var yScale=(h/2 - margin);
+
+  function yOf(v){ return mid - v*yScale; }
+
+  // grid lines
+  ctx.strokeStyle="#333";ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,yOf(0));ctx.lineTo(w,yOf(0));ctx.stroke();
+  ctx.setLineDash([2,4]);
+  ctx.beginPath();ctx.moveTo(0,yOf(1));ctx.lineTo(w,yOf(1));ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,yOf(-1));ctx.lineTo(w,yOf(-1));ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.font="10px monospace";ctx.fillStyle="#444";ctx.textAlign="right";
+  ctx.fillText("1",14,yOf(1)+10);
+  ctx.fillText("0",14,yOf(0)-3);
+  ctx.fillText("-1",14,yOf(-1)-3);
+
+  // t-axis ticks
+  ctx.textAlign="center";
+  for(var ti=-15;ti<=15;ti+=5){
+    var px=(ti-tmin)/(tmax-tmin)*w;
+    ctx.fillStyle="#444";ctx.fillText(ti,px,h-2);
+  }
+
+  var N=400;
+
+  function drawCurve(valFn, color, dash){
+    ctx.strokeStyle=color;ctx.lineWidth=1.5;
+    if(dash) ctx.setLineDash(dash);
+    ctx.beginPath();
+    for(var i=0;i<=N;i++){
+      var tt=tmin+(i/N)*(tmax-tmin);
+      var v=valFn(tt);
+      var px=(i/N)*w;
+      if(i===0) ctx.moveTo(px,yOf(v)); else ctx.lineTo(px,yOf(v));
+    }
+    ctx.stroke();
+    if(dash) ctx.setLineDash([]);
+  }
+
+  // Muted color pairs: Re gets warm muted, Im gets cool muted
+  var mutedColors = {
+    "#ff6699": {re:"#cc8866", im:"#8866aa"},
+    "#66ccff": {re:"#66aa88", im:"#7788bb"},
+    "#44dd88": {re:"#99aa55", im:"#558899"}
+  };
+
+  function drawDistCurves(dist, sig, mu, baseColor){
+    var muted = mutedColors[baseColor] || {re:"#999", im:"#777"};
+    // |phi| solid bright
+    drawCurve(function(tt){
+      var cf=CF.cfWithMean(dist,tt,sig,mu);
+      return Math.sqrt(cf.re*cf.re+cf.im*cf.im);
+    }, baseColor, null);
+
+    // Re(phi) dotted, muted warm
+    drawCurve(function(tt){
+      return CF.cfWithMean(dist,tt,sig,mu).re;
+    }, muted.re, [6,3]);
+
+    // Im(phi) dashed, muted cool
+    drawCurve(function(tt){
+      return CF.cfWithMean(dist,tt,sig,mu).im;
+    }, muted.im, [2,3]);
+  }
+
+  var distA=DISTRIBUTIONS[s.a.type];
+  drawDistCurves(distA, s.a.sig, s.a.mu, "#ff6699");
+
+  if(s.b.on){
+    var distB=DISTRIBUTIONS[s.b.type];
+    drawDistCurves(distB, s.b.sig, s.b.mu, "#66ccff");
+
+    // A*B product CF |phi| (yellow)
+    drawCurve(function(tt){
+      var a=CF.cfWithMean(distA,tt,s.a.sig,s.a.mu);
+      var b=CF.cfWithMean(distB,tt,s.b.sig,s.b.mu);
+      var p=CF.complexMul(a,b);
+      return Math.sqrt(p.re*p.re+p.im*p.im);
+    }, "#dddd44", null);
+  }
+
+  // CLT: phi(t/sqrt(N))^N curves (green) + Gaussian reference
+  if(s.n > 1){
+    var isGaussianDist = (s.a.type === "gaussian");
+    var v=distA.vari(s.a.sig);
+
+    // Gaussian limit reference first (underneath): exp(-sigma^2 * t^2 / 2)
+    if(isFinite(v)){
+      ctx.globalAlpha=0.5;
+      drawCurve(function(tt){ return Math.exp(-v*tt*tt/2); }, "#ffffff", [4,4]);
+      ctx.globalAlpha=1.0;
+      ctx.font="10px monospace";ctx.fillStyle="#888";ctx.textAlign="left";
+      ctx.fillText("-- limit: exp(-\u03c3\u00b2t\u00b2/2)",140,12);
+    }
+
+    // CLT |phi| on top
+    drawCurve(function(tt){
+      var c=cltCF(distA,tt,s.a.sig,s.n);
+      return Math.sqrt(c.re*c.re+c.im*c.im);
+    }, "#44dd88", null);
+    // CLT Re (muted warm)
+    drawCurve(function(tt){
+      return cltCF(distA,tt,s.a.sig,s.n).re;
+    }, "#99aa55", [6,3]);
+    // CLT Im (muted cool)
+    drawCurve(function(tt){
+      return cltCF(distA,tt,s.a.sig,s.n).im;
+    }, "#558899", [2,3]);
+
+    // On-canvas label for green
+    ctx.font="10px monospace";ctx.fillStyle="#44dd88";ctx.textAlign="left";
+    var normStr = distA.alpha===1 ? "N" : "\u221aN";
+    var cltDesc = "\u03c6(t/"+normStr+")\u207f  S\u2099 = (X\u2081+\u2026+X\u2099)/"+normStr;
+    ctx.fillText(cltDesc, 140, 24);
+    if(isGaussianDist){
+      ctx.fillStyle="#888";
+      ctx.fillText("Gaussian is already the CLT fixed point!", 140, 36);
+    } else if(distA.alpha===1){
+      ctx.fillStyle="#888";
+      ctx.fillText("Cauchy is stable: sum of Cauchy = Cauchy", 140, 36);
+    }
+  }
+
+  // vertical indicator at current t
+  var tpx=(s.t-tmin)/(tmax-tmin)*w;
+  ctx.strokeStyle="#ffcc00";ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(tpx,yOf(1));ctx.lineTo(tpx,yOf(-1));ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle="#ffcc00";ctx.font="10px monospace";ctx.textAlign="center";
+  ctx.fillText("t="+s.t.toFixed(1),tpx,h-2);
+
+  // legend
+  ctx.font="10px monospace";ctx.textAlign="left";
+  var baseCol = "#ff6699";
+  var mc = mutedColors[baseCol];
+  // |phi| solid
+  ctx.strokeStyle=baseCol;ctx.lineWidth=1.5;ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(6,9);ctx.lineTo(26,9);ctx.stroke();
+  ctx.fillStyle=baseCol;ctx.fillText("|phi|",28,12);
+  // Re dotted
+  ctx.strokeStyle=mc.re;ctx.setLineDash([6,3]);
+  ctx.beginPath();ctx.moveTo(62,9);ctx.lineTo(82,9);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle=mc.re;ctx.fillText("Re",84,12);
+  // Im dashed
+  ctx.strokeStyle=mc.im;ctx.setLineDash([2,3]);
+  ctx.beginPath();ctx.moveTo(102,9);ctx.lineTo(122,9);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle=mc.im;ctx.fillText("Im",124,12);
+}
+
+// ── Populate static theory sections ────────────────────────
+function populateTheory(){
+  el("secDefinition").innerHTML =
+    '<p>The characteristic function of a random variable $X$ is:</p>' +
+    '$$\\varphi_X(t) = E[e^{itX}] = \\int_{-\\infty}^{\\infty} e^{itx} f(x)\\,dx$$' +
+    '<p>It is the Fourier transform of the PDF (with sign convention $e^{+itx}$). ' +
+    'It always exists and $\\varphi(0)=1$.</p>';
+
+  el("secConnection").innerHTML =
+    '<p>The <span style="color:#00d0ff">blue</span> and <span style="color:#00ff88">green</span> ' +
+    'sine waves in the <strong>Probe</strong> are the <em>test functions</em> ' +
+    '$\\cos(tx)$ and $\\sin(tx)$ &mdash; the real and imaginary parts of $e^{itx}$. ' +
+    'They are functions of <strong>x</strong> at a fixed $t$.</p>' +
+    '<p>The <span style="color:#cc8866">Re</span> and <span style="color:#8866aa">Im</span> ' +
+    'curves on the <strong>Trace</strong> are the <em>result</em> of integrating ' +
+    '$p(x) \\cdot e^{itx}$ over all $x$. They are functions of <strong>t</strong>.</p>' +
+    '<p><strong>The connection:</strong> at each $t$, multiply the blue cosine against the pink PDF, ' +
+    'integrate (that\'s the <span style="color:#0c8">green</span>/<span style="color:#d33">red</span> shading), ' +
+    'and you get one point on the Re trace. Same with the green sine for Im. ' +
+    'Sweep $t$ and you trace out the full CF.</p>';
+
+  el("secEigen").innerHTML =
+    '<p>The exponential $e^{itx}$ is an <strong>eigenfunction</strong> of the translation operator $T_\\mu$:</p>' +
+    '$$T_\\mu[e^{itx}] = e^{it(x-\\mu)} = e^{-it\\mu} \\cdot e^{itx}$$' +
+    '<p>Eigenvalue: $\\lambda = e^{-it\\mu}$</p>' +
+    '<p>For the CF this means:</p>' +
+    '$$\\varphi_{X+\\mu}(t) = e^{i\\mu t} \\cdot \\varphi_X(t)$$' +
+    '<p><strong>Drag the $\\mu$ slider</strong> to see this: the phasor ' +
+    '<em>rotates</em> (phase change) without changing length. ' +
+    'The magnitude $|\\varphi|$ is shift-invariant.</p>';
+
+  el("secConvolution").innerHTML =
+    '<p>If $X$ and $Y$ are independent:</p>' +
+    '$$\\varphi_{X+Y}(t) = \\varphi_X(t) \\cdot \\varphi_Y(t)$$' +
+    '<p>Convolution in spatial domain becomes multiplication in the dual domain. ' +
+    'This is why characteristic functions simplify the study of sums of ' +
+    'independent random variables.</p>';
+
+  el("secUniqueness").innerHTML =
+    '<p>The CF uniquely determines the distribution:</p>' +
+    '$$\\varphi_X = \\varphi_Y \\iff X \\stackrel{d}{=} Y$$' +
+    '<p>Inversion formula:</p>' +
+    '$$f(x) = \\frac{1}{2\\pi}\\int_{-\\infty}^{\\infty} e^{-itx}\\varphi(t)\\,dt$$';
+
+  el("secDecay").innerHTML =
+    '<p>Tail behavior of the PDF determines CF smoothness/decay:</p>' +
+    '<table>' +
+    '<tr><th>Distribution</th><th>PDF tail</th><th>$|\\varphi(t)|$ decay</th></tr>' +
+    '<tr><td>Gaussian</td><td>$e^{-x^2/2}$</td><td>$e^{-t^2/2}$ (Gaussian)</td></tr>' +
+    '<tr><td>Laplace</td><td>$e^{-|x|}$</td><td>$1/(1+t^2)$ (algebraic)</td></tr>' +
+    '<tr><td>Uniform</td><td>compact</td><td>$\\text{sinc}(t)$ (oscillating)</td></tr>' +
+    '<tr><td>Cauchy</td><td>$1/x^2$ (heavy)</td><td>$e^{-|t|}$ (exponential)</td></tr>' +
+    '</table>' +
+    '<p>Heavier tails $\\Rightarrow$ smoother CF. Lighter tails $\\Rightarrow$ faster CF decay.</p>';
+
+  el("secCLT").innerHTML =
+    '<p>The <strong>Central Limit Theorem</strong>: if $X_1,\\ldots,X_N$ are i.i.d. with variance $\\sigma^2$, then:</p>' +
+    '$$S_N = \\frac{X_1+\\cdots+X_N}{\\sqrt{N}} \\xrightarrow{d} N(0,\\sigma^2)$$' +
+    '<p>In CF language:</p>' +
+    '$$\\varphi_{S_N}(t) = \\left[\\varphi_X\\!\\left(\\frac{t}{\\sqrt{N}}\\right)\\right]^N \\to e^{-\\sigma^2 t^2/2}$$' +
+    '<p>The <span style="color:#44dd88">green curve</span> shows $\\varphi_{S_N}$ converging to the ' +
+    '<span style="color:#fff">white dashed</span> Gaussian limit as N increases.</p>' +
+    '<p><strong>Cauchy exception:</strong> $\\sigma^2=\\infty$, so the CLT does not apply. ' +
+    'The sum of N Cauchy r.v.s stays Cauchy!</p>';
+
+  renderMathInElement(document.querySelector(".col-theory"),{
+    delimiters:[
+      {left:"$$",right:"$$",display:true},
+      {left:"$",right:"$",display:false}
+    ],
+    throwOnError:false
+  });
+}
+
+// ── Update dynamic "Current Values" section ────────────────
+function updateCurrentValues(s, cfA, cfB){
+  var magA=Math.sqrt(cfA.re*cfA.re+cfA.im*cfA.im);
+  var angA=Math.atan2(cfA.im,cfA.re);
+  var html =
+    '<div class="cv-row">' +
+    '<strong style="color:#ff6699">A (' + DISTRIBUTIONS[s.a.type].label + ')</strong><br>' +
+    '<span style="color:#ff6699">|&phi;| = ' + magA.toFixed(4) + '</span>, &ang; = ' + (angA*180/Math.PI).toFixed(1) + '&deg;<br>' +
+    '<span style="color:#cc8866">Re = ' + cfA.re.toFixed(4) + '</span> ' +
+    '<span style="color:#8866aa">Im = ' + cfA.im.toFixed(4) + '</span>' +
+    '</div>';
+  if(s.b.on && cfB){
+    var magB=Math.sqrt(cfB.re*cfB.re+cfB.im*cfB.im);
+    var angB=Math.atan2(cfB.im,cfB.re);
+    html +=
+      '<div class="cv-row">' +
+      '<strong style="color:#66ccff">B (' + DISTRIBUTIONS[s.b.type].label + ')</strong><br>' +
+      '<span style="color:#66ccff">|&phi;| = ' + magB.toFixed(4) + '</span>, &ang; = ' + (angB*180/Math.PI).toFixed(1) + '&deg;<br>' +
+      '<span style="color:#66aa88">Re = ' + cfB.re.toFixed(4) + '</span> ' +
+      '<span style="color:#7788bb">Im = ' + cfB.im.toFixed(4) + '</span>' +
+      '</div>';
+    // A*B product
+    var cfAB=CF.complexMul(cfA,cfB);
+    var magAB=Math.sqrt(cfAB.re*cfAB.re+cfAB.im*cfAB.im);
+    html +=
+      '<div class="cv-row" style="color:#dddd44">' +
+      '<strong>A&middot;B</strong> |&phi;| = ' + magAB.toFixed(4) +
+      '</div>';
+  }
+  if(s.n > 1){
+    var distAn=DISTRIBUTIONS[s.a.type];
+    var cfCLT=cltCF(distAn, s.t, s.a.sig, s.n);
+    var magCLT=Math.sqrt(cfCLT.re*cfCLT.re+cfCLT.im*cfCLT.im);
+    var v=distAn.vari(s.a.sig);
+    var distNm=DISTRIBUTIONS[s.a.type].label;
+    var alph = distAn.alpha;
+    var normHtml = alph===1 ? 'N' : '&radic;'+s.n;
+    var normCf = alph===1 ? 'N' : '&radic;'+s.n;
+    html +=
+      '<div class="cv-row" style="color:#44dd88">' +
+      '<strong>S<sub>'+s.n+'</sub> = (X<sub>1</sub>+&hellip;+X<sub>'+s.n+'</sub>) / '+normHtml+'</strong><br>' +
+      'each X<sub>i</sub> ~ '+distNm+'<br>' +
+      '&phi;<sub>S</sub>(t) = [&phi;<sub>X</sub>(t/'+normCf+')]<sup>'+s.n+'</sup><br>' +
+      '|&phi;<sub>S</sub>| = ' + magCLT.toFixed(4);
+    if(s.a.type === "gaussian"){
+      html += '<br><em>Gaussian &rarr; Gaussian for all N</em>';
+    } else if(alph===1){
+      html += '<br><em>Stable: stays Cauchy(&gamma;) for all N</em>';
+    } else if(isFinite(v)){
+      html += '<br>limit: N(0, '+v.toFixed(2)+') as N&rarr;&infin;';
+    }
+    html += '</div>';
+  }
+  el("currentValues").innerHTML = html;
+}
+
+// ── B toggle ───────────────────────────────────────────────
+function updateBState(){
+  if(toggleB.checked) groupB.classList.remove("disabled");
+  else groupB.classList.add("disabled");
+}
+
+// ── Resize handle ──────────────────────────────────────────
+CF.setupResizeHandle("resizeHandle", "grid", update,
+  function(){ CF.scaleSidebarFont(theoryCol); });
+
+// ── Main update ────────────────────────────────────────────
+function update(){
+  var s=getState();
+
+  el("tVal").textContent=s.t.toFixed(2);
+  el("muAVal").textContent=s.a.mu.toFixed(2);
+  el("sigAVal").textContent=s.a.sig.toFixed(2);
+  el("muBVal").textContent=s.b.mu.toFixed(2);
+  el("sigBVal").textContent=s.b.sig.toFixed(2);
+  var distALabel=DISTRIBUTIONS[s.a.type].label;
+  nLabel.textContent = s.n===1 ? "N=1" : "N="+s.n+" of "+distALabel;
+
+  updateBState();
+  drawPDF(s);
+  drawProbe(s);
+  var cfA=drawPhasor(s);
+  drawTrace(s);
+
+  // ── Three KaTeX equations ──────────────────────────────────
+  var distLabel = DISTRIBUTIONS[s.a.type].label;
+  var pName = DISTRIBUTIONS[s.a.type].paramName;
+  el("formulaLeft").innerHTML =
+    '\\[\\textcolor{#ff6699}{p(x)} \\sim \\text{' + distLabel + '}' +
+    '\\;(\\mu=' + s.a.mu.toFixed(1) + ',\\,' + pName + '=' + s.a.sig.toFixed(1) + ')\\]';
+
+  el("formulaProbe").innerHTML =
+    '\\[\\textcolor{#00d0ff}{e^{i\\,\\textcolor{#ffcc00}{t}\\,x}}' +
+    '= \\cos(\\textcolor{#ffcc00}{t}x)' +
+    '+ i\\sin(\\textcolor{#ffcc00}{t}x)\\]';
+
+  el("formulaRight").innerHTML =
+    '\\[\\varphi(\\textcolor{#ffcc00}{t})' +
+    '= \\int' +
+    '\\textcolor{#00d0ff}{e^{i\\,\\textcolor{#ffcc00}{t}x}}' +
+    '\\,\\textcolor{#ff6699}{p(x)}\\,dx\\]';
+
+  renderMathInElement(el("formulaLeft"),{
+    delimiters:[{left:"\\[",right:"\\]",display:true}], throwOnError:false});
+  renderMathInElement(el("formulaProbe"),{
+    delimiters:[{left:"\\[",right:"\\]",display:true}], throwOnError:false});
+  renderMathInElement(el("formulaRight"),{
+    delimiters:[{left:"\\[",right:"\\]",display:true}], throwOnError:false});
+
+  var cfB=null;
+  if(s.b.on){
+    var distB=DISTRIBUTIONS[s.b.type];
+    cfB=CF.cfWithMean(distB,s.t,s.b.sig,s.b.mu);
+  }
+  updateCurrentValues(s, cfA, cfB);
+}
+
+// ── Play/pause animation ───────────────────────────────────
+var animSpeedMin = 0.06;
+var animSpeedMax = 0.30;
+var anim = CF.setupPlayPause("playBtn", animStep);
+
+function animStep(){
+  if(!anim.animating) return;
+  var t = parseFloat(tSlider.value);
+  var s = getState();
+  var distA = DISTRIBUTIONS[s.a.type];
+  var cf = CF.cfWithMean(distA, t, s.a.sig, s.a.mu);
+  var mag = Math.sqrt(cf.re*cf.re + cf.im*cf.im);
+  var speed = animSpeedMax - Math.sqrt(mag) * (animSpeedMax - animSpeedMin);
+  t += speed;
+  if(t > 15) t = -15;
+  tSlider.value = t.toFixed(2);
+  update();
+  anim.animId = requestAnimationFrame(animStep);
+}
+
+// ── Wire controls ──────────────────────────────────────────
+var sliders = [tSlider,muA,sigA,muB,sigB];
+for(var i=0;i<sliders.length;i++) sliders[i].addEventListener("input",update);
+nMinus.addEventListener("click", function(){ var v=parseInt(nSlider.value); if(v>1){nSlider.value=v-1;update();} });
+nPlus.addEventListener("click", function(){ var v=parseInt(nSlider.value); if(v<30){nSlider.value=v+1;update();} });
+var selects = [typeA,typeB];
+for(var i=0;i<selects.length;i++){
+  selects[i].addEventListener("input",update);
+  selects[i].addEventListener("change",update);
+}
+toggleB.addEventListener("change",update);
+toggleB.addEventListener("input",update);
+
+window.addEventListener("resize", function(){ CF.scaleSidebarFont(theoryCol); update(); });
+
+// ── Canvas hover + keyboard ─────────────────────────────────
+CF.setupCanvasHover(traceCanvas, [TRACE_TMIN, TRACE_TMAX], tSlider, update,
+  {animatingFn: function(){ return anim.animating; }});
+
+CF.setupKeyboard(tSlider, 0.1, update, "playBtn");
+
+// ── Init ───────────────────────────────────────────────────
+populateTheory();
+CF.scaleSidebarFont(theoryCol);
+update();
+
+});
+</script>
+</body>
+</html>

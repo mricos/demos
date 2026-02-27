@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Characteristic Function – Translation Spectrum</title>
+
+<link rel="stylesheet"
+ href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+
+<script defer
+ src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+
+<script defer
+ src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+<style>
+body { margin:0; font-family:sans-serif; background:#111; color:#ddd; }
+#layout { display:flex; height:90vh; }
+#left,#right { flex:1; padding:20px; overflow:auto; }
+canvas { background:#000; display:block; margin:auto; }
+#controls { padding:10px; background:#222; }
+.slider { width:300px; }
+.param { color:#ffcc00; }
+.mass { color:#ff6699; }
+</style>
+</head>
+<body>
+
+<div id="layout">
+
+<div id="left">
+  <h3>Spatial Domain</h3>
+  <div id="formulaLeft"></div>
+  <canvas id="pdfCanvas" width="500" height="250"></canvas>
+  <canvas id="phaseCanvas" width="500" height="120"></canvas>
+  <div id="explainLeft"></div>
+</div>
+
+<div id="right">
+  <h3>Dual (Frequency) Domain</h3>
+  <div id="formulaRight"></div>
+  <canvas id="cfCanvas" width="500" height="300"></canvas>
+  <div id="explainRight"></div>
+</div>
+
+</div>
+
+<div id="controls">
+  Frequency parameter 
+  <span class="param">t</span>:
+  <input type="range" id="tSlider" min="-15" max="15"
+         step="0.1" value="1" class="slider">
+  <span id="tVal"></span>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+
+const pdfCtx=document.getElementById("pdfCanvas").getContext("2d");
+const phaseCtx=document.getElementById("phaseCanvas").getContext("2d");
+const cfCtx=document.getElementById("cfCanvas").getContext("2d");
+
+const tSlider=document.getElementById("tSlider");
+const tVal=document.getElementById("tVal");
+
+function gaussian(x){
+  return Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI);
+}
+
+function computeCF(t){
+  let re=0, im=0;
+  const N=2000;
+  const xmin=-6, xmax=6;
+  const dx=(xmax-xmin)/N;
+  for(let i=0;i<N;i++){
+    const x=xmin+i*dx;
+    const p=gaussian(x);
+    re+=p*Math.cos(t*x)*dx;
+    im+=p*Math.sin(t*x)*dx;
+  }
+  return {re,im};
+}
+
+function drawPDF(){
+  pdfCtx.clearRect(0,0,500,250);
+  pdfCtx.strokeStyle="white";
+  pdfCtx.beginPath();
+  for(let i=0;i<500;i++){
+    const x=(i/500)*12-6;
+    const y=gaussian(x);
+    const py=200-y*150;
+    if(i===0) pdfCtx.moveTo(i,py);
+    else pdfCtx.lineTo(i,py);
+  }
+  pdfCtx.stroke();
+}
+
+function drawPhaseField(t){
+  phaseCtx.clearRect(0,0,500,120);
+  phaseCtx.strokeStyle="#00d0ff";
+  phaseCtx.beginPath();
+  for(let i=0;i<500;i++){
+    const x=(i/500)*12-6;
+    const y=Math.sin(t*x);
+    const py=60 - y*40;
+    if(i===0) phaseCtx.moveTo(i,py);
+    else phaseCtx.lineTo(i,py);
+  }
+  phaseCtx.stroke();
+}
+
+function drawCF(t){
+  cfCtx.clearRect(0,0,500,300);
+  const {re,im}=computeCF(t);
+  const cx=250, cy=150, R=100;
+
+  cfCtx.strokeStyle="#444";
+  cfCtx.beginPath();
+  cfCtx.arc(cx,cy,R,0,2*Math.PI);
+  cfCtx.stroke();
+
+  cfCtx.strokeStyle="#00ffcc";
+  cfCtx.beginPath();
+  cfCtx.moveTo(cx,cy);
+  cfCtx.lineTo(cx+re*R, cy-im*R);
+  cfCtx.stroke();
+
+  return {re,im};
+}
+
+function renderMath(){
+  renderMathInElement(document.body,{
+    delimiters:[
+      {left:"\\[",right:"\\]",display:true},
+      {left:"$",right:"$",display:false}
+    ]
+  });
+}
+
+function update(){
+  const t=parseFloat(tSlider.value);
+  tVal.textContent=t.toFixed(2);
+
+  drawPDF();
+  drawPhaseField(t);
+  const {re,im}=drawCF(t);
+
+  document.getElementById("formulaLeft").innerHTML=
+  `\\[
+  \\textcolor{#ff6699}{X}
+  \\sim \\mathcal{N}(0,1)
+  \\quad
+  (\\text{example: position error in meters})
+  \\]`;
+
+  document.getElementById("formulaRight").innerHTML=
+  `\\[
+  \\varphi(\\textcolor{#ffcc00}{t})
+  =
+  \\mathbb{E}
+  \\left[
+  e^{i\\,\\textcolor{#ffcc00}{t}\\,
+  \\textcolor{#ff6699}{X}}
+  \\right]
+  \\]`;
+
+  document.getElementById("explainLeft").innerHTML=
+  `
+  x represents spatial displacement (e.g. measurement error).
+  <br><br>
+  Upper plot: probability density p(x).
+  <br>
+  Lower plot: instantaneous phase field sin(t x).
+  <br>
+  Increasing |t| increases spatial oscillation frequency.
+  `;
+
+  document.getElementById("explainRight").innerHTML=
+  `
+  For t = ${t.toFixed(2)}:
+  <br><br>
+  φ(t) = (${re.toFixed(3)}, ${im.toFixed(3)})
+  <br>
+  |φ(t)| = ${(Math.sqrt(re*re+im*im)).toFixed(3)}
+  <br><br>
+  The vector equals the mean phase alignment
+  of e^{itX}.
+  <br>
+  Phase cancellation increases with |t|.
+  `;
+
+  renderMath();
+}
+
+tSlider.addEventListener("input",update);
+update();
+
+});
+</script>
+</body>
+</html>
