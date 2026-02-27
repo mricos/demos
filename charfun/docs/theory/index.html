@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Theory Series — Characteristic Functions &amp; Probability Transforms</title>
+
+<link rel="stylesheet" href="../../charfun-base.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="../../charfun-base.js"></script>
+
+<style>
+body{display:flex;justify-content:center;padding:40px 20px}
+.page{max-width:800px;width:100%;line-height:1.7}
+
+.back{color:#666;text-decoration:none;font-size:12px;display:inline-block;margin-bottom:16px}
+.back:hover{color:#aaa}
+
+h1{font-size:20px;margin-bottom:4px;color:#ddd}
+.subtitle{color:#888;font-size:13px;margin-bottom:28px}
+
+/* Journey map */
+#journeyMap{margin-bottom:32px}
+#journeyMap canvas{
+  width:100%;height:80px;border-radius:4px;cursor:pointer;
+  background:var(--col-panel);border:1px solid var(--col-border);
+}
+#mapTooltip{
+  position:absolute;pointer-events:none;
+  background:#222;color:#ccc;font-size:11px;padding:4px 8px;
+  border:1px solid #444;border-radius:3px;
+  display:none;white-space:nowrap;z-index:10;
+}
+
+/* Groups */
+.group{margin-bottom:24px}
+.group h3{
+  font-size:12px;color:#999;text-transform:uppercase;letter-spacing:1px;
+  margin-bottom:10px;padding-left:12px;
+  border-left:3px solid var(--accent);
+}
+
+/* Article cards */
+.article-card{
+  display:block;text-decoration:none;color:inherit;cursor:pointer;
+  background:var(--col-panel);border:1px solid var(--col-border);border-radius:4px;
+  padding:14px 18px;margin-bottom:8px;
+  transition:border-color 0.15s,background 0.15s;
+}
+.article-card:hover{border-color:#666;background:#222}
+.card-header{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+.card-num{color:#555;font-size:12px;font-weight:bold}
+.card-title{font-size:14px;color:#ddd}
+.card-equation{
+  background:#0a0a0a;border:1px solid #282828;border-radius:3px;
+  padding:8px 12px;margin:8px 0;overflow-x:auto;
+  text-align:center;
+}
+.card-summary{color:#888;font-size:12px;margin:6px 0 8px}
+.card-tags{display:flex;gap:4px;flex-wrap:wrap}
+.tag{
+  display:inline-block;font-size:10px;padding:1px 6px;border-radius:3px;
+  border:1px solid;
+}
+
+/* Reader panel */
+.reader-backdrop{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.6);z-index:100;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.3s;
+}
+.reader-backdrop.open{opacity:1;pointer-events:auto}
+
+.reader-panel{
+  position:fixed;top:0;right:0;width:55%;max-width:680px;height:100%;
+  background:#111;border-left:1px solid #333;
+  z-index:101;overflow-y:auto;
+  transform:translateX(100%);
+  transition:transform 0.3s ease;
+}
+.reader-panel.open{transform:translateX(0)}
+
+.reader-header{
+  position:sticky;top:0;z-index:5;
+  background:#111;border-bottom:1px solid #333;
+  padding:12px 20px;display:flex;align-items:center;gap:12px;
+}
+.reader-close{
+  background:none;border:1px solid #444;color:#999;
+  width:28px;height:28px;border-radius:3px;cursor:pointer;
+  font-size:16px;display:flex;align-items:center;justify-content:center;
+}
+.reader-close:hover{border-color:#888;color:#ddd}
+.reader-title{flex:1;font-size:14px;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reader-nav{display:flex;gap:6px}
+.reader-nav button{
+  background:none;border:1px solid #444;color:#999;
+  padding:4px 10px;border-radius:3px;cursor:pointer;font-size:12px;
+}
+.reader-nav button:hover{border-color:#888;color:#ddd}
+
+#readerContent{
+  padding:20px 28px 60px;line-height:1.8;color:#ccc;font-size:13px;
+}
+#readerContent h1{font-size:18px;margin:0 0 12px;color:#ddd}
+#readerContent h2{font-size:15px;margin:24px 0 8px;color:#bbb;border-bottom:1px solid #282828;padding-bottom:4px}
+#readerContent h3{font-size:13px;margin:20px 0 6px;color:#aaa}
+#readerContent p{margin:8px 0}
+#readerContent a{color:#66ccff;text-decoration:none}
+#readerContent a:hover{text-decoration:underline}
+#readerContent code{background:#1a1a1a;padding:1px 5px;border-radius:3px;font-size:12px}
+#readerContent pre{background:#0a0a0a;border:1px solid #282828;border-radius:4px;padding:12px;overflow-x:auto;margin:12px 0}
+#readerContent pre code{background:none;padding:0}
+#readerContent blockquote{border-left:3px solid #444;padding-left:14px;color:#999;margin:12px 0}
+#readerContent table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px}
+#readerContent th,#readerContent td{border:1px solid #333;padding:6px 10px;text-align:left}
+#readerContent th{background:#1a1a1a;color:#aaa}
+#readerContent ul,#readerContent ol{margin:8px 0;padding-left:24px}
+#readerContent li{margin:4px 0}
+#readerContent hr{border:none;border-top:1px solid #333;margin:20px 0}
+#readerContent img{max-width:100%;border-radius:4px}
+#readerContent .katex-display{margin:16px 0;overflow-x:auto}
+
+/* Responsive */
+@media(max-width:700px){
+  .reader-panel{width:100%;max-width:none}
+  .card-equation{display:none}
+  .page{padding:0 4px}
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <a class="back" href="../../index.html">&larr; Back to explorers</a>
+  <h1>Characteristic Functions &amp; Probability Transforms</h1>
+  <p class="subtitle">A 13-part theory series: from PDFs to neural networks</p>
+
+  <div id="journeyMap">
+    <canvas id="mapCanvas"></canvas>
+    <div id="mapTooltip"></div>
+  </div>
+
+  <!-- Foundation -->
+  <div class="group" style="--accent:#ff6699">
+    <h3>Foundation</h3>
+
+    <div class="article-card" data-idx="0">
+      <div class="card-header">
+        <span class="card-num">001</span>
+        <span class="card-title">Probability Density Functions</span>
+      </div>
+      <div class="card-equation">$$f_X(x) \geq 0, \quad \int f_X(x)\,dx = 1$$</div>
+      <p class="card-summary">What a PDF is, how it encodes probability, and why we need transforms.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#ff6699;border-color:#ff6699">PDF</span>
+        <span class="tag" style="color:#44dd88;border-color:#44dd88">probability</span>
+      </div>
+    </div>
+
+    <div class="article-card" data-idx="1">
+      <div class="card-header">
+        <span class="card-num">002</span>
+        <span class="card-title">Moments and the MGF</span>
+      </div>
+      <div class="card-equation">$$M_X(t) = E[e^{tX}] = \sum \frac{E[X^n]}{n!} t^n$$</div>
+      <p class="card-summary">Moment-generating functions as exponential averages and their Taylor structure.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#ff6699;border-color:#ff6699">MGF</span>
+        <span class="tag" style="color:#44dd88;border-color:#44dd88">moments</span>
+      </div>
+    </div>
+
+    <div class="article-card" data-idx="2">
+      <div class="card-header">
+        <span class="card-num">003</span>
+        <span class="card-title">Fourier vs. Laplace Transforms of PDFs</span>
+      </div>
+      <div class="card-equation">$$\varphi_X(t) = E[e^{itX}] = \int e^{itx} f_X(x)\,dx$$</div>
+      <p class="card-summary">The characteristic function as Fourier transform of a density, compared to Laplace.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#ff6699;border-color:#ff6699">CF</span>
+        <span class="tag" style="color:#66ccff;border-color:#66ccff">Fourier</span>
+        <span class="tag" style="color:#44dd88;border-color:#44dd88">Laplace</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dual Variables -->
+  <div class="group" style="--accent:#ffcc00">
+    <h3>Dual Variables</h3>
+
+    <div class="article-card" data-idx="3">
+      <div class="card-header">
+        <span class="card-num">004</span>
+        <span class="card-title">The Dual Variable: What <em>t</em> Means</span>
+      </div>
+      <div class="card-equation">$$\varphi^{(n)}(0) = i^n E[X^n]$$</div>
+      <p class="card-summary">Naming the transform axis — frequency, rate, or probe — and extracting moments from derivatives.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#ffcc00;border-color:#ffcc00">dual</span>
+        <span class="tag" style="color:#ff6699;border-color:#ff6699">CF</span>
+      </div>
+    </div>
+
+    <div class="article-card" data-idx="4">
+      <div class="card-header">
+        <span class="card-num">005</span>
+        <span class="card-title">Distributional Decay Rate</span>
+      </div>
+      <div class="card-equation">$$\Phi(s) = E[e^{sX}], \quad s = \sigma + i\omega$$</div>
+      <p class="card-summary">Bilateral Laplace, strips of convergence, and how tail weight controls transform domains.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#ffcc00;border-color:#ffcc00">decay</span>
+        <span class="tag" style="color:#44dd88;border-color:#44dd88">Laplace</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interlude -->
+  <div class="group" style="--accent:#66ccff">
+    <h3>Interlude</h3>
+
+    <div class="article-card" data-idx="5">
+      <div class="card-header">
+        <span class="card-num">006</span>
+        <span class="card-title">Reality, Symmetry, and the Uncertainty Principle</span>
+      </div>
+      <div class="card-equation">$$\sigma_x \cdot \sigma_t \geq \tfrac{1}{2}$$</div>
+      <p class="card-summary">Hermitian symmetry of real signals, unitarity, and the Fourier uncertainty principle.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#66ccff;border-color:#66ccff">symmetry</span>
+        <span class="tag" style="color:#cc88ff;border-color:#cc88ff">physics</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Properties -->
+  <div class="group" style="--accent:#44dd88">
+    <h3>Properties</h3>
+
+    <div class="article-card" data-idx="6">
+      <div class="card-header">
+        <span class="card-num">007</span>
+        <span class="card-title">Convolution, Independence, and Multiplication</span>
+      </div>
+      <div class="card-equation">$$\varphi_{X+Y}(t) = \varphi_X(t) \cdot \varphi_Y(t)$$</div>
+      <p class="card-summary">The convolution theorem for characteristic functions — independence becomes multiplication.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#44dd88;border-color:#44dd88">convolution</span>
+        <span class="tag" style="color:#ff6699;border-color:#ff6699">CF</span>
+      </div>
+    </div>
+
+    <div class="article-card" data-idx="7">
+      <div class="card-header">
+        <span class="card-num">008</span>
+        <span class="card-title">Stable Distributions and the Generalized CLT</span>
+      </div>
+      <div class="card-equation">$$\varphi(t) = e^{-c|t|^\alpha}$$</div>
+      <p class="card-summary">Distributions that are stable under summation, the stability exponent, and heavy tails.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#44dd88;border-color:#44dd88">stable</span>
+        <span class="tag" style="color:#ffcc00;border-color:#ffcc00">CLT</span>
+      </div>
+    </div>
+
+    <div class="article-card" data-idx="8">
+      <div class="card-header">
+        <span class="card-num">009</span>
+        <span class="card-title">Joint CFs and Dependence</span>
+      </div>
+      <div class="card-equation">$$\varphi_{X,Y}(s,t) = E[e^{i(sX+tY)}]$$</div>
+      <p class="card-summary">Multivariate characteristic functions, marginals, and detecting dependence.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#44dd88;border-color:#44dd88">joint</span>
+        <span class="tag" style="color:#66ccff;border-color:#66ccff">dependence</span>
+      </div>
+    </div>
+
+    <div class="article-card" data-idx="9">
+      <div class="card-header">
+        <span class="card-num">010</span>
+        <span class="card-title">The CF as Complete Invariant</span>
+      </div>
+      <div class="card-equation">$$f(x) = \frac{1}{2\pi}\int e^{-itx}\varphi(t)\,dt$$</div>
+      <p class="card-summary">Inversion theorem — the CF completely determines the distribution. Uniqueness and recovery.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#44dd88;border-color:#44dd88">inversion</span>
+        <span class="tag" style="color:#ff6699;border-color:#ff6699">uniqueness</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scale Domain -->
+  <div class="group" style="--accent:#dddd44">
+    <h3>Scale Domain</h3>
+
+    <div class="article-card" data-idx="10">
+      <div class="card-header">
+        <span class="card-num">011</span>
+        <span class="card-title">The Scale Transform</span>
+      </div>
+      <div class="card-equation">$$\mathcal{M}\{f\}(s) = \int_0^{\infty} f(t)\,t^{s-1}\,dt$$</div>
+      <p class="card-summary">The Mellin transform — Fourier on a logarithmic axis. Scale-invariant analysis.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#dddd44;border-color:#dddd44">Mellin</span>
+        <span class="tag" style="color:#66ccff;border-color:#66ccff">scale</span>
+      </div>
+    </div>
+
+    <div class="article-card" data-idx="11">
+      <div class="card-header">
+        <span class="card-num">012</span>
+        <span class="card-title">The Variable Scale Transform</span>
+      </div>
+      <div class="card-equation">$$\sigma(t) = \frac{f'(t)}{f(t)}$$</div>
+      <p class="card-summary">Logarithmic derivatives, instantaneous rates, and the bridge to adaptive transforms.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#dddd44;border-color:#dddd44">variable scale</span>
+        <span class="tag" style="color:#44dd88;border-color:#44dd88">adaptive</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Synthesis -->
+  <div class="group" style="--accent:#cc88ff">
+    <h3>Synthesis</h3>
+
+    <div class="article-card" data-idx="12">
+      <div class="card-header">
+        <span class="card-num">013</span>
+        <span class="card-title">From Transforms to Learned Representations</span>
+      </div>
+      <div class="card-equation">$$\hat{y} = \phi_L(\mathbf{W}_L \cdots \phi_1(\mathbf{W}_1\mathbf{x}+\mathbf{b}_1)\cdots+\mathbf{b}_L)$$</div>
+      <p class="card-summary">Neural networks as the endpoint — from fixed bases to learned transforms. The capstone.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#cc88ff;border-color:#cc88ff">neural nets</span>
+        <span class="tag" style="color:#ffcc00;border-color:#ffcc00">synthesis</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reader panel -->
+<div class="reader-backdrop" id="readerBackdrop"></div>
+<div class="reader-panel" id="readerPanel">
+  <div class="reader-header">
+    <button class="reader-close" id="readerClose">&times;</button>
+    <span class="reader-title" id="readerTitle"></span>
+    <div class="reader-nav">
+      <button id="prevBtn">&larr; Prev</button>
+      <button id="nextBtn">Next &rarr;</button>
+    </div>
+  </div>
+  <div id="readerContent"></div>
+</div>
+
+<script>
+(function(){
+  // ── Article data ────────────────────────────────────────────
+  var articles = [
+    {num:'001', title:'Probability Density Functions', file:'001_probability-density-functions.md'},
+    {num:'002', title:'Moments and the MGF', file:'002_moments-and-the-mgf.md'},
+    {num:'003', title:'Fourier vs. Laplace Transforms of PDFs', file:'003_fourier-vs-laplace-transforms-of-pdfs.md'},
+    {num:'004', title:'The Dual Variable: What t Means', file:'004_the-dual-variable-what-t-means.md'},
+    {num:'005', title:'Distributional Decay Rate', file:'005_distributional-decay-rate.md'},
+    {num:'006', title:'Reality, Symmetry, and the Uncertainty Principle', file:'006_interlude-reality-symmetry-uncertainty.md'},
+    {num:'007', title:'Convolution, Independence, and Multiplication', file:'007_convolution-independence-and-multiplication.md'},
+    {num:'008', title:'Stable Distributions and the Generalized CLT', file:'008_stable-distributions-and-generalized-clt.md'},
+    {num:'009', title:'Joint CFs and Dependence', file:'009_joint-cf-and-dependence.md'},
+    {num:'010', title:'The CF as Complete Invariant', file:'010_the-cf-as-complete-invariant.md'},
+    {num:'011', title:'The Scale Transform', file:'011_the-scale-transform.md'},
+    {num:'012', title:'The Variable Scale Transform', file:'012_the-variable-scale-transform.md'},
+    {num:'013', title:'From Transforms to Learned Representations', file:'013_from-transforms-to-learned-representations.md'}
+  ];
+
+  var groupColors = [
+    '#ff6699','#ff6699','#ff6699',  // 001-003 Foundation
+    '#ffcc00','#ffcc00',            // 004-005 Dual Variables
+    '#66ccff',                      // 006 Interlude
+    '#44dd88','#44dd88','#44dd88','#44dd88', // 007-010 Properties
+    '#dddd44','#dddd44',            // 011-012 Scale Domain
+    '#cc88ff'                       // 013 Synthesis
+  ];
+
+  var currentIdx = -1;
+
+  // ── Journey map canvas ──────────────────────────────────────
+  var canvas = document.getElementById('mapCanvas');
+  var tooltip = document.getElementById('mapTooltip');
+  var nodePositions = [];
+
+  function drawMap(){
+    var s = CF.canvasSize(canvas);
+    var ctx = s.ctx;
+    var w = s.w, h = s.h;
+    var padX = 30, padY = 20;
+    var usableW = w - 2*padX;
+    var cy = h/2;
+    var r = Math.min(10, usableW/articles.length/3);
+
+    nodePositions = [];
+
+    // Draw connecting line
+    ctx.clearRect(0,0,w,h);
+    ctx.beginPath();
+    for(var i=0; i<articles.length; i++){
+      var x = padX + (i/(articles.length-1))*usableW;
+      var y = cy + Math.sin(i*0.6)*8;
+      nodePositions.push({x:x, y:y, r:r});
+      if(i===0) ctx.moveTo(x,y);
+      else ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Draw nodes
+    for(var i=0; i<articles.length; i++){
+      var np = nodePositions[i];
+      ctx.beginPath();
+      ctx.arc(np.x, np.y, np.r, 0, Math.PI*2);
+      ctx.fillStyle = groupColors[i];
+      ctx.fill();
+      ctx.strokeStyle = (i === currentIdx) ? '#fff' : '#000';
+      ctx.lineWidth = (i === currentIdx) ? 2 : 1;
+      ctx.stroke();
+
+      // Number label
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold ' + Math.max(8, r*0.9) + 'px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(i+1), np.x, np.y);
+    }
+  }
+
+  function getNodeAt(mx, my){
+    for(var i=0; i<nodePositions.length; i++){
+      var np = nodePositions[i];
+      var dx = mx - np.x, dy = my - np.y;
+      if(dx*dx + dy*dy <= (np.r+4)*(np.r+4)) return i;
+    }
+    return -1;
+  }
+
+  canvas.addEventListener('mousemove', function(e){
+    var rect = canvas.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+    var idx = getNodeAt(mx, my);
+    if(idx >= 0){
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 12) + 'px';
+      tooltip.style.top = (e.clientY - 28) + 'px';
+      tooltip.textContent = articles[idx].num + ' — ' + articles[idx].title;
+      canvas.style.cursor = 'pointer';
+    } else {
+      tooltip.style.display = 'none';
+      canvas.style.cursor = 'default';
+    }
+  });
+
+  canvas.addEventListener('mouseleave', function(){
+    tooltip.style.display = 'none';
+  });
+
+  canvas.addEventListener('click', function(e){
+    var rect = canvas.getBoundingClientRect();
+    var idx = getNodeAt(e.clientX - rect.left, e.clientY - rect.top);
+    if(idx >= 0) openArticle(idx);
+  });
+
+  window.addEventListener('resize', drawMap);
+  drawMap();
+
+  // ── KaTeX rendering on cards ────────────────────────────────
+  renderMathInElement(document.querySelector('.page'), {
+    delimiters: [
+      {left:'$$', right:'$$', display:true},
+      {left:'$', right:'$', display:false}
+    ],
+    throwOnError: false
+  });
+
+  // ── Article card click handlers ─────────────────────────────
+  var cards = document.querySelectorAll('.article-card');
+  for(var i=0; i<cards.length; i++){
+    (function(idx){
+      cards[idx].addEventListener('click', function(){ openArticle(idx); });
+    })(i);
+  }
+
+  // ── Reader panel ────────────────────────────────────────────
+  var panel = document.getElementById('readerPanel');
+  var backdrop = document.getElementById('readerBackdrop');
+  var content = document.getElementById('readerContent');
+  var titleEl = document.getElementById('readerTitle');
+  var prevBtn = document.getElementById('prevBtn');
+  var nextBtn = document.getElementById('nextBtn');
+  var closeBtn = document.getElementById('readerClose');
+
+  function openArticle(idx){
+    currentIdx = idx;
+    var art = articles[idx];
+    titleEl.textContent = art.num + ' — ' + art.title;
+    prevBtn.disabled = (idx === 0);
+    nextBtn.disabled = (idx === articles.length-1);
+    panel.classList.add('open');
+    backdrop.classList.add('open');
+    content.innerHTML = '<p style="color:#666">Loading...</p>';
+    drawMap();
+
+    // Try fetch, fall back to direct link for file://
+    fetch(art.file)
+      .then(function(r){
+        if(!r.ok) throw new Error(r.status);
+        return r.text();
+      })
+      .then(function(md){ renderMarkdown(md); })
+      .catch(function(){
+        content.innerHTML = '<p>Cannot load article via fetch.</p>' +
+          '<p><a href="' + art.file + '" style="color:#66ccff">Open ' + art.file + ' directly</a></p>';
+      });
+  }
+
+  function closeReader(){
+    panel.classList.remove('open');
+    backdrop.classList.remove('open');
+    currentIdx = -1;
+    drawMap();
+  }
+
+  closeBtn.addEventListener('click', closeReader);
+  backdrop.addEventListener('click', closeReader);
+
+  document.addEventListener('keydown', function(e){
+    if(!panel.classList.contains('open')) return;
+    if(e.key === 'Escape') closeReader();
+    else if(e.key === 'ArrowLeft' && currentIdx > 0) openArticle(currentIdx-1);
+    else if(e.key === 'ArrowRight' && currentIdx < articles.length-1) openArticle(currentIdx+1);
+  });
+
+  prevBtn.addEventListener('click', function(){
+    if(currentIdx > 0) openArticle(currentIdx-1);
+  });
+  nextBtn.addEventListener('click', function(){
+    if(currentIdx < articles.length-1) openArticle(currentIdx+1);
+  });
+
+  // ── Markdown rendering with math protection ─────────────────
+  function renderMarkdown(md){
+    // Protect math blocks from marked
+    var mathBlocks = [];
+    var placeholder = function(match){
+      var id = mathBlocks.length;
+      mathBlocks.push(match);
+      return '\x00MATH' + id + 'MATH\x00';
+    };
+
+    // Protect display math first ($$...$$), then inline ($...$)
+    var protected_ = md.replace(/\$\$[\s\S]*?\$\$/g, placeholder);
+    protected_ = protected_.replace(/\$[^\$\n]+?\$/g, placeholder);
+
+    var html = marked.parse(protected_);
+
+    // Restore math blocks
+    html = html.replace(/\x00MATH(\d+)MATH\x00/g, function(_, id){
+      return mathBlocks[parseInt(id)];
+    });
+
+    content.innerHTML = html;
+
+    // Execute script tags (for article 006 etc.)
+    var scripts = content.querySelectorAll('script');
+    for(var i=0; i<scripts.length; i++){
+      var s = document.createElement('script');
+      if(scripts[i].src) s.src = scripts[i].src;
+      else s.textContent = scripts[i].textContent;
+      scripts[i].parentNode.replaceChild(s, scripts[i]);
+    }
+
+    // Render KaTeX
+    renderMathInElement(content, {
+      delimiters: [
+        {left:'$$', right:'$$', display:true},
+        {left:'$', right:'$', display:false}
+      ],
+      throwOnError: false
+    });
+
+    // Intercept internal .md links
+    var links = content.querySelectorAll('a[href]');
+    for(var i=0; i<links.length; i++){
+      (function(link){
+        var href = link.getAttribute('href');
+        if(!href) return;
+        // Match NNN_*.md pattern
+        var m = href.match(/^(\d{3})_[^\/]+\.md$/);
+        if(m){
+          var num = m[1];
+          var targetIdx = -1;
+          for(var j=0; j<articles.length; j++){
+            if(articles[j].num === num){ targetIdx = j; break; }
+          }
+          if(targetIdx >= 0){
+            link.addEventListener('click', function(e){
+              e.preventDefault();
+              openArticle(targetIdx);
+            });
+          }
+        }
+      })(links[i]);
+    }
+
+    content.scrollTop = 0;
+  }
+})();
+</script>
+
+</body>
+</html>
