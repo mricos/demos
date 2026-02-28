@@ -178,7 +178,9 @@ Understanding the landmarks helps you understand the navigation. A network that 
 
 ---
 
-*This concludes the series. The thirteen articles form a path from the axioms of probability density through the mathematics of integral transforms to the computational paradigm of learned representations:*
+*The thirteen articles above form the theoretical core. The remaining articles extend
+the framework into the physics of computation — what transforms cost, what they discard,
+and what happens when computation becomes continuous and physical.*
 
 | | Article | Core idea |
 |---|---|---|
@@ -195,3 +197,8 @@ Understanding the landmarks helps you understand the navigation. A network that 
 | 011 | [The Scale Transform](011_the-scale-transform.md) | Mellin bridge; oscillation + decay + scale |
 | 012 | [Variable Scale Transform](012_the-variable-scale-transform.md) | Adaptive probe with compensation |
 | 013 | [From Transforms to Learned Representations](013_from-transforms-to-learned-representations.md) | Neural networks as endpoints of the transform progression |
+| 014 | [Entropy, Information, and the Cost of Transformation](014_entropy-information-and-the-cost-of-transformation.md) | Data processing inequality; information flows downhill |
+| 015 | [Reversibility, Garbage Signals, and Landauer's Principle](015_reversibility-garbage-signals-and-landauers-principle.md) | Information destruction costs energy |
+| 016 | [Analog Computation and the Continuum Limit](016_analog-computation-and-the-continuum-limit.md) | Continuous transforms; physics computes the CF |
+
+*Next: [014: Entropy, Information, and the Cost of Transformation](014_entropy-information-and-the-cost-of-transformation.md)*

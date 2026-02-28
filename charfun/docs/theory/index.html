@@ -138,16 +138,16 @@ h1{font-size:20px;margin-bottom:4px;color:#ddd}
 <div class="page">
   <a class="back" href="../../index.html">&larr; Back to explorers</a>
   <h1>Characteristic Functions &amp; Probability Transforms</h1>
-  <p class="subtitle">A 13-part theory series: from PDFs to neural networks</p>
+  <p class="subtitle">A 16-part theory series in five acts: from PDFs to the physics of computation</p>
 
   <div id="journeyMap">
     <canvas id="mapCanvas"></canvas>
     <div id="mapTooltip"></div>
   </div>
 
-  <!-- Foundation -->
+  <!-- Act I: Primer -->
   <div class="group" style="--accent:#ff6699">
-    <h3>Foundation</h3>
+    <h3>Act I &mdash; Primer: Before the Transform</h3>
 
     <div class="article-card" data-idx="0">
       <div class="card-header">
@@ -174,6 +174,11 @@ h1{font-size:20px;margin-bottom:4px;color:#ddd}
         <span class="tag" style="color:#44dd88;border-color:#44dd88">moments</span>
       </div>
     </div>
+  </div>
+
+  <!-- Act II: The Transform -->
+  <div class="group" style="--accent:#ffcc00">
+    <h3>Act II &mdash; The Transform: The CF and Its Dual</h3>
 
     <div class="article-card" data-idx="2">
       <div class="card-header">
@@ -183,16 +188,11 @@ h1{font-size:20px;margin-bottom:4px;color:#ddd}
       <div class="card-equation">$$\varphi_X(t) = E[e^{itX}] = \int e^{itx} f_X(x)\,dx$$</div>
       <p class="card-summary">The characteristic function as Fourier transform of a density, compared to Laplace.</p>
       <div class="card-tags">
-        <span class="tag" style="color:#ff6699;border-color:#ff6699">CF</span>
+        <span class="tag" style="color:#ffcc00;border-color:#ffcc00">CF</span>
         <span class="tag" style="color:#66ccff;border-color:#66ccff">Fourier</span>
         <span class="tag" style="color:#44dd88;border-color:#44dd88">Laplace</span>
       </div>
     </div>
-  </div>
-
-  <!-- Dual Variables -->
-  <div class="group" style="--accent:#ffcc00">
-    <h3>Dual Variables</h3>
 
     <div class="article-card" data-idx="3">
       <div class="card-header">
@@ -219,11 +219,6 @@ h1{font-size:20px;margin-bottom:4px;color:#ddd}
         <span class="tag" style="color:#44dd88;border-color:#44dd88">Laplace</span>
       </div>
     </div>
-  </div>
-
-  <!-- Interlude -->
-  <div class="group" style="--accent:#66ccff">
-    <h3>Interlude</h3>
 
     <div class="article-card" data-idx="5">
       <div class="card-header">
@@ -233,15 +228,15 @@ h1{font-size:20px;margin-bottom:4px;color:#ddd}
       <div class="card-equation">$$\sigma_x \cdot \sigma_t \geq \tfrac{1}{2}$$</div>
       <p class="card-summary">Hermitian symmetry of real signals, unitarity, and the Fourier uncertainty principle.</p>
       <div class="card-tags">
-        <span class="tag" style="color:#66ccff;border-color:#66ccff">symmetry</span>
+        <span class="tag" style="color:#ffcc00;border-color:#ffcc00">symmetry</span>
         <span class="tag" style="color:#cc88ff;border-color:#cc88ff">physics</span>
       </div>
     </div>
   </div>
 
-  <!-- Properties -->
+  <!-- Act III: Structure -->
   <div class="group" style="--accent:#44dd88">
-    <h3>Properties</h3>
+    <h3>Act III &mdash; Structure: Algebraic Power</h3>
 
     <div class="article-card" data-idx="6">
       <div class="card-header">
@@ -296,9 +291,9 @@ h1{font-size:20px;margin-bottom:4px;color:#ddd}
     </div>
   </div>
 
-  <!-- Scale Domain -->
-  <div class="group" style="--accent:#dddd44">
-    <h3>Scale Domain</h3>
+  <!-- Act IV: Adaptation -->
+  <div class="group" style="--accent:#66ccff">
+    <h3>Act IV &mdash; Adaptation: From Fixed to Learned</h3>
 
     <div class="article-card" data-idx="10">
       <div class="card-header">
@@ -308,8 +303,8 @@ h1{font-size:20px;margin-bottom:4px;color:#ddd}
       <div class="card-equation">$$\mathcal{M}\{f\}(s) = \int_0^{\infty} f(t)\,t^{s-1}\,dt$$</div>
       <p class="card-summary">The Mellin transform — Fourier on a logarithmic axis. Scale-invariant analysis.</p>
       <div class="card-tags">
-        <span class="tag" style="color:#dddd44;border-color:#dddd44">Mellin</span>
-        <span class="tag" style="color:#66ccff;border-color:#66ccff">scale</span>
+        <span class="tag" style="color:#66ccff;border-color:#66ccff">Mellin</span>
+        <span class="tag" style="color:#44dd88;border-color:#44dd88">scale</span>
       </div>
     </div>
 
@@ -321,15 +316,10 @@ h1{font-size:20px;margin-bottom:4px;color:#ddd}
       <div class="card-equation">$$\sigma(t) = \frac{f'(t)}{f(t)}$$</div>
       <p class="card-summary">Logarithmic derivatives, instantaneous rates, and the bridge to adaptive transforms.</p>
       <div class="card-tags">
-        <span class="tag" style="color:#dddd44;border-color:#dddd44">variable scale</span>
+        <span class="tag" style="color:#66ccff;border-color:#66ccff">variable scale</span>
         <span class="tag" style="color:#44dd88;border-color:#44dd88">adaptive</span>
       </div>
     </div>
-  </div>
-
-  <!-- Synthesis -->
-  <div class="group" style="--accent:#cc88ff">
-    <h3>Synthesis</h3>
 
     <div class="article-card" data-idx="12">
       <div class="card-header">
@@ -337,10 +327,54 @@ h1{font-size:20px;margin-bottom:4px;color:#ddd}
         <span class="card-title">From Transforms to Learned Representations</span>
       </div>
       <div class="card-equation">$$\hat{y} = \phi_L(\mathbf{W}_L \cdots \phi_1(\mathbf{W}_1\mathbf{x}+\mathbf{b}_1)\cdots+\mathbf{b}_L)$$</div>
-      <p class="card-summary">Neural networks as the endpoint — from fixed bases to learned transforms. The capstone.</p>
+      <p class="card-summary">Neural networks as the endpoint of the transform progression — from fixed bases to learned transforms.</p>
       <div class="card-tags">
-        <span class="tag" style="color:#cc88ff;border-color:#cc88ff">neural nets</span>
-        <span class="tag" style="color:#ffcc00;border-color:#ffcc00">synthesis</span>
+        <span class="tag" style="color:#66ccff;border-color:#66ccff">neural nets</span>
+        <span class="tag" style="color:#ffcc00;border-color:#ffcc00">learned</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Act V: Physics -->
+  <div class="group" style="--accent:#cc88ff">
+    <h3>Act V &mdash; Physics: The Cost of Computation</h3>
+
+    <div class="article-card" data-idx="13">
+      <div class="card-header">
+        <span class="card-num">014</span>
+        <span class="card-title">Entropy, Information, and the Cost of Transformation</span>
+      </div>
+      <div class="card-equation">$$H(Y) \leq H(X), \quad Y = g(X)$$</div>
+      <p class="card-summary">Shannon entropy as a functional on PDFs. The data processing inequality — information only flows downhill.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#cc88ff;border-color:#cc88ff">entropy</span>
+        <span class="tag" style="color:#ff6699;border-color:#ff6699">information</span>
+      </div>
+    </div>
+
+    <div class="article-card" data-idx="14">
+      <div class="card-header">
+        <span class="card-num">015</span>
+        <span class="card-title">Reversibility, Garbage Signals, and Landauer's Principle</span>
+      </div>
+      <div class="card-equation">$$E_{\text{dissipated}} \geq kT \ln 2 \cdot \Delta H$$</div>
+      <p class="card-summary">Information destruction costs energy. Reversible networks avoid the cost by keeping the garbage.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#cc88ff;border-color:#cc88ff">Landauer</span>
+        <span class="tag" style="color:#44dd88;border-color:#44dd88">reversibility</span>
+      </div>
+    </div>
+
+    <div class="article-card" data-idx="15">
+      <div class="card-header">
+        <span class="card-num">016</span>
+        <span class="card-title">Analog Computation and the Continuum Limit</span>
+      </div>
+      <div class="card-equation">$$\frac{d\mathbf{h}}{dt} = f(\mathbf{h}, t, \theta)$$</div>
+      <p class="card-summary">From discrete layers to continuous dynamics. Nature computes the characteristic function physically.</p>
+      <div class="card-tags">
+        <span class="tag" style="color:#cc88ff;border-color:#cc88ff">analog</span>
+        <span class="tag" style="color:#ffcc00;border-color:#ffcc00">Neural ODE</span>
       </div>
     </div>
   </div>
@@ -376,16 +410,18 @@ h1{font-size:20px;margin-bottom:4px;color:#ddd}
     {num:'010', title:'The CF as Complete Invariant', file:'010_the-cf-as-complete-invariant.md'},
     {num:'011', title:'The Scale Transform', file:'011_the-scale-transform.md'},
     {num:'012', title:'The Variable Scale Transform', file:'012_the-variable-scale-transform.md'},
-    {num:'013', title:'From Transforms to Learned Representations', file:'013_from-transforms-to-learned-representations.md'}
+    {num:'013', title:'From Transforms to Learned Representations', file:'013_from-transforms-to-learned-representations.md'},
+    {num:'014', title:'Entropy, Information, and the Cost of Transformation', file:'014_entropy-information-and-the-cost-of-transformation.md'},
+    {num:'015', title:'Reversibility, Garbage Signals, and Landauer\'s Principle', file:'015_reversibility-garbage-signals-and-landauers-principle.md'},
+    {num:'016', title:'Analog Computation and the Continuum Limit', file:'016_analog-computation-and-the-continuum-limit.md'}
   ];
 
   var groupColors = [
-    '#ff6699','#ff6699','#ff6699',  // 001-003 Foundation
-    '#ffcc00','#ffcc00',            // 004-005 Dual Variables
-    '#66ccff',                      // 006 Interlude
-    '#44dd88','#44dd88','#44dd88','#44dd88', // 007-010 Properties
-    '#dddd44','#dddd44',            // 011-012 Scale Domain
-    '#cc88ff'                       // 013 Synthesis
+    '#ff6699','#ff6699',                        // 001-002 Act I: Primer
+    '#ffcc00','#ffcc00','#ffcc00','#ffcc00',     // 003-006 Act II: The Transform
+    '#44dd88','#44dd88','#44dd88','#44dd88',     // 007-010 Act III: Structure
+    '#66ccff','#66ccff','#66ccff',               // 011-013 Act IV: Adaptation
+    '#cc88ff','#cc88ff','#cc88ff'                // 014-016 Act V: Physics
   ];
 
   var currentIdx = -1;
