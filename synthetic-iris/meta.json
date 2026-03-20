@@ -1,0 +1,8 @@
+{
+  "title": "Synthetic Iris Dataset Generator",
+  "entry": "index.html",
+  "tags": ["data", "gaussian"],
+  "section": 1,
+  "description": "3-class Gaussian clusters with Box-Muller sampling, z-score normalization. Shared dataset for downstream demos.",
+  "sidebar": ["Iris_flower_data_set", "Normal_distribution"]
+}

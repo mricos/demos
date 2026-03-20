@@ -1,0 +1,8 @@
+{
+  "title": "GMDH — Self-Organizing Polynomial Regression",
+  "entry": "html/index.html",
+  "tags": ["ML", "regression"],
+  "section": 3,
+  "description": "Layer-by-layer model building with ridge regularization. Sankey flow, heatmaps, validation-based selection.",
+  "sidebar": ["Group_method_of_data_handling", "Tikhonov_regularization"]
+}

@@ -1,0 +1,8 @@
+{
+  "title": "Bayesian Time-Varying AR (TVAR)",
+  "entry": "index.html",
+  "tags": ["bayesian", "time-series"],
+  "section": 3,
+  "description": "Dynamic AR models on U.S. Treasury rates. Discount factor control, outlier detection, prior-posterior comparison.",
+  "sidebar": ["Autoregressive_model", "Bayesian_structural_time_series"]
+}

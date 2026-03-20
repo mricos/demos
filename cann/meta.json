@@ -1,0 +1,8 @@
+{
+  "title": "CANN — Neural Cellular Automata",
+  "entry": "index.html",
+  "tags": ["attractor", "WebGL"],
+  "section": 5,
+  "description": "Continuous attractor networks with WebGL rendering. Markovian and SSM evolvers, composite loss functions.",
+  "sidebar": ["Attractor_network", "Cellular_automaton"]
+}

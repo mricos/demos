@@ -1,0 +1,8 @@
+{
+  "title": "Bayesian Linear Regression",
+  "entry": "index.html",
+  "tags": ["bayesian", "regression"],
+  "section": 2,
+  "description": "L1/L2 regularization, prior-likelihood-posterior decomposition, predictive distributions, coefficient paths.",
+  "sidebar": ["Bayesian_linear_regression", "Regularization_(mathematics)", "Posterior_probability"]
+}

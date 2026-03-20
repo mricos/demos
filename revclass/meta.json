@@ -1,0 +1,8 @@
+{
+  "title": "Reversible Iris Classifier",
+  "entry": "reversible-classifier.html",
+  "tags": ["neural-net", "invertible"],
+  "section": 4,
+  "description": "Invertible neural network layers. Information-theoretic perspective on classification and model reversibility.",
+  "sidebar": ["Invertible_matrix", "Mutual_information"]
+}

@@ -1,0 +1,8 @@
+{
+  "title": "NN Learns FFT",
+  "entry": "index.html",
+  "tags": ["neural-net", "signal"],
+  "section": 4,
+  "description": "Neural network discovers Fourier basis functions via gradient descent. EEG bands, probe signals, weight SVD diagnostics.",
+  "sidebar": ["Discrete_Fourier_transform", "Backpropagation", "Electroencephalography"]
+}

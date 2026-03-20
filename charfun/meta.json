@@ -1,0 +1,8 @@
+{
+  "title": "Characteristic Functions & Probability Transforms",
+  "entry": "index.html",
+  "tags": ["probability", "transforms"],
+  "section": 1,
+  "description": "CF, MGF, generating functions. CLT visualization, distribution convolution, multi-distribution explorer.",
+  "sidebar": ["Characteristic_function_(probability_theory)", "Moment-generating_function", "Central_limit_theorem"]
+}

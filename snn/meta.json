@@ -1,0 +1,8 @@
+{
+  "title": "SNN 4-bit Adder — Spiking Neural Network",
+  "entry": "index.html",
+  "tags": ["spiking", "LIF"],
+  "section": 5,
+  "description": "LIF neuron model with spike trains. Biological, schematic, and TTFS renderers. Membrane dynamics visualization.",
+  "sidebar": ["Spiking_neural_network", "Biological_neuron_model"]
+}

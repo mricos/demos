@@ -69,7 +69,6 @@
     flex-shrink: 0;
   }
   .section-num.nn { background: var(--accent2); }
-  .section-num.synth { background: var(--accent3); }
   .section-title {
     font-size: 1.1rem;
     font-weight: 500;
@@ -156,184 +155,111 @@
     color: var(--muted);
     font-size: 0.8rem;
   }
+  .loading {
+    text-align: center;
+    color: var(--muted);
+    padding: 3rem;
+    font-size: 0.9rem;
+  }
 </style>
 </head>
 <body>
 
 <header>
   <h1>Learning Lab</h1>
-  <p>11 interactive demos — probability foundations through spiking neural networks</p>
+  <p id="subtitle">Loading demos...</p>
 </header>
 
-<div class="path">
-
-  <!-- Section 1: Probability Foundations -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-num">1</span>
-      <span class="section-title">Probability Foundations</span>
-      <span class="section-sub">distributions, transforms, data</span>
-    </div>
-    <div class="cards">
-      <a class="card" href="charfun/index.html">
-        <span class="card-id">charfun</span>
-        <div class="card-body">
-          <h3>Characteristic Functions & Probability Transforms</h3>
-          <p>CF, MGF, generating functions. CLT visualization, distribution convolution, multi-distribution explorer.</p>
-          <span class="tag">probability</span><span class="tag">transforms</span>
-        </div>
-        <span class="card-arrow">&rarr;</span>
-      </a>
-      <a class="card" href="synthetic-iris/index.html">
-        <span class="card-id">synthetic-iris</span>
-        <div class="card-body">
-          <h3>Synthetic Iris Dataset Generator</h3>
-          <p>3-class Gaussian clusters with Box-Muller sampling, z-score normalization. Shared dataset for downstream demos.</p>
-          <span class="tag data">data</span><span class="tag">gaussian</span>
-        </div>
-        <span class="card-arrow">&rarr;</span>
-      </a>
-    </div>
-  </div>
-
-  <div class="connector"></div>
-
-  <!-- Section 2: Bayesian Inference -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-num">2</span>
-      <span class="section-title">Bayesian Inference</span>
-      <span class="section-sub">priors, posteriors, regularization</span>
-    </div>
-    <div class="cards">
-      <a class="card" href="bayes/index.html">
-        <span class="card-id">bayes</span>
-        <div class="card-body">
-          <h3>Bayesian Linear Regression</h3>
-          <p>L1/L2 regularization, prior-likelihood-posterior decomposition, predictive distributions, coefficient paths.</p>
-          <span class="tag">bayesian</span><span class="tag">regression</span>
-        </div>
-        <span class="card-arrow">&rarr;</span>
-      </a>
-      <a class="card" href="stat-rethink/index.html">
-        <span class="card-id">stat-rethink</span>
-        <div class="card-body">
-          <h3>Statistical Rethinking — Interactive Workflow</h3>
-          <p>McElreath's 10-step Bayesian workflow. DAGs, quadratic approximation, causal inference, posterior sampling.</p>
-          <span class="tag">bayesian</span><span class="tag">causal</span>
-        </div>
-        <span class="card-arrow">&rarr;</span>
-      </a>
-    </div>
-  </div>
-
-  <div class="connector"></div>
-
-  <!-- Section 3: Sequential & Time-Varying Models -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-num">3</span>
-      <span class="section-title">Sequential & Time-Varying Models</span>
-      <span class="section-sub">dynamics, adaptation, model selection</span>
-    </div>
-    <div class="cards">
-      <a class="card" href="time-series/index.html">
-        <span class="card-id">time-series</span>
-        <div class="card-body">
-          <h3>Bayesian Time-Varying AR (TVAR)</h3>
-          <p>Dynamic AR models on U.S. Treasury rates. Discount factor control, outlier detection, prior-posterior comparison.</p>
-          <span class="tag">bayesian</span><span class="tag">time-series</span>
-        </div>
-        <span class="card-arrow">&rarr;</span>
-      </a>
-      <a class="card" href="gmdh/html/index.html">
-        <span class="card-id">gmdh</span>
-        <div class="card-body">
-          <h3>GMDH — Self-Organizing Polynomial Regression</h3>
-          <p>Layer-by-layer model building with ridge regularization. Sankey flow, heatmaps, validation-based selection.</p>
-          <span class="tag nn">ML</span><span class="tag">regression</span>
-        </div>
-        <span class="card-arrow">&rarr;</span>
-      </a>
-    </div>
-  </div>
-
-  <div class="connector"></div>
-
-  <!-- Section 4: Classical Neural Networks -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-num nn">4</span>
-      <span class="section-title">Classical Neural Networks</span>
-      <span class="section-sub">backprop, weight dynamics, signal processing</span>
-    </div>
-    <div class="cards">
-      <a class="card" href="fftnn/index.html">
-        <span class="card-id">fftnn</span>
-        <div class="card-body">
-          <h3>NN Learns FFT</h3>
-          <p>Neural network discovers Fourier basis functions via gradient descent. EEG bands, probe signals, weight SVD diagnostics.</p>
-          <span class="tag nn">neural-net</span><span class="tag">signal</span>
-        </div>
-        <span class="card-arrow">&rarr;</span>
-      </a>
-      <a class="card" href="revclass/reversible-classifier.html">
-        <span class="card-id">revclass</span>
-        <div class="card-body">
-          <h3>Reversible Iris Classifier</h3>
-          <p>Invertible neural network layers. Information-theoretic perspective on classification and model reversibility.</p>
-          <span class="tag nn">neural-net</span><span class="tag">invertible</span>
-        </div>
-        <span class="card-arrow">&rarr;</span>
-      </a>
-    </div>
-  </div>
-
-  <div class="connector"></div>
-
-  <!-- Section 5: Spiking & Attractor Networks -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-num nn">5</span>
-      <span class="section-title">Spiking & Attractor Networks</span>
-      <span class="section-sub">biological plausibility, dynamics, emergence</span>
-    </div>
-    <div class="cards">
-      <a class="card" href="snn/index.html">
-        <span class="card-id">snn</span>
-        <div class="card-body">
-          <h3>SNN 4-bit Adder — Spiking Neural Network</h3>
-          <p>LIF neuron model with spike trains. Biological, schematic, and TTFS renderers. Membrane dynamics visualization.</p>
-          <span class="tag nn">spiking</span><span class="tag">LIF</span>
-        </div>
-        <span class="card-arrow">&rarr;</span>
-      </a>
-      <a class="card" href="snn2/index.html">
-        <span class="card-id">snn2</span>
-        <div class="card-body">
-          <h3>Iris Rate-Coded SNN</h3>
-          <p>Spike-rate encoding on synthetic Iris data. Raster plots, confusion matrices, ROC curves, cross-entropy training.</p>
-          <span class="tag nn">spiking</span><span class="tag">classification</span>
-        </div>
-        <span class="card-arrow">&rarr;</span>
-      </a>
-      <a class="card" href="cann/index.html">
-        <span class="card-id">cann</span>
-        <div class="card-body">
-          <h3>CANN — Neural Cellular Automata</h3>
-          <p>Continuous attractor networks with WebGL rendering. Markovian and SSM evolvers, composite loss functions.</p>
-          <span class="tag nn">attractor</span><span class="tag">WebGL</span>
-        </div>
-        <span class="card-arrow">&rarr;</span>
-      </a>
-    </div>
-  </div>
-
+<div class="path" id="path">
+  <div class="loading">Scanning for meta.json files...</div>
 </div>
 
-<footer>
-  11 projects &middot; all vanilla JS &middot; no build step &middot; serve from any static server
-</footer>
+<footer id="footer"></footer>
+
+<script>
+"use strict";
+
+const SECTIONS = {
+  1: { title: "Probability Foundations", sub: "distributions, transforms, data" },
+  2: { title: "Bayesian Inference", sub: "priors, posteriors, regularization" },
+  3: { title: "Sequential & Time-Varying Models", sub: "dynamics, adaptation, model selection" },
+  4: { title: "Classical Neural Networks", sub: "backprop, weight dynamics, signal processing", nn: true },
+  5: { title: "Spiking & Attractor Networks", sub: "biological plausibility, dynamics, emergence", nn: true }
+};
+
+// Tags that get the "nn" style
+const NN_TAGS = new Set(["neural-net","spiking","attractor","ML","invertible","WebGL","LIF"]);
+const DATA_TAGS = new Set(["data"]);
+
+// Known project directories with meta.json
+const PROJECTS = [
+  "charfun", "synthetic-iris", "bayes", "stat-rethink",
+  "time-series", "gmdh", "fftnn", "revclass",
+  "snn", "snn2", "cann"
+];
+
+function tagClass(t) {
+  if (NN_TAGS.has(t)) return "tag nn";
+  if (DATA_TAGS.has(t)) return "tag data";
+  return "tag";
+}
+
+function renderCard(dir, meta) {
+  const href = dir + "/" + meta.entry;
+  const tags = (meta.tags || []).map(t =>
+    '<span class="' + tagClass(t) + '">' + t + '</span>'
+  ).join("");
+  return '<a class="card" href="' + href + '">' +
+    '<span class="card-id">' + dir + '</span>' +
+    '<div class="card-body"><h3>' + meta.title + '</h3>' +
+    '<p>' + (meta.description || "") + '</p>' + tags + '</div>' +
+    '<span class="card-arrow">&rarr;</span></a>';
+}
+
+function renderSections(items) {
+  const grouped = {};
+  items.forEach(function(item) {
+    var s = item.meta.section || 0;
+    if (!grouped[s]) grouped[s] = [];
+    grouped[s].push(item);
+  });
+
+  var html = "";
+  var sectionNums = Object.keys(grouped).map(Number).sort();
+
+  sectionNums.forEach(function(num, idx) {
+    var sec = SECTIONS[num] || { title: "Other", sub: "" };
+    if (idx > 0) html += '<div class="connector"></div>';
+    html += '<div class="section">';
+    html += '<div class="section-header">';
+    html += '<span class="section-num' + (sec.nn ? " nn" : "") + '">' + num + '</span>';
+    html += '<span class="section-title">' + sec.title + '</span>';
+    html += '<span class="section-sub">' + sec.sub + '</span>';
+    html += '</div><div class="cards">';
+    grouped[num].forEach(function(item) {
+      html += renderCard(item.dir, item.meta);
+    });
+    html += '</div></div>';
+  });
+
+  return html;
+}
+
+// Fetch all meta.json files
+Promise.all(PROJECTS.map(function(dir) {
+  return fetch(dir + "/meta.json")
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(meta) { return meta ? { dir: dir, meta: meta } : null; })
+    .catch(function() { return null; });
+})).then(function(results) {
+  var items = results.filter(Boolean);
+  document.getElementById("subtitle").textContent =
+    items.length + " interactive demos — probability foundations through spiking neural networks";
+  document.getElementById("path").innerHTML = renderSections(items);
+  document.getElementById("footer").innerHTML =
+    items.length + " projects &middot; all vanilla JS &middot; no build step &middot; serve from any static server";
+});
+</script>
 
 </body>
 </html>

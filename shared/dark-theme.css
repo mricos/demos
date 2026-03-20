@@ -1,0 +1,182 @@
+/**
+ * dark-theme.css — Shared dark theme for all demos
+ *
+ * Usage:
+ *   <link rel="stylesheet" href="/shared/dark-theme.css">
+ *
+ * Override any variable on :root or a container to theme per-project.
+ * This file provides: reset, palette, scrollbars, sliders, panels,
+ * code blocks, and basic typography.
+ */
+
+/* ── Palette ─────────────────────────────────── */
+:root {
+  --bg: #0a0f1a;
+  --surface: #111827;
+  --surface-hover: #1a2236;
+  --border: #1e293b;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --dim: #64748b;
+  --accent: #3b82f6;
+  --accent-glow: rgba(59,130,246,.15);
+  --red: #ef4444;
+  --blue: #60a5fa;
+  --green: #34d399;
+  --yellow: #fbbf24;
+  --purple: #a78bfa;
+  --orange: #fb923c;
+}
+
+/* ── Reset ────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ── Scrollbars ──────────────────────────────── */
+* { scrollbar-width: thin; scrollbar-color: #334155 var(--bg); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* ── Dark sliders ────────────────────────────── */
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 6px;
+  background: var(--border); border-radius: 3px;
+  outline: none; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg);
+  cursor: pointer; transition: background .15s;
+}
+input[type="range"]::-webkit-slider-thumb:hover { background: var(--blue); }
+input[type="range"]::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg); cursor: pointer;
+}
+input[type="range"]::-moz-range-track {
+  background: var(--border); height: 6px; border-radius: 3px;
+}
+input[type="range"]:focus { outline: none; }
+input[type="range"]:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* ── Panels & cards ──────────────────────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+}
+.panel-dark {
+  background: #080c14;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.panel-label {
+  font-size: 10px;
+  color: var(--dim);
+  margin-bottom: 6px;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Code blocks ─────────────────────────────── */
+.code-block {
+  background: #0d1117;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  padding: 16px;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #e6edf3;
+  white-space: pre-wrap;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.code-block::-webkit-scrollbar-track { background: transparent; }
+.code-block::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+/* ── Syntax highlighting tokens ──────────────── */
+.tok-comment { color: #8b949e; }
+.tok-string  { color: #a5d6ff; }
+.tok-keyword { color: #ff7b72; }
+.tok-func    { color: #d2a8ff; }
+.tok-number  { color: #79c0ff; }
+
+/* ── Buttons ─────────────────────────────────── */
+.btn {
+  padding: 8px 18px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  transition: background .2s, color .2s;
+}
+.btn:hover { background: var(--accent-glow); }
+.btn-pill { border-radius: 20px; letter-spacing: 0.5px; }
+
+/* ── Toggle button group ─────────────────────── */
+.btn-group {
+  display: inline-flex;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.btn-group button {
+  padding: 6px 14px;
+  border: none;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  transition: background .2s, color .2s;
+}
+.btn-group button.active { background: var(--accent-glow); color: var(--accent); }
+.btn-group button:hover:not(.active) { background: var(--surface-hover); }
+
+/* ── Select / dropdown ───────────────────────── */
+select {
+  background: #333;
+  color: #ddd;
+  border: 1px solid #555;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+/* ── Canvas ──────────────────────────────────── */
+canvas {
+  background: #000;
+  display: block;
+  width: 100%;
+  border-radius: 4px;
+}
+
+/* ── SVG text baseline ───────────────────────── */
+svg text { font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; }
+
+/* ── Utility: mono label ─────────────────────── */
+.mono {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+}

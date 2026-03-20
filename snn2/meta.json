@@ -1,0 +1,8 @@
+{
+  "title": "Iris Rate-Coded SNN",
+  "entry": "index.html",
+  "tags": ["spiking", "classification"],
+  "section": 5,
+  "description": "Spike-rate encoding on synthetic Iris data. Raster plots, confusion matrices, ROC curves, cross-entropy training.",
+  "sidebar": ["Neural_coding", "Receiver_operating_characteristic"]
+}

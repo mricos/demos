@@ -1,0 +1,8 @@
+{
+  "title": "Statistical Rethinking — Interactive Workflow",
+  "entry": "index.html",
+  "tags": ["bayesian", "causal"],
+  "section": 2,
+  "description": "McElreath's 10-step Bayesian workflow. DAGs, quadratic approximation, causal inference, posterior sampling.",
+  "sidebar": ["Bayesian_inference", "Causal_model", "Do-calculus"]
+}
