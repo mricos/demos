@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Learning Lab — Neural Nets & Bayesian Stats</title>
+<style>
+  :root {
+    --bg: #0a0b14;
+    --surface: #12132a;
+    --border: rgba(80,90,180,0.2);
+    --accent: #4af0c0;
+    --accent2: #ff7c45;
+    --accent3: #a78bfa;
+    --text: #dde0f5;
+    --muted: #6b6e94;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  header {
+    padding: 3rem 2rem 1.5rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  header h1 {
+    font-size: 1.8rem;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+  }
+  header p {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-top: 0.4rem;
+  }
+  .path {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+  .section {
+    margin-bottom: 2.5rem;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-num {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bg);
+    background: var(--accent);
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .section-num.nn { background: var(--accent2); }
+  .section-num.synth { background: var(--accent3); }
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .section-sub {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-left: auto;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  a.card {
+    display: grid;
+    grid-template-columns: 5.5rem 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.2s, background 0.2s;
+  }
+  a.card:hover {
+    border-color: var(--accent);
+    background: #181a36;
+  }
+  .card-id {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .card-body h3 {
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin-bottom: 0.15rem;
+  }
+  .card-body p {
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .card-arrow {
+    color: var(--muted);
+    font-size: 1.2rem;
+    transition: color 0.2s;
+  }
+  a.card:hover .card-arrow { color: var(--accent); }
+  .tag {
+    display: inline-block;
+    font-size: 0.65rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    background: rgba(74,240,192,0.1);
+    color: var(--accent);
+    margin-right: 0.3rem;
+    vertical-align: middle;
+  }
+  .tag.nn {
+    background: rgba(255,124,69,0.1);
+    color: var(--accent2);
+  }
+  .tag.data {
+    background: rgba(167,139,250,0.1);
+    color: var(--accent3);
+  }
+  .connector {
+    width: 2px;
+    height: 1.5rem;
+    background: var(--border);
+    margin: 0 auto;
+  }
+  footer {
+    max-width: 900px;
+    margin: 2rem auto 3rem;
+    padding: 1.5rem 2rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Learning Lab</h1>
+  <p>11 interactive demos — probability foundations through spiking neural networks</p>
+</header>
+
+<div class="path">
+
+  <!-- Section 1: Probability Foundations -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">1</span>
+      <span class="section-title">Probability Foundations</span>
+      <span class="section-sub">distributions, transforms, data</span>
+    </div>
+    <div class="cards">
+      <a class="card" href="charfun/index.html">
+        <span class="card-id">charfun</span>
+        <div class="card-body">
+          <h3>Characteristic Functions & Probability Transforms</h3>
+          <p>CF, MGF, generating functions. CLT visualization, distribution convolution, multi-distribution explorer.</p>
+          <span class="tag">probability</span><span class="tag">transforms</span>
+        </div>
+        <span class="card-arrow">&rarr;</span>
+      </a>
+      <a class="card" href="synthetic-iris/index.html">
+        <span class="card-id">synthetic-iris</span>
+        <div class="card-body">
+          <h3>Synthetic Iris Dataset Generator</h3>
+          <p>3-class Gaussian clusters with Box-Muller sampling, z-score normalization. Shared dataset for downstream demos.</p>
+          <span class="tag data">data</span><span class="tag">gaussian</span>
+        </div>
+        <span class="card-arrow">&rarr;</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <!-- Section 2: Bayesian Inference -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">2</span>
+      <span class="section-title">Bayesian Inference</span>
+      <span class="section-sub">priors, posteriors, regularization</span>
+    </div>
+    <div class="cards">
+      <a class="card" href="bayes/index.html">
+        <span class="card-id">bayes</span>
+        <div class="card-body">
+          <h3>Bayesian Linear Regression</h3>
+          <p>L1/L2 regularization, prior-likelihood-posterior decomposition, predictive distributions, coefficient paths.</p>
+          <span class="tag">bayesian</span><span class="tag">regression</span>
+        </div>
+        <span class="card-arrow">&rarr;</span>
+      </a>
+      <a class="card" href="stat-rethink/index.html">
+        <span class="card-id">stat-rethink</span>
+        <div class="card-body">
+          <h3>Statistical Rethinking — Interactive Workflow</h3>
+          <p>McElreath's 10-step Bayesian workflow. DAGs, quadratic approximation, causal inference, posterior sampling.</p>
+          <span class="tag">bayesian</span><span class="tag">causal</span>
+        </div>
+        <span class="card-arrow">&rarr;</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <!-- Section 3: Sequential & Time-Varying Models -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">3</span>
+      <span class="section-title">Sequential & Time-Varying Models</span>
+      <span class="section-sub">dynamics, adaptation, model selection</span>
+    </div>
+    <div class="cards">
+      <a class="card" href="time-series/index.html">
+        <span class="card-id">time-series</span>
+        <div class="card-body">
+          <h3>Bayesian Time-Varying AR (TVAR)</h3>
+          <p>Dynamic AR models on U.S. Treasury rates. Discount factor control, outlier detection, prior-posterior comparison.</p>
+          <span class="tag">bayesian</span><span class="tag">time-series</span>
+        </div>
+        <span class="card-arrow">&rarr;</span>
+      </a>
+      <a class="card" href="gmdh/html/index.html">
+        <span class="card-id">gmdh</span>
+        <div class="card-body">
+          <h3>GMDH — Self-Organizing Polynomial Regression</h3>
+          <p>Layer-by-layer model building with ridge regularization. Sankey flow, heatmaps, validation-based selection.</p>
+          <span class="tag nn">ML</span><span class="tag">regression</span>
+        </div>
+        <span class="card-arrow">&rarr;</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <!-- Section 4: Classical Neural Networks -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num nn">4</span>
+      <span class="section-title">Classical Neural Networks</span>
+      <span class="section-sub">backprop, weight dynamics, signal processing</span>
+    </div>
+    <div class="cards">
+      <a class="card" href="fftnn/index.html">
+        <span class="card-id">fftnn</span>
+        <div class="card-body">
+          <h3>NN Learns FFT</h3>
+          <p>Neural network discovers Fourier basis functions via gradient descent. EEG bands, probe signals, weight SVD diagnostics.</p>
+          <span class="tag nn">neural-net</span><span class="tag">signal</span>
+        </div>
+        <span class="card-arrow">&rarr;</span>
+      </a>
+      <a class="card" href="revclass/reversible-classifier.html">
+        <span class="card-id">revclass</span>
+        <div class="card-body">
+          <h3>Reversible Iris Classifier</h3>
+          <p>Invertible neural network layers. Information-theoretic perspective on classification and model reversibility.</p>
+          <span class="tag nn">neural-net</span><span class="tag">invertible</span>
+        </div>
+        <span class="card-arrow">&rarr;</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <!-- Section 5: Spiking & Attractor Networks -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num nn">5</span>
+      <span class="section-title">Spiking & Attractor Networks</span>
+      <span class="section-sub">biological plausibility, dynamics, emergence</span>
+    </div>
+    <div class="cards">
+      <a class="card" href="snn/index.html">
+        <span class="card-id">snn</span>
+        <div class="card-body">
+          <h3>SNN 4-bit Adder — Spiking Neural Network</h3>
+          <p>LIF neuron model with spike trains. Biological, schematic, and TTFS renderers. Membrane dynamics visualization.</p>
+          <span class="tag nn">spiking</span><span class="tag">LIF</span>
+        </div>
+        <span class="card-arrow">&rarr;</span>
+      </a>
+      <a class="card" href="snn2/index.html">
+        <span class="card-id">snn2</span>
+        <div class="card-body">
+          <h3>Iris Rate-Coded SNN</h3>
+          <p>Spike-rate encoding on synthetic Iris data. Raster plots, confusion matrices, ROC curves, cross-entropy training.</p>
+          <span class="tag nn">spiking</span><span class="tag">classification</span>
+        </div>
+        <span class="card-arrow">&rarr;</span>
+      </a>
+      <a class="card" href="cann/index.html">
+        <span class="card-id">cann</span>
+        <div class="card-body">
+          <h3>CANN — Neural Cellular Automata</h3>
+          <p>Continuous attractor networks with WebGL rendering. Markovian and SSM evolvers, composite loss functions.</p>
+          <span class="tag nn">attractor</span><span class="tag">WebGL</span>
+        </div>
+        <span class="card-arrow">&rarr;</span>
+      </a>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  11 projects &middot; all vanilla JS &middot; no build step &middot; serve from any static server
+</footer>
+
+</body>
+</html>

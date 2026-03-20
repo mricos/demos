@@ -168,18 +168,21 @@ export class Cann {
 
     // Compute next state based on evolution mode
     let nextState;
+    const gw = this.grid.width;
+    const gh = this.grid.height;
     if (this.config.mode === 'ssm' && this._hiddenState) {
       // State Space Model: use hidden state
-      const result = this.evolver.forward(
+      const result = this.evolver.forwardGrid(
         perceptionField,
         this._hiddenState,
+        gw, gh,
         this._history
       );
       nextState = result.output;
       this._hiddenState = result.hidden;
     } else {
       // Markovian: memoryless transition
-      nextState = this.evolver.forward(perceptionField);
+      nextState = this.evolver.forwardGrid(perceptionField, gw, gh);
     }
 
     // Update history buffer
