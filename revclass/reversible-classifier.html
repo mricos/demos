@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reversible Iris Classifier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07080f;
+    --surface: #0d0e1c;
+    --surface2: #131428;
+    --border: rgba(80,90,180,0.18);
+    --accent: #4af0c0;
+    --accent2: #ff7c45;
+    --accent3: #a78bfa;
+    --text: #dde0f5;
+    --muted: #6b6e94;
+    --label: #b0b3d6;
+    --mono: 'JetBrains Mono', monospace;
+    --serif: 'DM Serif Display', serif;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.65;
+    overflow-x: hidden;
+  }
+
+  /* ─── Scrollbar ─── */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* ─── Grid Background ─── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(74,240,192,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74,240,192,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 40px;
+    background: rgba(7,8,15,0.85);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+  }
+  .nav-links { display: flex; gap: 32px; }
+  .nav-links a {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--accent); }
+
+  /* ─── SECTIONS ─── */
+  section {
+    position: relative;
+    z-index: 1;
+    padding: 100px 40px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  /* ─── HERO ─── */
+  #hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 140px;
+    max-width: 100%;
+    padding-left: 60px;
+    padding-right: 60px;
+  }
+  .hero-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    opacity: 0;
+    animation: fadeUp 0.7s 0.1s forwards;
+  }
+  .hero-title {
+    font-family: var(--serif);
+    font-size: clamp(42px, 6vw, 86px);
+    line-height: 1.05;
+    color: var(--text);
+    max-width: 780px;
+    opacity: 0;
+    animation: fadeUp 0.7s 0.25s forwards;
+  }
+  .hero-title em {
+    font-style: italic;
+    color: var(--accent);
+  }
+  .hero-sub {
+    font-family: var(--sans);
+    font-size: 16px;
+    color: var(--label);
+    max-width: 540px;
+    margin-top: 24px;
+    opacity: 0;
+    animation: fadeUp 0.7s 0.4s forwards;
+    line-height: 1.75;
+  }
+  .hero-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 40px;
+    opacity: 0;
+    animation: fadeUp 0.7s 0.55s forwards;
+  }
+  .pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 14px;
+    border-radius: 100px;
+    border: 1px solid;
+    letter-spacing: 0.05em;
+  }
+  .pill-green { border-color: var(--accent); color: var(--accent); background: rgba(74,240,192,0.06); }
+  .pill-orange { border-color: var(--accent2); color: var(--accent2); background: rgba(255,124,69,0.06); }
+  .pill-purple { border-color: var(--accent3); color: var(--accent3); background: rgba(167,139,250,0.06); }
+
+  .hero-canvas-wrap {
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 45%;
+    overflow: hidden;
+    opacity: 0;
+    animation: fadeIn 1.2s 0.6s forwards;
+    pointer-events: none;
+  }
+  #heroCanvas { width: 100%; height: 100%; }
+
+  /* ─── SECTION HEADER ─── */
+  .sec-header {
+    margin-bottom: 60px;
+  }
+  .sec-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .sec-title {
+    font-family: var(--serif);
+    font-size: clamp(28px, 3.5vw, 46px);
+    line-height: 1.1;
+  }
+  .sec-desc {
+    color: var(--label);
+    margin-top: 14px;
+    max-width: 560px;
+    font-size: 15px;
+  }
+
+  /* ─── ARCH DIAGRAM ─── */
+  #arch { padding-top: 80px; }
+  .arch-flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+    padding-bottom: 20px;
+  }
+  .arch-block {
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    min-width: 120px;
+    text-align: center;
+    position: relative;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    cursor: default;
+  }
+  .arch-block:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(74,240,192,0.1);
+  }
+  .arch-block .ab-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+  .arch-block .ab-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .arch-block .ab-dim {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent);
+    margin-top: 4px;
+  }
+  .arch-arrow {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    color: var(--muted);
+    font-size: 18px;
+  }
+  .arch-block.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 24px rgba(74,240,192,0.15);
+  }
+  .arch-block.garbage {
+    border-color: var(--accent2);
+  }
+  .arch-block.garbage .ab-dim { color: var(--accent2); }
+
+  .arch-note {
+    margin-top: 28px;
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+  .arch-note-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .note-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ─── COUPLING VIZ ─── */
+  #coupling {
+    padding-top: 60px;
+  }
+  .coupling-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+  }
+  @media(max-width: 700px) { .coupling-grid { grid-template-columns: 1fr; } }
+  .coupling-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+  }
+  .coupling-card h3 {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 18px;
+  }
+  .eq-block {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 2;
+    margin-bottom: 14px;
+  }
+  .eq-green { color: var(--accent); }
+  .eq-orange { color: var(--accent2); }
+  .eq-purple { color: var(--accent3); }
+  .eq-muted { color: var(--muted); }
+  #couplingCanvas {
+    width: 100%;
+    height: 200px;
+    border-radius: 8px;
+    margin-top: 12px;
+  }
+
+  /* ─── DEMO ─── */
+  #demo { padding-top: 60px; }
+  .demo-wrap {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media(max-width: 800px) { .demo-wrap { grid-template-columns: 1fr; } }
+
+  .demo-inputs {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+  }
+  .demo-inputs h3 {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: 20px;
+  }
+  .iris-presets {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .preset-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.06em;
+  }
+  .preset-btn:hover, .preset-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(74,240,192,0.06);
+  }
+  .slider-row {
+    margin-bottom: 16px;
+  }
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .slider-name {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--label);
+  }
+  .slider-val {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  input[type=range] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(74,240,192,0.4);
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  .demo-outputs {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .state-viz {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .state-viz h3 {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .state-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .state-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .state-bar-idx {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    width: 20px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .state-bar-track {
+    flex: 1;
+    height: 12px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .state-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+  .state-bar-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    width: 52px;
+    flex-shrink: 0;
+    text-align: right;
+  }
+
+  .class-result {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .class-result h3 {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+  .class-bars { display: flex; flex-direction: column; gap: 12px; }
+  .class-bar-row { display: flex; align-items: center; gap: 12px; }
+  .class-name {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--label);
+    width: 90px;
+    flex-shrink: 0;
+  }
+  .class-track {
+    flex: 1;
+    height: 16px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .class-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .class-pct {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    width: 44px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .predicted-label {
+    margin-top: 18px;
+    padding: 14px 18px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .pred-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .pred-value {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .pred-conf {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+
+  .recon-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .recon-card h3 {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent2);
+    margin-bottom: 18px;
+  }
+  .recon-rows {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .recon-item {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .recon-item .ri-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .recon-item .ri-orig {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--label);
+  }
+  .recon-item .ri-recon {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent2);
+  }
+  .recon-item .ri-err {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ─── PROPERTIES ─── */
+  #properties { padding-top: 60px; }
+  .props-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  @media(max-width: 800px) { .props-grid { grid-template-columns: 1fr; } }
+  .prop-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    transition: border-color 0.3s;
+  }
+  .prop-card:hover { border-color: rgba(74,240,192,0.3); }
+  .prop-icon {
+    font-size: 24px;
+    margin-bottom: 14px;
+  }
+  .prop-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+  .prop-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .prop-formula {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent3);
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+
+  /* ─── CODE ─── */
+  #code-section { padding-top: 60px; }
+  .code-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .code-tab {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 10px 20px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+    transition: all 0.2s;
+    letter-spacing: 0.06em;
+  }
+  .code-tab.active {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--accent);
+  }
+  .code-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    padding: 28px;
+    overflow-x: auto;
+    display: none;
+  }
+  .code-block.active { display: block; }
+  .code-block pre {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--text);
+  }
+  .kw { color: #ff6b9d; }
+  .cls { color: #c792ea; }
+  .fn { color: var(--accent); }
+  .cm { color: var(--muted); font-style: italic; }
+  .str { color: #ffd580; }
+  .num { color: var(--accent2); }
+  .dec { color: var(--accent3); }
+
+  /* ─── FOOTER ─── */
+  footer {
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--border);
+    padding: 36px 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  footer p {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .footer-eq {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent3);
+  }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  /* ─── SCROLLED ANIMATIONS ─── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.65s ease, transform 0.65s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ─── DIVIDER ─── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0 60px;
+  }
+
+  .badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    background: rgba(74,240,192,0.08);
+    color: var(--accent);
+    border: 1px solid rgba(74,240,192,0.2);
+    letter-spacing: 0.08em;
+    margin-right: 8px;
+  }
+  .badge-orange {
+    background: rgba(255,124,69,0.08);
+    color: var(--accent2);
+    border-color: rgba(255,124,69,0.2);
+  }
+
+  .info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+  }
+  .info-row .ir-icon {
+    font-size: 15px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .info-row p { color: var(--muted); }
+  .info-row strong { color: var(--text); }
+</style>
+</head>
+<body>
+
+<!-- ─── NAV ─── -->
+<nav>
+  <span class="nav-logo">F<sub style="font-size:9px">θ</sub> · Entropy &amp; Analog Computation</span>
+  <div class="nav-links">
+    <a href="#analog">Analog</a>
+    <a href="#arch">Architecture</a>
+    <a href="#degrees">Degrees</a>
+    <a href="#demo">Demo</a>
+    <a href="#algebra">Algebra</a>
+  </div>
+</nav>
+
+<!-- ─── HERO ─── -->
+<section id="hero" style="position:relative;">
+  <div class="hero-tag">After Sho Kuwamoto · Purdue 1995</div>
+  <h1 class="hero-title">Reversibility is a <em>Degree</em></h1>
+  <p class="hero-sub">
+    In digital systems, a gate is reversible or it isn't. In analog systems — neural networks, physical dynamics — reversibility becomes a <em>measure</em>. Sho Kuwamoto's thesis asks: can we train a neural network to be as invertible as possible, and what does that cost?
+  </p>
+  <div class="hero-pills">
+    <span class="pill pill-green">Analog Fredkin Gates</span>
+    <span class="pill pill-orange">Garbage Signal Criteria</span>
+    <span class="pill pill-purple">Volume Preservation ↔ Lie Algebra</span>
+  </div>
+  <div class="hero-canvas-wrap">
+    <canvas id="heroCanvas"></canvas>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ─── WHAT IS ANALOG COMPUTATION ─── -->
+<section id="analog">
+  <div class="sec-header reveal">
+    <div class="sec-tag">01 · The Problem</div>
+    <h2 class="sec-title">What Is Analog Computation?</h2>
+    <p class="sec-desc">Digital gates map bits to bits. A NAND gate is irreversible — (1,0) and (0,1) both produce 1. Landauer showed each bit erased costs kT ln 2 energy. Fredkin showed any digital computation can be made reversible by keeping "garbage" outputs. But what about continuous signals?</p>
+  </div>
+  <div class="coupling-grid reveal">
+    <div class="coupling-card">
+      <h3>Digital: Yes or No</h3>
+      <div class="eq-block">
+        <span class="eq-muted">NAND gate:</span><br>
+        <span class="eq-green">(1,0) → 1</span><br>
+        <span class="eq-green">(0,1) → 1</span><br>
+        <span class="eq-muted">two inputs, one output → irreversible</span>
+      </div>
+      <div class="info-row">
+        <span class="ir-icon">⊗</span>
+        <p>Reversibility is <strong>binary</strong>. A gate either has an inverse or it doesn't. The Fredkin gate is exactly its own inverse.</p>
+      </div>
+    </div>
+    <div class="coupling-card">
+      <h3>Analog: How Much?</h3>
+      <div class="eq-block">
+        <span class="eq-muted">Neural network:</span><br>
+        <span class="eq-orange">o = g(Σ wⱼxⱼ)</span><br>
+        <span class="eq-muted">continuous in, continuous out</span><br>
+        <span class="eq-muted">many-to-one via saturation</span>
+      </div>
+      <div class="info-row">
+        <span class="ir-icon">≈</span>
+        <p>Reversibility is a <strong>degree</strong>. How invertible is this mapping? How much information leaks into noise? Sho's key insight (1995).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ─── ARCHITECTURE ─── -->
+<section id="arch">
+  <div class="sec-header reveal">
+    <div class="sec-tag">02 · Architecture</div>
+    <h2 class="sec-title">Analog Fredkin Gates</h2>
+    <p class="sec-desc">Sho extends the Fredkin gate to continuous signals: o = M(a)·x where M is a rotation matrix, preserving volume exactly. Stack these into a neural network — same number of inputs and outputs at every layer.</p>
+  </div>
+  <div class="arch-flow reveal">
+    <div class="arch-block" id="ab-input">
+      <div class="ab-label">Input</div>
+      <div class="ab-title">x ∈ ℝ⁴</div>
+      <div class="ab-dim">sepal/petal</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-block" id="ab-embed">
+      <div class="ab-label">Pad + Embed</div>
+      <div class="ab-title">(x, 0…0)</div>
+      <div class="ab-dim">ℝ⁴ → ℝ¹⁶</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-block" id="ab-c1">
+      <div class="ab-label">Layers ×4</div>
+      <div class="ab-title">M<sub>θ</sub>·g(·)</div>
+      <div class="ab-dim">ℝ¹⁶ → ℝ¹⁶</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-block active" id="ab-class">
+      <div class="ab-label">Read Out</div>
+      <div class="ab-title">W · o[0:7]</div>
+      <div class="ab-dim">ℝ⁸ → ℝ³</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-block" id="ab-pred">
+      <div class="ab-label">Classify</div>
+      <div class="ab-title">softmax</div>
+      <div class="ab-dim">p ∈ Δ²</div>
+    </div>
+    <div class="arch-arrow" style="opacity:0.3">↓</div>
+    <div class="arch-block garbage" id="ab-garbage">
+      <div class="ab-label">Garbage</div>
+      <div class="ab-title">o[8:15]</div>
+      <div class="ab-dim">must be managed</div>
+    </div>
+  </div>
+  <div class="arch-note reveal">
+    <div class="arch-note-item">
+      <div class="note-dot" style="background:var(--accent)"></div>
+      Fixed width: same dims every layer
+    </div>
+    <div class="arch-note-item">
+      <div class="note-dot" style="background:var(--accent2)"></div>
+      Garbage: the cost of invertibility
+    </div>
+    <div class="arch-note-item">
+      <div class="note-dot" style="background:var(--accent3)"></div>
+      Embed is NOT invertible — that's the point
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ─── DEGREES OF REVERSIBILITY ─── -->
+<section id="degrees">
+  <div class="sec-header reveal">
+    <div class="sec-tag">03 · Degrees of Reversibility</div>
+    <h2 class="sec-title">Training Invertibility</h2>
+    <p class="sec-desc">Sho's insight: don't just build an invertible architecture — <em>train</em> the network to stay invertible. Three penalty terms in the energy function measure how far the network drifts from perfect reversibility.</p>
+  </div>
+  <div class="coupling-grid reveal">
+    <div class="coupling-card">
+      <h3>C₁ — Garbage Statistics</h3>
+      <div class="eq-block">
+        <span class="eq-green">½C₁</span> <span class="eq-muted">Σ</span><sub>i∉I</sub> <span class="eq-muted">[</span><span class="eq-green">ōᵢ²</span> <span class="eq-muted">+</span> <span class="eq-green">(1 − σᵢᵢ)²</span><span class="eq-muted">]</span>
+      </div>
+      <div class="info-row">
+        <span class="ir-icon">📊</span>
+        <p>Drives garbage outputs to <strong>mean = 0</strong> and <strong>variance = 1</strong> across the training set. Without this, garbage values are unpredictable — you'd have no idea what to plug in when running the network backward.</p>
+      </div>
+    </div>
+    <div class="coupling-card">
+      <h3>C₂ — Garbage Independence</h3>
+      <div class="eq-block">
+        <span class="eq-purple">½C₂</span> <span class="eq-muted">Σ</span><sub>i∉I, j≠i</sub> <span class="eq-purple">σᵢⱼ²</span>
+      </div>
+      <div class="info-row">
+        <span class="ir-icon">⊥</span>
+        <p>Penalizes <strong>correlation between garbage outputs</strong>. If two garbage dims are correlated, they carry redundant information — wasting the capacity you paid for. Each garbage line should encode something independent.</p>
+      </div>
+    </div>
+    <div class="coupling-card" style="grid-column: span 2;">
+      <h3>C₃ — Volume Preservation</h3>
+      <div class="eq-block" style="font-size:15px;">
+        <span class="eq-orange">C₃</span> <span class="eq-muted">Σ</span><sub>k</sub> <span class="eq-orange">|1 − det(M⁽ᵏ⁾)|</span>
+      </div>
+      <div class="info-row">
+        <span class="ir-icon">≅</span>
+        <p>The deepest term. Pushes each layer's weight matrix toward <strong>unit determinant</strong>. When det(M) = 1, the transformation preserves phase-space volume — this is <strong>Liouville's theorem</strong> expressed as a loss function. The rotation-restricted Fredkin gate satisfies this exactly (M is orthogonal). The unrestricted gate uses C₃ to stay close.</p>
+      </div>
+      <div class="info-row">
+        <span class="ir-icon">⇌</span>
+        <p>This is the discrete analog of the <strong>Poisson bracket</strong> {H, f} generating reversible Hamiltonian flow. C₃ measures how far the network's dynamics are from a symplectic map. Training minimizes this distance — <em>learning to be reversible</em>.</p>
+      </div>
+      <canvas id="couplingCanvas"></canvas>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ─── DEMO ─── -->
+<section id="demo">
+  <div class="sec-header reveal">
+    <div class="sec-tag">04 · Live Demo</div>
+    <h2 class="sec-title">Interactive Inference</h2>
+    <p class="sec-desc">Adjust the Iris features to see the state vector transform in real time. Weights are random (untrained) — this shows the <em>structure</em>, not a trained classifier. The coupling stack is exactly invertible; the embed layer is not.</p>
+  </div>
+  <div class="demo-wrap reveal">
+    <div>
+      <div class="demo-inputs">
+        <h3>Input Features</h3>
+        <div class="iris-presets">
+          <button class="preset-btn active" data-preset="setosa">Setosa</button>
+          <button class="preset-btn" data-preset="versicolor">Versicolor</button>
+          <button class="preset-btn" data-preset="virginica">Virginica</button>
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">
+            <span class="slider-name">Sepal Length</span>
+            <span class="slider-val" id="v-sl">5.1</span>
+          </div>
+          <input type="range" id="sl" min="4.0" max="8.0" step="0.1" value="5.1">
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">
+            <span class="slider-name">Sepal Width</span>
+            <span class="slider-val" id="v-sw">3.5</span>
+          </div>
+          <input type="range" id="sw" min="2.0" max="4.5" step="0.1" value="3.5">
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">
+            <span class="slider-name">Petal Length</span>
+            <span class="slider-val" id="v-pl">1.4</span>
+          </div>
+          <input type="range" id="pl" min="1.0" max="7.0" step="0.1" value="1.4">
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">
+            <span class="slider-name">Petal Width</span>
+            <span class="slider-val" id="v-pw">0.2</span>
+          </div>
+          <input type="range" id="pw" min="0.1" max="2.5" step="0.1" value="0.2">
+        </div>
+      </div>
+
+      <div class="recon-card" style="margin-top:20px;">
+        <h3>⟲ Coupling Stack Inversion (Exact)</h3>
+        <div class="recon-rows" id="reconRows"></div>
+        <div style="margin-top:12px; font-family:var(--mono); font-size:10px; color:var(--muted);">
+          ‖x − F<sub>θ</sub>⁻¹(F<sub>θ</sub>(x))‖ = <span id="reconErr" style="color:var(--accent)">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="demo-outputs">
+      <div class="state-viz">
+        <h3>State Vector z<sub>L</sub> ∈ ℝ¹⁶</h3>
+        <div style="display:flex; gap:16px; margin-bottom:10px;">
+          <span class="badge">z_used [0–7]</span>
+          <span class="badge badge-orange">z_garbage [8–15]</span>
+        </div>
+        <div class="state-bars" id="stateBars"></div>
+      </div>
+      <div class="class-result">
+        <h3>Classification Probabilities</h3>
+        <div class="class-bars">
+          <div class="class-bar-row">
+            <span class="class-name">I. setosa</span>
+            <div class="class-track">
+              <div class="class-fill" id="cf-0" style="width:0%; background: linear-gradient(90deg, var(--accent), #2de8a8);"></div>
+            </div>
+            <span class="class-pct" id="cp-0">—</span>
+          </div>
+          <div class="class-bar-row">
+            <span class="class-name">I. versicolor</span>
+            <div class="class-track">
+              <div class="class-fill" id="cf-1" style="width:0%; background: linear-gradient(90deg, var(--accent3), #d8b4fe);"></div>
+            </div>
+            <span class="class-pct" id="cp-1">—</span>
+          </div>
+          <div class="class-bar-row">
+            <span class="class-name">I. virginica</span>
+            <div class="class-track">
+              <div class="class-fill" id="cf-2" style="width:0%; background: linear-gradient(90deg, var(--accent2), #ffb347);"></div>
+            </div>
+            <span class="class-pct" id="cp-2">—</span>
+          </div>
+        </div>
+        <div class="predicted-label">
+          <span class="pred-tag">Predicted</span>
+          <span class="pred-value" id="predClass">—</span>
+          <span class="pred-conf" id="predConf">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ─── LIE ALGEBRA CONNECTION ─── -->
+<section id="algebra">
+  <div class="sec-header reveal">
+    <div class="sec-tag">05 · The Algebra of Reversibility</div>
+    <h2 class="sec-title">From Dagger to Poisson Bracket</h2>
+    <p class="sec-desc">Invertibility has a geometry. In category theory it's exact. In physics it's continuous. Sho's C₃ term sits at the intersection.</p>
+  </div>
+  <div class="props-grid reveal">
+    <div class="prop-card">
+      <div class="prop-icon">†</div>
+      <div class="prop-title">Dagger (Exact)</div>
+      <p class="prop-desc">In a dagger category, every morphism has a formal reverse. f† ∘ f = id. All or nothing — either the gate has an inverse or it doesn't. This is where digital Fredkin lives.</p>
+      <div class="prop-formula">f† ∘ f = id<sub>A</sub></div>
+    </div>
+    <div class="prop-card">
+      <div class="prop-icon">{,}</div>
+      <div class="prop-title">Poisson Bracket (Infinitesimal)</div>
+      <p class="prop-desc">Measures how two observables fail to commute under Hamiltonian flow. Generates reversible evolution. The continuous algebra of symmetry — when {H,f} = 0, f is conserved.</p>
+      <div class="prop-formula">{f,g} = Σ(∂f/∂q · ∂g/∂p − ∂f/∂p · ∂g/∂q)</div>
+    </div>
+    <div class="prop-card">
+      <div class="prop-icon">Ω</div>
+      <div class="prop-title">Liouville (Volume)</div>
+      <p class="prop-desc">Hamiltonian flow preserves phase-space volume. dΩ/dt = 0. The continuous analog of bijectivity — no states are created or destroyed. Sho's rotation gate satisfies this exactly.</p>
+      <div class="prop-formula">|det J| = 1  ⟺  dΩ/dt = 0</div>
+    </div>
+    <div class="prop-card">
+      <div class="prop-icon">C₃</div>
+      <div class="prop-title">Sho's Bridge</div>
+      <p class="prop-desc">The C₃ penalty is Liouville's theorem as a loss function. It measures how far each layer's matrix is from volume-preserving — the <em>degree</em> of reversibility, trainable by gradient descent.</p>
+      <div class="prop-formula">C₃ Σₖ |1 − det(M⁽ᵏ⁾)|</div>
+    </div>
+    <div class="prop-card">
+      <div class="prop-icon">‖·‖</div>
+      <div class="prop-title">Deviation Measure</div>
+      <p class="prop-desc">For any operator T, ‖T†T − I‖ measures deviation from perfect reversibility. This is Sho's C₃ in operator-norm language. Zero means unitary. Positive means dissipation.</p>
+      <div class="prop-formula">‖M<sup>T</sup>M − I‖ → 0</div>
+    </div>
+    <div class="prop-card">
+      <div class="prop-icon">kT</div>
+      <div class="prop-title">Landauer Cost</div>
+      <p class="prop-desc">Every bit of information the network destroys costs at least kT ln 2 energy. The garbage dims exist to avoid paying this cost. Information preserved = energy saved.</p>
+      <div class="prop-formula">ΔQ ≥ kT ln 2 per bit erased</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ─── CODE ─── -->
+<section id="code-section">
+  <div class="sec-header reveal">
+    <div class="sec-tag">06 · Implementation</div>
+    <h2 class="sec-title">PyTorch Reference Code</h2>
+  </div>
+  <div class="reveal">
+    <div class="code-tabs">
+      <button class="code-tab active" data-tab="coupling-code">Coupling Layer</button>
+      <button class="code-tab" data-tab="model-code">Full Model</button>
+      <button class="code-tab" data-tab="train-code">Training Loop</button>
+    </div>
+    <div class="code-block active" id="coupling-code">
+<pre><span class="kw">import</span> torch
+<span class="kw">import</span> torch.nn <span class="kw">as</span> nn
+
+<span class="kw">class</span> <span class="cls">Coupling</span>(nn.<span class="cls">Module</span>):
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="dec">self</span>, dim):
+        <span class="fn">super</span>().<span class="fn">__init__</span>()
+        <span class="cm"># f_θ can be any neural network</span>
+        <span class="dec">self</span>.f = nn.<span class="cls">Sequential</span>(
+            nn.<span class="cls">Linear</span>(dim//<span class="num">2</span>, <span class="num">32</span>),
+            nn.<span class="cls">ReLU</span>(),
+            nn.<span class="cls">Linear</span>(<span class="num">32</span>, dim//<span class="num">2</span>)
+        )
+
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="dec">self</span>, x):
+        x1, x2 = x.<span class="fn">chunk</span>(<span class="num">2</span>, dim=<span class="num">-1</span>)
+        y1 = x1                          <span class="cm"># identity pass-through</span>
+        y2 = x2 + <span class="dec">self</span>.f(x1)           <span class="cm"># additive shift</span>
+        <span class="kw">return</span> torch.<span class="fn">cat</span>([y1, y2], dim=<span class="num">-1</span>)
+
+    <span class="kw">def</span> <span class="fn">inverse</span>(<span class="dec">self</span>, y):
+        y1, y2 = y.<span class="fn">chunk</span>(<span class="num">2</span>, dim=<span class="num">-1</span>)
+        x1 = y1                          <span class="cm"># recover z1 trivially</span>
+        x2 = y2 - <span class="dec">self</span>.f(y1)           <span class="cm"># undo the shift</span>
+        <span class="kw">return</span> torch.<span class="fn">cat</span>([x1, x2], dim=<span class="num">-1</span>)</pre>
+    </div>
+    <div class="code-block" id="model-code">
+<pre><span class="kw">class</span> <span class="cls">ReversibleIris</span>(nn.<span class="cls">Module</span>):
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="dec">self</span>, input_dim=<span class="num">4</span>, hidden_dim=<span class="num">16</span>, layers=<span class="num">4</span>):
+        <span class="fn">super</span>().<span class="fn">__init__</span>()
+        <span class="cm"># Lift input to higher-dimensional reversible state</span>
+        <span class="dec">self</span>.embed = nn.<span class="cls">Linear</span>(input_dim, hidden_dim)
+        <span class="cm"># Stack of bijective coupling layers</span>
+        <span class="dec">self</span>.couplings = nn.<span class="cls">ModuleList</span>(
+            [<span class="cls">Coupling</span>(hidden_dim) <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(layers)]
+        )
+        <span class="cm"># Classifier reads only the first half of final state</span>
+        <span class="dec">self</span>.classifier = nn.<span class="cls">Linear</span>(hidden_dim//<span class="num">2</span>, <span class="num">3</span>)
+
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="dec">self</span>, x):
+        z = <span class="dec">self</span>.embed(x)           <span class="cm"># ℝ⁴ → ℝ¹⁶</span>
+        <span class="kw">for</span> layer <span class="kw">in</span> <span class="dec">self</span>.couplings:
+            z = layer(z)             <span class="cm"># bijective transform</span>
+        z_used, z_garbage = z.<span class="fn">chunk</span>(<span class="num">2</span>, dim=<span class="num">-1</span>)
+        <span class="cm"># z_garbage: unused dims, carry invertibility trace</span>
+        logits = <span class="dec">self</span>.classifier(z_used)
+        <span class="kw">return</span> logits
+
+    <span class="kw">def</span> <span class="fn">inverse</span>(<span class="dec">self</span>, z_L):
+        <span class="cm"># Exact inverse through coupling stack</span>
+        z = z_L
+        <span class="kw">for</span> layer <span class="kw">in</span> <span class="fn">reversed</span>(<span class="dec">self</span>.couplings):
+            z = layer.<span class="fn">inverse</span>(z)
+        <span class="kw">return</span> z               <span class="cm"># recovers (x, g₀)</span></pre>
+    </div>
+    <div class="code-block" id="train-code">
+<pre><span class="kw">from</span> sklearn.datasets <span class="kw">import</span> load_iris
+<span class="kw">import</span> torch.optim <span class="kw">as</span> optim
+
+<span class="cm"># Load and normalise Iris</span>
+data = <span class="fn">load_iris</span>()
+X = torch.<span class="fn">tensor</span>(data.data, dtype=torch.float32)
+y = torch.<span class="fn">tensor</span>(data.target, dtype=torch.long)
+X = (X - X.<span class="fn">mean</span>(<span class="num">0</span>)) / X.<span class="fn">std</span>(<span class="num">0</span>)
+
+model = <span class="cls">ReversibleIris</span>(hidden_dim=<span class="num">16</span>, layers=<span class="num">4</span>)
+opt   = optim.<span class="cls">Adam</span>(model.<span class="fn">parameters</span>(), lr=<span class="num">1e-3</span>)
+
+<span class="kw">for</span> epoch <span class="kw">in</span> <span class="fn">range</span>(<span class="num">500</span>):
+    logits = model(X)
+    loss   = nn.functional.<span class="fn">cross_entropy</span>(logits, y)
+
+    opt.<span class="fn">zero_grad</span>()
+    loss.<span class="fn">backward</span>()
+    opt.<span class="fn">step</span>()
+
+    <span class="kw">if</span> epoch % <span class="num">100</span> == <span class="num">0</span>:
+        acc = (logits.<span class="fn">argmax</span>(<span class="num">1</span>) == y).<span class="fn">float</span>().<span class="fn">mean</span>()
+        <span class="fn">print</span>(<span class="str">f"Epoch {epoch}: loss={loss:.4f}, acc={acc:.3f}"</span>)
+
+<span class="cm"># Verify invertibility</span>
+<span class="cm"># TODO: store z_L during forward pass to test F⁻¹(F(x)) ≈ x</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ─── FOOTER ─── -->
+<footer>
+  <p>After Sho Kuwamoto, "Entropy and Analog Computation" (Purdue, 1995)</p>
+  <span class="footer-eq">C₃ Σₖ |1 − det(M⁽ᵏ⁾)| → 0 · reversibility as training objective</span>
+</footer>
+
+<script>
+/* ─────────────────────────────────────────────
+   MINI NEURAL NET  (forward + inverse in pure JS)
+   hidden_dim = 16, layers = 4, coupling layers
+   Weights are deterministic seeded randoms — demo only
+────────────────────────────────────────────── */
+
+// Seeded PRNG
+function seededRand(seed) {
+  let s = seed;
+  return () => {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff * 2 - 1;
+  };
+}
+
+// Simple matrix ops
+const mat = {
+  mul(W, x) {
+    // W: [out, in], x: [in]
+    return W.map(row => row.reduce((s, w, i) => s + w * x[i], 0));
+  },
+  add(a, b) { return a.map((v, i) => v + b[i]); },
+  sub(a, b) { return a.map((v, i) => v - b[i]); },
+  relu(x) { return x.map(v => Math.max(0, v)); },
+  tanh(x) { return x.map(v => Math.tanh(v)); },
+};
+
+function makeWeight(out, inp, rng) {
+  const s = Math.sqrt(2 / inp);
+  return Array.from({length: out}, () =>
+    Array.from({length: inp}, () => rng() * s)
+  );
+}
+function makeBias(out, rng) {
+  return Array.from({length: out}, () => rng() * 0.1);
+}
+
+// Build model weights
+function buildModel(hiddenDim = 16, numLayers = 4, seed = 42) {
+  const rng = seededRand(seed);
+  const half = hiddenDim / 2;
+
+  // Embedding (linear): 4 → 16
+  const embedW = makeWeight(hiddenDim, 4, rng);
+  const embedB = makeBias(hiddenDim, rng);
+
+  // Coupling layers: each has f_θ: half → 32 → half
+  const couplings = Array.from({length: numLayers}, () => {
+    const W1 = makeWeight(32, half, rng);
+    const b1 = makeBias(32, rng);
+    const W2 = makeWeight(half, 32, rng);
+    const b2 = makeBias(half, rng);
+    return {W1, b1, W2, b2};
+  });
+
+  // Classifier: half → 3
+  const classW = makeWeight(3, half, rng);
+  const classB = makeBias(3, rng);
+
+  return {embedW, embedB, couplings, classW, classB, half};
+}
+
+function fTheta(model, z1) {
+  // f_θ(z1): linear→relu→linear
+  let h = mat.relu(mat.add(mat.mul(model.W1, z1), model.b1));
+  return mat.add(mat.mul(model.W2, h), model.b2);
+}
+
+function forward(model, x) {
+  // Embed
+  let z = mat.add(mat.mul(model.embedW, x), model.embedB);
+
+  // Coupling layers
+  for (const c of model.couplings) {
+    const z1 = z.slice(0, model.half);
+    const z2 = z.slice(model.half);
+    const y1 = z1;
+    const y2 = mat.add(z2, fTheta(c, z1));
+    z = [...y1, ...y2];
+  }
+
+  // Split
+  const zUsed = z.slice(0, model.half);
+  const zGarbage = z.slice(model.half);
+
+  // Logits
+  const logits = mat.add(mat.mul(model.classW, zUsed), model.classB);
+
+  // Softmax
+  const maxL = Math.max(...logits);
+  const exps = logits.map(v => Math.exp(v - maxL));
+  const sumE = exps.reduce((a, b) => a + b, 0);
+  const probs = exps.map(v => v / sumE);
+
+  return {zFull: z, zUsed, zGarbage, logits, probs};
+}
+
+function inverseModel(model, zL) {
+  let z = [...zL];
+  for (let i = model.couplings.length - 1; i >= 0; i--) {
+    const c = model.couplings[i];
+    const y1 = z.slice(0, model.half);
+    const y2 = z.slice(model.half);
+    const x1 = y1;
+    const x2 = mat.sub(y2, fTheta(c, y1));
+    z = [...x1, ...x2];
+  }
+  return z; // ≈ embed(x) — the embedded input
+}
+
+// Normalisation params (from typical Iris stats)
+const irisStats = {
+  mean: [5.843, 3.057, 3.758, 1.199],
+  std:  [0.828, 0.436, 1.765, 0.763]
+};
+function normalise(x) {
+  return x.map((v, i) => (v - irisStats.mean[i]) / irisStats.std[i]);
+}
+
+const MODEL = buildModel(16, 4, 42);
+
+// ─── PRESETS ───
+const PRESETS = {
+  setosa:     [5.1, 3.5, 1.4, 0.2],
+  versicolor: [6.2, 2.9, 4.3, 1.3],
+  virginica:  [6.5, 3.0, 5.8, 2.2],
+};
+const CLASS_NAMES = ['I. setosa', 'I. versicolor', 'I. virginica'];
+
+// ─── INIT STATE BARS ───
+const stateBarsEl = document.getElementById('stateBars');
+for (let i = 0; i < 16; i++) {
+  const isGarbage = i >= 8;
+  const row = document.createElement('div');
+  row.className = 'state-bar-row';
+  row.innerHTML = `
+    <span class="state-bar-idx">${i}</span>
+    <div class="state-bar-track">
+      <div class="state-bar-fill" id="sb-${i}"
+        style="width:0%; background:${isGarbage ? 'var(--accent2)' : 'var(--accent)'}; opacity:${isGarbage ? '0.65' : '1'}">
+      </div>
+    </div>
+    <span class="state-bar-num" id="sn-${i}">0.000</span>
+  `;
+  stateBarsEl.appendChild(row);
+}
+
+// ─── INIT RECON ROWS ───
+const reconRowsEl = document.getElementById('reconRows');
+const FEAT_NAMES = ['Sepal L', 'Sepal W', 'Petal L', 'Petal W'];
+for (let i = 0; i < 4; i++) {
+  const item = document.createElement('div');
+  item.className = 'recon-item';
+  item.innerHTML = `
+    <div class="ri-label">${FEAT_NAMES[i]}</div>
+    <div class="ri-orig" id="ro-${i}">orig: —</div>
+    <div class="ri-recon" id="rr-${i}">recon: —</div>
+    <div class="ri-err" id="re-${i}">err: —</div>
+  `;
+  reconRowsEl.appendChild(item);
+}
+
+// ─── RUN INFERENCE ───
+function runInference() {
+  const x = [
+    parseFloat(document.getElementById('sl').value),
+    parseFloat(document.getElementById('sw').value),
+    parseFloat(document.getElementById('pl').value),
+    parseFloat(document.getElementById('pw').value),
+  ];
+  const xNorm = normalise(x);
+  const {zFull, zUsed, zGarbage, probs} = forward(MODEL, xNorm);
+
+  // State bars
+  const absMax = Math.max(...zFull.map(Math.abs), 1e-6);
+  for (let i = 0; i < 16; i++) {
+    const pct = (Math.abs(zFull[i]) / absMax * 100).toFixed(1);
+    document.getElementById(`sb-${i}`).style.width = pct + '%';
+    document.getElementById(`sn-${i}`).textContent = zFull[i].toFixed(3);
+  }
+
+  // Classification bars
+  probs.forEach((p, i) => {
+    document.getElementById(`cf-${i}`).style.width = (p * 100).toFixed(1) + '%';
+    document.getElementById(`cp-${i}`).textContent = (p * 100).toFixed(1) + '%';
+  });
+
+  const predIdx = probs.indexOf(Math.max(...probs));
+  document.getElementById('predClass').textContent = CLASS_NAMES[predIdx];
+  document.getElementById('predConf').textContent = `conf: ${(probs[predIdx] * 100).toFixed(1)}%`;
+
+  // Inverse — reconstruct through coupling stack (exact) then show embed-space error
+  const zRecEmbed = inverseModel(MODEL, zFull);
+  // The coupling stack is exactly invertible: F⁻¹(F(z)) = z
+  // The embed layer (ℝ⁴→ℝ¹⁶) is NOT invertible — it's a non-square linear map
+  const zEmbed0 = mat.add(mat.mul(MODEL.embedW, xNorm), MODEL.embedB);
+  let errSum = 0;
+  for (let i = 0; i < 16; i++) errSum += (zRecEmbed[i] - zEmbed0[i]) ** 2;
+  const mse = Math.sqrt(errSum / 16);
+
+  // Show coupling-stack reconstruction quality (should be ~0 = exact)
+  for (let i = 0; i < 4; i++) {
+    document.getElementById(`ro-${i}`).textContent = `embed[${i}]:  ${zEmbed0[i].toFixed(4)}`;
+    document.getElementById(`rr-${i}`).textContent = `recon[${i}]: ${zRecEmbed[i].toFixed(4)}`;
+    const err = Math.abs(zRecEmbed[i] - zEmbed0[i]);
+    document.getElementById(`re-${i}`).textContent = `Δ: ${err.toExponential(2)}`;
+  }
+  document.getElementById('reconErr').textContent = mse.toExponential(3);
+
+  // Highlight active preset
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    const p = PRESETS[btn.dataset.preset];
+    const match = p.every((v, i) => Math.abs(v - x[i]) < 0.05);
+    btn.classList.toggle('active', match);
+  });
+
+  drawCouplingCanvas(zFull);
+}
+
+// ─── SLIDERS ───
+['sl', 'sw', 'pl', 'pw'].forEach((id, i) => {
+  document.getElementById(id).addEventListener('input', function() {
+    document.getElementById('v-' + id).textContent = parseFloat(this.value).toFixed(1);
+    runInference();
+  });
+});
+
+// ─── PRESETS ───
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const p = PRESETS[btn.dataset.preset];
+    const ids = ['sl', 'sw', 'pl', 'pw'];
+    p.forEach((v, i) => {
+      const el = document.getElementById(ids[i]);
+      el.value = v;
+      document.getElementById('v-' + ids[i]).textContent = v.toFixed(1);
+    });
+    runInference();
+  });
+});
+
+// ─── CODE TABS ───
+document.querySelectorAll('.code-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.code-block').forEach(b => b.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ─── HERO CANVAS ───
+(function() {
+  const canvas = document.getElementById('heroCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles, t = 0;
+  const ACCENT = '#4af0c0';
+  const ORANGE = '#ff7c45';
+  const PURPLE = '#a78bfa';
+
+  function resize() {
+    const wrap = canvas.parentElement;
+    W = canvas.width = wrap.offsetWidth;
+    H = canvas.height = wrap.offsetHeight;
+  }
+
+  function initParticles() {
+    particles = Array.from({length: 80}, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 2 + 0.5,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      col: [ACCENT, ORANGE, PURPLE][Math.floor(Math.random() * 3)],
+      alpha: Math.random() * 0.5 + 0.2,
+    }));
+  }
+
+  function drawHeroViz() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Draw flowing state vectors as vertical bars
+    const N = 16;
+    const barW = W / (N + 4);
+    const cx = W / 2 - (N / 2) * barW;
+
+    for (let i = 0; i < N; i++) {
+      const phase = t * 0.6 + i * 0.5;
+      const val = Math.abs(Math.sin(phase) * 0.7 + Math.sin(phase * 1.7) * 0.3);
+      const bh = val * H * 0.5;
+      const bx = cx + i * barW + barW * 0.1;
+      const by = H / 2 - bh / 2;
+      const col = i < 8 ? ACCENT : ORANGE;
+
+      ctx.globalAlpha = 0.3 + val * 0.3;
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, barW * 0.8, bh, 3);
+      ctx.fill();
+
+      // Top glow dot
+      ctx.globalAlpha = val * 0.8;
+      ctx.beginPath();
+      ctx.arc(bx + barW * 0.4, by, 3, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+    }
+
+    // Label
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = ACCENT;
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.fillText('z_used [0–7]', cx, H / 2 + H * 0.32);
+    ctx.fillStyle = ORANGE;
+    ctx.fillText('z_garbage [8–15]', cx + barW * 8, H / 2 + H * 0.32);
+
+    // Particles
+    for (const p of particles) {
+      ctx.globalAlpha = p.alpha * 0.5;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.col;
+      ctx.fill();
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W;
+      if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H;
+      if (p.y > H) p.y = 0;
+    }
+
+    ctx.globalAlpha = 1;
+    t += 0.016;
+    requestAnimationFrame(drawHeroViz);
+  }
+
+  resize();
+  initParticles();
+  drawHeroViz();
+  window.addEventListener('resize', () => { resize(); initParticles(); });
+})();
+
+// ─── COUPLING CANVAS ───
+function drawCouplingCanvas(zFull) {
+  const canvas = document.getElementById('couplingCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const DPR = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth * DPR;
+  const H = canvas.offsetHeight * DPR;
+  canvas.width = W;
+  canvas.height = H;
+  ctx.scale(DPR, DPR);
+  const w = canvas.offsetWidth;
+  const h = canvas.offsetHeight;
+
+  ctx.clearRect(0, 0, w, h);
+
+  const half = 8;
+  const z1 = zFull.slice(0, half);
+  const z2 = zFull.slice(half);
+
+  const barH = (h - 20) / half - 2;
+  const colW = (w - 40) / 2;
+  const absMax = Math.max(...zFull.map(Math.abs), 0.01);
+
+  for (let i = 0; i < half; i++) {
+    const y = 10 + i * (barH + 2);
+
+    // z1 bar
+    const w1 = (Math.abs(z1[i]) / absMax) * colW * 0.85;
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = '#4af0c0';
+    ctx.beginPath();
+    ctx.roundRect(20, y, w1, barH, 2);
+    ctx.fill();
+
+    // z2 bar
+    const w2 = (Math.abs(z2[i]) / absMax) * colW * 0.85;
+    ctx.fillStyle = '#ff7c45';
+    ctx.beginPath();
+    ctx.roundRect(w / 2 + 20, y, w2, barH, 2);
+    ctx.fill();
+  }
+
+  // Labels
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = '#4af0c0';
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.fillText('z_used (→ classifier)', 20, h - 4);
+  ctx.fillStyle = '#ff7c45';
+  ctx.fillText('z_garbage (→ invertibility)', w / 2 + 20, h - 4);
+  ctx.globalAlpha = 1;
+}
+
+// ─── SCROLL REVEAL ───
+const revealEls = document.querySelectorAll('.reveal');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) e.target.classList.add('visible');
+  });
+}, {threshold: 0.1});
+revealEls.forEach(el => observer.observe(el));
+
+// ─── INITIAL RUN ───
+runInference();
+</script>
+</body>
+</html>
