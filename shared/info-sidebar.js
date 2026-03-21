@@ -49,6 +49,9 @@ class InfoSidebar extends HTMLElement {
     this._render();
     this._setupResize();
     this._setupWikiDelegation();
+    // Auto-populate from meta.json if "meta" attribute is set
+    const metaPath = this.getAttribute("meta");
+    if (metaPath) this._loadMeta(metaPath);
   }
 
   attributeChangedCallback(name, oldVal, newVal) {
@@ -258,6 +261,42 @@ class InfoSidebar extends HTMLElement {
       .catch(e => {
         box.innerHTML = '<div class="wiki-error">Could not load "' + title + '": ' + e.message + '</div>';
       });
+  }
+
+  /**
+   * Auto-populate sidebar sections from a meta.json file.
+   * Reads the "sidebar" array (Wikipedia topic strings) and "title"/"description".
+   * Appends wiki-link elements after any existing slotted content.
+   *
+   * Usage: <info-sidebar meta="meta.json">
+   *   <!-- optional hand-written sections go here -->
+   * </info-sidebar>
+   */
+  _loadMeta(path) {
+    fetch(path)
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(meta => {
+        // Build a sidebar-section with wiki links from the sidebar array
+        if (meta.sidebar && meta.sidebar.length > 0) {
+          const sec = document.createElement("sidebar-section");
+          sec.setAttribute("title", "Related Topics");
+          sec.setAttribute("open", "");
+          const p = document.createElement("p");
+          const links = meta.sidebar.map(topic => {
+            const wl = document.createElement("wiki-link");
+            wl.setAttribute("topic", topic);
+            wl.textContent = topic.replace(/_/g, " ").replace(/%27/g, "'").replace(/%E2%80%93/g, "-");
+            return wl;
+          });
+          links.forEach((wl, i) => {
+            p.appendChild(wl);
+            if (i < links.length - 1) p.appendChild(document.createTextNode(" \u00b7 "));
+          });
+          sec.appendChild(p);
+          this.appendChild(sec);
+        }
+      })
+      .catch(() => { /* meta.json not found — no-op */ });
   }
 }
 
