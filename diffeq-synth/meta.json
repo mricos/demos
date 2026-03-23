@@ -1,0 +1,15 @@
+{
+  "title": "DiffEq Synth",
+  "entry": "index.html",
+  "tags": ["audio", "differential-equations", "oscillator", "chaos"],
+  "section": 3,
+  "description": "Audio synthesis engine driven by differential equations — damped oscillators, Van der Pol, Duffing, and coupled systems with real-time phase portraits.",
+  "sidebar": [
+    "Harmonic_oscillator",
+    "Damping",
+    "Van_der_Pol_oscillator",
+    "Duffing_equation",
+    "Phase_portrait",
+    "Runge%E2%80%93Kutta_methods"
+  ]
+}

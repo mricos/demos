@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiffEq Synth</title>
+<link rel="stylesheet" href="/shared/dark-theme.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="/shared/help-panel.js"></script>
+<script src="/shared/dev.js"></script>
+<style>
+/* ── Layout ── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body {
+  display: flex;
+  background: var(--bg, #0a0f1a);
+  color: var(--text, #e2e8f0);
+  font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+}
+
+/* ── Left Controls Panel ── */
+#left-panel {
+  width: 260px; min-width: 200px; max-width: 400px;
+  background: var(--surface, #111827);
+  border-right: 1px solid var(--border, #1e293b);
+  overflow-y: auto; flex-shrink: 0;
+  display: flex; flex-direction: column;
+}
+#left-panel::-webkit-scrollbar { width: 6px; }
+#left-panel::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+.ctrl-header {
+  padding: 12px 16px 8px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--dim, #64748b);
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  border-bottom: 1px solid var(--border);
+}
+.ctrl-section {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.ctrl-section h3 {
+  margin: 0 0 8px; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.8px; color: var(--dim);
+}
+.ctrl-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
+}
+.ctrl-row label {
+  width: 80px; flex-shrink: 0; font-size: 12px; color: var(--muted);
+}
+.ctrl-row input[type="range"] {
+  flex: 1; height: 4px;
+  -webkit-appearance: none; appearance: none;
+  background: #1e293b; border-radius: 2px; outline: none;
+}
+.ctrl-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px;
+  background: var(--accent, #3b82f6); border-radius: 50%; cursor: pointer;
+}
+.ctrl-row .val {
+  width: 48px; text-align: right; font-size: 11px;
+  color: var(--accent); font-family: 'JetBrains Mono', monospace;
+}
+.ctrl-row select {
+  flex: 1; background: #0d1117; color: var(--text);
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 4px 8px; font-size: 12px;
+}
+
+/* ── Transport ── */
+#transport {
+  padding: 12px 16px; display: flex; gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+#transport button {
+  flex: 1; padding: 8px;
+  background: rgba(59,130,246,0.15); border: 1px solid var(--accent);
+  color: var(--accent); border-radius: 4px; cursor: pointer;
+  font-size: 12px; font-weight: 600; transition: all 0.15s;
+}
+#transport button:hover { background: var(--accent); color: #0a0f1a; }
+#transport button.active { background: var(--accent); color: #0a0f1a; }
+#transport button.stop-btn { border-color: var(--red, #ef4444); color: var(--red); background: rgba(239,68,68,0.1); }
+#transport button.stop-btn:hover { background: var(--red); color: #0a0f1a; }
+
+/* ── Presets ── */
+.preset-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  margin-top: 6px;
+}
+.preset-btn {
+  padding: 6px 8px; background: #0d1117;
+  border: 1px solid var(--border); border-radius: 4px;
+  color: var(--muted); font-size: 11px; cursor: pointer;
+  transition: all 0.15s; text-align: center;
+}
+.preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Center Canvas Area ── */
+#center {
+  flex: 1; display: flex; flex-direction: column;
+  min-width: 0; position: relative;
+}
+#viz-area {
+  flex: 1; display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 1px; background: var(--border);
+  min-height: 0;
+}
+#viz-area canvas {
+  width: 100%; height: 100%;
+  background: #0a0f1a; display: block;
+}
+.viz-label {
+  position: absolute; top: 6px; left: 8px;
+  font-size: 10px; color: var(--dim);
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  pointer-events: none; z-index: 1;
+}
+.viz-cell { position: relative; overflow: hidden; min-height: 0; }
+
+/* ── Bottom Panel ── */
+#bottom-panel {
+  height: 0; min-height: 0; max-height: 50vh;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  overflow: hidden; transition: height 0.2s;
+  position: relative;
+}
+#bottom-panel.open { height: 180px; }
+#bottom-panel .resize-handle {
+  height: 5px; cursor: row-resize;
+  background: var(--border); display: flex;
+  align-items: center; justify-content: center;
+}
+#bottom-panel .resize-handle:hover { background: #475569; }
+#bottom-panel .resize-handle::after {
+  content: ''; width: 32px; height: 2px;
+  border-top: 1px solid #64748b; border-bottom: 1px solid #64748b;
+}
+#bottom-content {
+  height: calc(100% - 5px); overflow: hidden;
+  display: flex;
+}
+.bottom-tab-bar {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border);
+  padding: 0 8px; background: #0d1117;
+}
+.bottom-tab {
+  padding: 6px 14px; font-size: 11px; color: var(--dim);
+  cursor: pointer; border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.bottom-tab:hover { color: var(--muted); }
+.bottom-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+#bottom-canvas { flex: 1; display: block; }
+
+/* ── Help panel integration ── */
+help-panel { display: contents; }
+
+/* ── Status bar ── */
+#status-bar {
+  height: 24px; background: #0d1117;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 12px; font-size: 10px; color: var(--dim);
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0; gap: 16px;
+}
+#status-bar .sep { color: #1e293b; }
+</style>
+</head>
+<body>
+
+<!-- ════════════ LEFT PANEL: Controls ════════════ -->
+<div id="left-panel">
+  <div class="ctrl-header">DiffEq Synth</div>
+
+  <div id="transport">
+    <button id="btn-play" onclick="synth.start()">Play</button>
+    <button id="btn-impulse" onclick="synth.impulse()">Impulse</button>
+    <button id="btn-stop" class="stop-btn" onclick="synth.stop()">Stop</button>
+  </div>
+
+  <div class="ctrl-section">
+    <h3>Model</h3>
+    <div class="ctrl-row">
+      <label>Type</label>
+      <select id="model-type" onchange="synth.setModel(this.value)">
+        <option value="damped">Damped Harmonic</option>
+        <option value="vanderpol">Van der Pol</option>
+        <option value="duffing">Duffing</option>
+        <option value="coupled">Coupled Pair</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="ctrl-section">
+    <h3>Oscillator</h3>
+    <div class="ctrl-row">
+      <label>Freq (Hz)</label>
+      <input type="range" id="p-freq" min="20" max="2000" value="220" step="1"
+        oninput="synth.setParam('freq',+this.value)">
+      <span class="val" id="v-freq">220</span>
+    </div>
+    <div class="ctrl-row">
+      <label>Damping &zeta;</label>
+      <input type="range" id="p-zeta" min="0" max="2" value="0.05" step="0.001"
+        oninput="synth.setParam('zeta',+this.value)">
+      <span class="val" id="v-zeta">0.05</span>
+    </div>
+    <div class="ctrl-row">
+      <label>Drive Amp</label>
+      <input type="range" id="p-drive" min="0" max="2" value="0.5" step="0.01"
+        oninput="synth.setParam('drive',+this.value)">
+      <span class="val" id="v-drive">0.50</span>
+    </div>
+    <div class="ctrl-row">
+      <label>Drive Freq</label>
+      <input type="range" id="p-driveFreq" min="0.1" max="500" value="110" step="0.1"
+        oninput="synth.setParam('driveFreq',+this.value)">
+      <span class="val" id="v-driveFreq">110</span>
+    </div>
+  </div>
+
+  <div class="ctrl-section" id="sec-model-params">
+    <h3>Model Parameters</h3>
+    <!-- Van der Pol -->
+    <div class="ctrl-row model-vanderpol" style="display:none">
+      <label>Mu &mu;</label>
+      <input type="range" id="p-mu" min="0" max="8" value="1.5" step="0.01"
+        oninput="synth.setParam('mu',+this.value)">
+      <span class="val" id="v-mu">1.50</span>
+    </div>
+    <!-- Duffing -->
+    <div class="ctrl-row model-duffing" style="display:none">
+      <label>Alpha &alpha;</label>
+      <input type="range" id="p-alpha" min="-4" max="4" value="1" step="0.01"
+        oninput="synth.setParam('alpha',+this.value)">
+      <span class="val" id="v-alpha">1.00</span>
+    </div>
+    <div class="ctrl-row model-duffing" style="display:none">
+      <label>Beta &beta;</label>
+      <input type="range" id="p-beta" min="-4" max="4" value="-1" step="0.01"
+        oninput="synth.setParam('beta',+this.value)">
+      <span class="val" id="v-beta">-1.00</span>
+    </div>
+    <div class="ctrl-row model-duffing" style="display:none">
+      <label>Delta &delta;</label>
+      <input type="range" id="p-delta" min="0" max="2" value="0.3" step="0.01"
+        oninput="synth.setParam('delta',+this.value)">
+      <span class="val" id="v-delta">0.30</span>
+    </div>
+    <div class="ctrl-row model-duffing" style="display:none">
+      <label>Gamma &gamma;</label>
+      <input type="range" id="p-gamma" min="0" max="4" value="0.5" step="0.01"
+        oninput="synth.setParam('gamma',+this.value)">
+      <span class="val" id="v-gamma">0.50</span>
+    </div>
+    <!-- Coupled -->
+    <div class="ctrl-row model-coupled" style="display:none">
+      <label>Coupling k</label>
+      <input type="range" id="p-coupling" min="0" max="4" value="0.5" step="0.01"
+        oninput="synth.setParam('coupling',+this.value)">
+      <span class="val" id="v-coupling">0.50</span>
+    </div>
+    <div class="ctrl-row model-coupled" style="display:none">
+      <label>Freq 2 (Hz)</label>
+      <input type="range" id="p-freq2" min="20" max="2000" value="330" step="1"
+        oninput="synth.setParam('freq2',+this.value)">
+      <span class="val" id="v-freq2">330</span>
+    </div>
+    <div class="ctrl-row model-coupled" style="display:none">
+      <label>Damp 2 &zeta;2</label>
+      <input type="range" id="p-zeta2" min="0" max="2" value="0.08" step="0.001"
+        oninput="synth.setParam('zeta2',+this.value)">
+      <span class="val" id="v-zeta2">0.08</span>
+    </div>
+  </div>
+
+  <div class="ctrl-section">
+    <h3>Output</h3>
+    <div class="ctrl-row">
+      <label>Volume</label>
+      <input type="range" id="p-volume" min="0" max="1" value="0.4" step="0.01"
+        oninput="synth.setParam('volume',+this.value)">
+      <span class="val" id="v-volume">0.40</span>
+    </div>
+    <div class="ctrl-row">
+      <label>Soft Clip</label>
+      <input type="range" id="p-clip" min="0.1" max="1" value="0.8" step="0.01"
+        oninput="synth.setParam('clip',+this.value)">
+      <span class="val" id="v-clip">0.80</span>
+    </div>
+  </div>
+
+  <div class="ctrl-section">
+    <h3>Presets</h3>
+    <div class="preset-grid">
+      <button class="preset-btn" onclick="synth.preset('bell')">Bell</button>
+      <button class="preset-btn" onclick="synth.preset('pluck')">Pluck</button>
+      <button class="preset-btn" onclick="synth.preset('wobble')">Wobble</button>
+      <button class="preset-btn" onclick="synth.preset('chaos')">Chaos</button>
+      <button class="preset-btn" onclick="synth.preset('drone')">Drone</button>
+      <button class="preset-btn" onclick="synth.preset('coupled-fifth')">5th Coupling</button>
+      <button class="preset-btn" onclick="synth.preset('glass')">Glass</button>
+      <button class="preset-btn" onclick="synth.preset('siren')">Siren</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ CENTER: Visualizations ════════════ -->
+<div id="center">
+  <div id="viz-area">
+    <div class="viz-cell">
+      <span class="viz-label">Phase Portrait</span>
+      <canvas id="c-phase"></canvas>
+    </div>
+    <div class="viz-cell">
+      <span class="viz-label">Waveform</span>
+      <canvas id="c-wave"></canvas>
+    </div>
+    <div class="viz-cell">
+      <span class="viz-label">Energy</span>
+      <canvas id="c-energy"></canvas>
+    </div>
+    <div class="viz-cell">
+      <span class="viz-label">Spectrum</span>
+      <canvas id="c-spectrum"></canvas>
+    </div>
+  </div>
+
+  <!-- Bottom panel (toggle with status bar) -->
+  <div id="bottom-panel">
+    <div class="resize-handle" id="bottom-resize"></div>
+    <div id="bottom-content">
+      <canvas id="bottom-canvas"></canvas>
+    </div>
+  </div>
+
+  <div id="status-bar">
+    <span id="st-model">damped</span>
+    <span class="sep">|</span>
+    <span id="st-sr">48000 Hz</span>
+    <span class="sep">|</span>
+    <span id="st-state">stopped</span>
+    <span class="sep">|</span>
+    <span id="st-energy">E: 0.000</span>
+    <span style="flex:1"></span>
+    <span style="cursor:pointer" onclick="document.getElementById('bottom-panel').classList.toggle('open')">[bottom panel]</span>
+    <span style="cursor:pointer;margin-left:8px" onclick="document.getElementById('hp').toggle()">[help ?]</span>
+  </div>
+</div>
+
+<!-- ════════════ RIGHT PANEL: help-panel web component ════════════ -->
+<help-panel id="hp" width="320" position="right" meta="meta.json" hotkey="?">
+
+  <help-tab name="help" label="Help" slot="help" active>
+    <h3>Quick Start</h3>
+    <ul>
+      <li>Click <b>Play</b> for continuous driving force</li>
+      <li>Click <b>Impulse</b> for a single excitation (hear the decay)</li>
+      <li>Adjust <b>Damping &zeta;</b> to control how quickly energy dissipates</li>
+      <li>&zeta; &lt; 1 = underdamped (ringing), &zeta; = 1 = critical, &zeta; &gt; 1 = overdamped</li>
+    </ul>
+
+    <h3>Models</h3>
+    <help-section title="Damped Harmonic Oscillator" open>
+      <p>The simplest resonant system. A mass on a spring with friction. The fundamental building block of all acoustic resonance.</p>
+      <p>Parameters: <b>Freq</b> sets the natural frequency, <b>Damping</b> controls energy loss rate, <b>Drive</b> applies a sinusoidal forcing function.</p>
+    </help-section>
+    <help-section title="Van der Pol Oscillator">
+      <p>A self-oscillating nonlinear system. Originally modeled vacuum tube circuits. Produces <b>limit cycles</b> &mdash; the oscillation amplitude self-regulates.</p>
+      <p><b>&mu;</b> controls nonlinearity strength. Low &mu; = nearly sinusoidal. High &mu; = relaxation oscillations (sharp, buzzy).</p>
+    </help-section>
+    <help-section title="Duffing Oscillator">
+      <p>A nonlinear spring with cubic stiffness. Can exhibit <b>chaotic behavior</b>, period doubling, and strange attractors. Rich, unpredictable timbres.</p>
+      <p><b>&alpha;</b> = linear stiffness, <b>&beta;</b> = cubic stiffness (negative = softening spring), <b>&delta;</b> = damping, <b>&gamma;</b> = driving amplitude.</p>
+    </help-section>
+    <help-section title="Coupled Oscillators">
+      <p>Two damped harmonic oscillators connected by a spring. Models sympathetic resonance, beating, energy transfer between modes.</p>
+      <p><b>Coupling k</b> controls the connection strength. <b>Freq 2</b> and <b>Damp 2</b> set the second oscillator's properties.</p>
+    </help-section>
+
+    <h3>Visualizations</h3>
+    <ul>
+      <li><b>Phase Portrait</b> &mdash; position vs velocity. Spirals = damped, circles = undamped, limit cycles = Van der Pol</li>
+      <li><b>Waveform</b> &mdash; time-domain signal colored by instantaneous energy</li>
+      <li><b>Energy</b> &mdash; kinetic + potential over time, colored by damping regime</li>
+      <li><b>Spectrum</b> &mdash; FFT magnitude, shows harmonics and nonlinear distortion</li>
+    </ul>
+
+    <h3>Color Mapping</h3>
+    <p>Colors encode physics: <b>hue</b> = energy level (blue=low, red=high), <b>saturation</b> = damping ratio, <b>brightness</b> = velocity.</p>
+  </help-tab>
+
+  <help-tab name="math" label="Math" slot="math">
+    <h3>Damped Harmonic Oscillator</h3>
+    <eq-block>\ddot{x} + 2\zeta\omega_n\dot{x} + \omega_n^2 x = F(t)</eq-block>
+    <div class="param-def"><span class="sym">&omega;n</span> natural frequency = 2&pi;f</div>
+    <div class="param-def"><span class="sym">&zeta;</span> damping ratio (0=none, 1=critical)</div>
+    <div class="param-def"><span class="sym">F(t)</span> driving force = A&middot;sin(&omega;d&middot;t)</div>
+
+    <h3>Van der Pol</h3>
+    <eq-block>\ddot{x} - \mu(1 - x^2)\dot{x} + \omega_n^2 x = 0</eq-block>
+    <div class="param-def"><span class="sym">&mu;</span> nonlinearity parameter</div>
+    <p>When &mu; &gt; 0, energy is pumped in at small amplitudes and dissipated at large amplitudes, creating a stable <b>limit cycle</b>.</p>
+
+    <h3>Duffing Equation</h3>
+    <eq-block>\ddot{x} + \delta\dot{x} + \alpha x + \beta x^3 = \gamma\cos(\omega t)</eq-block>
+    <div class="param-def"><span class="sym">&alpha;</span> linear stiffness</div>
+    <div class="param-def"><span class="sym">&beta;</span> cubic stiffness (nonlinear term)</div>
+    <div class="param-def"><span class="sym">&delta;</span> damping coefficient</div>
+    <div class="param-def"><span class="sym">&gamma;</span> forcing amplitude</div>
+
+    <h3>Coupled System</h3>
+    <eq-block>\begin{aligned} \ddot{x}_1 + 2\zeta_1\omega_1\dot{x}_1 + \omega_1^2 x_1 + k(x_1 - x_2) &= F(t) \\ \ddot{x}_2 + 2\zeta_2\omega_2\dot{x}_2 + \omega_2^2 x_2 + k(x_2 - x_1) &= 0 \end{aligned}</eq-block>
+    <div class="param-def"><span class="sym">k</span> coupling spring constant</div>
+
+    <h3>Energy</h3>
+    <eq-block>E = \tfrac{1}{2}\dot{x}^2 + \tfrac{1}{2}\omega_n^2 x^2</eq-block>
+    <p>Total mechanical energy: kinetic + potential. In damped systems, E decreases monotonically. In driven systems, E oscillates around a steady state.</p>
+
+    <h3>RK4 Integration</h3>
+    <eq-block>y_{n+1} = y_n + \tfrac{h}{6}(k_1 + 2k_2 + 2k_3 + k_4)</eq-block>
+    <p>Fourth-order Runge-Kutta: the ODE solver running at audio sample rate. Stable and accurate for stiff oscillatory systems.</p>
+  </help-tab>
+
+  <!-- reference tab auto-generated from meta.json -->
+</help-panel>
+
+<script type="module">
+import { Params } from '/shared/params.js';
+
+// ════════════════════════════════════════════════════════
+// 1. AudioWorklet Processor (inline via Blob URL)
+// ════════════════════════════════════════════════════════
+
+const workletCode = `
+class DiffEqProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.model = 'damped';
+    this.running = false;
+    this.t = 0;
+    this.x = 0;    // position (osc 1)
+    this.v = 0;    // velocity (osc 1)
+    this.x2 = 0;   // position (osc 2, coupled)
+    this.v2 = 0;   // velocity (osc 2, coupled)
+
+    // Parameters
+    this.p = {
+      freq: 220, zeta: 0.05, drive: 0.5, driveFreq: 110,
+      mu: 1.5,
+      alpha: 1, beta: -1, delta: 0.3, gamma: 0.5,
+      coupling: 0.5, freq2: 330, zeta2: 0.08,
+      volume: 0.4, clip: 0.8
+    };
+
+    // Ring buffer for viz (send periodically)
+    this.vizBuf = new Float32Array(512);
+    this.vizVBuf = new Float32Array(512);
+    this.vizIdx = 0;
+    this.vizCounter = 0;
+
+    this.port.onmessage = (e) => {
+      const d = e.data;
+      if (d.type === 'param') this.p[d.name] = d.value;
+      if (d.type === 'model') { this.model = d.value; this.x = 0.001; this.v = 0; this.x2 = 0; this.v2 = 0; this.t = 0; }
+      if (d.type === 'start') this.running = true;
+      if (d.type === 'stop') { this.running = false; this.x = 0; this.v = 0; this.x2 = 0; this.v2 = 0; }
+      if (d.type === 'impulse') { this.x += 1.0; this.running = true; }
+    };
+  }
+
+  // ODE right-hand-side functions
+  // State vector: [x, v] -> returns [dx/dt, dv/dt]
+  dampedRHS(x, v, t, p) {
+    const wn = 2 * Math.PI * p.freq;
+    const F = p.drive * Math.sin(2 * Math.PI * p.driveFreq * t);
+    return [v, -2 * p.zeta * wn * v - wn * wn * x + F * wn * wn];
+  }
+
+  vanderpolRHS(x, v, t, p) {
+    const wn = 2 * Math.PI * p.freq;
+    const wnNorm = wn / (2 * Math.PI * 220); // normalize for stability
+    const F = p.drive * Math.sin(2 * Math.PI * p.driveFreq * t);
+    return [v, p.mu * wnNorm * (1 - x * x) * v - wn * wn * x + F * wn * wn];
+  }
+
+  duffingRHS(x, v, t, p) {
+    const wn = 2 * Math.PI * p.freq;
+    const wnSq = wn * wn;
+    const F = p.gamma * Math.sin(2 * Math.PI * p.driveFreq * t);
+    return [v, -p.delta * wn * v - p.alpha * wnSq * x - p.beta * wnSq * x * x * x + F * wnSq];
+  }
+
+  coupledRHS(x1, v1, x2, v2, t, p) {
+    const wn1 = 2 * Math.PI * p.freq;
+    const wn2 = 2 * Math.PI * p.freq2;
+    const k = p.coupling * wn1 * wn1;
+    const F = p.drive * Math.sin(2 * Math.PI * p.driveFreq * t);
+    const dv1 = -2 * p.zeta * wn1 * v1 - wn1 * wn1 * x1 - k * (x1 - x2) + F * wn1 * wn1;
+    const dv2 = -2 * p.zeta2 * wn2 * v2 - wn2 * wn2 * x2 - k * (x2 - x1);
+    return [v1, dv1, v2, dv2];
+  }
+
+  // RK4 step for 2-state system
+  rk4Step2(rhs, x, v, t, dt, p) {
+    const k1 = rhs(x, v, t, p);
+    const k2 = rhs(x + 0.5*dt*k1[0], v + 0.5*dt*k1[1], t + 0.5*dt, p);
+    const k3 = rhs(x + 0.5*dt*k2[0], v + 0.5*dt*k2[1], t + 0.5*dt, p);
+    const k4 = rhs(x + dt*k3[0], v + dt*k3[1], t + dt, p);
+    return [
+      x + (dt/6)*(k1[0] + 2*k2[0] + 2*k3[0] + k4[0]),
+      v + (dt/6)*(k1[1] + 2*k2[1] + 2*k3[1] + k4[1])
+    ];
+  }
+
+  // RK4 step for 4-state coupled system
+  rk4Step4(x1, v1, x2, v2, t, dt, p) {
+    const rhs = this.coupledRHS.bind(this);
+    const k1 = rhs(x1, v1, x2, v2, t, p);
+    const k2 = rhs(
+      x1+0.5*dt*k1[0], v1+0.5*dt*k1[1],
+      x2+0.5*dt*k1[2], v2+0.5*dt*k1[3], t+0.5*dt, p);
+    const k3 = rhs(
+      x1+0.5*dt*k2[0], v1+0.5*dt*k2[1],
+      x2+0.5*dt*k2[2], v2+0.5*dt*k2[3], t+0.5*dt, p);
+    const k4 = rhs(
+      x1+dt*k3[0], v1+dt*k3[1],
+      x2+dt*k3[2], v2+dt*k3[3], t+dt, p);
+    return [
+      x1 + (dt/6)*(k1[0]+2*k2[0]+2*k3[0]+k4[0]),
+      v1 + (dt/6)*(k1[1]+2*k2[1]+2*k3[1]+k4[1]),
+      x2 + (dt/6)*(k1[2]+2*k2[2]+2*k3[2]+k4[2]),
+      v2 + (dt/6)*(k1[3]+2*k2[3]+2*k3[3]+k4[3])
+    ];
+  }
+
+  softClip(x, threshold) {
+    if (x > threshold) return threshold + (1 - threshold) * Math.tanh((x - threshold) / (1 - threshold));
+    if (x < -threshold) return -threshold - (1 - threshold) * Math.tanh((-x - threshold) / (1 - threshold));
+    return x;
+  }
+
+  process(inputs, outputs, parameters) {
+    const out = outputs[0][0];
+    if (!out) return true;
+    const dt = 1.0 / sampleRate;
+    const p = this.p;
+
+    for (let i = 0; i < out.length; i++) {
+      if (!this.running) { out[i] = 0; continue; }
+
+      let sample;
+      if (this.model === 'coupled') {
+        const s = this.rk4Step4(this.x, this.v, this.x2, this.v2, this.t, dt, p);
+        this.x = s[0]; this.v = s[1]; this.x2 = s[2]; this.v2 = s[3];
+        sample = 0.5 * (this.x + this.x2);
+      } else {
+        let rhs;
+        if (this.model === 'damped') rhs = this.dampedRHS.bind(this);
+        else if (this.model === 'vanderpol') rhs = this.vanderpolRHS.bind(this);
+        else if (this.model === 'duffing') rhs = this.duffingRHS.bind(this);
+        else rhs = this.dampedRHS.bind(this);
+
+        const s = this.rk4Step2(rhs, this.x, this.v, this.t, dt, p);
+        this.x = s[0]; this.v = s[1];
+        sample = this.x;
+      }
+
+      this.t += dt;
+
+      // Clamp divergent states
+      if (!isFinite(this.x) || Math.abs(this.x) > 100) { this.x = 0; this.v = 0; this.x2 = 0; this.v2 = 0; }
+      if (!isFinite(this.x2) || Math.abs(this.x2) > 100) { this.x2 = 0; this.v2 = 0; }
+
+      sample = this.softClip(sample * p.volume, p.clip);
+      out[i] = sample;
+
+      // Fill viz ring buffer
+      this.vizBuf[this.vizIdx] = this.x;
+      this.vizVBuf[this.vizIdx] = this.v;
+      this.vizIdx = (this.vizIdx + 1) & 511;
+    }
+
+    // Send viz data every ~16 frames (~21ms at 128 samples/frame)
+    this.vizCounter++;
+    if (this.vizCounter >= 16) {
+      this.vizCounter = 0;
+      this.port.postMessage({
+        type: 'viz',
+        x: new Float32Array(this.vizBuf),
+        v: new Float32Array(this.vizVBuf),
+        idx: this.vizIdx,
+        energy: 0.5 * this.v * this.v + 0.5 * (2*Math.PI*this.p.freq) * (2*Math.PI*this.p.freq) * this.x * this.x
+      });
+    }
+
+    return true;
+  }
+}
+registerProcessor('diffeq-processor', DiffEqProcessor);
+`;
+
+// ════════════════════════════════════════════════════════
+// 2. Synth Controller
+// ════════════════════════════════════════════════════════
+
+class DiffEqSynth {
+  constructor() {
+    this.ctx = null;
+    this.node = null;
+    this.analyser = null;
+    this.running = false;
+    this.model = 'damped';
+    this.params = {
+      freq: 220, zeta: 0.05, drive: 0.5, driveFreq: 110,
+      mu: 1.5, alpha: 1, beta: -1, delta: 0.3, gamma: 0.5,
+      coupling: 0.5, freq2: 330, zeta2: 0.08,
+      volume: 0.4, clip: 0.8
+    };
+    this.vizData = { x: new Float32Array(512), v: new Float32Array(512), idx: 0, energy: 0 };
+    this.energyHistory = new Float32Array(256);
+    this.energyIdx = 0;
+  }
+
+  async init() {
+    if (this.ctx) return;
+    this.ctx = new AudioContext({ sampleRate: 48000 });
+
+    const blob = new Blob([workletCode], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    await this.ctx.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+
+    this.node = new AudioWorkletNode(this.ctx, 'diffeq-processor');
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.analyser.smoothingTimeConstant = 0.75;
+
+    this.node.connect(this.analyser);
+    this.analyser.connect(this.ctx.destination);
+
+    this.node.port.onmessage = (e) => {
+      if (e.data.type === 'viz') {
+        this.vizData = e.data;
+        this.energyHistory[this.energyIdx] = e.data.energy;
+        this.energyIdx = (this.energyIdx + 1) & 255;
+      }
+    };
+
+    document.getElementById('st-sr').textContent = this.ctx.sampleRate + ' Hz';
+  }
+
+  async start() {
+    await this.init();
+    if (this.ctx.state === 'suspended') await this.ctx.resume();
+    this.running = true;
+    this.node.port.postMessage({ type: 'start' });
+    document.getElementById('btn-play').classList.add('active');
+    document.getElementById('st-state').textContent = 'playing';
+  }
+
+  async impulse() {
+    await this.init();
+    if (this.ctx.state === 'suspended') await this.ctx.resume();
+    this.running = true;
+    this.node.port.postMessage({ type: 'impulse' });
+    document.getElementById('btn-play').classList.remove('active');
+    document.getElementById('st-state').textContent = 'impulse';
+    // Set drive to 0 temporarily for free decay
+    this.node.port.postMessage({ type: 'param', name: 'drive', value: 0 });
+    setTimeout(() => {
+      this.node.port.postMessage({ type: 'param', name: 'drive', value: this.params.drive });
+    }, 50);
+  }
+
+  stop() {
+    if (!this.node) return;
+    this.running = false;
+    this.node.port.postMessage({ type: 'stop' });
+    document.getElementById('btn-play').classList.remove('active');
+    document.getElementById('st-state').textContent = 'stopped';
+  }
+
+  setParam(name, value) {
+    this.params[name] = value;
+    const el = document.getElementById('v-' + name);
+    if (el) {
+      if (name === 'freq' || name === 'driveFreq' || name === 'freq2') el.textContent = value.toFixed(0);
+      else el.textContent = value.toFixed(2);
+    }
+    if (this.node) this.node.port.postMessage({ type: 'param', name, value });
+  }
+
+  setModel(m) {
+    this.model = m;
+    if (this.node) this.node.port.postMessage({ type: 'model', value: m });
+    document.getElementById('st-model').textContent = m;
+    // Show/hide model-specific params
+    document.querySelectorAll('[class^="ctrl-row model-"]').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.model-' + m).forEach(el => el.style.display = '');
+  }
+
+  preset(name) {
+    const presets = {
+      'bell':           { model: 'damped', freq: 880, zeta: 0.003, drive: 0, driveFreq: 110, volume: 0.5, clip: 0.8 },
+      'pluck':          { model: 'damped', freq: 330, zeta: 0.02, drive: 0, driveFreq: 110, volume: 0.5, clip: 0.8 },
+      'wobble':         { model: 'vanderpol', freq: 110, zeta: 0.05, drive: 0, driveFreq: 55, mu: 3.0, volume: 0.35, clip: 0.7 },
+      'chaos':          { model: 'duffing', freq: 180, zeta: 0.05, drive: 0.5, driveFreq: 120, alpha: 1, beta: -1, delta: 0.25, gamma: 2.5, volume: 0.25, clip: 0.6 },
+      'drone':          { model: 'damped', freq: 55, zeta: 0.001, drive: 0.3, driveFreq: 55, volume: 0.5, clip: 0.9 },
+      'coupled-fifth':  { model: 'coupled', freq: 220, zeta: 0.01, drive: 0.3, driveFreq: 110, freq2: 330, zeta2: 0.015, coupling: 0.8, volume: 0.4, clip: 0.8 },
+      'glass':          { model: 'damped', freq: 2000, zeta: 0.0008, drive: 0, driveFreq: 110, volume: 0.3, clip: 0.9 },
+      'siren':          { model: 'vanderpol', freq: 440, zeta: 0.05, drive: 0.4, driveFreq: 2, mu: 0.5, volume: 0.35, clip: 0.8 },
+    };
+    const p = presets[name];
+    if (!p) return;
+
+    // Set model
+    document.getElementById('model-type').value = p.model;
+    this.setModel(p.model);
+
+    // Set all params
+    for (const [k, v] of Object.entries(p)) {
+      if (k === 'model') continue;
+      this.setParam(k, v);
+      const slider = document.getElementById('p-' + k);
+      if (slider) slider.value = v;
+    }
+
+    // Trigger impulse for decay-based presets
+    if (p.drive === 0) this.impulse();
+    else this.start();
+  }
+}
+
+const synth = new DiffEqSynth();
+window.synth = synth;
+
+// ════════════════════════════════════════════════════════
+// 3. Visualization Engine
+// ════════════════════════════════════════════════════════
+
+const canvases = {
+  phase:    document.getElementById('c-phase'),
+  wave:     document.getElementById('c-wave'),
+  energy:   document.getElementById('c-energy'),
+  spectrum: document.getElementById('c-spectrum')
+};
+
+function resizeCanvases() {
+  for (const c of Object.values(canvases)) {
+    const r = c.parentElement.getBoundingClientRect();
+    c.width = r.width * devicePixelRatio;
+    c.height = r.height * devicePixelRatio;
+    c.style.width = r.width + 'px';
+    c.style.height = r.height + 'px';
+  }
+}
+window.addEventListener('resize', resizeCanvases);
+setTimeout(resizeCanvases, 50);
+
+// Energy-to-color mapping (inspired by synthetic-iris)
+function energyColor(energy, maxE) {
+  const norm = Math.min(energy / Math.max(maxE, 0.001), 1);
+  // Hue: 220 (blue/cold) -> 0 (red/hot)
+  const hue = 220 - norm * 220;
+  const sat = 70 + norm * 30;
+  const lum = 40 + norm * 25;
+  return `hsl(${hue}, ${sat}%, ${lum}%)`;
+}
+
+function dampingColor(zeta) {
+  if (zeta < 0.3) return '#60a5fa';      // underdamped - blue
+  if (zeta < 0.8) return '#34d399';      // moderate - green
+  if (zeta < 1.05) return '#fbbf24';     // critical - yellow
+  return '#ef4444';                       // overdamped - red
+}
+
+const fftBuf = new Uint8Array(1024);
+const timeBuf = new Uint8Array(2048);
+
+function drawFrame() {
+  requestAnimationFrame(drawFrame);
+
+  const dpr = devicePixelRatio;
+  const vd = synth.vizData;
+
+  // ── Phase Portrait ──
+  {
+    const c = canvases.phase;
+    const ctx = c.getContext('2d');
+    const w = c.width, h = c.height;
+    ctx.fillStyle = 'rgba(10, 15, 26, 0.08)';
+    ctx.fillRect(0, 0, w, h);
+
+    // Axes
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h);
+    ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
+    ctx.stroke();
+
+    if (!synth.running) return;
+
+    const scale = Math.max(w, h) * 0.15;
+    const xd = vd.x, vv = vd.v;
+    const len = xd.length;
+    const idx = vd.idx;
+
+    // Draw trail with energy coloring
+    const maxE = Math.max(...synth.energyHistory) || 1;
+    for (let i = 1; i < len; i++) {
+      const j = (idx + i) & 511;
+      const jp = (idx + i - 1) & 511;
+      const px = w/2 + xd[j] * scale;
+      const py = h/2 - vv[j] * scale;
+      const ppx = w/2 + xd[jp] * scale;
+      const ppy = h/2 - vv[jp] * scale;
+
+      const e = 0.5 * vv[j]*vv[j] + 0.5 * xd[j]*xd[j];
+      const alpha = 0.1 + 0.9 * (i / len);
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = energyColor(e, maxE * 0.5);
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.beginPath();
+      ctx.moveTo(ppx, ppy);
+      ctx.lineTo(px, py);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Current point
+    const cx = w/2 + xd[(idx - 1) & 511] * scale;
+    const cy = h/2 - vv[(idx - 1) & 511] * scale;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ── Waveform ──
+  {
+    const c = canvases.wave;
+    const ctx = c.getContext('2d');
+    const w = c.width, h = c.height;
+    ctx.fillStyle = '#0a0f1a';
+    ctx.fillRect(0, 0, w, h);
+
+    // Grid
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
+    for (let i = 0.25; i < 1; i += 0.25) {
+      ctx.moveTo(w * i, 0); ctx.lineTo(w * i, h);
+    }
+    ctx.stroke();
+
+    if (synth.analyser) {
+      synth.analyser.getByteTimeDomainData(timeBuf);
+      const maxE = Math.max(...synth.energyHistory) || 1;
+      const step = Math.max(1, Math.floor(timeBuf.length / w));
+
+      for (let i = 1; i < w; i++) {
+        const si = Math.min(Math.floor(i * timeBuf.length / w), timeBuf.length - 1);
+        const sip = Math.min(Math.floor((i-1) * timeBuf.length / w), timeBuf.length - 1);
+        const y = (1 - timeBuf[si] / 128) * h/2 + h/4;
+        const yp = (1 - timeBuf[sip] / 128) * h/2 + h/4;
+
+        const amp = Math.abs(timeBuf[si] - 128) / 128;
+        ctx.strokeStyle = energyColor(amp * maxE, maxE);
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(i - 1, yp);
+        ctx.lineTo(i, y);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // ── Energy ──
+  {
+    const c = canvases.energy;
+    const ctx = c.getContext('2d');
+    const w = c.width, h = c.height;
+    ctx.fillStyle = '#0a0f1a';
+    ctx.fillRect(0, 0, w, h);
+
+    const hist = synth.energyHistory;
+    const maxE = Math.max(...hist) || 1;
+    const idx = synth.energyIdx;
+    const len = hist.length;
+
+    // Damping regime indicator
+    const zeta = synth.params.zeta;
+    ctx.fillStyle = dampingColor(zeta) + '15';
+    ctx.fillRect(0, 0, w, h);
+
+    // Energy curve
+    ctx.lineWidth = 2 * dpr;
+    for (let i = 1; i < len; i++) {
+      const j = (idx + i) & 255;
+      const jp = (idx + i - 1) & 255;
+      const y = h - (hist[j] / maxE) * h * 0.9 - h * 0.05;
+      const yp = h - (hist[jp] / maxE) * h * 0.9 - h * 0.05;
+      const x = (i / len) * w;
+      const xp = ((i - 1) / len) * w;
+
+      ctx.strokeStyle = energyColor(hist[j], maxE);
+      ctx.beginPath();
+      ctx.moveTo(xp, yp);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
+
+    // Damping label
+    ctx.fillStyle = dampingColor(zeta);
+    ctx.font = `${11 * dpr}px 'JetBrains Mono', monospace`;
+    ctx.textAlign = 'right';
+    const regime = zeta < 0.3 ? 'underdamped' : zeta < 0.8 ? 'moderate' : zeta < 1.05 ? 'critical' : 'overdamped';
+    ctx.fillText(`\u03B6=${zeta.toFixed(3)} (${regime})`, w - 8 * dpr, 16 * dpr);
+
+    // Energy value
+    document.getElementById('st-energy').textContent = 'E: ' + (vd.energy || 0).toFixed(3);
+  }
+
+  // ── Spectrum ──
+  {
+    const c = canvases.spectrum;
+    const ctx = c.getContext('2d');
+    const w = c.width, h = c.height;
+    ctx.fillStyle = '#0a0f1a';
+    ctx.fillRect(0, 0, w, h);
+
+    if (synth.analyser) {
+      synth.analyser.getByteFrequencyData(fftBuf);
+      const barW = w / fftBuf.length * 2; // show lower half of spectrum
+      const maxE = Math.max(...synth.energyHistory) || 1;
+
+      for (let i = 0; i < fftBuf.length / 2; i++) {
+        const val = fftBuf[i] / 255;
+        const barH = val * h * 0.95;
+        const x = i * barW;
+
+        // Gradient from accent to energy color
+        const grad = ctx.createLinearGradient(x, h, x, h - barH);
+        grad.addColorStop(0, 'rgba(59, 130, 246, 0.6)');
+        grad.addColorStop(1, energyColor(val * maxE, maxE));
+        ctx.fillStyle = grad;
+        ctx.fillRect(x, h - barH, Math.max(barW - 1, 1), barH);
+      }
+
+      // Frequency labels
+      ctx.fillStyle = '#64748b';
+      ctx.font = `${9 * dpr}px 'JetBrains Mono', monospace`;
+      ctx.textAlign = 'center';
+      const sr = synth.ctx ? synth.ctx.sampleRate : 48000;
+      const freqs = [100, 500, 1000, 5000, 10000];
+      for (const f of freqs) {
+        const bin = Math.round(f / sr * synth.analyser.fftSize);
+        if (bin < fftBuf.length / 2) {
+          const x = bin * barW;
+          ctx.fillText(f >= 1000 ? (f/1000)+'k' : f+'', x, h - 4 * dpr);
+        }
+      }
+    }
+  }
+}
+
+drawFrame();
+
+// ════════════════════════════════════════════════════════
+// 4. Help panel resize → canvas resize sync
+// ════════════════════════════════════════════════════════
+
+document.getElementById('hp').addEventListener('panel-resize', () => resizeCanvases());
+
+// ════════════════════════════════════════════════════════
+// 5. Bottom Panel Resize
+// ════════════════════════════════════════════════════════
+
+{
+  const handle = document.getElementById('bottom-resize');
+  const panel = document.getElementById('bottom-panel');
+  let dragging = false;
+
+  handle.addEventListener('mousedown', (e) => {
+    e.preventDefault(); dragging = true;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const rect = document.getElementById('center').getBoundingClientRect();
+    const h = rect.bottom - e.clientY;
+    panel.style.height = Math.max(60, Math.min(h, window.innerHeight * 0.5)) + 'px';
+    panel.classList.add('open');
+    resizeCanvases();
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// 6. URL Params (shareable state)
+// ════════════════════════════════════════════════════════
+
+const state = Params.init({
+  model: 'damped',
+  freq: 220,
+  zeta: 0.05
+});
+
+// Show damped params by default
+synth.setModel(state.model || 'damped');
+if (state.model) document.getElementById('model-type').value = state.model;
+
+</script>
+</body>
+</html>
