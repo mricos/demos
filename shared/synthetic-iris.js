@@ -2,7 +2,7 @@
  * synthetic-iris.js — Shared Gaussian mixture dataset generator
  *
  * Usage (ES module):
- *   import { generateIris, generateGMM, gaussianRandom } from '/shared/synthetic-iris.js';
+ *   import { generateIris, generateGMM } from '/shared/synthetic-iris.js';
  *
  *   const data = generateIris();              // defaults: 50 per class, 3 classes
  *   const data = generateIris({ nPerClass: 100, seed: 42 });
@@ -10,101 +10,19 @@
  *
  * Returns: Array of { features: number[], class: number }
  *
- * Also exports math primitives for reuse:
- *   gaussianRandom, setSeed, choleskyDecomposition, zScoreNormalize
+ * Math primitives are re-exported from /shared/math.js for convenience:
+ *   import { gaussianRandom, setSeed, choleskyDecomposition, zScoreNormalize } from '/shared/synthetic-iris.js';
  */
 
-// ── Seeded RNG ──────────────────────────────────
-// Mulberry32 — deterministic 32-bit PRNG
-let _rngState = (Date.now() >>> 0) || 1;
+// Re-export math primitives for backward compatibility
+export {
+  gaussianRandom,
+  setSeed,
+  choleskyDecomposition,
+  zScoreNormalize
+} from './math.js';
 
-export function setSeed(seed) {
-  _rngState = seed >>> 0 || 1;
-  _gaussSpare = null;
-}
-
-function _rand() {
-  _rngState |= 0;
-  _rngState = (_rngState + 0x6D2B79F5) | 0;
-  let t = Math.imul(_rngState ^ (_rngState >>> 15), 1 | _rngState);
-  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-}
-
-// ── Box-Muller Gaussian ─────────────────────────
-let _gaussSpare = null;
-
-export function gaussianRandom(mu, sigma) {
-  if (mu === undefined) mu = 0;
-  if (sigma === undefined) sigma = 1;
-
-  if (_gaussSpare !== null) {
-    const v = _gaussSpare;
-    _gaussSpare = null;
-    return mu + sigma * v;
-  }
-  let u = 0, v = 0;
-  while (u === 0) u = _rand();
-  while (v === 0) v = _rand();
-  const mag = Math.sqrt(-2.0 * Math.log(u));
-  const z0 = mag * Math.cos(2 * Math.PI * v);
-  const z1 = mag * Math.sin(2 * Math.PI * v);
-  _gaussSpare = z1;
-  return mu + sigma * z0;
-}
-
-// ── Cholesky decomposition ──────────────────────
-export function choleskyDecomposition(matrix) {
-  const n = matrix.length;
-  const L = Array(n).fill(0).map(() => Array(n).fill(0));
-
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j <= i; j++) {
-      let sum = 0;
-      for (let k = 0; k < j; k++) {
-        sum += L[i][k] * L[j][k];
-      }
-      if (i === j) {
-        const val = matrix[i][i] - sum;
-        L[i][j] = val > 0 ? Math.sqrt(val) : 0.01;
-      } else {
-        L[i][j] = (matrix[i][j] - sum) / (L[j][j] || 0.01);
-      }
-    }
-  }
-  return L;
-}
-
-// ── z-score normalization ───────────────────────
-export function zScoreNormalize(data) {
-  if (data.length === 0) return { data: [], means: [], stds: [] };
-  const nFeatures = data[0].features.length;
-  const means = new Array(nFeatures).fill(0);
-  const stds = new Array(nFeatures).fill(0);
-
-  // Compute means
-  for (const d of data) {
-    for (let i = 0; i < nFeatures; i++) means[i] += d.features[i];
-  }
-  for (let i = 0; i < nFeatures; i++) means[i] /= data.length;
-
-  // Compute standard deviations
-  for (const d of data) {
-    for (let i = 0; i < nFeatures; i++) {
-      const diff = d.features[i] - means[i];
-      stds[i] += diff * diff;
-    }
-  }
-  for (let i = 0; i < nFeatures; i++) stds[i] = Math.sqrt(stds[i] / data.length) || 1;
-
-  // Normalize
-  const normalized = data.map(d => ({
-    features: d.features.map((v, i) => (v - means[i]) / stds[i]),
-    class: d.class
-  }));
-
-  return { data: normalized, means, stds };
-}
+import { gaussianRandom, setSeed, choleskyDecomposition, zScoreNormalize } from './math.js';
 
 // ── Iris-specific defaults ──────────────────────
 const IRIS_CENTERS = [
@@ -162,7 +80,6 @@ export function generateGMM(config) {
     for (let n = 0; n < nPerClass; n++) {
       let z;
       if (L) {
-        // Generate correlated samples
         const raw = new Array(nFeatures);
         for (let d = 0; d < nFeatures; d++) raw[d] = gaussianRandom();
         z = new Array(nFeatures).fill(0);
