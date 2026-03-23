@@ -1,0 +1,909 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Optigrab Calibrator</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      background: #0a0a0a;
+      color: #ccc;
+      line-height: 1.4;
+    }
+
+    /* Layout */
+    .app {
+      display: flex;
+      height: 100vh;
+    }
+    .sidebar {
+      width: 280px;
+      min-width: 280px;
+      background: #111;
+      border-right: 1px solid #333;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .main {
+      flex: 1;
+      overflow: auto;
+      padding: 8px;
+    }
+
+    /* Collapsible Card */
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 3px;
+      margin-bottom: 6px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      padding: 6px 8px;
+      cursor: pointer;
+      user-select: none;
+      background: #222;
+      border-bottom: 1px solid #333;
+    }
+    .card-header:hover { background: #2a2a2a; }
+    .card.collapsed .card-header { border-bottom: none; }
+    .card.collapsed .card-body { display: none; }
+    .card-toggle {
+      width: 12px;
+      color: #666;
+      margin-right: 6px;
+      font-size: 10px;
+    }
+    .card-title {
+      flex: 1;
+      font-size: 11px;
+      color: #8be9fd;
+      font-weight: normal;
+    }
+    .card-status {
+      font-size: 9px;
+      padding: 1px 5px;
+      background: #333;
+      border-radius: 2px;
+      color: #888;
+    }
+    .card-status.live { background: #0a5; color: #fff; }
+    .card-status.detecting { background: #a50; color: #fff; }
+    .card-body {
+      padding: 8px;
+    }
+
+    /* Video Card - collapsed state */
+    .card.collapsed .video-mini {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      background: #1a1a1a;
+    }
+    .card:not(.collapsed) .video-mini { display: none; }
+    .video-mini-icon {
+      width: 32px;
+      height: 24px;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .video-mini-icon video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .video-mini-text { color: #888; font-size: 10px; }
+
+    /* Video preview */
+    .video-wrap {
+      position: relative;
+      background: #000;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+    .video-wrap video {
+      display: block;
+      width: 100%;
+    }
+    .video-wrap canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+    }
+    .video-overlay {
+      position: absolute;
+      top: 4px; right: 4px;
+      display: flex;
+      gap: 4px;
+    }
+    .video-badge {
+      padding: 1px 5px;
+      background: rgba(0,0,0,0.7);
+      border-radius: 2px;
+      font-size: 9px;
+      color: #888;
+    }
+    .video-badge.live { color: #0f0; }
+    .detect-count {
+      position: absolute;
+      top: 4px; left: 4px;
+      padding: 2px 6px;
+      background: rgba(0,0,0,0.8);
+      border: 1px solid #0a5;
+      border-radius: 2px;
+      font-size: 11px;
+      font-weight: bold;
+      color: #0f0;
+      display: none;
+    }
+    .detect-count.show { display: block; }
+
+    /* Buttons */
+    .btn-row {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+    .btn {
+      flex: 1;
+      padding: 4px 6px;
+      background: #2a2a2a;
+      border: 1px solid #444;
+      color: #ccc;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 10px;
+      border-radius: 2px;
+    }
+    .btn:hover { background: #3a3a3a; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn.active { background: #0a5; border-color: #0c7; color: #fff; }
+
+    /* Controls */
+    .ctrl-row {
+      display: flex;
+      align-items: center;
+      margin: 4px 0;
+    }
+    .ctrl-row label {
+      width: 65px;
+      color: #888;
+      font-size: 10px;
+    }
+    .ctrl-row input[type="range"] {
+      flex: 1;
+      height: 12px;
+    }
+    .ctrl-row .val {
+      width: 28px;
+      text-align: right;
+      color: #fff;
+      font-size: 9px;
+    }
+    .ctrl-row input[type="checkbox"] {
+      margin: 0;
+    }
+    .ctrl-section {
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px solid #333;
+    }
+    .ctrl-section:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+    .ctrl-section-title {
+      font-size: 9px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 8px;
+      font-size: 10px;
+    }
+    .stats-grid span:nth-child(odd) { color: #666; }
+    .stats-grid span:nth-child(even) { color: #fff; text-align: right; }
+    .stat-high { color: #50fa7b !important; }
+    .stat-med { color: #f1fa8c !important; }
+    .stat-low { color: #ff5555 !important; }
+
+    /* Layers list */
+    .layer-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 0;
+      font-size: 10px;
+    }
+    .layer-row label { flex: 1; cursor: pointer; }
+    .layer-row input[type="range"] { width: 50px; }
+
+    /* Calibrator viewport */
+    #calibrator-mount {
+      min-height: 480px;
+      background: #0a0a0a;
+    }
+
+    /* Log */
+    .log-card .card-body { padding: 0; }
+    #log {
+      height: 80px;
+      overflow-y: auto;
+      font-size: 10px;
+      padding: 6px;
+      background: #0a0a0a;
+    }
+    .log-info { color: #666; }
+    .log-ok { color: #50fa7b; }
+    .log-warn { color: #f1fa8c; }
+    .log-error { color: #ff5555; }
+
+    /* Animation */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    .pulse { animation: pulse 1s infinite; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <!-- Camera Card -->
+    <div class="card" id="cardCamera">
+      <div class="card-header" onclick="toggleCard('cardCamera')">
+        <span class="card-toggle">v</span>
+        <span class="card-title">Camera</span>
+        <span class="card-status" id="camStatus">off</span>
+      </div>
+      <div class="video-mini">
+        <div class="video-mini-icon"><video id="video-mini-ref"></video></div>
+        <span class="video-mini-text" id="miniStatus">Camera off</span>
+      </div>
+      <div class="card-body">
+        <div class="video-wrap">
+          <video id="camera-video" playsinline muted></video>
+          <canvas id="camera-overlay"></canvas>
+          <div class="video-overlay">
+            <span class="video-badge" id="vidBadge">OFF</span>
+          </div>
+          <div class="detect-count" id="detectCount">0</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="btnStart">Start</button>
+          <button class="btn" id="btnStop" disabled>Stop</button>
+          <button class="btn" id="btnSnap" disabled>Snap</button>
+          <button class="btn" id="btnLive" disabled>Live</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detection Card -->
+    <div class="card" id="cardDetect">
+      <div class="card-header" onclick="toggleCard('cardDetect')">
+        <span class="card-toggle">v</span>
+        <span class="card-title">Detection</span>
+      </div>
+      <div class="card-body">
+        <div class="btn-row">
+          <button class="btn" id="btnDetect">Detect</button>
+          <button class="btn" id="btnClear">Clear</button>
+          <button class="btn" id="btnLoad">Load</button>
+        </div>
+        <div class="ctrl-row">
+          <label>Mode</label>
+          <select id="selMode" style="flex:1;background:#222;border:1px solid #444;color:#ccc;font-size:10px;padding:2px;">
+            <option value="view">View</option>
+            <option value="edit">Edit</option>
+            <option value="map">Map</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <label>Threshold</label>
+          <input type="range" id="ctrlThreshold" min="50" max="255" value="200">
+          <span class="val" id="valThreshold">200</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Min Size</label>
+          <input type="range" id="ctrlMinSize" min="4" max="30" value="8">
+          <span class="val" id="valMinSize">8</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Max Size</label>
+          <input type="range" id="ctrlMaxSize" min="20" max="80" value="40">
+          <span class="val" id="valMaxSize">40</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Rate (ms)</label>
+          <input type="range" id="ctrlRate" min="50" max="500" value="100">
+          <span class="val" id="valRate">100</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Image Card -->
+    <div class="card collapsed" id="cardImage">
+      <div class="card-header" onclick="toggleCard('cardImage')">
+        <span class="card-toggle">></span>
+        <span class="card-title">Image Adjust</span>
+      </div>
+      <div class="card-body">
+        <div class="ctrl-row">
+          <label>Brightness</label>
+          <input type="range" id="ctrlBrightness" min="-100" max="100" value="0">
+          <span class="val" id="valBrightness">0</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Contrast</label>
+          <input type="range" id="ctrlContrast" min="-100" max="100" value="0">
+          <span class="val" id="valContrast">0</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Invert</label>
+          <input type="checkbox" id="ctrlInvert">
+        </div>
+      </div>
+    </div>
+
+    <!-- Display Card -->
+    <div class="card collapsed" id="cardDisplay">
+      <div class="card-header" onclick="toggleCard('cardDisplay')">
+        <span class="card-toggle">></span>
+        <span class="card-title">Display</span>
+      </div>
+      <div class="card-body">
+        <div class="ctrl-row">
+          <label>Grid</label>
+          <input type="checkbox" id="ctrlGrid">
+        </div>
+        <div class="ctrl-row">
+          <label>Grid Size</label>
+          <input type="range" id="ctrlGridSize" min="10" max="50" value="20">
+          <span class="val" id="valGridSize">20</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Crosshair</label>
+          <input type="checkbox" id="ctrlCrosshair">
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Card -->
+    <div class="card" id="cardStats">
+      <div class="card-header" onclick="toggleCard('cardStats')">
+        <span class="card-toggle">v</span>
+        <span class="card-title">Statistics</span>
+      </div>
+      <div class="card-body">
+        <div class="stats-grid">
+          <span>Total</span><span id="statTotal">0</span>
+          <span>High</span><span id="statHigh" class="stat-high">0</span>
+          <span>Med</span><span id="statMed" class="stat-med">0</span>
+          <span>Low</span><span id="statLow" class="stat-low">0</span>
+          <span>Avg Conf</span><span id="statAvg">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layers Card -->
+    <div class="card collapsed" id="cardLayers">
+      <div class="card-header" onclick="toggleCard('cardLayers')">
+        <span class="card-toggle">></span>
+        <span class="card-title">Layers</span>
+      </div>
+      <div class="card-body" id="layersList"></div>
+    </div>
+
+    <!-- Output Card -->
+    <div class="card collapsed" id="cardOutput">
+      <div class="card-header" onclick="toggleCard('cardOutput')">
+        <span class="card-toggle">></span>
+        <span class="card-title">Output</span>
+      </div>
+      <div class="card-body">
+        <div class="btn-row">
+          <button class="btn" id="btnGenerate">Generate</button>
+          <button class="btn" id="btnExport">Export JSON</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log Card -->
+    <div class="card log-card" id="cardLog">
+      <div class="card-header" onclick="toggleCard('cardLog')">
+        <span class="card-toggle">v</span>
+        <span class="card-title">Log</span>
+      </div>
+      <div class="card-body">
+        <div id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div id="calibrator-mount"></div>
+    <input type="file" id="fileInput" accept="image/*" style="display:none">
+  </div>
+</div>
+
+<!-- Optigrab modular components -->
+<script src="js/optigrab/compositor.js"></script>
+<script src="js/optigrab/marker.js"></script>
+<script src="js/optigrab/brains.js"></script>
+<script src="js/optigrab/calibrator.js"></script>
+<script src="js/optigrab/index.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  // State
+  let stream = null;
+  let calibrator = null;
+  let liveDetecting = false;
+  let liveAnimationId = null;
+  let lastDetectTime = 0;
+  let detectInterval = 100;
+
+  const detectParams = {
+    threshold: 200,
+    minSize: 8,
+    maxSize: 40,
+    brightness: 0,
+    contrast: 0,
+    invert: false
+  };
+
+  // Card collapse
+  window.toggleCard = (id) => {
+    const card = $(id);
+    card.classList.toggle('collapsed');
+    const toggle = card.querySelector('.card-toggle');
+    toggle.textContent = card.classList.contains('collapsed') ? '>' : 'v';
+  };
+
+  // Logging
+  function log(msg, type = 'info') {
+    const logEl = $('log');
+    const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const entry = document.createElement('div');
+    entry.className = `log-${type}`;
+    entry.textContent = `[${ts}] ${msg}`;
+    logEl.appendChild(entry);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // Camera
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 } }
+      });
+
+      const video = $('camera-video');
+      video.srcObject = stream;
+      await video.play();
+
+      // Mini preview reference
+      $('video-mini-ref').srcObject = stream;
+      $('video-mini-ref').play();
+
+      const overlay = $('camera-overlay');
+      overlay.width = video.videoWidth;
+      overlay.height = video.videoHeight;
+
+      $('camStatus').textContent = 'live';
+      $('camStatus').classList.add('live');
+      $('vidBadge').textContent = 'LIVE';
+      $('vidBadge').classList.add('live');
+      $('miniStatus').textContent = 'Live';
+
+      $('btnStart').disabled = true;
+      $('btnStop').disabled = false;
+      $('btnSnap').disabled = false;
+      $('btnLive').disabled = false;
+
+      log('Camera started', 'ok');
+    } catch (err) {
+      log(`Camera error: ${err.message}`, 'error');
+    }
+  }
+
+  function stopCamera() {
+    stopLiveDetect();
+
+    if (stream) {
+      for (const track of stream.getTracks()) track.stop();
+      stream = null;
+    }
+
+    $('camera-video').srcObject = null;
+    $('video-mini-ref').srcObject = null;
+
+    $('camStatus').textContent = 'off';
+    $('camStatus').classList.remove('live');
+    $('vidBadge').textContent = 'OFF';
+    $('vidBadge').classList.remove('live');
+    $('miniStatus').textContent = 'Camera off';
+
+    $('btnStart').disabled = false;
+    $('btnStop').disabled = true;
+    $('btnSnap').disabled = true;
+    $('btnLive').disabled = true;
+
+    log('Camera stopped');
+  }
+
+  function takeSnapshot() {
+    const video = $('camera-video');
+    if (!video.videoWidth) {
+      log('No video', 'warn');
+      return null;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+
+    const dataUrl = canvas.toDataURL('image/png');
+    log('Snapshot', 'ok');
+
+    if (calibrator) calibrator.setSourceImage(dataUrl);
+    return dataUrl;
+  }
+
+  // Live detection
+  function startLiveDetect() {
+    if (liveDetecting) return;
+    liveDetecting = true;
+
+    $('btnLive').textContent = 'Stop';
+    $('btnLive').classList.add('active');
+    $('btnSnap').disabled = true;
+    $('detectCount').classList.add('show');
+    $('camStatus').textContent = 'detect';
+    $('camStatus').classList.add('detecting');
+
+    log('Live detection on', 'ok');
+
+    function detectFrame() {
+      if (!liveDetecting || !stream) return;
+
+      const now = performance.now();
+      if (now - lastDetectTime >= detectInterval) {
+        lastDetectTime = now;
+
+        const video = $('camera-video');
+        if (video.videoWidth > 0 && calibrator) {
+          const layer = calibrator.compositor.getLayer('source');
+          layer.ctx.clearRect(0, 0, calibrator.config.width, calibrator.config.height);
+
+          const scale = Math.min(
+            calibrator.config.width / video.videoWidth,
+            calibrator.config.height / video.videoHeight
+          );
+          const w = video.videoWidth * scale;
+          const h = video.videoHeight * scale;
+          const x = (calibrator.config.width - w) / 2;
+          const y = (calibrator.config.height - h) / 2;
+
+          layer.ctx.drawImage(video, x, y, w, h);
+
+          calibrator.clearMarkers();
+          calibrator.autoDetect({
+            threshold: detectParams.threshold,
+            minSize: detectParams.minSize,
+            maxSize: detectParams.maxSize
+          });
+
+          $('detectCount').textContent = calibrator.markers.size;
+          drawOverlayMarkers(scale, x, y);
+          updateStats();
+        }
+      }
+
+      liveAnimationId = requestAnimationFrame(detectFrame);
+    }
+
+    detectFrame();
+  }
+
+  function stopLiveDetect() {
+    if (!liveDetecting) return;
+    liveDetecting = false;
+
+    if (liveAnimationId) {
+      cancelAnimationFrame(liveAnimationId);
+      liveAnimationId = null;
+    }
+
+    $('btnLive').textContent = 'Live';
+    $('btnLive').classList.remove('active');
+    $('detectCount').classList.remove('show');
+    if (stream) {
+      $('btnSnap').disabled = false;
+      $('camStatus').textContent = 'live';
+      $('camStatus').classList.remove('detecting');
+    }
+
+    const overlay = $('camera-overlay');
+    overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
+
+    log('Live detection off');
+  }
+
+  function toggleLiveDetect() {
+    liveDetecting ? stopLiveDetect() : startLiveDetect();
+  }
+
+  // Certainty to color: red (uncertain) -> green (certain)
+  function certaintyColor(c, a = 1) {
+    const r = Math.round(255 * (1 - c));
+    const g = Math.round(255 * c);
+    return `rgba(${r},${g},50,${a})`;
+  }
+
+  function drawOverlayMarkers(scale, offsetX, offsetY) {
+    if (!calibrator) return;
+
+    const video = $('camera-video');
+    const overlay = $('camera-overlay');
+    const ctx = overlay.getContext('2d');
+
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+    for (const marker of calibrator.markers.values()) {
+      const mx = (marker.x - offsetX) / scale * (overlay.width / video.videoWidth);
+      const my = (marker.y - offsetY) / scale * (overlay.height / video.videoHeight);
+      const mw = marker.width / scale * (overlay.width / video.videoWidth);
+      const mh = marker.height / scale * (overlay.height / video.videoHeight);
+
+      const avgCert = (marker.certaintyX + marker.certaintyY) / 2;
+      const color = certaintyColor(avgCert, 0.8);
+
+      // Radius morphs: circle (low conf) -> rect (high conf)
+      const maxR = Math.max(mw, mh) / 2 + 2;
+      const minR = 2;
+      const radius = maxR - (maxR - minR) * marker.confidence;
+
+      // Draw rounded rect that morphs from circle
+      ctx.beginPath();
+      const hw = mw / 2 + 2;
+      const hh = mh / 2 + 2;
+      ctx.moveTo(mx - hw + radius, my - hh);
+      ctx.lineTo(mx + hw - radius, my - hh);
+      ctx.arcTo(mx + hw, my - hh, mx + hw, my - hh + radius, radius);
+      ctx.lineTo(mx + hw, my + hh - radius);
+      ctx.arcTo(mx + hw, my + hh, mx + hw - radius, my + hh, radius);
+      ctx.lineTo(mx - hw + radius, my + hh);
+      ctx.arcTo(mx - hw, my + hh, mx - hw, my + hh - radius, radius);
+      ctx.lineTo(mx - hw, my - hh + radius);
+      ctx.arcTo(mx - hw, my - hh, mx - hw + radius, my - hh, radius);
+      ctx.closePath();
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Small center dot
+      ctx.beginPath();
+      ctx.arc(mx, my, 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+  }
+
+  function updateStats() {
+    if (!calibrator) return;
+    const markers = [...calibrator.markers.values()];
+    const high = markers.filter(m => m.confidence > 0.7).length;
+    const med = markers.filter(m => m.confidence > 0.4 && m.confidence <= 0.7).length;
+    const low = markers.filter(m => m.confidence <= 0.4).length;
+    const avg = markers.length > 0
+      ? markers.reduce((s, m) => s + m.confidence, 0) / markers.length
+      : 0;
+
+    $('statTotal').textContent = markers.length;
+    $('statHigh').textContent = high;
+    $('statMed').textContent = med;
+    $('statLow').textContent = low;
+    $('statAvg').textContent = `${(avg * 100).toFixed(0)}%`;
+  }
+
+  // Init calibrator
+  function initCalibrator() {
+    if (typeof OptigrabCalibrator === 'undefined') {
+      log('Calibrator not loaded', 'error');
+      return;
+    }
+
+    calibrator = OptigrabCalibrator.create({ width: 640, height: 480 });
+    calibrator.mount('#calibrator-mount');
+
+    calibrator.onStatsUpdate = updateStats;
+
+    // Update layers list
+    const layersList = $('layersList');
+    for (const [name, layer] of calibrator.compositor.layers) {
+      const row = document.createElement('div');
+      row.className = 'layer-row';
+      row.innerHTML = `
+        <input type="checkbox" data-layer="${name}" ${layer.visible ? 'checked' : ''}>
+        <label>${name}</label>
+        <input type="range" data-layer-opacity="${name}" min="0" max="100" value="${layer.opacity * 100}">
+      `;
+      layersList.appendChild(row);
+    }
+
+    layersList.onchange = (e) => {
+      const ln = e.target.dataset.layer;
+      const lo = e.target.dataset.layerOpacity;
+      if (ln) calibrator.compositor.setLayerVisible(ln, e.target.checked);
+      if (lo) calibrator.compositor.setLayerOpacity(lo, e.target.value / 100);
+    };
+
+    log('Ready', 'ok');
+  }
+
+  // Wire buttons
+  $('btnStart').onclick = startCamera;
+  $('btnStop').onclick = stopCamera;
+  $('btnSnap').onclick = takeSnapshot;
+  $('btnLive').onclick = toggleLiveDetect;
+
+  $('btnDetect').onclick = () => {
+    if (calibrator) {
+      calibrator.autoDetect({
+        threshold: detectParams.threshold,
+        minSize: detectParams.minSize,
+        maxSize: detectParams.maxSize
+      });
+      updateStats();
+    }
+  };
+
+  $('btnClear').onclick = () => {
+    if (calibrator) {
+      calibrator.clearMarkers();
+      updateStats();
+    }
+  };
+
+  $('btnGenerate').onclick = () => {
+    if (calibrator) calibrator.generateController();
+  };
+
+  $('btnExport').onclick = () => {
+    if (calibrator) calibrator.exportJSON();
+  };
+
+  $('btnLoad').onclick = () => $('fileInput').click();
+  $('fileInput').onchange = (e) => {
+    if (e.target.files[0] && calibrator) {
+      calibrator.setSourceImage(e.target.files[0]);
+    }
+  };
+
+  $('selMode').onchange = (e) => {
+    if (calibrator) {
+      calibrator.mode = e.target.value;
+      const srcLayer = calibrator.compositor.getLayer('source');
+      if (srcLayer) {
+        srcLayer.element.style.pointerEvents = e.target.value === 'edit' ? 'auto' : 'none';
+      }
+    }
+  };
+
+  // Wire controls
+  $('ctrlThreshold').oninput = (e) => {
+    detectParams.threshold = +e.target.value;
+    $('valThreshold').textContent = e.target.value;
+  };
+  $('ctrlMinSize').oninput = (e) => {
+    detectParams.minSize = +e.target.value;
+    $('valMinSize').textContent = e.target.value;
+  };
+  $('ctrlMaxSize').oninput = (e) => {
+    detectParams.maxSize = +e.target.value;
+    $('valMaxSize').textContent = e.target.value;
+  };
+  $('ctrlRate').oninput = (e) => {
+    detectInterval = +e.target.value;
+    $('valRate').textContent = e.target.value;
+  };
+
+  $('ctrlBrightness').oninput = (e) => {
+    detectParams.brightness = +e.target.value;
+    $('valBrightness').textContent = e.target.value;
+    applyFilters();
+  };
+  $('ctrlContrast').oninput = (e) => {
+    detectParams.contrast = +e.target.value;
+    $('valContrast').textContent = e.target.value;
+    applyFilters();
+  };
+  $('ctrlInvert').onchange = (e) => {
+    detectParams.invert = e.target.checked;
+    applyFilters();
+  };
+
+  $('ctrlGrid').onchange = (e) => drawGrid(e.target.checked);
+  $('ctrlGridSize').oninput = (e) => {
+    $('valGridSize').textContent = e.target.value;
+    if ($('ctrlGrid').checked) drawGrid(true);
+  };
+  $('ctrlCrosshair').onchange = (e) => drawCrosshair(e.target.checked);
+
+  function applyFilters() {
+    if (!calibrator) return;
+    const layer = calibrator.compositor.getLayer('source');
+    if (!layer) return;
+    const b = 100 + detectParams.brightness;
+    const c = 100 + detectParams.contrast;
+    const inv = detectParams.invert ? 'invert(1)' : '';
+    layer.element.style.filter = `brightness(${b}%) contrast(${c}%) ${inv}`;
+  }
+
+  function drawGrid(show) {
+    if (!calibrator) return;
+    const layer = calibrator.compositor.getLayer('guides');
+    if (!layer) return;
+    const ctx = layer.ctx;
+    const w = calibrator.config.width;
+    const h = calibrator.config.height;
+    ctx.clearRect(0, 0, w, h);
+    if (!show) return;
+
+    const sz = +$('ctrlGridSize').value;
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    for (let x = sz; x < w; x += sz) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    }
+    for (let y = sz; y < h; y += sz) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+    if ($('ctrlCrosshair').checked) drawCrosshair(true, ctx);
+  }
+
+  function drawCrosshair(show, ctx) {
+    if (!calibrator) return;
+    const layer = calibrator.compositor.getLayer('guides');
+    if (!ctx) ctx = layer.ctx;
+    const w = calibrator.config.width;
+    const h = calibrator.config.height;
+
+    if (!show) {
+      $('ctrlGrid').checked ? drawGrid(true) : ctx.clearRect(0, 0, w, h);
+      return;
+    }
+
+    ctx.strokeStyle = 'rgba(255,0,0,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, h/2); ctx.lineTo(w, h/2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(w/2, h/2, 20, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  // Init
+  initCalibrator();
+})();
+</script>
+</body>
+</html>

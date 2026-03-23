@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "vmx8",
+  "version": "1.0.0",
+  "device": {
+    "name": "VMX8",
+    "manufacturer": "Vangoa/SINCO",
+    "asin": "B0D2DDG988",
+    "ports": {
+      "control": "SINCO VMX8-Private",
+      "general": "SINCO VMX8-Master",
+      "bluetooth": "VMX8 Bluetooth"
+    }
+  },
+  "hardware": {
+    "faders": 8,
+    "knobs": 8,
+    "buttonRows": 4,
+    "buttonCols": 8,
+    "motorized": true,
+    "touchSensitive": true
+  },
+  "modes": {
+    "cc": {
+      "switch": ["Shift", "Right"],
+      "description": "Standard CC mode - 7-bit faders, absolute knobs, CC buttons",
+      "faders": {
+        "type": "cc",
+        "channel": 1,
+        "ccs": [47, 43, 39, 35, 31, 27, 23, 19],
+        "resolution": 7,
+        "range": [0, 127]
+      },
+      "knobs": {
+        "type": "cc",
+        "behavior": "absolute",
+        "channel": 1,
+        "ccs": [46, 42, 38, 34, 30, 26, 22, 18],
+        "resolution": 7,
+        "range": [0, 127]
+      },
+      "buttons": {
+        "type": "cc",
+        "press": 127,
+        "release": 0,
+        "rows": {
+          "mute": { "ccs": [21, 22, 23, 24, 25, 26, 27, 28] },
+          "solo": { "ccs": [29, 30, 31, 32, 33, 34, 35, 36] }
+        }
+      }
+    },
+    "daw": {
+      "switch": ["Shift", "Left"],
+      "description": "DAW/MCU mode - 14-bit pitch bend faders, relative knobs, note buttons",
+      "protocol": "mcu",
+      "faders": {
+        "type": "pitchbend",
+        "channels": [1, 2, 3, 4, 5, 6, 7, 8],
+        "resolution": 14,
+        "range": [0, 16383],
+        "note": "Each fader is a separate MIDI channel pitch bend"
+      },
+      "knobs": {
+        "type": "cc",
+        "behavior": "relative",
+        "channel": 1,
+        "ccs": [16, 17, 18, 19, 20, 21, 22, 23],
+        "center": 64,
+        "left": 63,
+        "right": 65,
+        "note": "Values < 64 = left turn, > 64 = right turn. Cumulative for fine control."
+      },
+      "buttons": {
+        "type": "note",
+        "channel": 1,
+        "velocity": { "on": 127, "off": 0 }
+      }
+    }
+  },
+  "mcu": {
+    "sysex": {
+      "deviceQuery": "F0 00 00 66 14 00 F7",
+      "hostConnect": "F0 00 00 66 14 01 56 4D 58 38 00 00 00 F7",
+      "goOffline": "F0 00 00 66 14 0F 7F F7",
+      "goOnline": "F0 00 00 66 14 0F 00 F7",
+      "reset": "F0 00 00 66 14 08 00 F7"
+    },
+    "notes": {
+      "rec": {
+        "range": [0, 7],
+        "hex": ["0x00", "0x07"],
+        "names": ["Rec1", "Rec2", "Rec3", "Rec4", "Rec5", "Rec6", "Rec7", "Rec8"]
+      },
+      "solo": {
+        "range": [8, 15],
+        "hex": ["0x08", "0x0F"],
+        "names": ["Solo1", "Solo2", "Solo3", "Solo4", "Solo5", "Solo6", "Solo7", "Solo8"]
+      },
+      "mute": {
+        "range": [16, 23],
+        "hex": ["0x10", "0x17"],
+        "names": ["Mute1", "Mute2", "Mute3", "Mute4", "Mute5", "Mute6", "Mute7", "Mute8"]
+      },
+      "select": {
+        "range": [24, 31],
+        "hex": ["0x18", "0x1F"],
+        "names": ["Sel1", "Sel2", "Sel3", "Sel4", "Sel5", "Sel6", "Sel7", "Sel8"]
+      },
+      "transport": {
+        "rewind": { "note": 91, "hex": "0x5B" },
+        "fastfwd": { "note": 92, "hex": "0x5C" },
+        "stop": { "note": 93, "hex": "0x5D" },
+        "play": { "note": 94, "hex": "0x5E" },
+        "record": { "note": 95, "hex": "0x5F" }
+      },
+      "function": {
+        "cycle": { "note": 86, "hex": "0x56" },
+        "punch": { "note": 87, "hex": "0x57" },
+        "marker": { "note": 84, "hex": "0x54" },
+        "nudge": { "note": 85, "hex": "0x55" }
+      }
+    },
+    "leds": {
+      "working": [
+        { "name": "Mute Ch1", "note": 16, "hex": "0x10" },
+        { "name": "Play", "note": 94, "hex": "0x5E" }
+      ],
+      "notWorking": [
+        "Notes 0x00-0x0F (Rec arm LEDs)",
+        "Notes 0x08-0x0F (Solo LEDs)",
+        "Notes 0x11-0x17 (Mute Ch2-8 LEDs)",
+        "Notes 0x18-0x1F (Select LEDs)"
+      ],
+      "protocol": "note-on-vel127-on-vel0-off",
+      "anomaly": {
+        "note": 115,
+        "hex": "0x73",
+        "effect": "Also controls Mute Ch1 LED (alias)"
+      }
+    },
+    "meters": {
+      "type": "channelAftertouch",
+      "channels": [1, 2, 3, 4, 5, 6, 7, 8],
+      "range": [0, 127]
+    }
+  },
+  "addressing": {
+    "description": "OSC-style addressing for parameter mapping",
+    "hardware": {
+      "/hw/fader/{n}": "Physical fader n (1-8), normalized 0-1",
+      "/hw/knob/{n}": "Physical knob n (1-8), normalized 0-1",
+      "/hw/button/{row}/{col}": "Button at row/col"
+    },
+    "midi": {
+      "/midi/cc/{n}": "Raw CC n value (0-127)",
+      "/midi/pb/{ch}": "Pitch bend channel ch (0-16383)",
+      "/midi/note/{n}": "Note n on/off"
+    },
+    "parameters": {
+      "/voice/{n}/level": "Voice n master level",
+      "/voice/{n}/channel/{name}/level": "Voice n channel level",
+      "/voice/{n}/channel/{name}/mute": "Voice n channel mute",
+      "/nasty/decayFine": "Fine decay control",
+      "/nasty/decayExtend": "Extended decay time",
+      "/nasty/subHarmonic": "Sub-harmonic mix",
+      "/nasty/click": "Click intensity",
+      "/nasty/grime": "Grime amount",
+      "/filter/cutoff": "Filter cutoff frequency",
+      "/filter/taps": "Filter taps",
+      "/lfo/rate": "LFO rate",
+      "/lfo/depth": "LFO depth",
+      "/master/level": "Master output level",
+      "/master/reverb": "Reverb mix",
+      "/master/comp/threshold": "Compressor threshold"
+    },
+    "leds": {
+      "/led/mute/{n}": "Mute LED for channel n",
+      "/led/solo/{n}": "Solo LED for channel n",
+      "/led/transport/{name}": "Transport LED (play, stop, etc)"
+    }
+  },
+  "defaultMappings": {
+    "ccMode": {
+      "knobs": [
+        { "cc": 46, "address": "/filter/cutoff", "min": 20, "max": 2000, "curve": "log" },
+        { "cc": 42, "address": "/nasty/decayFine", "min": 0, "max": 1, "curve": "linear" },
+        { "cc": 38, "address": "/nasty/grime", "min": 0, "max": 1, "curve": "linear" },
+        { "cc": 34, "address": "/lfo/rate", "min": 0.5, "max": 16, "curve": "linear" },
+        { "cc": 30, "address": "/lfo/depth", "min": 0, "max": 1, "curve": "linear" },
+        { "cc": 26, "address": "/master/reverb", "min": 0, "max": 1, "curve": "linear" },
+        { "cc": 22, "address": "/master/comp/threshold", "min": -60, "max": 0, "curve": "linear" },
+        { "cc": 18, "address": "/master/level", "min": 0, "max": 1, "curve": "linear" }
+      ],
+      "faders": [
+        { "cc": 47, "address": "/voice/0/level", "min": 0, "max": 1, "curve": "linear" },
+        { "cc": 43, "address": "/voice/1/level", "min": 0, "max": 1, "curve": "linear" },
+        { "cc": 39, "address": "/voice/2/level", "min": 0, "max": 1, "curve": "linear" },
+        { "cc": 35, "address": "/voice/3/level", "min": 0, "max": 1, "curve": "linear" },
+        { "cc": 31, "address": "/nasty/decayExtend", "min": 50, "max": 2000, "curve": "linear" },
+        { "cc": 27, "address": "/nasty/subHarmonic", "min": 0, "max": 1, "curve": "linear" },
+        { "cc": 23, "address": "/nasty/click", "min": 0, "max": 1, "curve": "linear" },
+        { "cc": 19, "address": "/envelope/amp/decay", "min": 50, "max": 800, "curve": "linear" }
+      ]
+    },
+    "dawMode": {
+      "faders": [
+        { "channel": 1, "address": "/voice/0/level", "min": 0, "max": 1 },
+        { "channel": 2, "address": "/voice/1/level", "min": 0, "max": 1 },
+        { "channel": 3, "address": "/voice/2/level", "min": 0, "max": 1 },
+        { "channel": 4, "address": "/voice/3/level", "min": 0, "max": 1 },
+        { "channel": 5, "address": "/nasty/decayExtend", "min": 50, "max": 2000 },
+        { "channel": 6, "address": "/nasty/subHarmonic", "min": 0, "max": 1 },
+        { "channel": 7, "address": "/nasty/click", "min": 0, "max": 1 },
+        { "channel": 8, "address": "/envelope/amp/decay", "min": 50, "max": 800 }
+      ],
+      "knobs": [
+        { "cc": 16, "address": "/filter/cutoff", "min": 20, "max": 2000, "curve": "log", "relative": true },
+        { "cc": 17, "address": "/nasty/decayFine", "min": 0, "max": 1, "relative": true },
+        { "cc": 18, "address": "/nasty/grime", "min": 0, "max": 1, "relative": true },
+        { "cc": 19, "address": "/lfo/rate", "min": 0.5, "max": 16, "relative": true },
+        { "cc": 20, "address": "/lfo/depth", "min": 0, "max": 1, "relative": true },
+        { "cc": 21, "address": "/master/reverb", "min": 0, "max": 1, "relative": true },
+        { "cc": 22, "address": "/master/comp/threshold", "min": -60, "max": 0, "relative": true },
+        { "cc": 23, "address": "/master/level", "min": 0, "max": 1, "relative": true }
+      ]
+    }
+  }
+}

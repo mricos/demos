@@ -37,6 +37,64 @@
     .bad { color: #ff5555; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    /* MCU Status indicator */
+    .mcu-status { display: inline-block; padding: 2px 8px; border-radius: 3px; font-weight: bold; margin-left: 10px; }
+    .mcu-status.inactive { background: #333; color: #888; }
+    .mcu-status.active { background: #0a5; color: #fff; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    /* Prominent MCU button */
+    .btn-mcu { background: #1a4a1a; border-color: #2a6a2a; }
+    .btn-mcu:hover:not(:disabled) { background: #2a6a2a; }
+    .btn-mcu.active { background: #0a5; border-color: #0c7; }
+    /* Quick LED test button */
+    .btn-led-test { background: #4a3a1a; border-color: #6a5a2a; }
+    .btn-led-test:hover:not(:disabled) { background: #6a5a2a; }
+    /* Collapse toggle */
+    .collapse-toggle { background: none; border: none; color: #888; cursor: pointer; padding: 0 4px; font-size: 12px; }
+    .collapse-toggle:hover { color: #fff; }
+    #advancedContent { margin-top: 10px; }
+    #advancedContent.collapsed { display: none; }
+    /* Mode reference box */
+    .mode-ref { display: flex; gap: 20px; flex-wrap: wrap; }
+    .mode-box { flex: 1; min-width: 200px; padding: 8px 12px; border-radius: 4px; }
+    .mode-box.cc { background: #1a2a3a; border: 1px solid #2a4a6a; }
+    .mode-box.daw { background: #2a1a3a; border: 1px solid #4a2a6a; }
+    .mode-box h3 { margin: 0 0 6px 0; font-size: 13px; }
+    .mode-box kbd { background: #333; padding: 2px 6px; border-radius: 3px; font-size: 11px; border: 1px solid #555; }
+    .mode-box ul { margin: 6px 0 0 0; padding-left: 18px; font-size: 12px; }
+    .mode-box li { margin: 2px 0; }
+    /* Log header */
+    .log-header { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+    .log-header select { width: auto; }
+    .log-stats { margin-left: auto; font-size: 11px; color: #888; }
+    /* Parsed message styles */
+    .msg-type { font-weight: bold; }
+    .msg-cc { color: #8be9fd; }
+    .msg-note { color: #50fa7b; }
+    .msg-pb { color: #ff79c6; }
+    .msg-other { color: #f1fa8c; }
+    .msg-detail { color: #888; }
+
+    /* Optigrab section overrides */
+    #optigrab-mount { margin: 12px 0; }
+    #optigrab-mount .optigrab-container {
+      background: transparent;
+      border: none;
+      padding: 0;
+    }
+    #optigrab-mount .optigrab-viewport {
+      max-width: 480px;
+    }
+    #optigrab-mount .optigrab-log {
+      display: none; /* Use main Optigrab results div instead */
+    }
+    #optigrab-mount .optigrab-brains {
+      margin-top: 8px;
+    }
+    #og-results .ok { color: #8be9fd; }
+    #og-results .warn { color: #ffb86c; }
+    #og-results .bad { color: #ff5555; }
+    .og-sweep-btn { background: #2a3a4a; border-color: #4a5a6a; }
   </style>
 </head>
 <body>
@@ -72,17 +130,57 @@
   </fieldset>
 
   <fieldset>
-    <legend>2) Manual Send</legend>
-    <div class="grid">
+    <legend>VMX8 Modes</legend>
+    <div class="mode-ref">
+      <div class="mode-box cc">
+        <h3>CC Mode <kbd>Shift</kbd> + <kbd>Right</kbd></h3>
+        <ul>
+          <li>Faders send <strong>CC messages</strong> (7-bit, 0-127)</li>
+          <li>Example: Fader 1 = CC 47, Fader 2 = CC 43</li>
+          <li>Buttons send CC with press/release</li>
+          <li>Good for: generic MIDI mapping, synths, effects</li>
+        </ul>
+      </div>
+      <div class="mode-box daw">
+        <h3>DAW Mode <kbd>Shift</kbd> + <kbd>Left</kbd></h3>
+        <ul>
+          <li>Faders send <strong>Pitch Bend</strong> (14-bit, 0-16383)</li>
+          <li>Ch 1-8 pitch bend = Faders 1-8</li>
+          <li>Buttons send Note On/Off (MCU protocol)</li>
+          <li>Good for: DAWs, LED feedback, high-res faders</li>
+        </ul>
+      </div>
+    </div>
+    <div class="small" style="margin-top:8px">
+      LED control only works in DAW Mode with MCU Session active. The VMX8 has limited LED feedback - only Mute Ch1 (0x10) and Play (0x5E) respond.
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>2) Controller Mode</legend>
+    <div class="row">
+      <button id="btnMcuSession" class="btn-mcu" disabled>Start MCU Session</button>
+      <span id="mcuStatusIndicator" class="mcu-status inactive">MCU Inactive</span>
+      <button id="btnQuickLedTest" class="btn-led-test" disabled>Quick LED Test</button>
+      <span class="small">Tests Mute Ch1 (0x10) + Play (0x5E)</span>
+    </div>
+    <div class="small warn" style="margin-top:8px">
+      VMX8 LEDs require MCU protocol. Start MCU Session first, then test LEDs.
+    </div>
+    <div class="grid" style="margin-top:12px">
+      <div class="col">
+        <div class="row">
+          <label>Known LEDs</label>
+          <button id="btnLedMute1" disabled>Mute Ch1 (0x10)</button>
+          <button id="btnLedPlay" disabled>Play (0x5E)</button>
+          <button id="btnAllOff" disabled>All Notes Off</button>
+        </div>
+      </div>
       <div class="col">
         <div class="row">
           <label for="channel">Channel</label>
           <input id="channel" type="number" min="1" max="16" value="1" style="width:72px" />
-          <span class="small">(1..16)</span>
-        </div>
-
-        <div class="row">
-          <label for="sendType">Type</label>
+          <label for="sendType" style="min-width:auto">Type</label>
           <select id="sendType" disabled>
             <option value="cc">CC</option>
             <option value="note">Note</option>
@@ -90,162 +188,223 @@
             <option value="pb">Pitch Bend</option>
           </select>
         </div>
-
         <div class="row">
           <label for="num">Number/Note</label>
-          <input id="num" type="number" min="0" max="127" value="0" style="width:92px" />
-        </div>
-
-        <div class="row">
-          <label for="val">Value/Vel</label>
+          <input id="num" type="number" min="0" max="127" value="16" style="width:92px" />
+          <label for="val" style="min-width:auto">Value</label>
           <input id="val" type="number" min="0" max="127" value="127" style="width:92px" />
           <button id="btnSend" disabled>Send</button>
         </div>
-
-        <div class="small warn">
-          SysEx is not used here. This tool probes generic LED feedback via standard MIDI messages.
-        </div>
       </div>
+    </div>
+  </fieldset>
 
-      <div class="col">
-        <div class="row">
-          <label for="panicMs">Inter-send delay</label>
-          <input id="panicMs" type="number" min="0" max="1000" value="30" style="width:92px" />
-          <span class="small">ms</span>
+  <fieldset>
+    <legend>3) Advanced <button id="toggleAdvanced" class="collapse-toggle">Show</button></legend>
+    <div id="advancedContent" class="collapsed">
+      <div class="grid">
+        <div class="col">
+          <div class="row">
+            <label for="panicMs">Inter-send delay</label>
+            <input id="panicMs" type="number" min="0" max="1000" value="30" style="width:92px" />
+            <span class="small">ms</span>
+          </div>
+          <div class="row">
+            <label for="holdMs">Hold time</label>
+            <input id="holdMs" type="number" min="0" max="2000" value="60" style="width:92px" />
+            <span class="small">ms</span>
+          </div>
+          <div class="row">
+            <button id="btnClearLog">Clear Log</button>
+            <button id="btnExportFound">Export Found</button>
+            <button id="btnCopyAll">Copy All</button>
+          </div>
+
+          <div class="row" style="margin-top:12px">
+            <label for="probeStart">Quick probe</label>
+            <input id="probeStart" type="text" value="0x10" style="width:60px" />
+            <span>..</span>
+            <input id="probeEnd" type="text" value="0x1F" style="width:60px" />
+            <select id="probeType">
+              <option value="note">Note</option>
+              <option value="cc">CC</option>
+            </select>
+            <button id="btnQuickProbe" disabled>Probe</button>
+            <button id="btnProbeStop" disabled>Stop</button>
+          </div>
+
+          <div class="row">
+            <label>SysEx</label>
+            <button id="btnSysexId" disabled>Identity Request</button>
+            <input id="sysexCustom" type="text" placeholder="F0 7E 7F 06 01 F7" style="width:200px" />
+            <button id="btnSysexSend" disabled>Send SysEx</button>
+          </div>
+
+          <div class="row" style="margin-top:12px">
+            <label>Hit Parade</label>
+            <button id="btnMcuInit" disabled>MCU Init</button>
+            <button id="btnHuiInit" disabled>HUI Init</button>
+            <button id="btnMcuLeds" disabled>MCU LEDs</button>
+            <button id="btnAllLeds" disabled>All LEDs On</button>
+            <button id="btnDjInit" disabled>DJ Init</button>
+          </div>
+
+          <div class="row">
+            <label>MCU LED Rows</label>
+            <button id="btnMcuMutes" disabled>Mutes 1-8</button>
+            <button id="btnMcuSolos" disabled>Solos 1-8</button>
+            <button id="btnMcuRecs" disabled>Recs 1-8</button>
+            <button id="btnMcuSels" disabled>Selects 1-8</button>
+            <button id="btnMcuTransport" disabled>Transport LEDs</button>
+          </div>
+
+          <div class="row">
+            <label>Boot Capture</label>
+            <button id="btnBootCapture" disabled>Start Capture</button>
+            <button id="btnReplayCaptured" disabled>Replay Captured</button>
+            <span id="captureStatus" class="small"></span>
+          </div>
+
+          <div class="row">
+            <label>Exotic</label>
+            <button id="btnAftertouch" disabled>Aftertouch Probe</button>
+            <button id="btnVelSweep" disabled>Velocity Sweep 0x10</button>
+            <button id="btnPitchBend" disabled>Pitch Bend Probe</button>
+            <button id="btnProgChange" disabled>Program Change Probe</button>
+          </div>
         </div>
-        <div class="row">
-          <label for="holdMs">Hold time</label>
-          <input id="holdMs" type="number" min="0" max="2000" value="60" style="width:92px" />
-          <span class="small">ms</span>
-        </div>
-        <div class="row">
-          <button id="btnAllOff" disabled>All Notes Off</button>
-          <button id="btnClearLog">Clear Log</button>
-          <button id="btnExportFound">Export Found</button>
-          <button id="btnCopyAll">Copy All</button>
-        </div>
-        <div class="row">
-          <label for="probeStart">Quick probe</label>
-          <input id="probeStart" type="text" value="0x10" style="width:60px" />
-          <span>..</span>
-          <input id="probeEnd" type="text" value="0x1F" style="width:60px" />
-          <select id="probeType">
-            <option value="note">Note</option>
-            <option value="cc">CC</option>
-          </select>
-          <button id="btnQuickProbe" disabled>Probe</button>
-          <button id="btnProbeStop" disabled>Stop</button>
-        </div>
-        <div class="row">
-          <label>SysEx</label>
-          <button id="btnSysexId" disabled>Identity Request</button>
-          <input id="sysexCustom" type="text" placeholder="F0 7E 7F 06 01 F7" style="width:200px" />
-          <button id="btnSysexSend" disabled>Send SysEx</button>
-        </div>
-        <div class="row">
-          <label>Hit Parade</label>
-          <button id="btnMcuInit" disabled>MCU Init</button>
-          <button id="btnHuiInit" disabled>HUI Init</button>
-          <button id="btnMcuLeds" disabled>MCU LEDs</button>
-          <button id="btnAllLeds" disabled>All LEDs On</button>
-          <button id="btnDjInit" disabled>DJ Init</button>
-        </div>
-        <div class="row">
-          <label>MCU Session</label>
-          <button id="btnMcuSession" disabled>Start MCU Session</button>
-          <button id="btnMcuMutes" disabled>Mutes 1-8</button>
-          <button id="btnMcuSolos" disabled>Solos 1-8</button>
-          <button id="btnMcuRecs" disabled>Recs 1-8</button>
-          <button id="btnMcuSels" disabled>Selects 1-8</button>
-          <button id="btnMcuTransport" disabled>Transport LEDs</button>
-        </div>
-        <div class="row">
-          <label>Boot Capture</label>
-          <button id="btnBootCapture" disabled>Start Capture</button>
-          <button id="btnReplayCaptured" disabled>Replay Captured</button>
-          <span id="captureStatus" class="small"></span>
-        </div>
-        <div class="row">
-          <label>Exotic</label>
-          <button id="btnAftertouch" disabled>Aftertouch Probe</button>
-          <button id="btnVelSweep" disabled>Velocity Sweep 0x10</button>
-          <button id="btnPitchBend" disabled>Pitch Bend Probe</button>
-          <button id="btnProgChange" disabled>Program Change Probe</button>
-        </div>
-        <div class="small">
-          “All Notes Off” sends CC123 and CC120/121/124 sequences; does not guarantee LED reset.
+
+        <div class="col">
+          <div class="row">
+            <label>Test Profile</label>
+            <select id="profile" disabled>
+              <option value="cc_mode">CC Mode (CC sweep + note sweep)</option>
+              <option value="daw_mode">DAW Mode (MCU-ish note patterns + sweeps)</option>
+              <option value="exhaustive">Exhaustive (CC + notes + channels)</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <label for="ccStart">CC range</label>
+            <input id="ccStart" type="number" min="0" max="127" value="0" style="width:92px" />
+            <span>..</span>
+            <input id="ccEnd" type="number" min="0" max="127" value="127" style="width:92px" />
+          </div>
+
+          <div class="row">
+            <label for="noteStart">Note range</label>
+            <input id="noteStart" type="number" min="0" max="127" value="0" style="width:92px" />
+            <span>..</span>
+            <input id="noteEnd" type="number" min="0" max="127" value="127" style="width:92px" />
+          </div>
+
+          <div class="row">
+            <label for="chStart">Channel range</label>
+            <input id="chStart" type="number" min="1" max="16" value="1" style="width:92px" />
+            <span>..</span>
+            <input id="chEnd" type="number" min="1" max="16" value="1" style="width:92px" />
+          </div>
+
+          <div class="row">
+            <button id="btnRun" disabled>Run Test</button>
+            <button id="btnStop" disabled>Stop</button>
+          </div>
+
+          <div class="row" style="margin-top:12px">
+            <label for="mcuBank">MCU bank</label>
+            <select id="mcuBank" disabled>
+              <option value="transport">Transport-ish notes (0x5B..0x5F)</option>
+              <option value="channel">Channel strip-ish notes (0x10..0x2F)</option>
+              <option value="function">Function-ish notes (0x30..0x4F)</option>
+            </select>
+            <button id="btnMCUProbe" disabled>MCU Probe</button>
+          </div>
+
+          <div class="small" style="margin-top:12px">
+            Observe whether any controller LEDs change. If nothing changes, the device likely requires a vendor-defined protocol, SysEx, or a specific DAW surface mode.
+          </div>
+          <div class="small warn">
+            Some controllers expose separate MIDI ports for DAW feedback (e.g., "DAW" vs "MIDI"). Select the correct Output port.
+          </div>
         </div>
       </div>
     </div>
   </fieldset>
 
   <fieldset>
-    <legend>3) Automated Tests</legend>
-    <div class="grid">
+    <legend>4) Optigrab - Visual LED Verification</legend>
+    <div class="row">
+      <span class="small">Point webcam at controller to visually verify LED responses. Runs tests and watches for actual light changes.</span>
+    </div>
+    <div id="optigrab-mount"></div>
+    <div class="grid" style="margin-top:12px">
       <div class="col">
         <div class="row">
-          <label>Test Profile</label>
-          <select id="profile" disabled>
-            <option value="cc_mode">CC Mode (CC sweep + note sweep)</option>
-            <option value="daw_mode">DAW Mode (MCU-ish note patterns + sweeps)</option>
-            <option value="exhaustive">Exhaustive (CC + notes + channels)</option>
+          <label>Auto-Test Suite</label>
+          <button id="btnOgTestKnown" disabled>Test Known LEDs</button>
+          <button id="btnOgTestMutes" disabled>Test Mute Row</button>
+          <button id="btnOgTestTransport" disabled>Test Transport</button>
+        </div>
+        <div class="row">
+          <label>Single LED Test</label>
+          <select id="ogTestNote" style="width:120px">
+            <option value="0x10">Mute1 (0x10)</option>
+            <option value="0x11">Mute2 (0x11)</option>
+            <option value="0x12">Mute3 (0x12)</option>
+            <option value="0x5E">Play (0x5E)</option>
+            <option value="0x5D">Stop (0x5D)</option>
+            <option value="0x5F">Record (0x5F)</option>
           </select>
+          <button id="btnOgTestSingle" disabled>Test LED</button>
+          <span id="ogTestResult" class="small"></span>
         </div>
-
         <div class="row">
-          <label for="ccStart">CC range</label>
-          <input id="ccStart" type="number" min="0" max="127" value="0" style="width:92px" />
+          <label>Sweep Range</label>
+          <input id="ogSweepStart" type="text" value="0x10" style="width:60px">
           <span>..</span>
-          <input id="ccEnd" type="number" min="0" max="127" value="127" style="width:92px" />
-        </div>
-
-        <div class="row">
-          <label for="noteStart">Note range</label>
-          <input id="noteStart" type="number" min="0" max="127" value="0" style="width:92px" />
-          <span>..</span>
-          <input id="noteEnd" type="number" min="0" max="127" value="127" style="width:92px" />
-        </div>
-
-        <div class="row">
-          <label for="chStart">Channel range</label>
-          <input id="chStart" type="number" min="1" max="16" value="1" style="width:92px" />
-          <span>..</span>
-          <input id="chEnd" type="number" min="1" max="16" value="1" style="width:92px" />
-        </div>
-
-        <div class="row">
-          <button id="btnRun" disabled>Run Test</button>
-          <button id="btnStop" disabled>Stop</button>
-        </div>
-
-        <div class="small">
-          Observe whether any controller LEDs change. If nothing changes, the device likely requires a vendor-defined protocol, SysEx, or a specific DAW surface mode.
+          <input id="ogSweepEnd" type="text" value="0x1F" style="width:60px">
+          <button id="btnOgSweep" disabled>Visual Sweep</button>
+          <button id="btnOgSweepStop" disabled>Stop</button>
         </div>
       </div>
-
       <div class="col">
-        <div class="small">
-          DAW mode profile sends a few common “MCU-style” patterns (note-on velocity 127, note-off/vel0) across typical note ranges.
-          This is not a full MCU/HUI implementation; it is a probe.
+        <div class="row">
+          <label>Detection Settings</label>
+          <span class="small">Threshold:</span>
+          <input id="ogThreshold" type="range" min="5" max="80" value="20" style="width:80px">
+          <span id="ogThresholdVal">20</span>
         </div>
         <div class="row">
-          <label for="mcuBank">MCU bank</label>
-          <select id="mcuBank" disabled>
-            <option value="transport">Transport-ish notes (0x5B..0x5F)</option>
-            <option value="channel">Channel strip-ish notes (0x10..0x2F)</option>
-            <option value="function">Function-ish notes (0x30..0x4F)</option>
-          </select>
-          <button id="btnMCUProbe" disabled>MCU Probe</button>
+          <label>Results</label>
+          <span id="ogStats" class="small">No tests run yet.</span>
         </div>
-        <div class="small warn">
-          Some controllers expose separate MIDI ports for DAW feedback (e.g., “DAW” vs “MIDI”). Select the correct Output port.
+        <div class="row">
+          <button id="btnOgExportResults" disabled>Export Results</button>
+          <button id="btnOgClearResults">Clear</button>
         </div>
       </div>
     </div>
+    <div id="og-results" style="margin-top:8px; max-height:150px; overflow-y:auto; background:#0a0a0a; border:1px solid #333; padding:8px; font-size:11px;"></div>
   </fieldset>
 
   <fieldset>
-    <legend>4) Log</legend>
+    <legend>5) Log</legend>
+    <div class="log-header">
+      <button id="btnClearLog2">Clear</button>
+      <label for="logFormat" style="min-width:auto">Format:</label>
+      <select id="logFormat">
+        <option value="parsed">Parsed</option>
+        <option value="hex">Hex only</option>
+        <option value="verbose">Verbose</option>
+      </select>
+      <label style="min-width:auto"><input type="checkbox" id="logTimestamp" checked> Time</label>
+      <label style="min-width:auto"><input type="checkbox" id="logAutoScroll" checked> Auto-scroll</label>
+      <button id="btnExportFound2">Export Marked</button>
+      <button id="btnCopyAll2">Copy All</button>
+      <span class="log-stats">
+        <span id="logCount">0</span> msgs
+      </span>
+    </div>
     <div id="log"></div>
   </fieldset>
 
@@ -260,12 +419,24 @@
     outSelect: $("outSelect"),
     status: $("status"),
 
+    // Controller section
+    btnMcuSession: $("btnMcuSession"),
+    mcuStatusIndicator: $("mcuStatusIndicator"),
+    btnQuickLedTest: $("btnQuickLedTest"),
+    btnLedMute1: $("btnLedMute1"),
+    btnLedPlay: $("btnLedPlay"),
+
     sendType: $("sendType"),
     channel: $("channel"),
     num: $("num"),
     val: $("val"),
     btnSend: $("btnSend"),
     btnAllOff: $("btnAllOff"),
+
+    // Advanced section
+    toggleAdvanced: $("toggleAdvanced"),
+    advancedContent: $("advancedContent"),
+
     btnClearLog: $("btnClearLog"),
     btnExportFound: $("btnExportFound"),
     btnCopyAll: $("btnCopyAll"),
@@ -289,7 +460,6 @@
     btnVelSweep: $("btnVelSweep"),
     btnPitchBend: $("btnPitchBend"),
     btnProgChange: $("btnProgChange"),
-    btnMcuSession: $("btnMcuSession"),
     btnMcuMutes: $("btnMcuMutes"),
     btnMcuSolos: $("btnMcuSolos"),
     btnMcuRecs: $("btnMcuRecs"),
@@ -312,7 +482,18 @@
     btnMCUProbe: $("btnMCUProbe"),
 
     log: $("log"),
+
+    // Log controls
+    btnClearLog2: $("btnClearLog2"),
+    btnExportFound2: $("btnExportFound2"),
+    btnCopyAll2: $("btnCopyAll2"),
+    logFormat: $("logFormat"),
+    logTimestamp: $("logTimestamp"),
+    logAutoScroll: $("logAutoScroll"),
+    logCount: $("logCount"),
   };
+
+  let logMsgCount = 0;
 
   let midiAccess = null;
   let input = null;
@@ -321,11 +502,137 @@
   let stopFlag = false;
   let currentTask = null;
 
+  // MIDI message parsing for both CC and DAW modes
+  function parseMidi(bytes) {
+    if (!bytes || bytes.length < 1) return { type: 'unknown', text: '??', detail: '' };
+
+    const status = bytes[0] & 0xF0;
+    const ch = (bytes[0] & 0x0F) + 1;
+
+    // SysEx
+    if (bytes[0] === 0xF0) {
+      const hex = bytesToHex(bytes);
+      // Check for known SysEx
+      if (hex.startsWith('f0 00 00 66 14')) return { type: 'sysex', text: 'MCU SysEx', detail: hex, cls: 'msg-other' };
+      if (hex.startsWith('f0 7e')) return { type: 'sysex', text: 'Universal SysEx', detail: hex, cls: 'msg-other' };
+      return { type: 'sysex', text: 'SysEx', detail: hex, cls: 'msg-other' };
+    }
+
+    // Note Off
+    if (status === 0x80) {
+      const note = bytes[1];
+      const vel = bytes[2];
+      const mcuName = getMcuNoteName(note);
+      return { type: 'note', text: `NoteOff`, detail: `ch${ch} n${note} (0x${note.toString(16)}) v${vel}${mcuName ? ' [' + mcuName + ']' : ''}`, cls: 'msg-note' };
+    }
+
+    // Note On
+    if (status === 0x90) {
+      const note = bytes[1];
+      const vel = bytes[2];
+      const mcuName = getMcuNoteName(note);
+      const onOff = vel > 0 ? 'On' : 'Off';
+      return { type: 'note', text: `Note${onOff}`, detail: `ch${ch} n${note} (0x${note.toString(16)}) v${vel}${mcuName ? ' [' + mcuName + ']' : ''}`, cls: 'msg-note' };
+    }
+
+    // Control Change
+    if (status === 0xB0) {
+      const cc = bytes[1];
+      const val = bytes[2];
+      const ccName = getCcName(cc);
+      return { type: 'cc', text: `CC`, detail: `ch${ch} cc${cc} (0x${cc.toString(16)}) = ${val}${ccName ? ' [' + ccName + ']' : ''}`, cls: 'msg-cc' };
+    }
+
+    // Program Change
+    if (status === 0xC0) {
+      const prog = bytes[1];
+      return { type: 'pc', text: `ProgCh`, detail: `ch${ch} p${prog}`, cls: 'msg-other' };
+    }
+
+    // Channel Aftertouch
+    if (status === 0xD0) {
+      const pressure = bytes[1];
+      return { type: 'at', text: `ChanAT`, detail: `ch${ch} p${pressure} (VU meter in DAW mode)`, cls: 'msg-other' };
+    }
+
+    // Pitch Bend (Faders in DAW mode!)
+    if (status === 0xE0) {
+      const lsb = bytes[1];
+      const msb = bytes[2];
+      const bend14 = (msb << 7) | lsb;
+      const pct = ((bend14 / 16383) * 100).toFixed(1);
+      return { type: 'pb', text: `PitchB`, detail: `ch${ch} = ${bend14} (${pct}%) [Fader ${ch} in DAW mode]`, cls: 'msg-pb' };
+    }
+
+    // Poly Aftertouch
+    if (status === 0xA0) {
+      const note = bytes[1];
+      const pressure = bytes[2];
+      return { type: 'pat', text: `PolyAT`, detail: `ch${ch} n${note} p${pressure}`, cls: 'msg-other' };
+    }
+
+    return { type: 'unknown', text: `0x${bytes[0].toString(16)}`, detail: bytesToHex(bytes), cls: 'msg-other' };
+  }
+
+  // MCU note names for common functions
+  function getMcuNoteName(note) {
+    const names = {
+      0x00: 'Rec1', 0x01: 'Rec2', 0x02: 'Rec3', 0x03: 'Rec4', 0x04: 'Rec5', 0x05: 'Rec6', 0x06: 'Rec7', 0x07: 'Rec8',
+      0x08: 'Solo1', 0x09: 'Solo2', 0x0A: 'Solo3', 0x0B: 'Solo4', 0x0C: 'Solo5', 0x0D: 'Solo6', 0x0E: 'Solo7', 0x0F: 'Solo8',
+      0x10: 'Mute1', 0x11: 'Mute2', 0x12: 'Mute3', 0x13: 'Mute4', 0x14: 'Mute5', 0x15: 'Mute6', 0x16: 'Mute7', 0x17: 'Mute8',
+      0x18: 'Sel1', 0x19: 'Sel2', 0x1A: 'Sel3', 0x1B: 'Sel4', 0x1C: 'Sel5', 0x1D: 'Sel6', 0x1E: 'Sel7', 0x1F: 'Sel8',
+      0x5B: 'Rewind', 0x5C: 'FastFwd', 0x5D: 'Stop', 0x5E: 'Play', 0x5F: 'Record',
+      0x56: 'Cycle', 0x57: 'Punch', 0x54: 'Marker', 0x55: 'Nudge',
+      0x73: 'Mute1-alias',
+    };
+    return names[note] || null;
+  }
+
+  // CC names for VMX8 in CC mode
+  function getCcName(cc) {
+    const names = {
+      47: 'Fader1', 43: 'Fader2', 39: 'Fader3', 35: 'Fader4',
+      31: 'Fader5', 27: 'Fader6', 23: 'Fader7', 19: 'Fader8',
+      21: 'Mute1', 29: 'Solo1',
+      120: 'AllSndOff', 121: 'ResetCtrl', 123: 'AllNotesOff', 124: 'OmniOff',
+    };
+    return names[cc] || null;
+  }
+
   function log(line, cls, midiBytes) {
-    const prefix = new Date().toISOString().replace('T',' ').replace('Z','');
-    const text = `[${prefix}] ${line}`;
+    logMsgCount++;
+    ui.logCount.textContent = logMsgCount;
+
+    const showTime = ui.logTimestamp.checked;
+    const format = ui.logFormat.value;
+    const autoScroll = ui.logAutoScroll.checked;
+
+    let text = '';
+    let extraCls = cls || '';
+
+    if (showTime) {
+      const now = new Date();
+      const ts = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}.${now.getMilliseconds().toString().padStart(3,'0')}`;
+      text = `[${ts}] `;
+    }
+
+    // If we have MIDI bytes, parse them according to format
+    if (midiBytes && format !== 'hex') {
+      const parsed = parseMidi(midiBytes);
+      const dir = line.startsWith('IN') ? 'IN ' : line.startsWith('OUT') ? 'OUT' : '   ';
+      if (format === 'parsed') {
+        text += `${dir} ${parsed.text.padEnd(7)} ${parsed.detail}`;
+        extraCls = parsed.cls || extraCls;
+      } else if (format === 'verbose') {
+        text += `${dir} ${parsed.text.padEnd(7)} ${parsed.detail} [${bytesToHex(midiBytes)}]`;
+        extraCls = parsed.cls || extraCls;
+      }
+    } else {
+      text += line;
+    }
+
     const span = document.createElement("span");
-    span.className = `log-entry${cls ? ' ' + cls : ''}${midiBytes ? ' replayable' : ''}`;
+    span.className = `log-entry${extraCls ? ' ' + extraCls : ''}${midiBytes ? ' replayable' : ''}`;
     span.textContent = text + '\n';
 
     if (midiBytes) {
@@ -359,7 +666,13 @@
     }
 
     ui.log.appendChild(span);
-    ui.log.scrollTop = ui.log.scrollHeight;
+    if (autoScroll) ui.log.scrollTop = ui.log.scrollHeight;
+  }
+
+  function clearLog() {
+    ui.log.textContent = '';
+    logMsgCount = 0;
+    ui.logCount.textContent = '0';
   }
 
   let dragEntry = null;
@@ -444,7 +757,8 @@
       ui.btnMcuInit, ui.btnHuiInit, ui.btnMcuLeds, ui.btnAllLeds, ui.btnDjInit,
       ui.btnBootCapture, ui.btnReplayCaptured,
       ui.btnAftertouch, ui.btnVelSweep, ui.btnPitchBend, ui.btnProgChange,
-      ui.btnMcuSession, ui.btnMcuMutes, ui.btnMcuSolos, ui.btnMcuRecs, ui.btnMcuSels, ui.btnMcuTransport
+      ui.btnMcuSession, ui.btnMcuMutes, ui.btnMcuSolos, ui.btnMcuRecs, ui.btnMcuSels, ui.btnMcuTransport,
+      ui.btnQuickLedTest, ui.btnLedMute1, ui.btnLedPlay
     ]) el.disabled = !enabled;
   }
 
@@ -757,9 +1071,10 @@
   }
 
   // --- Wiring ---
-  ui.btnClearLog.onclick = () => ui.log.textContent = "";
+  ui.btnClearLog.onclick = () => clearLog();
+  ui.btnClearLog2.onclick = () => clearLog();
 
-  ui.btnCopyAll.onclick = () => {
+  function copyAllEntries() {
     const entries = ui.log.querySelectorAll('.replayable');
     if (!entries.length) { log("No MIDI entries.", "warn"); return; }
     const lines = Array.from(entries).map(el => {
@@ -769,9 +1084,11 @@
     navigator.clipboard.writeText(lines.join('\n')).then(() => {
       log(`Copied ${lines.length} entries.`, "ok");
     });
-  };
+  }
+  ui.btnCopyAll.onclick = copyAllEntries;
+  ui.btnCopyAll2.onclick = copyAllEntries;
 
-  ui.btnExportFound.onclick = () => {
+  function exportFoundEntries() {
     const found = ui.log.querySelectorAll('.found');
     if (!found.length) { log("No entries marked.", "warn"); return; }
     const lines = Array.from(found).map(el => {
@@ -784,7 +1101,9 @@
     }).catch(() => {
       log("Clipboard failed. Entries:\n" + text, "warn");
     });
-  };
+  }
+  ui.btnExportFound.onclick = exportFoundEntries;
+  ui.btnExportFound2.onclick = exportFoundEntries;
 
   function parseHexOrDec(s) {
     s = s.trim();
@@ -1146,6 +1465,10 @@
 
     mcuSessionActive = !mcuSessionActive;
     ui.btnMcuSession.textContent = mcuSessionActive ? "End MCU Session" : "Start MCU Session";
+    ui.btnMcuSession.classList.toggle("active", mcuSessionActive);
+    ui.mcuStatusIndicator.textContent = mcuSessionActive ? "MCU Active" : "MCU Inactive";
+    ui.mcuStatusIndicator.classList.toggle("active", mcuSessionActive);
+    ui.mcuStatusIndicator.classList.toggle("inactive", !mcuSessionActive);
 
     if (mcuSessionActive) {
       log("=== STARTING MCU SESSION ===", "warn");
@@ -1284,6 +1607,69 @@
 
   ui.btnMcuTransport.onclick = () => probeTransport();
 
+  // Quick LED Test - tests the 2 known working VMX8 LEDs
+  ui.btnQuickLedTest.onclick = async () => {
+    if (!output) { log("No output bound.", "bad"); return; }
+    if (!mcuSessionActive) {
+      log("MCU Session not active - LEDs may not respond. Starting session...", "warn");
+      ui.btnMcuSession.click();
+      await sleep(500);
+    }
+    log("=== QUICK LED TEST ===", "warn");
+    // Mute Ch1 (0x10)
+    sendNoteOn(0, 0x10, 127);
+    log("Mute Ch1 (0x10) ON", "ok");
+    await sleep(500);
+    // Play (0x5E)
+    sendNoteOn(0, 0x5E, 127);
+    log("Play (0x5E) ON", "ok");
+    await sleep(1000);
+    // Turn off
+    sendNoteOn(0, 0x10, 0);
+    sendNoteOn(0, 0x5E, 0);
+    log("LEDs OFF", "ok");
+  };
+
+  // Individual LED buttons
+  ui.btnLedMute1.onclick = () => {
+    if (!output) { log("No output bound.", "bad"); return; }
+    sendNoteOn(0, 0x10, 127);
+    log("Mute Ch1 (0x10) ON - click again to toggle", "ok");
+    ui.btnLedMute1._on = !ui.btnLedMute1._on;
+    if (!ui.btnLedMute1._on) {
+      sendNoteOn(0, 0x10, 0);
+      log("Mute Ch1 (0x10) OFF", "ok");
+    }
+  };
+
+  ui.btnLedPlay.onclick = () => {
+    if (!output) { log("No output bound.", "bad"); return; }
+    sendNoteOn(0, 0x5E, 127);
+    log("Play (0x5E) ON - click again to toggle", "ok");
+    ui.btnLedPlay._on = !ui.btnLedPlay._on;
+    if (!ui.btnLedPlay._on) {
+      sendNoteOn(0, 0x5E, 0);
+      log("Play (0x5E) OFF", "ok");
+    }
+  };
+
+  // Advanced section collapse/expand
+  ui.toggleAdvanced.onclick = () => {
+    const collapsed = ui.advancedContent.classList.toggle("collapsed");
+    ui.toggleAdvanced.textContent = collapsed ? "Show" : "Hide";
+    // Persist state
+    try { localStorage.setItem("advancedCollapsed", collapsed); } catch(e) {}
+  };
+
+  // Restore collapse state on load
+  try {
+    const saved = localStorage.getItem("advancedCollapsed");
+    if (saved === "false") {
+      ui.advancedContent.classList.remove("collapsed");
+      ui.toggleAdvanced.textContent = "Hide";
+    }
+  } catch(e) {}
+
   ui.btnEnable.onclick = async () => {
     try {
       if (!navigator.requestMIDIAccess) {
@@ -1339,7 +1725,362 @@
   setEnabled(false);
 
   // Default log header.
-  log("Ready. Click “Enable WebMIDI”.", "warn");
+  log("VMX8 MIDI Probe - Enable WebMIDI to begin.", "warn");
+  log("CC Mode: Shift+Right | DAW Mode: Shift+Left", "warn");
+  log("LEDs only work in DAW Mode with MCU Session active.", "warn");
+
+  //============================================================================
+  // OPTIGRAB INTEGRATION
+  //============================================================================
+
+  // Load Optigrab module
+  const ogScript = document.createElement('script');
+  ogScript.src = 'js/optigrab.js';
+  ogScript.onload = initOptigrab;
+  document.head.appendChild(ogScript);
+
+  let optigrab = null;
+  let ogTestResults = [];
+  let ogSweepRunning = false;
+
+  function initOptigrab() {
+    if (typeof Optigrab === 'undefined') {
+      console.error('Optigrab module failed to load');
+      return;
+    }
+
+    // Create Optigrab instance
+    optigrab = Optigrab.create({
+      width: 480,
+      height: 360,
+      fps: 30
+    });
+
+    optigrab.mount('#optigrab-mount');
+
+    // Add Flash brain for LED detection
+    const flashBrain = Optigrab.FlashBrain.create({
+      threshold: 20,
+      cooldownMs: 100
+    });
+    optigrab.addBrain('flash', flashBrain);
+
+    // Add Color brain for LED color detection
+    const colorBrain = Optigrab.ColorBrain.create({
+      minPixels: 50,
+      enabled: false
+    });
+    optigrab.addBrain('color', colorBrain);
+
+    // Wire up Optigrab event handlers
+    optigrab.on('flash:detected', (result) => {
+      ogLog(`Flash detected! Δ${result.delta > 0 ? '+' : ''}${result.delta.toFixed(1)} (${result.direction})`, result.delta > 0 ? 'ok' : 'warn');
+    });
+
+    optigrab.on('started', () => {
+      enableOgButtons(true);
+    });
+
+    optigrab.on('stopped', () => {
+      enableOgButtons(false);
+    });
+
+    optigrab.on('test:complete', (test) => {
+      ogTestResults.push(test);
+      updateOgStats();
+      renderOgResult(test);
+    });
+
+    // Wire up threshold slider
+    const thresholdSlider = $('ogThreshold');
+    const thresholdVal = $('ogThresholdVal');
+    thresholdSlider.oninput = () => {
+      const val = parseInt(thresholdSlider.value);
+      thresholdVal.textContent = val;
+      flashBrain.config.threshold = val;
+    };
+
+    // Wire up test buttons
+    $('btnOgTestKnown').onclick = runKnownLedTest;
+    $('btnOgTestMutes').onclick = runMuteRowTest;
+    $('btnOgTestTransport').onclick = runTransportTest;
+    $('btnOgTestSingle').onclick = runSingleLedTest;
+    $('btnOgSweep').onclick = runVisualSweep;
+    $('btnOgSweepStop').onclick = () => { ogSweepRunning = false; };
+    $('btnOgExportResults').onclick = exportOgResults;
+    $('btnOgClearResults').onclick = clearOgResults;
+
+    ogLog('Optigrab ready. Start camera to enable visual LED tests.', 'ok');
+  }
+
+  function enableOgButtons(enabled) {
+    const btns = [
+      'btnOgTestKnown', 'btnOgTestMutes', 'btnOgTestTransport',
+      'btnOgTestSingle', 'btnOgSweep', 'btnOgExportResults'
+    ];
+    for (const id of btns) {
+      const el = $(id);
+      if (el) el.disabled = !enabled;
+    }
+  }
+
+  function ogLog(msg, type = 'info') {
+    const resultsDiv = $('og-results');
+    if (!resultsDiv) return;
+
+    const entry = document.createElement('div');
+    const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+    entry.innerHTML = `<span style="color:#666">[${ts}]</span> <span class="${type}">${msg}</span>`;
+    resultsDiv.appendChild(entry);
+    resultsDiv.scrollTop = resultsDiv.scrollHeight;
+  }
+
+  function updateOgStats() {
+    const total = ogTestResults.length;
+    const detected = ogTestResults.filter(t => t.result?.detected).length;
+    const pct = total > 0 ? ((detected / total) * 100).toFixed(0) : 0;
+    $('ogStats').innerHTML = `${total} tests, <span class="ok">${detected} detected</span> (${pct}%)`;
+    $('btnOgExportResults').disabled = total === 0;
+  }
+
+  function renderOgResult(test) {
+    const status = test.result?.detected ? '✓' : '✗';
+    const cls = test.result?.detected ? 'ok' : 'bad';
+    ogLog(`${status} ${test.name}: delta=${test.result?.delta?.toFixed(1) || '?'}`, cls);
+  }
+
+  async function runKnownLedTest() {
+    if (!output || !optigrab?.running) {
+      ogLog('Need MIDI output and camera running.', 'bad');
+      return;
+    }
+
+    if (!mcuSessionActive) {
+      ogLog('Starting MCU session first...', 'warn');
+      await ui.btnMcuSession.click();
+      await sleep(1000);
+    }
+
+    ogLog('=== Testing Known VMX8 LEDs ===', 'warn');
+
+    // Test Mute Ch1 (0x10)
+    await optigrab.runTest({
+      name: 'Mute Ch1 (0x10)',
+      action: () => sendNoteOn(0, 0x10, 127),
+      cleanup: () => sendNoteOn(0, 0x10, 0),
+      timeout: 1500,
+      threshold: parseInt($('ogThreshold').value)
+    });
+
+    await sleep(500);
+
+    // Test Play (0x5E)
+    await optigrab.runTest({
+      name: 'Play (0x5E)',
+      action: () => sendNoteOn(0, 0x5E, 127),
+      cleanup: () => sendNoteOn(0, 0x5E, 0),
+      timeout: 1500,
+      threshold: parseInt($('ogThreshold').value)
+    });
+  }
+
+  async function runMuteRowTest() {
+    if (!output || !optigrab?.running) {
+      ogLog('Need MIDI output and camera running.', 'bad');
+      return;
+    }
+
+    if (!mcuSessionActive) {
+      ogLog('Starting MCU session first...', 'warn');
+      await ui.btnMcuSession.click();
+      await sleep(1000);
+    }
+
+    ogLog('=== Testing Mute Row LEDs ===', 'warn');
+
+    for (let i = 0; i < 8; i++) {
+      const note = 0x10 + i;
+      await optigrab.runTest({
+        name: `Mute ${i+1} (0x${note.toString(16)})`,
+        action: () => sendNoteOn(0, note, 127),
+        cleanup: () => sendNoteOn(0, note, 0),
+        timeout: 1200,
+        threshold: parseInt($('ogThreshold').value)
+      });
+      await sleep(300);
+    }
+
+    ogLog('Mute row test complete.', 'ok');
+  }
+
+  async function runTransportTest() {
+    if (!output || !optigrab?.running) {
+      ogLog('Need MIDI output and camera running.', 'bad');
+      return;
+    }
+
+    if (!mcuSessionActive) {
+      ogLog('Starting MCU session first...', 'warn');
+      await ui.btnMcuSession.click();
+      await sleep(1000);
+    }
+
+    ogLog('=== Testing Transport LEDs ===', 'warn');
+
+    const transport = [
+      { note: 0x5B, name: 'Rewind' },
+      { note: 0x5C, name: 'FastFwd' },
+      { note: 0x5D, name: 'Stop' },
+      { note: 0x5E, name: 'Play' },
+      { note: 0x5F, name: 'Record' }
+    ];
+
+    for (const t of transport) {
+      await optigrab.runTest({
+        name: `${t.name} (0x${t.note.toString(16)})`,
+        action: () => sendNoteOn(0, t.note, 127),
+        cleanup: () => sendNoteOn(0, t.note, 0),
+        timeout: 1200,
+        threshold: parseInt($('ogThreshold').value)
+      });
+      await sleep(300);
+    }
+
+    ogLog('Transport test complete.', 'ok');
+  }
+
+  async function runSingleLedTest() {
+    if (!output || !optigrab?.running) {
+      ogLog('Need MIDI output and camera running.', 'bad');
+      return;
+    }
+
+    const noteStr = $('ogTestNote').value;
+    const note = parseInt(noteStr, 16);
+
+    if (!mcuSessionActive) {
+      ogLog('Starting MCU session first...', 'warn');
+      await ui.btnMcuSession.click();
+      await sleep(1000);
+    }
+
+    $('ogTestResult').textContent = 'Testing...';
+    $('ogTestResult').className = 'small warn';
+
+    await optigrab.runTest({
+      name: `LED 0x${note.toString(16)}`,
+      action: () => sendNoteOn(0, note, 127),
+      cleanup: () => sendNoteOn(0, note, 0),
+      timeout: 1500,
+      threshold: parseInt($('ogThreshold').value)
+    });
+
+    // Wait for result
+    await sleep(2000);
+
+    const last = ogTestResults[ogTestResults.length - 1];
+    if (last?.result?.detected) {
+      $('ogTestResult').textContent = `DETECTED (Δ${last.result.delta.toFixed(1)})`;
+      $('ogTestResult').className = 'small ok';
+    } else {
+      $('ogTestResult').textContent = 'No change detected';
+      $('ogTestResult').className = 'small bad';
+    }
+  }
+
+  async function runVisualSweep() {
+    if (!output || !optigrab?.running) {
+      ogLog('Need MIDI output and camera running.', 'bad');
+      return;
+    }
+
+    const startStr = $('ogSweepStart').value;
+    const endStr = $('ogSweepEnd').value;
+    const start = parseInt(startStr.startsWith('0x') ? startStr : '0x' + startStr, 16);
+    const end = parseInt(endStr.startsWith('0x') ? endStr : '0x' + endStr, 16);
+
+    if (!isFinite(start) || !isFinite(end) || start > end) {
+      ogLog('Invalid sweep range.', 'bad');
+      return;
+    }
+
+    if (!mcuSessionActive) {
+      ogLog('Starting MCU session first...', 'warn');
+      await ui.btnMcuSession.click();
+      await sleep(1000);
+    }
+
+    ogSweepRunning = true;
+    $('btnOgSweep').disabled = true;
+    $('btnOgSweepStop').disabled = false;
+
+    ogLog(`=== Visual Sweep 0x${start.toString(16)} - 0x${end.toString(16)} ===`, 'warn');
+
+    for (let note = start; note <= end && ogSweepRunning; note++) {
+      await optigrab.runTest({
+        name: `Note 0x${note.toString(16)}`,
+        action: () => sendNoteOn(0, note, 127),
+        cleanup: () => sendNoteOn(0, note, 0),
+        timeout: 1000,
+        threshold: parseInt($('ogThreshold').value)
+      });
+      await sleep(200);
+    }
+
+    ogSweepRunning = false;
+    $('btnOgSweep').disabled = false;
+    $('btnOgSweepStop').disabled = true;
+
+    // Summary
+    const sweepResults = ogTestResults.filter(t => t.name.startsWith('Note 0x'));
+    const detected = sweepResults.filter(t => t.result?.detected);
+    ogLog(`Sweep complete: ${detected.length}/${sweepResults.length} LEDs detected.`, 'ok');
+
+    if (detected.length > 0) {
+      ogLog('Detected: ' + detected.map(t => t.name.replace('Note ', '')).join(', '), 'ok');
+    }
+  }
+
+  function exportOgResults() {
+    if (ogTestResults.length === 0) return;
+
+    const lines = ['Optigrab LED Test Results', '========================', ''];
+    const detected = [];
+    const notDetected = [];
+
+    for (const t of ogTestResults) {
+      const line = `${t.result?.detected ? '✓' : '✗'} ${t.name}: delta=${t.result?.delta?.toFixed(1) || '?'}`;
+      lines.push(line);
+      if (t.result?.detected) detected.push(t.name);
+      else notDetected.push(t.name);
+    }
+
+    lines.push('', '--- Summary ---');
+    lines.push(`Total: ${ogTestResults.length}`);
+    lines.push(`Detected: ${detected.length}`);
+    lines.push(`Not detected: ${notDetected.length}`);
+
+    if (detected.length > 0) {
+      lines.push('', 'Working LEDs:');
+      detected.forEach(n => lines.push(`  ${n}`));
+    }
+
+    const text = lines.join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      ogLog('Results copied to clipboard.', 'ok');
+    }).catch(() => {
+      ogLog('Clipboard failed. See console.', 'warn');
+      console.log(text);
+    });
+  }
+
+  function clearOgResults() {
+    ogTestResults = [];
+    $('og-results').innerHTML = '';
+    updateOgStats();
+    $('ogTestResult').textContent = '';
+    ogLog('Results cleared.', 'ok');
+  }
 })();
 </script>
 </body>

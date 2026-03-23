@@ -2,9 +2,16 @@
  * Dunk - Controller Module
  * VMX8-style virtual MIDI controller with 8 sliders, 8 knobs
  * OSC-like message syntax for parameter targeting
+ *
+ * Can optionally use shared SliderBank module (js/slider-bank.js) for
+ * consistent UI between dunk.html and midi-tool.html
  */
 
 NS.Controller = {
+  // SliderBank integration (optional)
+  useSliderBank: false,
+  sliderBankInstance: null,
+
   // VMX8 Layout: 8 knobs (CC30-37), 8 sliders (CC40-47), 32 buttons (4 rows x 8 cols)
   VMX8: {
     name: 'VMX8',
@@ -180,9 +187,17 @@ NS.Controller = {
 
   /**
    * Initialize controller
+   * @param {Object} options
+   * @param {boolean} options.useSliderBank - Use shared SliderBank module if available
    */
-  init() {
-    this._createPanel();
+  init(options = {}) {
+    this.useSliderBank = options.useSliderBank && typeof SliderBank !== 'undefined';
+
+    if (this.useSliderBank) {
+      this._createPanelWithSliderBank();
+    } else {
+      this._createPanel();
+    }
     this._setupEvents();
 
     // Listen for MIDI CC events
@@ -190,8 +205,91 @@ NS.Controller = {
       this._handleMIDI(cc, value);
     });
 
-    console.log('[Dunk] Controller initialized');
+    console.log('[Dunk] Controller initialized' + (this.useSliderBank ? ' (using SliderBank)' : ''));
   },
+
+  /**
+   * Create panel using shared SliderBank module
+   */
+  _createPanelWithSliderBank() {
+    const panel = NS.DOM.create('div', {
+      id: 'panel-controller',
+      class: 'floating-panel controller-panel hidden'
+    });
+
+    panel.innerHTML = `
+      <div class="panel-header">
+        <h4>VMX8 Controller</h4>
+        <div class="controller-status">
+          <span id="ctrl-device-status" class="device-status disconnected">No Device</span>
+        </div>
+        <button class="btn-close">&times;</button>
+      </div>
+      <div class="panel-content">
+        <div id="slider-bank-container"></div>
+        <div class="ctrl-section ctrl-transport">
+          <button id="ctrl-oneshot" class="ctrl-btn oneshot">ONE-SHOT</button>
+          <button id="ctrl-play" class="ctrl-btn">PLAY</button>
+          <button id="ctrl-stop" class="ctrl-btn">STOP</button>
+        </div>
+        <div class="ctrl-mapping-editor">
+          <div class="mapping-header">
+            <span>Mapping Editor</span>
+            <button id="btn-reset-mappings" class="btn-mini">Reset</button>
+          </div>
+          <div id="mapping-list" class="mapping-list">
+            ${this._createMappingListHTML()}
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('app').appendChild(panel);
+    this.panel = panel;
+
+    // Initialize SliderBank in the container
+    const container = panel.querySelector('#slider-bank-container');
+    this.sliderBankInstance = SliderBank.create({
+      container,
+      sliders: 8,
+      knobs: 8,
+      theme: 'hp',  // Use HP lab theme for dunk.html
+      sliderLabels: this.vmx8Mappings.sliders.map(m => m.osc.split('/').pop().substring(0, 6)),
+      knobLabels: this.vmx8Mappings.knobs.map(m => m.osc.split('/').pop().substring(0, 6)),
+      sliderCCs: this.vmx8Mappings.sliders.map(m => m.cc),
+      knobCCs: this.vmx8Mappings.knobs.map(m => m.cc),
+      onChange: (type, index, value, cc) => {
+        this._applyValue(cc, value);
+        NS.Bus.emit('controller:change', {
+          cc,
+          midi: value,
+          value: this._transformValue(cc, value),
+          type
+        });
+      }
+    });
+
+    // Close button
+    const closeBtn = NS.DOM.$('.btn-close', panel);
+    NS.DOM.on(closeBtn, 'click', () => this.hide());
+
+    // Make header draggable
+    const header = NS.DOM.$('.panel-header', panel);
+    NS.DOM.on(header, 'mousedown', (e) => this._startDrag(e, panel));
+  },
+
+  /**
+   * Transform MIDI value using mapping
+   */
+  _transformValue(cc, midiValue) {
+    const knobMapping = this.vmx8Mappings.knobs.find(m => m.cc === cc);
+    const sliderMapping = this.vmx8Mappings.sliders.find(m => m.cc === cc);
+    const mapping = knobMapping || sliderMapping;
+    if (!mapping) return midiValue / 127;
+    const curve = this.curves[mapping.curve] || this.curves.linear;
+    return curve(midiValue, mapping.min, mapping.max);
+  },
+
 
   /**
    * Create the controller panel UI
@@ -587,7 +685,15 @@ NS.Controller = {
       return;
     }
 
-    // Update virtual control if it matches
+    // If using SliderBank, delegate to it
+    if (this.useSliderBank && this.sliderBankInstance) {
+      if (SliderBank.updateByCC(this.sliderBankInstance, cc, value)) {
+        this._applyValue(cc, value);
+        return;
+      }
+    }
+
+    // Update virtual control if it matches (original implementation)
     const knobIdx = this.vmx8Mappings.knobs.findIndex(m => m.cc === cc);
     const sliderIdx = this.vmx8Mappings.sliders.findIndex(m => m.cc === cc);
 
