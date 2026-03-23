@@ -1,7 +1,0 @@
-{
-    "routes": {
-        "/": ".",
-        "/controldeck": "/Users/mricos/src/controldeck",
-        "/divgraphics": "/Users/mricos/src/divgraphics"
-    }
-}
