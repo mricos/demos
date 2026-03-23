@@ -1,0 +1,7 @@
+{
+  "title": "Cluster Synth",
+  "entry": "index.html",
+  "tags": ["audio", "MIDI", "gamepad"],
+  "section": 0,
+  "description": "Sonification of cluster data with MIDI controller and gamepad support"
+}

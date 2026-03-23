@@ -181,6 +181,7 @@
 "use strict";
 
 const SECTIONS = {
+  0: { title: "All Demos", sub: "add a meta.json to categorize" },
   1: { title: "Probability Foundations", sub: "distributions, transforms, data" },
   2: { title: "Bayesian Inference", sub: "priors, posteriors, regularization" },
   3: { title: "Sequential & Time-Varying Models", sub: "dynamics, adaptation, model selection" },
@@ -192,11 +193,20 @@ const SECTIONS = {
 const NN_TAGS = new Set(["neural-net","spiking","attractor","ML","invertible","WebGL","LIF"]);
 const DATA_TAGS = new Set(["data"]);
 
-// Known project directories with meta.json
-const PROJECTS = [
-  "charfun", "synthetic-iris", "bayes", "stat-rethink",
-  "time-series", "gmdh", "fftnn", "revclass",
-  "snn", "snn2", "cann"
+// All known project directories — auto-discovered have meta.json,
+// others are listed so they appear even without meta.json.
+// To add a new demo, just create a meta.json in its directory.
+const ALL_DIRS = [
+  "arima","arrowbox","bayes","biview","bonds","boxcox","calabi-yau","cann",
+  "cell","charfun","circles","cluster-synth","cymatica","diffeq-synth",
+  "diffusion","dihedral","dunk","electape","esto","explainer","fftnn",
+  "fingertips","gaussian","gmdh","graph-life","hilbert","hotclip","iris",
+  "joystick","l-systems","mindwave","modulo","optigrab","phasefield",
+  "phasefield-gpu","phm","phonovox","plan8","poincare","pong64","preskill",
+  "pressure","quadrascan","raia","raybar","revclass","riemann","shipibo-ca",
+  "sir","snn","snn2","speak","stablediffusion","stat-rethink","stringtoy",
+  "svt","synthetic-iris","time-series","trackpad","tscale","tubes","twistor",
+  "unitcircle","voder","vst"
 ];
 
 function tagClass(t) {
@@ -246,16 +256,24 @@ function renderSections(items) {
   return html;
 }
 
-// Fetch all meta.json files
-Promise.all(PROJECTS.map(function(dir) {
+// Fetch all meta.json files — dirs with meta.json get full cards,
+// dirs without get a minimal "undocumented" card in section 0.
+Promise.all(ALL_DIRS.map(function(dir) {
   return fetch(dir + "/meta.json")
     .then(function(r) { return r.ok ? r.json() : null; })
-    .then(function(meta) { return meta ? { dir: dir, meta: meta } : null; })
-    .catch(function() { return null; });
+    .then(function(meta) {
+      if (meta) return { dir: dir, meta: meta };
+      // Fallback: show as undocumented demo
+      return { dir: dir, meta: { title: dir, entry: "index.html", section: 0, tags: [], description: "" } };
+    })
+    .catch(function() {
+      return { dir: dir, meta: { title: dir, entry: "index.html", section: 0, tags: [], description: "" } };
+    });
 })).then(function(results) {
   var items = results.filter(Boolean);
+  var documented = items.filter(function(i) { return i.meta.section > 0; });
   document.getElementById("subtitle").textContent =
-    items.length + " interactive demos — probability foundations through spiking neural networks";
+    items.length + " demos (" + documented.length + " documented) — probability foundations through spiking neural networks";
   document.getElementById("path").innerHTML = renderSections(items);
   document.getElementById("footer").innerHTML =
     items.length + " projects &middot; all vanilla JS &middot; no build step &middot; serve from any static server &middot; <kbd>j</kbd>/<kbd>k</kbd> to navigate, <kbd>Enter</kbd> to open";
