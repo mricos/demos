@@ -1,0 +1,42 @@
+{
+  "terrain": {
+    "name": "NN Learns FFT",
+    "version": "1.0.0"
+  },
+  "mode": "control",
+  "theme": "dark",
+  "layout": {
+    "columns": "260px 1fr",
+    "rows": "48px 1fr",
+    "areas": ["header header", "sidebar main"]
+  },
+  "header": {
+    "show": true,
+    "height": "48px",
+    "title": "NN \u2192 FFT Lab",
+    "controls": [
+      { "type": "button", "id": "btnTrain", "label": "\u25b6 Train", "action": "app:train" },
+      { "type": "button", "id": "btnStop", "label": "\u25a0 Stop", "action": "app:stop" }
+    ]
+  },
+  "sidebar": {
+    "show": true,
+    "width": "260px",
+    "position": "left"
+  },
+  "features": {
+    "persistence": true,
+    "panels": true,
+    "tabs": true
+  },
+  "scripts": [
+    "js/rng.js",
+    "js/dsp.js",
+    "js/nn.js",
+    "js/plot.js",
+    "js/app.js"
+  ],
+  "styles": [
+    "css/fftnn.css"
+  ]
+}

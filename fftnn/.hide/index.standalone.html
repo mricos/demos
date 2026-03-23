@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>NN Learns FFT - Experiments</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'SF Mono', Consolas, monospace;
+      background: #0d1117;
+      color: #c9d1d9;
+      display: flex;
+      height: 100vh;
+      font-size: 11px;
+    }
+    .sidebar {
+      width: 260px;
+      background: #161b22;
+      padding: 8px;
+      overflow-y: auto;
+      border-right: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar h1 { font-size: 12px; color: #58a6ff; margin-bottom: 8px; }
+    .sidebar h2 {
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #8b949e;
+      margin: 10px 0 4px 0;
+      padding-bottom: 3px;
+      border-bottom: 1px solid #30363d;
+    }
+    .sidebar label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 3px 0;
+      font-size: 10px;
+    }
+    .sidebar input, .sidebar select {
+      width: 55px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: inherit;
+      font-size: 9px;
+    }
+    .sidebar input[type="range"] { width: 50px; }
+    .val { color: #58a6ff; min-width: 30px; text-align: right; font-size: 8px; }
+    .sidebar button {
+      width: 100%;
+      padding: 5px;
+      margin: 2px 0;
+      background: #238636;
+      border: none;
+      color: white;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 9px;
+    }
+    .sidebar button:hover { background: #2ea043; }
+    .sidebar button.secondary { background: #30363d; }
+    .sidebar button:disabled { background: #21262d; color: #484f58; }
+    .btn-row { display: flex; gap: 3px; }
+    .btn-row button { flex: 1; }
+    .summary-box {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 3px;
+      padding: 4px;
+      margin: 6px 0;
+      font-size: 8px;
+    }
+    .summary-box div { display: flex; justify-content: space-between; margin: 1px 0; }
+    .summary-box .k { color: #8b949e; }
+    .summary-box .v { color: #58a6ff; }
+    .status {
+      margin-top: auto;
+      padding: 4px;
+      background: #0d1117;
+      border-radius: 3px;
+      font-size: 8px;
+      border: 1px solid #30363d;
+    }
+    .status.training { border-color: #238636; color: #3fb950; }
+
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .tabs { display: flex; background: #161b22; border-bottom: 1px solid #30363d; }
+    .tab {
+      padding: 6px 12px;
+      cursor: pointer;
+      color: #8b949e;
+      border-bottom: 2px solid transparent;
+      font-size: 10px;
+    }
+    .tab:hover { color: #c9d1d9; }
+    .tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+    .content { flex: 1; padding: 8px; overflow-y: auto; display: none; }
+    .content.active { display: block; }
+
+    .panel {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 8px;
+      margin-bottom: 8px;
+    }
+    .panel h3 { font-size: 9px; color: #58a6ff; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .panel canvas { width: 100%; background: #0d1117; border-radius: 3px; display: block; }
+    .panel p { font-size: 8px; color: #8b949e; margin-top: 4px; }
+
+    .row { display: flex; gap: 8px; }
+    .row > * { flex: 1; }
+    .col-2 { flex: 2; }
+
+    .epoch-slider {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      padding: 6px;
+      background: #0d1117;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+    .epoch-slider input[type="range"] { flex: 1; width: auto; }
+
+    .experiments-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 8px;
+    }
+    .experiment-card {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 8px;
+      cursor: pointer;
+      font-size: 9px;
+    }
+    .experiment-card:hover { border-color: #58a6ff; }
+    .experiment-card.selected { border-color: #238636; border-width: 2px; }
+    .experiment-card h4 { color: #58a6ff; margin-bottom: 4px; font-size: 10px; }
+    .experiment-card .meta { color: #8b949e; font-size: 8px; margin-bottom: 4px; }
+    .experiment-card .params span {
+      display: inline-block;
+      background: #21262d;
+      padding: 1px 4px;
+      border-radius: 2px;
+      margin: 1px;
+      font-size: 8px;
+    }
+    .experiment-card canvas { width: 100%; height: 30px; margin-top: 4px; }
+    .experiment-card .insights { margin-top: 6px; padding-top: 6px; border-top: 1px solid #30363d; }
+    .experiment-card .insights div { margin: 2px 0; }
+
+    .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .legend { display: flex; gap: 10px; font-size: 8px; margin-top: 4px; flex-wrap: wrap; }
+    .legend span { display: flex; align-items: center; gap: 3px; }
+    .legend i { width: 10px; height: 2px; display: inline-block; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .stat-box {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 3px;
+      padding: 6px;
+      text-align: center;
+    }
+    .stat-box .value { font-size: 14px; color: #58a6ff; font-weight: bold; }
+    .stat-box .label { font-size: 7px; color: #8b949e; text-transform: uppercase; margin-top: 2px; }
+
+    .detector-results {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .detector-results .metric {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 3px;
+      padding: 8px;
+      text-align: center;
+    }
+    .detector-results .metric .val { font-size: 18px; font-weight: bold; }
+    .detector-results .metric .lbl { font-size: 8px; color: #8b949e; margin-top: 2px; }
+    .detector-results .metric.good .val { color: #3fb950; }
+    .detector-results .metric.ok .val { color: #f0883e; }
+    .detector-results .metric.bad .val { color: #f85149; }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h1>NN → FFT Lab</h1>
+
+  <h2>Signal Generation</h2>
+  <label>N samples <input type="number" id="N" value="32" min="8" max="64" step="8"></label>
+  <label>Sample rate <input type="number" id="fs" value="1000" min="100" step="100"></label>
+  <label>Max tones K <input type="number" id="maxK" value="3" min="1" max="5"></label>
+  <label>Freq min (Hz) <input type="number" id="freqMin" value="50" min="10" step="10"></label>
+  <label>Freq max (Hz) <input type="number" id="freqMax" value="400" min="100" step="50"></label>
+  <label>Min separation <input type="number" id="freqSep" value="30" min="0" step="10"></label>
+  <label>Amp min <input type="range" id="ampMin" min="0.3" max="1" step="0.1" value="0.5"><span class="val" id="ampMinV">0.5</span></label>
+  <label>Amp max <input type="range" id="ampMax" min="0.5" max="2" step="0.1" value="1.5"><span class="val" id="ampMaxV">1.5</span></label>
+  <label>Noise σ <input type="range" id="sigma" min="0" max="0.5" step="0.05" value="0.1"><span class="val" id="sigmaV">0.10</span></label>
+
+  <h2>Architecture</h2>
+  <label>Hidden layers <input type="number" id="layers" value="1" min="0" max="3"></label>
+  <label>Neurons <input type="number" id="neurons" value="32" min="4" max="64" step="4"></label>
+  <label>Activation
+    <select id="activation">
+      <option value="tanh">tanh</option>
+      <option value="relu">relu</option>
+      <option value="linear">linear</option>
+    </select>
+  </label>
+  <label>Output
+    <select id="outputType">
+      <option value="magnitude">magnitude</option>
+      <option value="complex">complex</option>
+    </select>
+  </label>
+
+  <h2>Training</h2>
+  <label>Learn rate <input type="range" id="lr" min="-4" max="-1" step="0.25" value="-2.5"><span class="val" id="lrV">0.003</span></label>
+  <label>Batch <input type="number" id="batch" value="16" min="4" max="32" step="4"></label>
+  <label>Epochs <input type="number" id="epochs" value="50" min="10" max="200" step="10"></label>
+
+  <h2>Monte Carlo / Detector</h2>
+  <label>MC samples <input type="number" id="mcSamples" value="200" min="50" max="1000" step="50"></label>
+  <label>Peak threshold <input type="range" id="peakThresh" min="0.1" max="0.5" step="0.05" value="0.2"><span class="val" id="peakThreshV">0.20</span></label>
+  <label>Seed <input type="number" id="seed" value="12345" min="1"></label>
+
+  <div class="summary-box" id="summary"></div>
+
+  <div class="btn-row">
+    <button id="btnTrain">▶ Train</button>
+    <button id="btnStop" class="secondary" disabled>■ Stop</button>
+  </div>
+  <div class="btn-row">
+    <button id="btnReset" class="secondary">Reset Weights</button>
+    <button id="btnSave" class="secondary">Save Exp</button>
+  </div>
+  <button id="btnDetector" class="secondary">Run Detector Test</button>
+
+  <div class="status" id="status">Ready</div>
+</div>
+
+<div class="main">
+  <div class="tabs">
+    <div class="tab active" data-tab="signal">Signal</div>
+    <div class="tab" data-tab="training">Training</div>
+    <div class="tab" data-tab="network">Network</div>
+    <div class="tab" data-tab="detector">Detector</div>
+    <div class="tab" data-tab="experiments">Experiments</div>
+  </div>
+
+  <div class="content active" id="tab-signal">
+    <div class="row">
+      <div class="panel">
+        <h3>Input Signal x[n]</h3>
+        <canvas id="cSignal"></canvas>
+        <p id="signalInfo">-</p>
+      </div>
+      <div class="panel">
+        <h3>Target Spectrum</h3>
+        <canvas id="cTarget"></canvas>
+        <div class="legend">
+          <span><i style="background:#3fb950"></i> Magnitude</span>
+          <span><i style="background:#58a6ff"></i> Phase</span>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="panel">
+        <h3>Training Batch (8 samples)</h3>
+        <canvas id="cBatch"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Batch Spectra</h3>
+        <canvas id="cBatchSpec"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="content" id="tab-training">
+    <div class="stats-grid">
+      <div class="stat-box"><div class="value" id="statEpoch">0</div><div class="label">Epoch</div></div>
+      <div class="stat-box"><div class="value" id="statLoss">-</div><div class="label">Loss</div></div>
+      <div class="stat-box"><div class="value" id="statParams">-</div><div class="label">Params</div></div>
+      <div class="stat-box"><div class="value" id="statTime">-</div><div class="label">Time</div></div>
+      <div class="stat-box"><div class="value" id="statConv">-</div><div class="label">Converged</div></div>
+    </div>
+    <div class="row">
+      <div class="panel">
+        <h3>Loss Curve</h3>
+        <canvas id="cLoss"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Magnitude: Pred vs True</h3>
+        <canvas id="cPredMag"></canvas>
+        <div class="legend">
+          <span><i style="background:#3fb950"></i> True</span>
+          <span><i style="background:#f85149"></i> Predicted</span>
+        </div>
+      </div>
+    </div>
+    <div class="row" id="phaseRow">
+      <div class="panel">
+        <h3>Phase: Pred vs True</h3>
+        <canvas id="cPredPhase"></canvas>
+        <div class="legend">
+          <span><i style="background:#58a6ff"></i> True</span>
+          <span><i style="background:#f0883e"></i> Predicted</span>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Error per Bin</h3>
+        <canvas id="cError"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="content" id="tab-network">
+    <div class="epoch-slider">
+      <span>Epoch: <strong id="epochNum">0</strong></span>
+      <input type="range" id="epochSlider" min="0" max="0" value="0">
+      <button id="btnPlayEpochs" class="secondary" style="width:50px; padding:3px;">▶</button>
+    </div>
+    <div class="row">
+      <div class="panel col-2">
+        <h3>Network Graph</h3>
+        <canvas id="cNetwork" style="height:250px"></canvas>
+        <p>Lines: weights (blue=neg, red=pos). Circles: neurons (color=bias). Thickness=magnitude.</p>
+      </div>
+      <div class="panel">
+        <h3>Layer Stats</h3>
+        <div id="layerStats" style="font-size:8px;"></div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="panel">
+        <h3>Weight Distribution</h3>
+        <canvas id="cWeightHist"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Weight Matrix L1</h3>
+        <canvas id="cWeightMatrix"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Biases</h3>
+        <canvas id="cBias"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="content" id="tab-detector">
+    <div class="panel">
+      <h3>Detector Performance (Monte Carlo)</h3>
+      <p>Testing NN-based vs FFT-based tone detection on <span id="mcCount">-</span> random signals</p>
+      <div class="detector-results" id="detectorResults">
+        <div class="metric"><div class="val">-</div><div class="lbl">NN Accuracy</div></div>
+        <div class="metric"><div class="val">-</div><div class="lbl">FFT Accuracy</div></div>
+        <div class="metric"><div class="val">-</div><div class="lbl">NN Precision</div></div>
+        <div class="metric"><div class="val">-</div><div class="lbl">NN Recall</div></div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="panel">
+        <h3>Confusion Matrix (NN)</h3>
+        <canvas id="cConfNN"></canvas>
+        <p>Rows=true K, Cols=predicted K</p>
+      </div>
+      <div class="panel">
+        <h3>Confusion Matrix (FFT)</h3>
+        <canvas id="cConfFFT"></canvas>
+      </div>
+    </div>
+    <div class="row">
+      <div class="panel">
+        <h3>Detection Examples</h3>
+        <canvas id="cDetectExamples"></canvas>
+        <p>Green=correct, Red=incorrect detection</p>
+      </div>
+      <div class="panel">
+        <h3>K Distribution in Test Set</h3>
+        <canvas id="cKDist"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="content" id="tab-experiments">
+    <div class="panel">
+      <h3>Saved Experiments (click 2 to compare)</h3>
+      <div class="experiments-list" id="experimentsList"></div>
+    </div>
+    <div class="panel" id="comparisonPanel" style="display:none">
+      <h3>Comparison</h3>
+      <div class="comparison" id="comparisonArea"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const $ = id => document.getElementById(id);
+
+  // State
+  let seed, nn = null, signal = null, signalMeta = null;
+  let lossHistory = [], networkSnapshots = [];
+  let experiments = [], selectedExperiments = [];
+  let training = false, stopFlag = false, currentEpoch = 0, playInterval = null;
+
+  // RNG
+  function initRng(s) { seed = s >>> 0; }
+  function random() {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  }
+  function randn() {
+    const u1 = random() || 1e-10, u2 = random();
+    return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  }
+
+  // Signal Generation
+  function generateSignal(p, returnMeta = false) {
+    const K = Math.floor(random() * (p.maxK + 1));
+    const freqs = [], amps = [];
+
+    for (let i = 0; i < K; i++) {
+      let f, attempts = 0;
+      do {
+        f = p.freqMin + random() * (p.freqMax - p.freqMin);
+        attempts++;
+      } while (attempts < 50 && freqs.some(ef => Math.abs(ef - f) < p.freqSep));
+      freqs.push(f);
+      amps.push(p.ampMin + random() * (p.ampMax - p.ampMin));
+    }
+
+    const x = new Float64Array(p.N);
+    const phases = freqs.map(() => random() * 2 * Math.PI);
+
+    for (let n = 0; n < p.N; n++) {
+      for (let i = 0; i < K; i++) {
+        x[n] += amps[i] * Math.sin(2 * Math.PI * freqs[i] * n / p.fs + phases[i]);
+      }
+      x[n] += p.sigma * randn();
+    }
+
+    if (returnMeta) return { x, K, freqs, amps, phases };
+    return x;
+  }
+
+  // DFT
+  function dft(x) {
+    const N = x.length;
+    const re = new Float64Array(N), im = new Float64Array(N);
+    for (let k = 0; k < N; k++) {
+      for (let n = 0; n < N; n++) {
+        const angle = -2 * Math.PI * k * n / N;
+        re[k] += x[n] * Math.cos(angle);
+        im[k] += x[n] * Math.sin(angle);
+      }
+    }
+    return { re, im };
+  }
+
+  function magPhase(re, im, normalize = true) {
+    const half = Math.floor(re.length / 2) + 1;
+    const mag = new Float64Array(half), phase = new Float64Array(half);
+    for (let k = 0; k < half; k++) {
+      mag[k] = Math.sqrt(re[k]**2 + im[k]**2);
+      phase[k] = Math.atan2(im[k], re[k]);
+    }
+    if (normalize) {
+      const max = Math.max(...mag) || 1;
+      for (let k = 0; k < half; k++) mag[k] /= max;
+    }
+    return { mag, phase };
+  }
+
+  // Neural Network
+  class NN {
+    constructor(sizes, activation) {
+      this.sizes = sizes;
+      this.activation = activation;
+      this.layers = [];
+      for (let i = 0; i < sizes.length - 1; i++) {
+        const [fanIn, fanOut] = [sizes[i], sizes[i+1]];
+        const scale = Math.sqrt(2 / (fanIn + fanOut));
+        const W = [], b = [];
+        for (let j = 0; j < fanOut; j++) {
+          W[j] = [];
+          for (let k = 0; k < fanIn; k++) W[j][k] = (random() - 0.5) * 2 * scale;
+          b[j] = 0;
+        }
+        this.layers.push({ W, b });
+      }
+    }
+    countParams() {
+      return this.layers.reduce((sum, l) => sum + l.W.length * l.W[0].length + l.b.length, 0);
+    }
+    clone() {
+      const c = new NN(this.sizes, this.activation);
+      this.layers.forEach((l, i) => {
+        c.layers[i].W = l.W.map(r => [...r]);
+        c.layers[i].b = [...l.b];
+      });
+      return c;
+    }
+    act(x) {
+      if (this.activation === 'relu') return Math.max(0, x);
+      if (this.activation === 'tanh') return Math.tanh(x);
+      return x;
+    }
+    actDeriv(x) {
+      if (this.activation === 'relu') return x > 0 ? 1 : 0;
+      if (this.activation === 'tanh') { const t = Math.tanh(x); return 1 - t*t; }
+      return 1;
+    }
+    forward(input) {
+      const acts = [input.slice()], pres = [input.slice()];
+      let a = input.slice();
+      for (let l = 0; l < this.layers.length; l++) {
+        const { W, b } = this.layers[l];
+        const z = W.map((row, j) => row.reduce((s, w, k) => s + w * a[k], b[j]));
+        pres.push([...z]);
+        a = l === this.layers.length - 1 ? [...z] : z.map(v => this.act(v));
+        acts.push([...a]);
+      }
+      return { acts, pres };
+    }
+    backward(acts, pres, target, lr) {
+      const L = this.layers.length;
+      const deltas = [];
+      deltas[L-1] = acts[L].map((o, i) => o - target[i]);
+      for (let l = L-2; l >= 0; l--) {
+        const Wn = this.layers[l+1].W;
+        deltas[l] = this.layers[l].W.map((_, j) => {
+          const s = Wn.reduce((sum, row, k) => sum + row[j] * deltas[l+1][k], 0);
+          return s * this.actDeriv(pres[l+1][j]);
+        });
+      }
+      for (let l = 0; l < L; l++) {
+        const { W, b } = this.layers[l];
+        const a = acts[l], d = deltas[l];
+        for (let j = 0; j < W.length; j++) {
+          for (let k = 0; k < W[j].length; k++) {
+            W[j][k] -= lr * Math.max(-1, Math.min(1, d[j] * a[k]));
+          }
+          b[j] -= lr * Math.max(-1, Math.min(1, d[j]));
+        }
+      }
+    }
+    train(inputs, targets, lr) {
+      let loss = 0;
+      for (let i = 0; i < inputs.length; i++) {
+        const { acts, pres } = this.forward(inputs[i]);
+        const out = acts[acts.length - 1];
+        loss += out.reduce((s, o, j) => s + (o - targets[i][j])**2, 0) / out.length;
+        this.backward(acts, pres, targets[i], lr);
+      }
+      return loss / inputs.length;
+    }
+    predict(input) { return this.forward(input).acts[this.layers.length]; }
+  }
+
+  // Detector
+  function detectPeaks(spectrum, threshold) {
+    const peaks = [];
+    for (let k = 1; k < spectrum.length - 1; k++) {
+      if (spectrum[k] > threshold && spectrum[k] > spectrum[k-1] && spectrum[k] > spectrum[k+1]) {
+        peaks.push(k);
+      }
+    }
+    return peaks;
+  }
+
+  // Plotting
+  function plot(canvas, data, opts = {}) {
+    const w = 400, h = 80;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, w, h);
+    if (!data?.length) return;
+
+    let yMin = opts.yMin ?? Math.min(...data);
+    let yMax = opts.yMax ?? Math.max(...data);
+    if (Math.abs(yMax - yMin) < 0.001) { yMin -= 0.5; yMax += 0.5; }
+
+    const mx = 30, pw = w - mx - 5, ph = h - 15;
+    const X = i => mx + pw * i / (data.length - 1 || 1);
+    const Y = v => 5 + ph * (1 - (v - yMin) / (yMax - yMin || 1));
+
+    ctx.strokeStyle = '#30363d'; ctx.beginPath();
+    ctx.moveTo(mx, 5); ctx.lineTo(mx, h - 10); ctx.lineTo(w - 5, h - 10); ctx.stroke();
+
+    ctx.strokeStyle = opts.color || '#3fb950'; ctx.lineWidth = 1.5; ctx.beginPath();
+    data.forEach((v, i) => i === 0 ? ctx.moveTo(X(i), Y(v)) : ctx.lineTo(X(i), Y(v)));
+    ctx.stroke();
+
+    ctx.fillStyle = '#8b949e'; ctx.font = '8px monospace';
+    ctx.fillText(yMax.toFixed(2), 1, 10);
+    ctx.fillText(yMin.toFixed(2), 1, h - 12);
+  }
+
+  function plotMulti(canvas, datasets, opts = {}) {
+    const w = 400, h = 80;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, w, h);
+    if (!datasets?.length) return;
+
+    const all = datasets.flatMap(d => d.data || []);
+    if (!all.length) return;
+
+    let yMin = opts.yMin ?? Math.min(...all);
+    let yMax = opts.yMax ?? Math.max(...all);
+    if (Math.abs(yMax - yMin) < 0.001) { yMin -= 0.5; yMax += 0.5; }
+
+    const mx = 30, pw = w - mx - 5, ph = h - 15;
+    const maxLen = Math.max(...datasets.map(d => d.data?.length || 0));
+    const X = i => mx + pw * i / (maxLen - 1 || 1);
+    const Y = v => 5 + ph * (1 - (v - yMin) / (yMax - yMin || 1));
+
+    ctx.strokeStyle = '#30363d'; ctx.beginPath();
+    ctx.moveTo(mx, 5); ctx.lineTo(mx, h - 10); ctx.lineTo(w - 5, h - 10); ctx.stroke();
+
+    datasets.forEach(ds => {
+      if (!ds.data?.length) return;
+      ctx.strokeStyle = ds.color || '#3fb950'; ctx.lineWidth = 1.5; ctx.beginPath();
+      ds.data.forEach((v, i) => i === 0 ? ctx.moveTo(X(i), Y(v)) : ctx.lineTo(X(i), Y(v)));
+      ctx.stroke();
+    });
+  }
+
+  function plotHeatmap(canvas, matrix, w = 400, h = 80) {
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, w, h);
+    if (!matrix?.length || !matrix[0]?.length) return;
+
+    const rows = matrix.length, cols = matrix[0].length;
+    const cw = w / cols, ch = h / rows;
+
+    let min = Infinity, max = -Infinity;
+    matrix.forEach(row => row.forEach(v => { if (isFinite(v)) { min = Math.min(min, v); max = Math.max(max, v); }}));
+    if (!isFinite(min)) { min = -1; max = 1; }
+    if (min === max) { min -= 1; max += 1; }
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const t = Math.max(0, Math.min(1, (matrix[r][c] - min) / (max - min)));
+        const R = t < 0.5 ? Math.floor(t * 2 * 255) : 255;
+        const G = t < 0.5 ? Math.floor(t * 2 * 255) : Math.floor((1 - (t - 0.5) * 2) * 255);
+        const B = t < 0.5 ? 255 : Math.floor((1 - (t - 0.5) * 2) * 255);
+        ctx.fillStyle = `rgb(${R},${G},${B})`;
+        ctx.fillRect(c * cw, r * ch, cw + 1, ch + 1);
+      }
+    }
+  }
+
+  function plotConfusion(canvas, matrix, labels) {
+    const w = 200, h = 200;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, w, h);
+    if (!matrix?.length) return;
+
+    const n = matrix.length;
+    const cellSize = (w - 30) / n;
+    const offset = 25;
+
+    const maxVal = Math.max(...matrix.flat());
+
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        const val = matrix[r][c];
+        const intensity = maxVal > 0 ? val / maxVal : 0;
+        const color = r === c
+          ? `rgb(${Math.floor(63 + 192 * intensity)}, ${Math.floor(185 * intensity)}, ${Math.floor(80 * intensity)})`
+          : `rgb(${Math.floor(248 * intensity)}, ${Math.floor(81 * intensity)}, ${Math.floor(73 * intensity)})`;
+        ctx.fillStyle = color;
+        ctx.fillRect(offset + c * cellSize, offset + r * cellSize, cellSize - 1, cellSize - 1);
+
+        ctx.fillStyle = intensity > 0.5 ? '#000' : '#fff';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(val, offset + c * cellSize + cellSize/2, offset + r * cellSize + cellSize/2 + 4);
+      }
+    }
+
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '8px monospace';
+    for (let i = 0; i < n; i++) {
+      ctx.fillText(labels[i], offset + i * cellSize + cellSize/2, 18);
+      ctx.fillText(labels[i], 10, offset + i * cellSize + cellSize/2 + 3);
+    }
+  }
+
+  function plotNetwork(canvas, network, epoch) {
+    const w = 600, h = 220;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, w, h);
+    if (!network) return;
+
+    const sizes = network.sizes;
+    const numLayers = sizes.length;
+    const maxNeurons = Math.max(...sizes);
+    const layerSpacing = w / (numLayers + 1);
+
+    const positions = sizes.map((size, l) => {
+      const x = layerSpacing * (l + 1);
+      const neurons = [];
+      const spacing = Math.min(20, (h - 30) / (size + 1));
+      const startY = (h - spacing * (size - 1)) / 2;
+      for (let n = 0; n < size; n++) neurons.push({ x, y: startY + n * spacing });
+      return neurons;
+    });
+
+    // Draw weights
+    for (let l = 0; l < network.layers.length; l++) {
+      const { W } = network.layers[l];
+      const from = positions[l], to = positions[l + 1];
+      for (let j = 0; j < Math.min(W.length, to.length); j++) {
+        for (let k = 0; k < Math.min(W[j].length, from.length); k++) {
+          const weight = W[j][k];
+          const alpha = Math.min(0.8, Math.abs(weight) * 2);
+          ctx.strokeStyle = weight > 0 ? `rgba(248,81,73,${alpha})` : `rgba(88,166,255,${alpha})`;
+          ctx.lineWidth = Math.max(0.3, Math.min(2, Math.abs(weight) * 2));
+          ctx.beginPath();
+          ctx.moveTo(from[k].x, from[k].y);
+          ctx.lineTo(to[j].x, to[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Draw neurons
+    for (let l = 0; l < sizes.length; l++) {
+      const neurons = positions[l];
+      const bias = l > 0 ? network.layers[l-1].b : null;
+      for (let n = 0; n < neurons.length; n++) {
+        const { x, y } = neurons[n];
+        const r = Math.max(3, Math.min(8, 100 / maxNeurons));
+        let fill = '#21262d';
+        if (bias && n < bias.length) {
+          const t = (Math.tanh(bias[n]) + 1) / 2;
+          fill = `rgb(${Math.floor(88 + t * 160)},${Math.floor(166 - t * 85)},${Math.floor(255 - t * 182)})`;
+        }
+        ctx.fillStyle = fill;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = l === 0 ? '#3fb950' : l === sizes.length - 1 ? '#f85149' : '#8b949e';
+        ctx.lineWidth = 1; ctx.stroke();
+      }
+      ctx.fillStyle = '#8b949e'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(l === 0 ? `In(${sizes[l]})` : l === sizes.length-1 ? `Out(${sizes[l]})` : `H${l}(${sizes[l]})`, positions[l][0].x, h - 3);
+    }
+
+    ctx.fillStyle = '#58a6ff'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(`Epoch ${epoch}`, 5, 12);
+  }
+
+  function plotHistogram(canvas, values, bins = 25) {
+    const w = 400, h = 80;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, w, h);
+    if (!values?.length) return;
+
+    const min = Math.min(...values), max = Math.max(...values);
+    const range = max - min || 1;
+    const binWidth = range / bins;
+    const counts = new Array(bins).fill(0);
+    values.forEach(v => { counts[Math.min(bins-1, Math.floor((v - min) / binWidth))]++; });
+    const maxCount = Math.max(...counts);
+
+    const barW = (w - 40) / bins;
+    counts.forEach((c, i) => {
+      const barH = (c / maxCount) * 65;
+      const mid = min + (i + 0.5) * binWidth;
+      ctx.fillStyle = mid < 0 ? '#58a6ff' : '#f85149';
+      ctx.fillRect(30 + i * barW, h - 10 - barH, barW - 1, barH);
+    });
+
+    ctx.fillStyle = '#8b949e'; ctx.font = '8px monospace';
+    ctx.fillText(min.toFixed(2), 2, h - 12);
+    ctx.fillText(max.toFixed(2), w - 35, h - 12);
+  }
+
+  // UI
+  function getParams() {
+    return {
+      N: +$('N').value, fs: +$('fs').value, maxK: +$('maxK').value,
+      freqMin: +$('freqMin').value, freqMax: +$('freqMax').value, freqSep: +$('freqSep').value,
+      ampMin: +$('ampMin').value, ampMax: +$('ampMax').value, sigma: +$('sigma').value,
+      layers: +$('layers').value, neurons: +$('neurons').value,
+      activation: $('activation').value, outputType: $('outputType').value,
+      lr: Math.pow(10, +$('lr').value), batch: +$('batch').value, epochs: +$('epochs').value,
+      mcSamples: +$('mcSamples').value, peakThresh: +$('peakThresh').value, seed: +$('seed').value
+    };
+  }
+
+  function updateLabels() {
+    $('ampMinV').textContent = (+$('ampMin').value).toFixed(1);
+    $('ampMaxV').textContent = (+$('ampMax').value).toFixed(1);
+    $('sigmaV').textContent = (+$('sigma').value).toFixed(2);
+    $('lrV').textContent = Math.pow(10, +$('lr').value).toFixed(4);
+    $('peakThreshV').textContent = (+$('peakThresh').value).toFixed(2);
+    updateSummary();
+  }
+
+  function updateSummary() {
+    const p = getParams();
+    const sizes = [p.N];
+    for (let i = 0; i < p.layers; i++) sizes.push(p.neurons);
+    const outSize = p.outputType === 'complex' ? (Math.floor(p.N/2)+1) * 2 : Math.floor(p.N/2)+1;
+    sizes.push(outSize);
+
+    $('summary').innerHTML = `
+      <div><span class="k">Arch</span><span class="v">${sizes.join('→')}</span></div>
+      <div><span class="k">Freq</span><span class="v">${p.freqMin}-${p.freqMax}Hz, Δ≥${p.freqSep}</span></div>
+      <div><span class="k">Amp</span><span class="v">${p.ampMin.toFixed(1)}-${p.ampMax.toFixed(1)}, σ=${p.sigma.toFixed(2)}</span></div>
+      <div><span class="k">Train</span><span class="v">lr=${p.lr.toFixed(4)}, ${p.batch}×${p.epochs}</span></div>
+    `;
+  }
+
+  function setStatus(msg, isTraining = false) {
+    $('status').textContent = msg;
+    $('status').className = 'status' + (isTraining ? ' training' : '');
+  }
+
+  function doGenerate() {
+    const p = getParams();
+    initRng(p.seed);
+    const meta = generateSignal(p, true);
+    signal = meta.x;
+    signalMeta = meta;
+
+    const maxAbs = Math.max(...signal.map(Math.abs)) || 1;
+    plot($('cSignal'), Array.from(signal).map(v => v / maxAbs), { color: '#58a6ff' });
+    $('signalInfo').textContent = `K=${meta.K}, freqs=[${meta.freqs.map(f => f.toFixed(0)).join(', ')}]Hz, amps=[${meta.amps.map(a => a.toFixed(2)).join(', ')}]`;
+
+    const { re, im } = dft(signal);
+    const { mag, phase } = magPhase(re, im, true);
+    plotMulti($('cTarget'), [
+      { data: Array.from(mag), color: '#3fb950' },
+      { data: Array.from(phase).map(p => p / Math.PI), color: '#58a6ff' }
+    ], { yMin: -1, yMax: 1 });
+
+    // Batch preview
+    const batchSignals = [], batchSpecs = [];
+    for (let i = 0; i < 8; i++) {
+      const s = generateSignal(p, false);
+      const m = Math.max(...s.map(Math.abs)) || 1;
+      batchSignals.push(Array.from(s).map(v => v / m));
+      const { re, im } = dft(s);
+      batchSpecs.push(Array.from(magPhase(re, im, true).mag));
+    }
+    plotHeatmap($('cBatch'), batchSignals);
+    plotHeatmap($('cBatchSpec'), batchSpecs);
+  }
+
+  function createNetwork() {
+    const p = getParams();
+    initRng(p.seed);
+    const sizes = [p.N];
+    for (let i = 0; i < p.layers; i++) sizes.push(p.neurons);
+    const outSize = p.outputType === 'complex' ? (Math.floor(p.N/2)+1) * 2 : Math.floor(p.N/2)+1;
+    sizes.push(outSize);
+    nn = new NN(sizes, p.activation);
+    lossHistory = [];
+    networkSnapshots = [nn.clone()];
+    currentEpoch = 0;
+    $('epochSlider').max = 0; $('epochSlider').value = 0; $('epochNum').textContent = 0;
+    $('statParams').textContent = nn.countParams();
+  }
+
+  function resetWeights() {
+    createNetwork();
+    setStatus('Weights reset');
+    updateNetworkViz(0);
+  }
+
+  async function doTrain() {
+    if (training) return;
+    training = true; stopFlag = false;
+
+    const p = getParams();
+    if (!nn) createNetwork();
+
+    $('btnTrain').disabled = true;
+    $('btnStop').disabled = false;
+
+    const startTime = Date.now();
+    const half = Math.floor(p.N / 2) + 1;
+
+    for (let epoch = 0; epoch < p.epochs && !stopFlag; epoch++) {
+      const inputs = [], targets = [];
+
+      for (let b = 0; b < p.batch; b++) {
+        const x = generateSignal(p, false);
+        const maxIn = Math.max(...x.map(Math.abs)) || 1;
+        inputs.push(Array.from(x).map(v => v / maxIn));
+
+        const { re, im } = dft(x);
+        const { mag, phase } = magPhase(re, im, true);
+
+        if (p.outputType === 'complex') {
+          // Output: [mag_0..mag_half, phase_0..phase_half] normalized
+          targets.push([...mag, ...Array.from(phase).map(p => p / Math.PI)]);
+        } else {
+          targets.push(Array.from(mag));
+        }
+      }
+
+      const loss = nn.train(inputs, targets, p.lr);
+      lossHistory.push(loss);
+      networkSnapshots.push(nn.clone());
+      currentEpoch = epoch + 1;
+
+      $('epochSlider').max = currentEpoch;
+      $('epochSlider').value = currentEpoch;
+      $('epochNum').textContent = currentEpoch;
+
+      if (epoch % 2 === 0 || epoch === p.epochs - 1) {
+        plot($('cLoss'), lossHistory, { color: '#3fb950', yMin: 0 });
+
+        if (signal) {
+          const maxIn = Math.max(...signal.map(Math.abs)) || 1;
+          const normX = Array.from(signal).map(v => v / maxIn);
+          const pred = nn.predict(normX);
+          const { re, im } = dft(signal);
+          const { mag: trueMag, phase: truePhase } = magPhase(re, im, true);
+
+          let predMag, predPhase;
+          if (p.outputType === 'complex') {
+            predMag = pred.slice(0, half);
+            predPhase = pred.slice(half).map(p => p * Math.PI);
+          } else {
+            predMag = pred;
+            predPhase = null;
+          }
+
+          plotMulti($('cPredMag'), [
+            { data: Array.from(trueMag), color: '#3fb950' },
+            { data: predMag, color: '#f85149' }
+          ], { yMin: 0, yMax: 1 });
+
+          if (predPhase) {
+            plotMulti($('cPredPhase'), [
+              { data: Array.from(truePhase), color: '#58a6ff' },
+              { data: predPhase, color: '#f0883e' }
+            ], { yMin: -Math.PI, yMax: Math.PI });
+          }
+
+          const error = trueMag.map((t, i) => Math.abs(t - (predMag[i] || 0)));
+          plot($('cError'), Array.from(error), { color: '#f85149', yMin: 0 });
+        }
+
+        $('statEpoch').textContent = epoch + 1;
+        $('statLoss').textContent = loss.toFixed(4);
+        $('statTime').textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+        $('statConv').textContent = loss < 0.01 ? '✓' : loss < 0.05 ? '~' : '✗';
+
+        updateNetworkViz(currentEpoch);
+        setStatus(`Training... ${epoch + 1}/${p.epochs}`, true);
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+
+    training = false;
+    $('btnTrain').disabled = false;
+    $('btnStop').disabled = true;
+    setStatus(`Done. Loss: ${lossHistory[lossHistory.length - 1]?.toFixed(4) || '-'}`);
+  }
+
+  function updateNetworkViz(epoch) {
+    const snap = networkSnapshots[epoch] || nn;
+    if (!snap) return;
+
+    plotNetwork($('cNetwork'), snap, epoch);
+
+    const allW = snap.layers.flatMap(l => l.W.flat());
+    plotHistogram($('cWeightHist'), allW);
+
+    if (snap.layers[0]) plotHeatmap($('cWeightMatrix'), snap.layers[0].W);
+
+    const allB = snap.layers.flatMap(l => l.b);
+    plot($('cBias'), allB, { color: '#f0883e' });
+
+    let html = '';
+    snap.layers.forEach((l, i) => {
+      const w = l.W.flat();
+      const meanW = w.reduce((a,b) => a+b, 0) / w.length;
+      const stdW = Math.sqrt(w.reduce((a,b) => a + (b-meanW)**2, 0) / w.length);
+      const meanB = l.b.reduce((a,b) => a+b, 0) / l.b.length;
+      const maxW = Math.max(...w.map(Math.abs));
+      html += `<div style="margin:4px 0; padding:4px; background:#0d1117; border-radius:3px;">
+        <div style="color:#58a6ff;">L${i+1} (${l.W[0].length}→${l.W.length})</div>
+        <div>W: μ=${meanW.toFixed(3)} σ=${stdW.toFixed(3)} max=${maxW.toFixed(3)}</div>
+        <div>B: μ=${meanB.toFixed(3)}</div>
+      </div>`;
+    });
+    $('layerStats').innerHTML = html;
+  }
+
+  function runDetector() {
+    if (!nn) { setStatus('Train first!'); return; }
+
+    const p = getParams();
+    initRng(p.seed + 999);
+
+    const half = Math.floor(p.N / 2) + 1;
+    const confNN = Array(p.maxK + 1).fill(0).map(() => Array(p.maxK + 1).fill(0));
+    const confFFT = Array(p.maxK + 1).fill(0).map(() => Array(p.maxK + 1).fill(0));
+    const kCounts = Array(p.maxK + 1).fill(0);
+
+    let nnCorrect = 0, fftCorrect = 0;
+    let nnTP = 0, nnFP = 0, nnFN = 0;
+
+    for (let i = 0; i < p.mcSamples; i++) {
+      const meta = generateSignal(p, true);
+      const trueK = meta.K;
+      kCounts[trueK]++;
+
+      const maxIn = Math.max(...meta.x.map(Math.abs)) || 1;
+      const normX = Array.from(meta.x).map(v => v / maxIn);
+
+      // NN detection
+      const pred = nn.predict(normX);
+      const predMag = p.outputType === 'complex' ? pred.slice(0, half) : pred;
+      const nnPeaks = detectPeaks(predMag, p.peakThresh);
+      const nnK = Math.min(nnPeaks.length, p.maxK);
+
+      // FFT detection
+      const { re, im } = dft(meta.x);
+      const { mag } = magPhase(re, im, true);
+      const fftPeaks = detectPeaks(Array.from(mag), p.peakThresh);
+      const fftK = Math.min(fftPeaks.length, p.maxK);
+
+      confNN[trueK][nnK]++;
+      confFFT[trueK][fftK]++;
+
+      if (nnK === trueK) nnCorrect++;
+      if (fftK === trueK) fftCorrect++;
+
+      // For precision/recall (detecting "has tones")
+      if (trueK > 0 && nnK > 0) nnTP++;
+      if (trueK === 0 && nnK > 0) nnFP++;
+      if (trueK > 0 && nnK === 0) nnFN++;
+    }
+
+    const nnAcc = (nnCorrect / p.mcSamples * 100).toFixed(1);
+    const fftAcc = (fftCorrect / p.mcSamples * 100).toFixed(1);
+    const precision = nnTP + nnFP > 0 ? (nnTP / (nnTP + nnFP) * 100).toFixed(1) : '-';
+    const recall = nnTP + nnFN > 0 ? (nnTP / (nnTP + nnFN) * 100).toFixed(1) : '-';
+
+    const getClass = v => v >= 80 ? 'good' : v >= 50 ? 'ok' : 'bad';
+
+    $('mcCount').textContent = p.mcSamples;
+    $('detectorResults').innerHTML = `
+      <div class="metric ${getClass(+nnAcc)}"><div class="val">${nnAcc}%</div><div class="lbl">NN Accuracy</div></div>
+      <div class="metric ${getClass(+fftAcc)}"><div class="val">${fftAcc}%</div><div class="lbl">FFT Accuracy</div></div>
+      <div class="metric ${getClass(+precision)}"><div class="val">${precision}%</div><div class="lbl">NN Precision</div></div>
+      <div class="metric ${getClass(+recall)}"><div class="val">${recall}%</div><div class="lbl">NN Recall</div></div>
+    `;
+
+    const labels = Array(p.maxK + 1).fill(0).map((_, i) => `K=${i}`);
+    plotConfusion($('cConfNN'), confNN, labels);
+    plotConfusion($('cConfFFT'), confFFT, labels);
+
+    // K distribution
+    const kDist = kCounts.map((c, k) => ({ k, c }));
+    plot($('cKDist'), kCounts, { color: '#58a6ff', yMin: 0 });
+
+    setStatus(`Detector test: NN=${nnAcc}% FFT=${fftAcc}%`);
+  }
+
+  function saveExperiment() {
+    if (!nn) return;
+    const p = getParams();
+    const finalLoss = lossHistory[lossHistory.length - 1];
+
+    // Compute some insights
+    const allW = nn.layers.flatMap(l => l.W.flat());
+    const meanW = allW.reduce((a,b) => a+b, 0) / allW.length;
+    const stdW = Math.sqrt(allW.reduce((a,b) => a + (b-meanW)**2, 0) / allW.length);
+    const sparsity = allW.filter(w => Math.abs(w) < 0.01).length / allW.length;
+
+    const lossImprovement = lossHistory.length > 1
+      ? ((lossHistory[0] - finalLoss) / lossHistory[0] * 100).toFixed(1)
+      : 0;
+
+    experiments.push({
+      id: Date.now(),
+      timestamp: new Date().toISOString(),
+      params: { ...p },
+      sizes: nn.sizes,
+      lossHistory: [...lossHistory],
+      finalLoss,
+      insights: {
+        meanW: meanW.toFixed(4),
+        stdW: stdW.toFixed(4),
+        sparsity: (sparsity * 100).toFixed(1),
+        lossImprovement,
+        converged: finalLoss < 0.01,
+        epochs: lossHistory.length
+      }
+    });
+    renderExperiments();
+    setStatus('Experiment saved');
+  }
+
+  function renderExperiments() {
+    $('experimentsList').innerHTML = experiments.map((exp, i) => `
+      <div class="experiment-card ${selectedExperiments.includes(i) ? 'selected' : ''}" data-idx="${i}">
+        <h4>Exp #${i + 1} ${exp.insights.converged ? '✓' : ''}</h4>
+        <div class="meta">${new Date(exp.timestamp).toLocaleTimeString()} | Loss: ${exp.finalLoss?.toFixed(4) || '-'}</div>
+        <div class="params">
+          <span>${exp.sizes.join('→')}</span>
+          <span>${exp.params.activation}</span>
+          <span>lr=${exp.params.lr.toFixed(4)}</span>
+          <span>σ=${exp.params.sigma}</span>
+        </div>
+        <canvas id="expLoss${i}"></canvas>
+        <div class="insights">
+          <div>W: μ=${exp.insights.meanW} σ=${exp.insights.stdW}</div>
+          <div>Sparsity: ${exp.insights.sparsity}% | Improvement: ${exp.insights.lossImprovement}%</div>
+        </div>
+      </div>
+    `).join('');
+
+    experiments.forEach((exp, i) => {
+      const c = $(`expLoss${i}`);
+      if (c && exp.lossHistory.length) {
+        c.width = 280; c.height = 30;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#161b22'; ctx.fillRect(0, 0, 280, 30);
+        const d = exp.lossHistory, max = Math.max(...d), min = Math.min(...d);
+        ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1; ctx.beginPath();
+        d.forEach((v, j) => {
+          const x = j / (d.length - 1) * 280;
+          const y = 25 - ((v - min) / (max - min || 1)) * 20;
+          j === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+    });
+
+    $('experimentsList').querySelectorAll('.experiment-card').forEach(card => {
+      card.onclick = () => {
+        const idx = +card.dataset.idx;
+        if (selectedExperiments.includes(idx)) {
+          selectedExperiments = selectedExperiments.filter(i => i !== idx);
+        } else if (selectedExperiments.length < 2) {
+          selectedExperiments.push(idx);
+        } else {
+          selectedExperiments = [idx];
+        }
+        renderExperiments();
+        updateComparison();
+      };
+    });
+  }
+
+  function updateComparison() {
+    const panel = $('comparisonPanel');
+    if (selectedExperiments.length < 2) { panel.style.display = 'none'; return; }
+
+    panel.style.display = 'block';
+    const [e1, e2] = selectedExperiments.map(i => experiments[i]);
+
+    const diff = (a, b) => {
+      const d = a - b;
+      return d > 0 ? `<span style="color:#f85149">+${d.toFixed(4)}</span>` : `<span style="color:#3fb950">${d.toFixed(4)}</span>`;
+    };
+
+    $('comparisonArea').innerHTML = `
+      <div class="panel">
+        <h3>Exp #${selectedExperiments[0] + 1}</h3>
+        <div style="font-size:8px; margin-bottom:6px;">
+          ${e1.sizes.join('→')} | ${e1.params.activation} | lr=${e1.params.lr.toFixed(4)}<br>
+          Freq: ${e1.params.freqMin}-${e1.params.freqMax}Hz | σ=${e1.params.sigma}
+        </div>
+        <canvas id="cmpLoss1"></canvas>
+        <div style="margin-top:4px; font-size:9px;">
+          <strong>Final: ${e1.finalLoss?.toFixed(4)}</strong><br>
+          W: μ=${e1.insights.meanW} σ=${e1.insights.stdW}<br>
+          Sparsity: ${e1.insights.sparsity}% | ${e1.insights.epochs} epochs
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Exp #${selectedExperiments[1] + 1}</h3>
+        <div style="font-size:8px; margin-bottom:6px;">
+          ${e2.sizes.join('→')} | ${e2.params.activation} | lr=${e2.params.lr.toFixed(4)}<br>
+          Freq: ${e2.params.freqMin}-${e2.params.freqMax}Hz | σ=${e2.params.sigma}
+        </div>
+        <canvas id="cmpLoss2"></canvas>
+        <div style="margin-top:4px; font-size:9px;">
+          <strong>Final: ${e2.finalLoss?.toFixed(4)}</strong> (Δ=${diff(e2.finalLoss, e1.finalLoss)})<br>
+          W: μ=${e2.insights.meanW} σ=${e2.insights.stdW}<br>
+          Sparsity: ${e2.insights.sparsity}% | ${e2.insights.epochs} epochs
+        </div>
+      </div>
+    `;
+
+    plotMulti($('cmpLoss1'), [{ data: e1.lossHistory, color: '#3fb950' }], { yMin: 0 });
+    plotMulti($('cmpLoss2'), [{ data: e2.lossHistory, color: '#58a6ff' }], { yMin: 0 });
+  }
+
+  // Events
+  $('btnTrain').onclick = doTrain;
+  $('btnStop').onclick = () => { stopFlag = true; };
+  $('btnReset').onclick = resetWeights;
+  $('btnSave').onclick = saveExperiment;
+  $('btnDetector').onclick = runDetector;
+
+  ['ampMin', 'ampMax', 'sigma', 'lr', 'peakThresh'].forEach(id => $(id).oninput = updateLabels);
+  ['N', 'fs', 'maxK', 'freqMin', 'freqMax', 'freqSep', 'layers', 'neurons', 'activation', 'outputType', 'batch', 'epochs', 'mcSamples', 'seed'].forEach(id => {
+    $(id).onchange = () => { nn = null; updateSummary(); };
+  });
+
+  $('epochSlider').oninput = function() {
+    $('epochNum').textContent = this.value;
+    updateNetworkViz(+this.value);
+  };
+
+  $('btnPlayEpochs').onclick = function() {
+    if (playInterval) {
+      clearInterval(playInterval); playInterval = null;
+      this.textContent = '▶';
+    } else {
+      this.textContent = '■';
+      let e = 0;
+      playInterval = setInterval(() => {
+        if (e >= networkSnapshots.length) {
+          clearInterval(playInterval); playInterval = null;
+          $('btnPlayEpochs').textContent = '▶';
+          return;
+        }
+        $('epochSlider').value = e;
+        $('epochNum').textContent = e;
+        updateNetworkViz(e++);
+      }, 80);
+    }
+  };
+
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      $('tab-' + tab.dataset.tab).classList.add('active');
+      if (tab.dataset.tab === 'network' && nn) updateNetworkViz(currentEpoch);
+      if (tab.dataset.tab === 'experiments') renderExperiments();
+    };
+  });
+
+  // Init
+  updateLabels();
+  doGenerate();
+})();
+</script>
+</body>
+</html>

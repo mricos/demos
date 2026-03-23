@@ -1,0 +1,439 @@
+#!/usr/bin/env bash
+# ref.sh - Code reference files for LLM context
+#
+# A .ref file is a list of code references (evidence).
+# Frontmatter specifies root. Lines ending in / set directory context.
+#
+# Usage:
+#   ref list file.ref           # show references
+#   ref build file.ref          # emit MULTICAT to stdout
+#   ref ask file.ref "prompt"   # build context + send to LLM
+#   ref new file.ref            # create empty .ref file
+#
+# Reference syntax:
+#   path/                       # set directory context
+#   file.js                     # file in current dir context
+#   file.js::10,50              # lines 10-50
+#   file.js::func:name          # function by name (requires AST)
+#
+# Example .ref file:
+#   ---
+#   root: /Users/dev/myproject
+#   ---
+#   src/auth/
+#   login.js
+#   session.js::10,50
+#   src/db/
+#   users.go::func:ValidateToken
+
+REF_SRC="${BASH_SOURCE[0]%/*}"
+
+# Source multicat library for MULTICAT format
+source "$REF_SRC/core/multicat/libmulticat.sh" 2>/dev/null || true
+
+# Source AST utilities if available
+source "$REF_SRC/core/utils/ast.sh" 2>/dev/null || true
+
+# --- Frontmatter Parsing ---
+
+# Parse frontmatter from .ref file
+# Sets: REF_ROOT (path), REF_BODY_START (line number where body begins)
+ref_parse_frontmatter() {
+    local reffile="$1"
+    REF_ROOT=""
+    REF_BODY_START=1
+
+    local line_num=0
+    local in_frontmatter=0
+    local found_start=0
+
+    while IFS= read -r line; do
+        line_num=$((line_num + 1))
+
+        # Check for frontmatter start (first line must be ---)
+        if [[ $line_num -eq 1 ]]; then
+            if [[ "$line" == "---" ]]; then
+                in_frontmatter=1
+                found_start=1
+            fi
+            continue
+        fi
+
+        # Check for frontmatter end
+        if [[ $in_frontmatter -eq 1 ]] && [[ "$line" == "---" ]]; then
+            REF_BODY_START=$((line_num + 1))
+            return 0
+        fi
+
+        # Parse frontmatter fields
+        if [[ $in_frontmatter -eq 1 ]]; then
+            if [[ "$line" =~ ^root:[[:space:]]*(.+)$ ]]; then
+                REF_ROOT="${BASH_REMATCH[1]}"
+            fi
+        fi
+    done < "$reffile"
+
+    # No frontmatter found
+    if [[ $found_start -eq 0 ]]; then
+        REF_BODY_START=1
+    fi
+}
+
+# Resolve a file path using REF_ROOT and current dir context
+# Usage: ref_resolve_path <file> [current_dir]
+ref_resolve_path() {
+    local file="$1"
+    local current_dir="${2:-}"
+    local root="${REF_ROOT:-}"
+
+    if [[ "$file" == /* ]]; then
+        # Already absolute
+        echo "$file"
+    elif [[ -n "$current_dir" && -n "$root" ]]; then
+        # Use current dir context within root
+        echo "$root/$current_dir$file"
+    elif [[ -n "$root" ]]; then
+        # Use root from frontmatter
+        echo "$root/$file"
+    else
+        # Fallback to current directory
+        echo "$PWD/$file"
+    fi
+}
+
+# --- Core Functions ---
+
+# Parse a reference into file and span
+# Usage: ref_parse "file.js::10,50"
+# Output: two lines - file path, then span (or empty)
+ref_parse() {
+    local ref="$1"
+    local file span=""
+
+    if [[ "$ref" == *"::"* ]]; then
+        file="${ref%%::*}"
+        span="${ref##*::}"
+    else
+        file="$ref"
+    fi
+
+    printf '%s\n%s\n' "$file" "$span"
+}
+
+# Extract content from file with optional span
+# Usage: ref_extract <file> [span]
+ref_extract() {
+    local file="$1"
+    local span="${2:-}"
+
+    [[ -f "$file" ]] || { echo "# File not found: $file" >&2; return 1; }
+
+    if [[ -z "$span" ]]; then
+        # Whole file
+        cat "$file"
+    elif [[ "$span" == *,* ]]; then
+        # Line range: start,end
+        local start="${span%%,*}"
+        local end="${span##*,}"
+        sed -n "${start},${end}p" "$file"
+    elif [[ "$span" == func:* ]]; then
+        # Function selector: func:name
+        local name="${span#func:}"
+        if declare -f ast_extract_function &>/dev/null; then
+            ast_extract_function "$file" "$name"
+        else
+            echo "# AST not available for function extraction" >&2
+            return 1
+        fi
+    elif [[ "$span" == class:* ]]; then
+        # Class selector: class:name
+        local name="${span#class:}"
+        if declare -f ast_extract_class &>/dev/null; then
+            ast_extract_class "$file" "$name"
+        else
+            echo "# AST not available for class extraction" >&2
+            return 1
+        fi
+    else
+        echo "# Unknown span format: $span" >&2
+        return 1
+    fi
+}
+
+# Format span for display
+ref_format_span() {
+    local span="$1"
+    [[ -n "$span" ]] && echo "::$span" || echo ""
+}
+
+# --- Commands ---
+
+# List references in a .ref file
+ref_list() {
+    local reffile="${1:?ref file required}"
+
+    [[ -f "$reffile" ]] || { echo "[ref] File not found: $reffile" >&2; return 1; }
+
+    # Parse frontmatter
+    ref_parse_frontmatter "$reffile"
+
+    echo "References in $reffile:"
+    [[ -n "$REF_ROOT" ]] && echo "root: $REF_ROOT"
+    echo ""
+
+    local count=0
+    local line_num=0
+    local current_dir=""
+
+    while IFS= read -r line; do
+        ((line_num++))
+        [[ $line_num -lt $REF_BODY_START ]] && continue
+
+        # Skip comments and blank lines
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ "$line" == "---" ]] && continue
+        [[ -z "${line// }" ]] && continue
+
+        # Directory context: lines ending with /
+        if [[ "$line" == */ ]]; then
+            current_dir="$line"
+            continue
+        fi
+
+        local file span
+        { read -r file; read -r span; } <<< "$(ref_parse "$line")"
+
+        ((count++))
+
+        # Resolve and check if file exists
+        local resolved
+        resolved="$(ref_resolve_path "$file" "$current_dir")"
+        local status="ok"
+        [[ -f "$resolved" ]] || status="missing"
+
+        # Display with current dir context
+        local display="${current_dir}${file}"
+        printf "  [%s] %s%s\n" "$status" "$display" "$(ref_format_span "$span")"
+    done < "$reffile"
+
+    echo ""
+    echo "$count references"
+}
+
+# Build MULTICAT output from .ref file
+ref_build() {
+    local reffile="${1:?ref file required}"
+
+    [[ -f "$reffile" ]] || { echo "[ref] File not found: $reffile" >&2; return 1; }
+
+    # Parse frontmatter
+    ref_parse_frontmatter "$reffile"
+
+    local line_num=0
+    local current_dir=""
+
+    while IFS= read -r line; do
+        ((line_num++))
+        [[ $line_num -lt $REF_BODY_START ]] && continue
+
+        # Skip comments and blank lines
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ "$line" == "---" ]] && continue
+        [[ -z "${line// }" ]] && continue
+
+        # Directory context: lines ending with /
+        if [[ "$line" == */ ]]; then
+            current_dir="$line"
+            continue
+        fi
+
+        local file span
+        { read -r file; read -r span; } <<< "$(ref_parse "$line")"
+
+        # Resolve path using frontmatter root and current dir
+        local resolved
+        resolved="$(ref_resolve_path "$file" "$current_dir")"
+
+        [[ -f "$resolved" ]] || { echo "# Skipping: ${current_dir}${file} (not found)" >&2; continue; }
+
+        local dir base
+        dir="$(dirname "$resolved")"
+        base="$(basename "$resolved")"
+
+        echo "#MULTICAT_START"
+        echo "# dir: $dir"
+        echo "# file: $base"
+        [[ -n "$span" ]] && echo "# selector: $span"
+        echo "#MULTICAT_END"
+
+        ref_extract "$resolved" "$span"
+        echo
+    done < "$reffile"
+}
+
+# Build context and send to LLM
+ref_ask() {
+    local reffile="${1:?ref file required}"
+    local prompt="${2:?prompt required}"
+
+    [[ -f "$reffile" ]] || { echo "[ref] File not found: $reffile" >&2; return 1; }
+
+    local context
+    context="$(ref_build "$reffile")"
+
+    # Use ask.sh if available
+    if declare -f ask &>/dev/null; then
+        echo "$context" | ask "$prompt"
+    elif command -v claude &>/dev/null; then
+        local full="<context>
+$context
+</context>
+
+$prompt"
+        echo "$full" | claude --print
+    else
+        echo "[ref] No LLM available (need ask.sh or claude CLI)" >&2
+        return 1
+    fi
+}
+
+# Create new .ref file
+ref_new() {
+    local reffile="${1:?ref file required}"
+
+    # Add .ref extension if missing
+    [[ "$reffile" != *.ref ]] && reffile="$reffile.ref"
+
+    if [[ -f "$reffile" ]]; then
+        echo "[ref] File exists: $reffile" >&2
+        return 1
+    fi
+
+    cat > "$reffile" << EOF
+---
+root: $PWD
+---
+# Code references - paths relative to root
+
+EOF
+
+    echo "[ref] Created: $reffile"
+    echo "[ref] root: $PWD"
+}
+
+# Add reference to .ref file
+ref_add() {
+    local reffile="${1:?ref file required}"
+    local reference="${2:?reference required}"
+
+    [[ -f "$reffile" ]] || { echo "[ref] File not found: $reffile" >&2; return 1; }
+
+    # Parse frontmatter to get root
+    ref_parse_frontmatter "$reffile"
+
+    # Parse the reference
+    local file span
+    { read -r file; read -r span; } <<< "$(ref_parse "$reference")"
+
+    # Make path relative to root if possible
+    local stored_path="$file"
+    if [[ -n "$REF_ROOT" && "$file" == /* ]]; then
+        # Try to make it relative to root
+        if [[ "$file" == "$REF_ROOT"/* ]]; then
+            stored_path="${file#$REF_ROOT/}"
+        fi
+    elif [[ -n "$REF_ROOT" && "$file" != /* ]]; then
+        # Resolve relative to PWD, then make relative to root
+        local abs_file
+        abs_file="$(cd "$(dirname "$file")" 2>/dev/null && pwd)/$(basename "$file")"
+        if [[ "$abs_file" == "$REF_ROOT"/* ]]; then
+            stored_path="${abs_file#$REF_ROOT/}"
+        fi
+    fi
+
+    # Validate the resolved path
+    local resolved
+    resolved="$(ref_resolve_path "$stored_path")"
+    if [[ ! -f "$resolved" ]]; then
+        echo "[ref] Warning: file not found: $stored_path" >&2
+    fi
+
+    # Store with span if present
+    local to_store="$stored_path"
+    [[ -n "$span" ]] && to_store="$stored_path::$span"
+
+    echo "$to_store" >> "$reffile"
+    echo "[ref] Added: $to_store"
+}
+
+# Show help
+ref_help() {
+    cat << 'EOF'
+ref - Code reference files for LLM context
+
+COMMANDS
+  ref new <name>              Create new .ref file (uses $PWD as root)
+  ref add <file> <reference>  Add reference to .ref file
+  ref list <file>             List references
+  ref build <file>            Emit MULTICAT to stdout
+  ref ask <file> "prompt"     Build context + send to LLM
+
+FILE FORMAT
+  ---
+  root: /path/to/project
+  ---
+  src/auth/                   # set directory context
+  login.js                    # src/auth/login.js
+  session.js::10,50           # src/auth/session.js lines 10-50
+  utils.js
+  src/db/                     # change directory context
+  users.js                    # src/db/users.js
+
+REFERENCE SYNTAX
+  path/                       Directory context (ends with /)
+  file.js                     Whole file
+  file.js::10,50              Lines 10-50
+  file.js::func:name          Function by name
+
+EXAMPLE
+  ref new auth-bug
+  ref add auth-bug.ref src/auth/login.js
+  ref list auth-bug.ref
+  ref ask auth-bug.ref "Why does login timeout?"
+
+PIPING
+  ref build file.ref | claude --print
+  ref build file.ref > context.mc
+EOF
+}
+
+# --- Main Dispatcher ---
+
+ref() {
+    local cmd="${1:-help}"
+    shift 2>/dev/null || true
+
+    case "$cmd" in
+        new)        ref_new "$@" ;;
+        add|a)      ref_add "$@" ;;
+        list|ls|l)  ref_list "$@" ;;
+        build|b)    ref_build "$@" ;;
+        ask)        ref_ask "$@" ;;
+        help|-h|--help) ref_help ;;
+        *)
+            # If first arg is a .ref file, default to list
+            if [[ -f "$cmd" && "$cmd" == *.ref ]]; then
+                ref_list "$cmd" "$@"
+            else
+                echo "[ref] Unknown command: $cmd" >&2
+                echo "Use 'ref help'" >&2
+                return 1
+            fi
+            ;;
+    esac
+}
+
+# Run if executed directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    ref "$@"
+fi

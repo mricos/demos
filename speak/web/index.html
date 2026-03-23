@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Speak</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header>
+    <div class="row">
+      <button id="btnPlay">Play</button>
+      <button id="btnPause">Pause</button>
+      <button id="btnStop">Stop</button>
+      <label>Rate <input id="rate" type="range" min="0.5" max="2.0" value="1.0" step="0.05"></label>
+      <span id="clock">0.000</span>
+    </div>
+  </header>
+
+  <main>
+    <audio id="audio" preload="auto"></audio>
+    <div id="text" class="text"></div>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
+

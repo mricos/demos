@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pong64</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Monaco', 'Consolas', monospace;
+      background: #000;
+      color: #fff;
+      overflow: hidden;
+    }
+    #container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #header {
+      padding: 8px 20px;
+      background: rgba(20, 20, 20, 0.9);
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+    #title { font-size: 16px; font-weight: bold; letter-spacing: 3px; }
+    #score { font-size: 24px; letter-spacing: 5px; }
+    .paddle-health {
+      display: inline-block;
+      font-size: 10px;
+      color: #888;
+    }
+    #canvas-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    canvas {
+      max-width: 100%;
+      max-height: 100%;
+      border: 1px solid #333;
+    }
+    #controls {
+      position: absolute;
+      top: 60px;
+      right: 10px;
+      background: rgba(20, 20, 20, 0.95);
+      border: 1px solid #333;
+      padding: 12px;
+      font-size: 10px;
+      min-width: 200px;
+    }
+    .control-group { margin-bottom: 10px; }
+    .control-label {
+      display: block;
+      margin-bottom: 3px;
+      color: #888;
+      text-transform: uppercase;
+      font-size: 9px;
+      letter-spacing: 1px;
+    }
+    .control-value { color: #0ff; float: right; }
+    input[type="range"] { width: 100%; }
+    #status {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+    .dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+    .dot.on { background: #0f0; }
+    .dot.off { background: #f00; }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="header">
+      <div id="title">PONG64</div>
+      <div id="score">
+        <span class="paddle-health" id="p1-health">████████</span>
+        <span id="p1-score">0</span>
+        :
+        <span id="p2-score">0</span>
+        <span class="paddle-health" id="p2-health">████████</span>
+      </div>
+      <div id="status">
+        <span><span class="dot off" id="ws-dot"></span><span id="ws-label">WS</span></span>
+        <span id="fps">0 fps</span>
+      </div>
+    </div>
+    <div id="canvas-container">
+      <canvas id="canvas" width="1280" height="720"></canvas>
+    </div>
+    <div id="controls">
+      <div style="margin-bottom: 8px; color: #0ff; font-size: 11px;">FLOCK PARAMS</div>
+      <div class="control-group">
+        <label class="control-label">Separation <span class="control-value" id="sep-val">1.0</span></label>
+        <input type="range" id="separation" min="0" max="2" value="1" step="0.01">
+      </div>
+      <div class="control-group">
+        <label class="control-label">Alignment <span class="control-value" id="ali-val">1.0</span></label>
+        <input type="range" id="alignment" min="0" max="2" value="1" step="0.01">
+      </div>
+      <div class="control-group">
+        <label class="control-label">Cohesion <span class="control-value" id="coh-val">1.0</span></label>
+        <input type="range" id="cohesion" min="0" max="2" value="1" step="0.01">
+      </div>
+      <div class="control-group">
+        <label class="control-label">Coalescence <span class="control-value" id="coal-val">0.5</span></label>
+        <input type="range" id="coalescence" min="0" max="1" value="0.5" step="0.01">
+      </div>
+      <div class="control-group">
+        <label class="control-label">Turbulence <span class="control-value" id="turb-val">0.1</span></label>
+        <input type="range" id="turbulence" min="0" max="1" value="0.1" step="0.01">
+      </div>
+    </div>
+  </div>
+  <script src="pong64.js"></script>
+</body>
+</html>

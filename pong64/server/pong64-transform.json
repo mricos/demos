@@ -1,0 +1,44 @@
+{
+  "mode": "broadcast",
+  "oscHost": "0.0.0.0",
+  "oscPort": 1983,
+  "filter": {
+    "cc": [50, 51, 52, 53, 54, 55, 56, 57],
+    "channel": 1
+  },
+  "transform": {
+    "/midi/raw/cc/1/50": {
+      "event": "pong64.separation",
+      "normalize": [0, 2]
+    },
+    "/midi/raw/cc/1/51": {
+      "event": "pong64.alignment",
+      "normalize": [0, 2]
+    },
+    "/midi/raw/cc/1/52": {
+      "event": "pong64.cohesion",
+      "normalize": [0, 2]
+    },
+    "/midi/raw/cc/1/53": {
+      "event": "pong64.maxSpeed",
+      "normalize": [1, 20]
+    },
+    "/midi/raw/cc/1/54": {
+      "event": "pong64.coalescence",
+      "normalize": [0, 1]
+    },
+    "/midi/raw/cc/1/55": {
+      "event": "pong64.paddleHardness",
+      "normalize": [0, 1]
+    },
+    "/midi/raw/cc/1/56": {
+      "event": "pong64.visualMode",
+      "normalize": [0, 3]
+    },
+    "/midi/raw/cc/1/57": {
+      "event": "pong64.turbulence",
+      "normalize": [0, 1]
+    }
+  },
+  "verbose": true
+}

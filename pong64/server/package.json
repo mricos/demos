@@ -1,0 +1,15 @@
+{
+  "name": "pong64",
+  "version": "0.1.0",
+  "description": "Pong with a 64-particle swarm ball and paddle erosion",
+  "main": "pong64-server.js",
+  "scripts": {
+    "start": "node pong64-server.js"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1",
+    "osc": "^2.4.5",
+    "ws": "^8.19.0"
+  }
+}
