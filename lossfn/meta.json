@@ -1,0 +1,6 @@
+{
+  "title": "Loss Functions — Bias, Variance & EEG Classification",
+  "tags": ["loss-function", "neural-net", "signal", "eeg", "classification"],
+  "section": 3,
+  "description": "Interactive explorer: bias-variance tradeoff, L1/L2/L∞ norms, cross-entropy, logits, softmax, and a trainable classifier on synthetic EEG via Markov FSK."
+}

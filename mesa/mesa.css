@@ -1,0 +1,531 @@
+/**
+ * mesa.css — Tokens + Lab layout + Component styles
+ *
+ * Usage:
+ *   <link rel="stylesheet" href="../mesa/mesa.css">
+ *
+ * Provides: reset, palette, layout (lab 3-col), all component styles,
+ * responsive breakpoint, scrollbars, sliders, buttons, panels, canvas.
+ *
+ * Override any --mesa-* variable on :root or a container to theme.
+ */
+
+/* ════════════════════════════════════════════════════
+   TOKENS — single source of truth
+   ════════════════════════════════════════════════════ */
+:root {
+  /* ── Background / surface ─── */
+  --mesa-bg:             #0a0f1a;
+  --mesa-surface:        #111827;
+  --mesa-surface-hover:  #1a2236;
+  --mesa-surface-raised: #1e2740;
+
+  /* ── Borders ─── */
+  --mesa-border:       #1e293b;
+  --mesa-border-light: #2d3a52;
+
+  /* ── Text ─── */
+  --mesa-text:   #e2e8f0;
+  --mesa-muted:  #94a3b8;
+  --mesa-dim:    #64748b;
+
+  /* ── Accent ─── */
+  --mesa-accent:      #3b82f6;
+  --mesa-accent2:     #4af0c0;
+  --mesa-accent3:     #a78bfa;
+  --mesa-accent-glow: rgba(59,130,246,.15);
+
+  /* ── Status ─── */
+  --mesa-red:    #ef4444;
+  --mesa-green:  #34d399;
+  --mesa-yellow: #fbbf24;
+  --mesa-orange: #fb923c;
+  --mesa-purple: #a78bfa;
+  --mesa-blue:   #60a5fa;
+
+  /* ── Sizing ─── */
+  --mesa-radius:    8px;
+  --mesa-radius-sm: 6px;
+  --mesa-left-w:    280px;
+  --mesa-right-w:   320px;
+
+  /* ── Typography ─── */
+  --mesa-mono:  'JetBrains Mono','Fira Code','Courier New',monospace;
+  --mesa-sans:  'DM Sans',-apple-system,'Segoe UI',system-ui,sans-serif;
+  --mesa-serif: 'Fraunces',Georgia,serif;
+}
+
+/* ════════════════════════════════════════════════════
+   RESET
+   ════════════════════════════════════════════════════ */
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  min-height: 100vh;
+  background: var(--mesa-bg);
+  color: var(--mesa-text);
+  font-family: var(--mesa-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbars ─── */
+* { scrollbar-width: thin; scrollbar-color: #334155 var(--mesa-bg); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--mesa-bg); }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* ════════════════════════════════════════════════════
+   HEADER
+   ════════════════════════════════════════════════════ */
+.mesa-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: var(--mesa-surface);
+  border-bottom: 1px solid var(--mesa-border);
+  flex-shrink: 0;
+}
+.mesa-header h1 {
+  font-family: var(--mesa-serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--mesa-text);
+}
+.mesa-header .mesa-subtitle {
+  font-size: 11px;
+  color: var(--mesa-dim);
+  font-family: var(--mesa-mono);
+}
+
+/* ════════════════════════════════════════════════════
+   LAB LAYOUT — 3-column with drag handles
+   ════════════════════════════════════════════════════ */
+.mesa-app {
+  display: flex;
+  height: calc(100vh - 52px);
+  overflow: hidden;
+}
+
+.mesa-left {
+  width: var(--mesa-left-w);
+  min-width: 180px;
+  max-width: 400px;
+  overflow-y: auto;
+  padding: 12px;
+  border-right: 1px solid var(--mesa-border);
+  background: var(--mesa-surface);
+  flex-shrink: 0;
+}
+
+.mesa-center {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.mesa-right {
+  width: var(--mesa-right-w);
+  min-width: 180px;
+  max-width: 500px;
+  overflow-y: auto;
+  padding: 12px;
+  border-left: 1px solid var(--mesa-border);
+  background: var(--mesa-surface);
+  flex-shrink: 0;
+}
+
+.mesa-drag {
+  width: 5px;
+  cursor: col-resize;
+  background: var(--mesa-border);
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.mesa-drag:hover { background: var(--mesa-accent); }
+
+/* ════════════════════════════════════════════════════
+   TABS & PANES
+   ════════════════════════════════════════════════════ */
+.mesa-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--mesa-border);
+  padding-bottom: 0;
+}
+
+/* native button tabs AND mesa-tab custom elements */
+.mesa-tabs > button,
+mesa-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  color: var(--mesa-dim);
+  cursor: pointer;
+  font-family: var(--mesa-sans);
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  transition: color .2s, border-color .2s;
+}
+.mesa-tabs > button:hover,
+mesa-tab:hover { color: var(--mesa-text); }
+.mesa-tabs > button.on,
+mesa-tab.on {
+  color: var(--mesa-accent);
+  border-bottom-color: var(--mesa-accent);
+}
+
+.mesa-tabs .mesa-kbd {
+  font-size: 9px;
+  color: var(--mesa-dim);
+  font-family: var(--mesa-mono);
+  padding: 1px 4px;
+  border: 1px solid var(--mesa-border);
+  border-radius: 3px;
+}
+
+/* Pane visibility */
+mesa-pane { display: none; }
+mesa-pane.on { display: block; }
+/* Fallback for plain divs */
+.mesa-pane { display: none; }
+.mesa-pane.on { display: block; }
+
+/* ════════════════════════════════════════════════════
+   CARDS
+   ════════════════════════════════════════════════════ */
+.mesa-card {
+  background: var(--mesa-surface);
+  border: 1px solid var(--mesa-border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.mesa-card-title {
+  font-family: var(--mesa-serif);
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--mesa-accent2);
+}
+
+/* ════════════════════════════════════════════════════
+   SECTION HEADINGS (panel heading)
+   ════════════════════════════════════════════════════ */
+.mesa-ph {
+  font-size: 10px;
+  color: var(--mesa-dim);
+  font-family: var(--mesa-mono);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 6px;
+  margin-top: 8px;
+}
+
+/* ════════════════════════════════════════════════════
+   CONTROLS — sliders, buttons
+   ════════════════════════════════════════════════════ */
+.mesa-ctrl {
+  margin-bottom: 10px;
+}
+.mesa-ctrl label {
+  display: block;
+  font-size: 12px;
+  color: var(--mesa-muted);
+  margin-bottom: 3px;
+}
+.mesa-ctrl-hint {
+  font-size: 10px;
+  color: var(--mesa-dim);
+  font-family: var(--mesa-mono);
+  margin-top: 2px;
+}
+
+/* ── Sliders ─── */
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 6px;
+  background: var(--mesa-border); border-radius: 3px;
+  outline: none; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--mesa-accent);
+  border: 2px solid var(--mesa-bg); cursor: pointer;
+  transition: background .15s;
+}
+input[type="range"]::-webkit-slider-thumb:hover { background: var(--mesa-blue); }
+input[type="range"]::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--mesa-accent); border: 2px solid var(--mesa-bg);
+}
+input[type="range"]::-moz-range-track {
+  background: var(--mesa-border); height: 6px; border-radius: 3px;
+}
+input[type="range"]:focus { outline: none; }
+input[type="range"]:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--mesa-accent-glow);
+}
+
+/* ── Buttons ─── */
+.mesa-btn {
+  padding: 6px 14px;
+  border-radius: var(--mesa-radius-sm);
+  border: 1px solid var(--mesa-accent);
+  background: transparent;
+  color: var(--mesa-accent);
+  cursor: pointer;
+  font-size: 11px;
+  font-family: var(--mesa-mono);
+  transition: all .2s;
+}
+.mesa-btn:hover { background: var(--mesa-accent-glow); }
+.mesa-btn.on { background: var(--mesa-accent); color: #fff; }
+.mesa-btn-sm { padding: 4px 8px; font-size: 10px; }
+.mesa-btn-row { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+
+/* ════════════════════════════════════════════════════
+   STAT BOXES
+   ════════════════════════════════════════════════════ */
+.mesa-stats,
+mesa-stats {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.mesa-stat,
+mesa-stat {
+  background: var(--mesa-surface);
+  border: 1px solid var(--mesa-border);
+  border-radius: var(--mesa-radius);
+  padding: 8px 12px;
+  flex: 1;
+  min-width: 80px;
+  text-align: center;
+  display: block;
+}
+.mesa-stat-val {
+  font-family: var(--mesa-mono);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--mesa-accent2);
+}
+.mesa-stat-lbl {
+  font-size: 9px;
+  color: var(--mesa-dim);
+  font-family: var(--mesa-mono);
+  text-transform: uppercase;
+}
+
+/* ════════════════════════════════════════════════════
+   CANVAS
+   ════════════════════════════════════════════════════ */
+canvas, mesa-canvas canvas {
+  background: #000;
+  display: block;
+  width: 100%;
+  border-radius: var(--mesa-radius-sm);
+  margin-bottom: 8px;
+}
+
+/* ════════════════════════════════════════════════════
+   LEGEND
+   ════════════════════════════════════════════════════ */
+.mesa-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--mesa-muted);
+  margin-top: 6px;
+}
+.mesa-legend .mesa-dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* ════════════════════════════════════════════════════
+   HELP PANEL (right column)
+   ════════════════════════════════════════════════════ */
+.mesa-help h3 {
+  font-family: var(--mesa-serif);
+  font-size: 14px;
+  color: var(--mesa-accent2);
+  margin-bottom: 4px;
+}
+.mesa-help p,
+.mesa-help li {
+  font-size: 12px;
+  color: var(--mesa-muted);
+  line-height: 1.5;
+}
+.mesa-help ul { padding-left: 16px; margin-top: 4px; }
+.mesa-help .mesa-math-block {
+  background: #080c14;
+  border: 1px solid var(--mesa-border);
+  border-radius: var(--mesa-radius-sm);
+  padding: 10px;
+  margin: 8px 0;
+  overflow-x: auto;
+}
+
+/* ════════════════════════════════════════════════════
+   STATUS / PROGRESS / INLINE FEEDBACK (no alerts!)
+   ════════════════════════════════════════════════════ */
+.mesa-status {
+  font-size: 11px;
+  font-family: var(--mesa-mono);
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin: 4px 0;
+  display: none;
+}
+.mesa-status.show { display: block; }
+.mesa-status.ok  { color: var(--mesa-green); background: rgba(52,211,153,.1); }
+.mesa-status.err { color: var(--mesa-red);   background: rgba(239,68,68,.1); }
+
+.mesa-progress {
+  height: 6px;
+  background: var(--mesa-border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+.mesa-progress-fill {
+  height: 100%;
+  background: var(--mesa-accent);
+  transition: width .3s;
+  width: 0%;
+}
+
+/* ════════════════════════════════════════════════════
+   MATRIX INPUT (editable grid, e.g. Markov)
+   ════════════════════════════════════════════════════ */
+.mesa-matrix {
+  display: grid;
+  gap: 2px;
+  font-family: var(--mesa-mono);
+  font-size: 11px;
+  margin: 8px 0;
+}
+.mesa-matrix .mesa-mhdr {
+  color: var(--mesa-dim);
+  font-size: 9px;
+  text-align: center;
+  padding: 4px;
+}
+.mesa-matrix .mesa-mrow {
+  color: var(--mesa-dim);
+  font-size: 9px;
+  text-align: right;
+  padding: 4px;
+}
+.mesa-matrix input {
+  width: 100%;
+  background: var(--mesa-surface-hover);
+  color: var(--mesa-text);
+  border: 1px solid var(--mesa-border);
+  border-radius: 3px;
+  padding: 3px;
+  text-align: center;
+  font-family: var(--mesa-mono);
+  font-size: 11px;
+}
+
+/* ════════════════════════════════════════════════════
+   CONFUSION MATRIX
+   ════════════════════════════════════════════════════ */
+.mesa-confusion {
+  display: grid;
+  gap: 1px;
+  font-family: var(--mesa-mono);
+  font-size: 10px;
+  margin: 8px 0;
+}
+.mesa-confusion .cell {
+  padding: 6px;
+  text-align: center;
+  border-radius: 3px;
+}
+.mesa-confusion .cell-val { font-weight: 600; }
+
+/* ════════════════════════════════════════════════════
+   BAND / EEG LEGEND
+   ════════════════════════════════════════════════════ */
+.mesa-band-legend {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  font-family: var(--mesa-mono);
+  color: var(--mesa-muted);
+  justify-content: center;
+  margin: 4px 0;
+}
+.mesa-band-legend span { display: flex; align-items: center; gap: 3px; }
+.mesa-swatch {
+  width: 8px; height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+/* ════════════════════════════════════════════════════
+   TABLES
+   ════════════════════════════════════════════════════ */
+.mesa-table {
+  width: 100%;
+  font-size: 11px;
+  font-family: var(--mesa-mono);
+  color: var(--mesa-muted);
+  border-collapse: collapse;
+}
+.mesa-table th {
+  text-align: left;
+  padding: 4px;
+  color: var(--mesa-dim);
+  border-bottom: 1px solid var(--mesa-border);
+}
+.mesa-table td { padding: 4px; }
+.mesa-table td.center { text-align: center; }
+.mesa-table .bold { font-weight: 700; }
+
+/* ════════════════════════════════════════════════════
+   RESPONSIVE — collapse to vertical at 900px
+   ════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .mesa-app {
+    flex-direction: column;
+    height: auto;
+  }
+  .mesa-left, .mesa-right {
+    width: 100%;
+    max-width: 100%;
+    border: none;
+    border-bottom: 1px solid var(--mesa-border);
+  }
+  .mesa-drag { display: none; }
+}
+
+/* ════════════════════════════════════════════════════
+   UTILITY CLASSES
+   ════════════════════════════════════════════════════ */
+.mesa-mono { font-family: var(--mesa-mono); }
+.mesa-serif { font-family: var(--mesa-serif); }
+.mesa-hidden { display: none !important; }
+.mesa-flex { display: flex; }
+.mesa-gap-4 { gap: 4px; }
+.mesa-gap-8 { gap: 8px; }
+.mesa-mt-8 { margin-top: 8px; }
+.mesa-mt-12 { margin-top: 12px; }
+.mesa-mb-8 { margin-bottom: 8px; }

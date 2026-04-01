@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loss Functions — Bias, Variance &amp; EEG Classification</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]})"></script>
+<link rel="stylesheet" href="../mesa/mesa.css">
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────── -->
+<div class="mesa-header">
+  <div>
+    <h1>Loss Functions &mdash; Bias, Variance &amp; EEG Classification</h1>
+    <div class="mesa-subtitle">From norms to cross-entropy to training on synthetic brainwaves</div>
+  </div>
+</div>
+
+<!-- ── 3-column App ────────────────────────────── -->
+<div class="mesa-app">
+
+  <!-- LEFT: Controls -->
+  <div class="mesa-left" id="panelLeft">
+    <div class="mesa-ph">Navigation</div>
+    <mesa-tabs active="bias" id="navTabs">
+      <mesa-tab name="bias" key="1">Bias/Var</mesa-tab>
+      <mesa-tab name="norms" key="2">Norms</mesa-tab>
+      <mesa-tab name="xent" key="3">X-Ent</mesa-tab>
+      <mesa-tab name="eeg" key="4">EEG</mesa-tab>
+    </mesa-tabs>
+
+    <!-- Bias/Variance controls -->
+    <mesa-pane tab="bias">
+      <div class="mesa-ph">Model Complexity</div>
+      <mesa-slider bind="bv.deg" min="1" max="15" step="1" value="3" label="Polynomial Degree" fmt=".0f"></mesa-slider>
+      <mesa-slider bind="bv.noise" min="0.01" max="1.0" step="0.01" value="0.30" label="Noise &sigma;" fmt=".2f"></mesa-slider>
+      <mesa-slider bind="bv.samples" min="10" max="200" step="5" value="30" label="Samples" fmt=".0f"></mesa-slider>
+      <mesa-slider bind="bv.lambda" min="0" max="2" step="0.01" value="0" label="Regularization &lambda;" fmt=".2f"></mesa-slider>
+      <div class="mesa-ph">Regularization Type</div>
+      <mesa-btn-group bind="bv.reg" options="none,l1,l2" labels="None,L1,L2"></mesa-btn-group>
+      <div class="mesa-btn-row mesa-mt-8">
+        <button class="mesa-btn" id="btnResample">Resample</button>
+        <button class="mesa-btn" id="btnAnimate">Animate</button>
+      </div>
+    </mesa-pane>
+
+    <!-- Norms controls -->
+    <mesa-pane tab="norms">
+      <div class="mesa-ph">Norm Visualization</div>
+      <mesa-slider bind="norm.p" min="0.5" max="20" step="0.1" value="2.0" label="p-value" fmt=".1f"></mesa-slider>
+      <mesa-slider bind="norm.vx" min="-1" max="1" step="0.01" value="0.6" label="Vector x" fmt=".2f"></mesa-slider>
+      <mesa-slider bind="norm.vy" min="-1" max="1" step="0.01" value="0.8" label="Vector y" fmt=".2f"></mesa-slider>
+      <mesa-slider bind="norm.lam" min="0" max="2" step="0.01" value="0.5" label="Penalty &lambda;" fmt=".2f"></mesa-slider>
+    </mesa-pane>
+
+    <!-- Cross-Entropy controls -->
+    <mesa-pane tab="xent">
+      <div class="mesa-ph">Predicted Probability</div>
+      <mesa-slider bind="xent.prob" min="0.001" max="0.999" step="0.001" value="0.5" label="p(y=1)" fmt=".3f"></mesa-slider>
+      <mesa-slider bind="xent.true" min="0" max="1" step="1" value="1" label="True class" fmt=".0f"></mesa-slider>
+      <div class="mesa-ph">Softmax Temperature</div>
+      <mesa-slider bind="xent.tau" min="0.1" max="5" step="0.05" value="1.0" label="&tau;" fmt=".2f"></mesa-slider>
+      <div class="mesa-ph">Logits (4-class)</div>
+      <mesa-slider bind="xent.z0" min="-5" max="5" step="0.1" value="2.0" label="z&#x2080;" fmt=".1f"></mesa-slider>
+      <mesa-slider bind="xent.z1" min="-5" max="5" step="0.1" value="1.0" label="z&#x2081;" fmt=".1f"></mesa-slider>
+      <mesa-slider bind="xent.z2" min="-5" max="5" step="0.1" value="-1.0" label="z&#x2082;" fmt=".1f"></mesa-slider>
+      <mesa-slider bind="xent.z3" min="-5" max="5" step="0.1" value="0.5" label="z&#x2083;" fmt=".1f"></mesa-slider>
+    </mesa-pane>
+
+    <!-- EEG controls -->
+    <mesa-pane tab="eeg">
+      <div class="mesa-ph">EEG Generator</div>
+      <mesa-slider bind="eeg.dur" min="2" max="30" step="1" value="10" label="Duration (s)" fmt=".0f"></mesa-slider>
+      <mesa-slider bind="eeg.snr" min="0" max="20" step="1" value="6" label="SNR (dB)" fmt=".0f"></mesa-slider>
+      <div class="mesa-ph">Markov Transition Matrix</div>
+      <div class="mesa-matrix" id="markovGrid" style="grid-template-columns:auto repeat(4,1fr)">
+        <div class="mesa-mhdr"></div>
+        <div class="mesa-mhdr">Relax</div><div class="mesa-mhdr">Sleep</div>
+        <div class="mesa-mhdr">Active</div><div class="mesa-mhdr">Agit</div>
+      </div>
+      <div class="mesa-ph">Training</div>
+      <mesa-slider bind="eeg.hidden" min="8" max="128" step="8" value="32" label="Hidden units" fmt=".0f"></mesa-slider>
+      <mesa-slider bind="eeg.lr" min="0.001" max="0.1" step="0.001" value="0.01" label="Learning rate" fmt=".3f"></mesa-slider>
+      <mesa-slider bind="eeg.epochs" min="10" max="200" step="10" value="50" label="Epochs" fmt=".0f"></mesa-slider>
+      <mesa-slider bind="eeg.win" min="32" max="512" step="32" value="128" label="Window (samples)" fmt=".0f"></mesa-slider>
+      <div class="mesa-btn-row mesa-mt-8">
+        <button class="mesa-btn" id="btnGenerate">Generate</button>
+        <button class="mesa-btn" id="btnTrain">Train</button>
+        <button class="mesa-btn" id="btnStop">Stop</button>
+      </div>
+      <mesa-progress bind="eeg.progress"></mesa-progress>
+      <mesa-status id="trainStatus"></mesa-status>
+    </mesa-pane>
+  </div>
+
+  <mesa-drag target=".mesa-left" side="left"></mesa-drag>
+
+  <!-- CENTER: Visualization -->
+  <div class="mesa-center">
+
+    <!-- ── Tab 1: Bias / Variance ──────────────── -->
+    <mesa-pane tab="bias">
+      <mesa-stats>
+        <mesa-stat bind="bv.bias2" label="Bias²" fmt=".3f"></mesa-stat>
+        <mesa-stat bind="bv.variance" label="Variance" fmt=".3f"></mesa-stat>
+        <mesa-stat bind="bv.mse" label="Test MSE" fmt=".3f"></mesa-stat>
+        <mesa-stat bind="bv.deg" label="Degree" fmt=".0f"></mesa-stat>
+      </mesa-stats>
+      <div class="mesa-card">
+        <div class="mesa-card-title">Bias–Variance Tradeoff</div>
+        <canvas id="cvBias" height="350"></canvas>
+        <div class="mesa-legend">
+          <span><div class="mesa-dot" style="background:var(--mesa-blue)"></div> True fn</span>
+          <span><div class="mesa-dot" style="background:var(--mesa-red)"></div> Fit</span>
+          <span><div class="mesa-dot" style="background:var(--mesa-muted)"></div> Data</span>
+        </div>
+      </div>
+      <div class="mesa-card">
+        <div class="mesa-card-title">Error Decomposition vs Complexity</div>
+        <canvas id="cvDecomp" height="250"></canvas>
+        <div class="mesa-legend">
+          <span><div class="mesa-dot" style="background:var(--mesa-blue)"></div> Bias²</span>
+          <span><div class="mesa-dot" style="background:var(--mesa-orange)"></div> Variance</span>
+          <span><div class="mesa-dot" style="background:var(--mesa-red)"></div> Total</span>
+        </div>
+      </div>
+    </mesa-pane>
+
+    <!-- ── Tab 2: Norms ────────────────────────── -->
+    <mesa-pane tab="norms">
+      <mesa-stats>
+        <mesa-stat bind="norm.l1" label="L1" fmt=".2f"></mesa-stat>
+        <mesa-stat bind="norm.l2" label="L2" fmt=".2f"></mesa-stat>
+        <mesa-stat bind="norm.linf" label="L∞" fmt=".2f"></mesa-stat>
+        <mesa-stat bind="norm.lp" label="Lp" fmt=".2f"></mesa-stat>
+      </mesa-stats>
+      <div class="mesa-card">
+        <div class="mesa-card-title">Unit Balls: $\{x : \|x\|_p \leq 1\}$</div>
+        <canvas id="cvNorms" height="350"></canvas>
+        <div class="mesa-legend">
+          <span><div class="mesa-dot" style="background:var(--mesa-red)"></div> L1 (diamond)</span>
+          <span><div class="mesa-dot" style="background:var(--mesa-blue)"></div> L2 (circle)</span>
+          <span><div class="mesa-dot" style="background:var(--mesa-green)"></div> L∞ (square)</span>
+          <span><div class="mesa-dot" style="background:var(--mesa-yellow)"></div> Lp</span>
+        </div>
+      </div>
+      <div class="mesa-card">
+        <div class="mesa-card-title">Penalty Landscape: $\lambda\|w\|_p$</div>
+        <canvas id="cvPenalty" height="250"></canvas>
+      </div>
+      <div class="mesa-card">
+        <div class="mesa-card-title">Why Norms Matter for Regularization</div>
+        <div class="mesa-math-block">$$\|x\|_p = \left(\sum_i |x_i|^p\right)^{1/p}$$</div>
+        <p style="font-size:12px;color:var(--mesa-muted);margin-top:8px">
+          <b>L1 (Lasso)</b>: Produces sparse weights — drives coefficients to exactly zero. The diamond-shaped constraint makes solutions "snap" to axes.<br><br>
+          <b>L2 (Ridge)</b>: Shrinks all weights uniformly toward zero. The circular constraint distributes penalty smoothly.<br><br>
+          <b>L∞ (Max-norm)</b>: Penalizes only the largest component. Rarely used alone but important in adversarial robustness — adversarial perturbations are bounded in L∞.
+        </p>
+      </div>
+    </mesa-pane>
+
+    <!-- ── Tab 3: Cross-Entropy & Softmax ──────── -->
+    <mesa-pane tab="xent">
+      <mesa-stats>
+        <mesa-stat bind="xent.ce" label="CE Loss" fmt=".3f"></mesa-stat>
+        <mesa-stat bind="xent.logp" label="log(p)" fmt=".3f"></mesa-stat>
+        <mesa-stat bind="xent.maxprob" label="max(softmax)" fmt=".3f"></mesa-stat>
+        <mesa-stat bind="xent.entropy" label="Entropy" fmt=".3f"></mesa-stat>
+      </mesa-stats>
+      <div class="mesa-card">
+        <div class="mesa-card-title">Binary Cross-Entropy: $-[y\log p + (1-y)\log(1-p)]$</div>
+        <canvas id="cvXent" height="300"></canvas>
+        <div class="mesa-legend">
+          <span><div class="mesa-dot" style="background:var(--mesa-red)"></div> Loss (y=1)</span>
+          <span><div class="mesa-dot" style="background:var(--mesa-blue)"></div> Loss (y=0)</span>
+          <span><div class="mesa-dot" style="background:var(--mesa-yellow)"></div> Current</span>
+        </div>
+      </div>
+      <div class="mesa-card">
+        <div class="mesa-card-title">Logits → Softmax → Probabilities</div>
+        <canvas id="cvSoftmax" height="200"></canvas>
+        <div class="mesa-legend">
+          <span><div class="mesa-dot" style="background:var(--mesa-red)"></div> Logits</span>
+          <span><div class="mesa-dot" style="background:var(--mesa-green)"></div> Softmax</span>
+        </div>
+      </div>
+      <div class="mesa-card">
+        <div class="mesa-card-title">Why Logits? Why $\log$?</div>
+        <div class="mesa-math-block">$$\text{softmax}(z_i) = \frac{e^{z_i / \tau}}{\sum_j e^{z_j / \tau}}$$</div>
+        <p style="font-size:12px;color:var(--mesa-muted);margin:8px 0">
+          A neural network's final layer outputs <b>logits</b> $z$ — unbounded real numbers. We need probabilities (positive, sum to 1).
+          The softmax function accomplishes this via exponentiation (makes positive) and normalization (makes sum to 1).<br><br>
+          <b>Why take the log in cross-entropy?</b> The loss $-\log p(\text{true class})$ has crucial properties:<br>
+          &bull; When $p \to 1$ (correct, confident): $-\log(1) = 0$ — no penalty<br>
+          &bull; When $p \to 0$ (wrong, confident): $-\log(0) \to \infty$ — catastrophic penalty<br>
+          &bull; This is the <i>negative log-likelihood</i> — maximizing likelihood = minimizing cross-entropy<br><br>
+          <b>In transformers</b>: each position predicts the next token via logits over the vocabulary.
+          Cross-entropy loss between predicted distribution and one-hot target drives training.
+          The $\log$ in cross-entropy <i>cancels</i> the $\exp$ in softmax, giving numerically stable gradients:
+        </p>
+        <div class="mesa-math-block">$$\frac{\partial \mathcal{L}}{\partial z_i} = p_i - \mathbb{1}[i = y_{\text{true}}]$$</div>
+        <p style="font-size:12px;color:var(--mesa-muted)">
+          The gradient is simply "predicted minus actual" — elegant, bounded, and stable. This is why we work in log-space.
+        </p>
+      </div>
+    </mesa-pane>
+
+    <!-- ── Tab 4: EEG FSK Classifier ───────────── -->
+    <mesa-pane tab="eeg">
+      <mesa-stats>
+        <mesa-stat bind="eeg.state" label="Current State"></mesa-stat>
+        <mesa-stat bind="eeg.accuracy" label="Accuracy" fmt=".1%"></mesa-stat>
+        <mesa-stat bind="eeg.epoch" label="Epoch" fmt=".0f"></mesa-stat>
+        <mesa-stat bind="eeg.loss" label="Loss" fmt=".3f"></mesa-stat>
+      </mesa-stats>
+      <div class="mesa-card">
+        <div class="mesa-card-title">Synthetic EEG — Markov FSK (512 Hz)</div>
+        <canvas id="cvEEG" height="200"></canvas>
+        <div class="mesa-band-legend">
+          <span><div class="mesa-swatch" style="background:#ef4444"></div>&delta; 0.5–4</span>
+          <span><div class="mesa-swatch" style="background:#fb923c"></div>&theta; 4–8</span>
+          <span><div class="mesa-swatch" style="background:#fbbf24"></div>&alpha; 8–13</span>
+          <span><div class="mesa-swatch" style="background:#3b82f6"></div>&beta; 13–30</span>
+          <span><div class="mesa-swatch" style="background:#a78bfa"></div>&gamma; 30–100</span>
+        </div>
+        <canvas id="cvSpectrogram" height="120"></canvas>
+      </div>
+      <div class="mesa-card">
+        <div class="mesa-card-title">Training Loss &amp; Accuracy</div>
+        <canvas id="cvTrainLoss" height="180"></canvas>
+        <div class="mesa-legend">
+          <span><div class="mesa-dot" style="background:var(--mesa-red)"></div> Loss</span>
+          <span><div class="mesa-dot" style="background:var(--mesa-green)"></div> Accuracy</span>
+        </div>
+      </div>
+      <div class="mesa-card">
+        <div class="mesa-card-title">Confusion Matrix</div>
+        <div class="mesa-confusion" id="confMatrix" style="grid-template-columns:auto repeat(4,1fr)"></div>
+      </div>
+      <div class="mesa-card">
+        <div class="mesa-card-title">Disposition → EEG Band Model</div>
+        <p style="font-size:12px;color:var(--mesa-muted);margin-bottom:8px">
+          Each mental state modulates dominant EEG frequency bands via <b>Frequency Shift Keying</b>:
+        </p>
+        <table class="mesa-table">
+          <tr><th>State</th><th class="center">&delta;</th><th class="center">&theta;</th><th class="center">&alpha;</th><th class="center">&beta;</th><th class="center">&gamma;</th></tr>
+          <tr><td style="color:var(--mesa-green)">Relaxed</td><td class="center">0.1</td><td class="center">0.2</td><td class="center bold">0.8</td><td class="center">0.1</td><td class="center">0.05</td></tr>
+          <tr><td style="color:var(--mesa-blue)">Sleepy</td><td class="center bold">0.7</td><td class="center bold">0.5</td><td class="center">0.2</td><td class="center">0.05</td><td class="center">0.02</td></tr>
+          <tr><td style="color:var(--mesa-yellow)">Active</td><td class="center">0.05</td><td class="center">0.1</td><td class="center">0.15</td><td class="center bold">0.7</td><td class="center">0.3</td></tr>
+          <tr><td style="color:var(--mesa-red)">Agitated</td><td class="center">0.05</td><td class="center">0.05</td><td class="center">0.05</td><td class="center bold">0.5</td><td class="center bold">0.8</td></tr>
+        </table>
+        <p style="font-size:11px;color:var(--mesa-dim);margin-top:8px">
+          Bold = dominant band. Amplitudes are relative power weights mixed into the signal at 512 Hz sample rate.
+          The Markov process determines state transitions and dwell times.
+        </p>
+      </div>
+    </mesa-pane>
+  </div>
+
+  <mesa-drag target=".mesa-right" side="right"></mesa-drag>
+
+  <!-- RIGHT: Context Help -->
+  <div class="mesa-right" id="panelRight">
+    <div class="mesa-ph">Context</div>
+
+    <div class="mesa-help">
+      <h3>Bias–Variance Tradeoff</h3>
+      <div class="mesa-math-block">$$\text{MSE} = \text{Bias}^2 + \text{Variance} + \sigma^2$$</div>
+      <p>The expected prediction error decomposes into three terms:</p>
+      <ul>
+        <li><b>Bias²</b> — error from wrong assumptions (underfitting). High for simple models.</li>
+        <li><b>Variance</b> — sensitivity to training data (overfitting). High for complex models.</li>
+        <li><b>Irreducible noise</b> $\sigma^2$ — inherent randomness in data.</li>
+      </ul>
+      <p style="margin-top:8px">The <b>sweet spot</b> minimizes total error. Regularization shifts this sweet spot rightward, allowing more complex models without overfitting.</p>
+
+      <h3 style="margin-top:16px">Lp Norms</h3>
+      <div class="mesa-math-block">$$\|x\|_p = \left(\sum_i |x_i|^p\right)^{1/p}$$</div>
+      <ul>
+        <li>$p=1$: Manhattan distance $|x_1|+|x_2|$</li>
+        <li>$p=2$: Euclidean distance $\sqrt{x_1^2+x_2^2}$</li>
+        <li>$p\to\infty$: $\max(|x_1|,|x_2|)$</li>
+      </ul>
+
+      <h3 style="margin-top:16px">Cross-Entropy</h3>
+      <div class="mesa-math-block">$$H(p,q) = -\sum_x p(x)\log q(x)$$</div>
+      <p>Measures how well distribution $q$ (model) approximates $p$ (truth). For classification with one-hot $p$, simplifies to $-\log q(y_{\text{true}})$.</p>
+
+      <h3 style="margin-top:16px">EEG Frequency Bands</h3>
+      <ul>
+        <li><b>Delta (&delta;)</b> 0.5–4 Hz: Deep sleep</li>
+        <li><b>Theta (&theta;)</b> 4–8 Hz: Drowsiness, meditation</li>
+        <li><b>Alpha (&alpha;)</b> 8–13 Hz: Relaxed wakefulness</li>
+        <li><b>Beta (&beta;)</b> 13–30 Hz: Active thinking, focus</li>
+        <li><b>Gamma (&gamma;)</b> 30–100 Hz: High-level processing</li>
+      </ul>
+      <p style="margin-top:8px"><b>FSK encoding</b>: Each disposition shifts dominant power to its characteristic band. A classifier must learn which spectral features distinguish states.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     DOMAIN LOGIC — pure simulation/ML, no UI boilerplate
+     ════════════════════════════════════════════════════ -->
+<script type="module">
+import { state, bus, setupCanvas, coords, drawGrid, drawLine, drawFn, drawDots,
+         drawVLine, drawAnnotation, COLORS, drawSpectrogram } from '../mesa/mesa.js';
+import { createNetwork } from '/shared/nn.js';
+import { crossEntropy } from '/shared/losses.js';
+import { softmax, argmax } from '/shared/math.js';
+
+const TAU = 2 * Math.PI;
+const $ = id => document.getElementById(id);
+
+function randn() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v);
+}
+
+// softmax with temperature (shared softmax doesn't support tau)
+function softmaxT(logits, tau = 1) {
+  return softmax(logits.map(z => z / tau));
+}
+
+// ════════════════════════════════════════════════════
+// TAB 1: BIAS / VARIANCE
+// ════════════════════════════════════════════════════
+let bvData = [];
+
+function trueFn(x) { return Math.sin(TAU * x) + 0.3 * Math.sin(3 * TAU * x); }
+
+function generateData() {
+  const N = state.get('bv.samples');
+  const noise = state.get('bv.noise');
+  bvData = [];
+  for (let i = 0; i < N; i++) {
+    const x = Math.random();
+    bvData.push({ x, y: trueFn(x) + noise * randn() });
+  }
+}
+
+function polyFit(data, deg, lam, reg) {
+  const n = data.length, m = deg + 1;
+  const X = data.map(d => {
+    const row = [];
+    for (let j = 0; j < m; j++) row.push(Math.pow(d.x, j));
+    return row;
+  });
+  const XtX = Array(m).fill(0).map(() => Array(m).fill(0));
+  const Xty = Array(m).fill(0);
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < m; j++) {
+      Xty[j] += X[i][j] * data[i].y;
+      for (let k = 0; k < m; k++) XtX[j][k] += X[i][j] * X[i][k];
+    }
+  }
+  for (let j = 1; j < m; j++) {
+    if (reg === 'l2') XtX[j][j] += lam;
+    else if (reg === 'l1') XtX[j][j] += lam * 0.01;
+  }
+  const A = XtX.map((row, i) => [...row, Xty[i]]);
+  for (let i = 0; i < m; i++) {
+    let maxRow = i;
+    for (let k = i + 1; k < m; k++) if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
+    [A[i], A[maxRow]] = [A[maxRow], A[i]];
+    if (Math.abs(A[i][i]) < 1e-12) A[i][i] = 1e-12;
+    for (let k = i + 1; k < m; k++) {
+      const f = A[k][i] / A[i][i];
+      for (let j = i; j <= m; j++) A[k][j] -= f * A[i][j];
+    }
+  }
+  const w = Array(m).fill(0);
+  for (let i = m - 1; i >= 0; i--) {
+    w[i] = A[i][m];
+    for (let j = i + 1; j < m; j++) w[i] -= A[i][j] * w[j];
+    w[i] /= A[i][i];
+  }
+  return w;
+}
+
+function polyEval(w, x) {
+  let y = 0;
+  for (let j = 0; j < w.length; j++) y += w[j] * Math.pow(x, j);
+  return y;
+}
+
+function drawBias() {
+  if (bvData.length === 0) generateData();
+  const deg = state.get('bv.deg');
+  const lam = state.get('bv.lambda');
+  const reg = state.get('bv.reg');
+  const w = polyFit(bvData, deg, lam, reg);
+
+  const { ctx, w: cw, h: ch } = setupCanvas($('cvBias'));
+  let yMin = -2, yMax = 2;
+  bvData.forEach(d => { yMin = Math.min(yMin, d.y - 0.5); yMax = Math.max(yMax, d.y + 0.5); });
+  const c = coords(cw, ch, [0, 1], [yMin, yMax]);
+
+  drawGrid(ctx, c, { xTicks: 5, yTicks: 5 });
+  drawFn(ctx, c, trueFn, COLORS.blue, 2, 200, [6, 4]);
+  drawFn(ctx, c, x => {
+    const y = polyEval(w, x);
+    return Math.max(yMin - 1, Math.min(yMax + 1, y));
+  }, COLORS.red, 2);
+  drawDots(ctx, c, bvData.map(d => [d.x, d.y]), COLORS.muted, 3);
+
+  computeDecomposition();
+}
+
+function computeDecomposition() {
+  const deg = state.get('bv.deg');
+  const noise = state.get('bv.noise');
+  const N = state.get('bv.samples');
+  const lam = state.get('bv.lambda');
+  const reg = state.get('bv.reg');
+  const nTrials = 50, nTest = 50;
+  const testX = Array.from({ length: nTest }, (_, i) => (i + 0.5) / nTest);
+  const preds = Array.from({ length: nTest }, () => []);
+
+  for (let t = 0; t < nTrials; t++) {
+    const data = [];
+    for (let i = 0; i < N; i++) {
+      const x = Math.random();
+      data.push({ x, y: trueFn(x) + noise * randn() });
+    }
+    const w = polyFit(data, deg, lam, reg);
+    testX.forEach((x, i) => preds[i].push(polyEval(w, x)));
+  }
+
+  let bias2 = 0, variance = 0;
+  testX.forEach((x, i) => {
+    const avg = preds[i].reduce((a, b) => a + b, 0) / nTrials;
+    bias2 += (avg - trueFn(x)) ** 2;
+    variance += preds[i].reduce((s, p) => s + (p - avg) ** 2, 0) / nTrials;
+  });
+  bias2 /= nTest;
+  variance /= nTest;
+
+  state.batch({
+    'bv.bias2': bias2,
+    'bv.variance': variance,
+    'bv.mse': bias2 + variance + noise ** 2,
+  });
+
+  drawDecomposition();
+}
+
+function drawDecomposition() {
+  const { ctx, w: cw, h: ch } = setupCanvas($('cvDecomp'));
+  const noise = state.get('bv.noise');
+  const N = state.get('bv.samples');
+  const lam = state.get('bv.lambda');
+  const reg = state.get('bv.reg');
+
+  const results = [];
+  for (let deg = 1; deg <= 15; deg++) {
+    const nTrials = 30, nTest = 30;
+    const testX = Array.from({ length: nTest }, (_, i) => (i + 0.5) / nTest);
+    const preds = Array.from({ length: nTest }, () => []);
+    for (let t = 0; t < nTrials; t++) {
+      const data = [];
+      for (let i = 0; i < N; i++) {
+        const x = Math.random();
+        data.push({ x, y: trueFn(x) + noise * randn() });
+      }
+      const w = polyFit(data, deg, lam, reg);
+      testX.forEach((x, i) => preds[i].push(polyEval(w, x)));
+    }
+    let b2 = 0, v = 0;
+    testX.forEach((x, i) => {
+      const avg = preds[i].reduce((a, b) => a + b, 0) / nTrials;
+      b2 += (avg - trueFn(x)) ** 2;
+      v += preds[i].reduce((s, p) => s + (p - avg) ** 2, 0) / nTrials;
+    });
+    results.push({ deg, bias2: b2 / nTest, variance: v / nTest });
+  }
+
+  const maxY = Math.max(1, ...results.map(r => r.bias2 + r.variance + noise ** 2)) * 1.1;
+  const c = coords(cw, ch, [1, 15], [0, maxY]);
+  drawGrid(ctx, c, { xTicks: 7, yTicks: 4, xLabel: 'degree' });
+
+  drawLine(ctx, c, results.map(r => [r.deg, r.bias2]), COLORS.blue);
+  drawLine(ctx, c, results.map(r => [r.deg, r.variance]), COLORS.orange);
+  drawLine(ctx, c, results.map(r => [r.deg, r.bias2 + r.variance + noise ** 2]), COLORS.red);
+  drawVLine(ctx, c, state.get('bv.deg'));
+}
+
+// Wire bias/variance controls
+state.on('bv.*', drawBias);
+$('btnResample').onclick = () => { generateData(); drawBias(); };
+
+let animating = false;
+$('btnAnimate').onclick = () => {
+  animating = !animating;
+  $('btnAnimate').classList.toggle('on', animating);
+  if (animating) animateBV();
+};
+function animateBV() {
+  if (!animating) return;
+  generateData();
+  drawBias();
+  requestAnimationFrame(() => setTimeout(animateBV, 200));
+}
+
+// ════════════════════════════════════════════════════
+// TAB 2: NORMS
+// ════════════════════════════════════════════════════
+function lpNorm(x, y, p) {
+  if (p >= 50) return Math.max(Math.abs(x), Math.abs(y));
+  return Math.pow(Math.pow(Math.abs(x), p) + Math.pow(Math.abs(y), p), 1 / p);
+}
+
+function drawNorms() {
+  const vx = state.get('norm.vx'), vy = state.get('norm.vy'), p = state.get('norm.p');
+  state.batch({
+    'norm.l1': Math.abs(vx) + Math.abs(vy),
+    'norm.l2': Math.sqrt(vx ** 2 + vy ** 2),
+    'norm.linf': Math.max(Math.abs(vx), Math.abs(vy)),
+    'norm.lp': lpNorm(vx, vy, p),
+  });
+
+  // Unit balls
+  const { ctx, w: cw, h: ch } = setupCanvas($('cvNorms'));
+  const cx = cw / 2, cy = ch / 2, scale = Math.min(cw, ch) * 0.35;
+
+  ctx.strokeStyle = COLORS.grid; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(cw, cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, ch); ctx.stroke();
+
+  function drawBall(p, color) {
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i <= 360; i++) {
+      const angle = (i / 360) * TAU;
+      const cos = Math.cos(angle), sin = Math.sin(angle);
+      const r = p >= 50 ? 1 / Math.max(Math.abs(cos), Math.abs(sin))
+        : 1 / Math.pow(Math.pow(Math.abs(cos), p) + Math.pow(Math.abs(sin), p), 1 / p);
+      const px = cx + r * cos * scale, py = cy - r * sin * scale;
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.globalAlpha = 0.15; ctx.fillStyle = color; ctx.fill();
+    ctx.globalAlpha = 1; ctx.stroke();
+  }
+
+  drawBall(1, COLORS.red);
+  drawBall(2, COLORS.blue);
+  drawBall(50, COLORS.green);
+  drawBall(p, COLORS.yellow);
+
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + vx * scale, cy - vy * scale); ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(cx + vx * scale, cy - vy * scale, 4, 0, TAU); ctx.fill();
+
+  // Penalty landscape
+  const { ctx: ctx2, w: pw, h: ph } = setupCanvas($('cvPenalty'));
+  const lam = state.get('norm.lam');
+  const c2 = coords(pw, ph, [-2, 2], [0, 3]);
+  drawGrid(ctx2, c2, { xTicks: 4, yTicks: 4, xLabel: 'w', yLabel: 'penalty' });
+
+  drawFn(ctx2, c2, w => lam * Math.abs(w), COLORS.red, 2);
+  drawFn(ctx2, c2, w => lam * w * w, COLORS.blue, 2);
+  drawFn(ctx2, c2, w => lam * Math.abs(w), COLORS.green, 2);  // L∞ 1D = L1
+  drawFn(ctx2, c2, w => lam * Math.pow(Math.abs(w), p), COLORS.yellow, 2);
+}
+
+state.on('norm.*', drawNorms);
+
+// ════════════════════════════════════════════════════
+// TAB 3: CROSS-ENTROPY & SOFTMAX
+// ════════════════════════════════════════════════════
+function drawXent() {
+  const prob = state.get('xent.prob'), trueY = state.get('xent.true');
+  const tau = state.get('xent.tau');
+  const logits = [state.get('xent.z0'), state.get('xent.z1'), state.get('xent.z2'), state.get('xent.z3')];
+  const probs = softmaxT(logits, tau);
+
+  const ce = -(trueY * Math.log(prob + 1e-15) + (1 - trueY) * Math.log(1 - prob + 1e-15));
+  const H = -probs.reduce((s, pi) => s + (pi > 0 ? pi * Math.log(pi) : 0), 0);
+  state.batch({
+    'xent.ce': ce,
+    'xent.logp': Math.log(prob + 1e-15),
+    'xent.maxprob': Math.max(...probs),
+    'xent.entropy': H,
+  });
+
+  // Binary CE curve
+  const { ctx, w: cw, h: ch } = setupCanvas($('cvXent'));
+  const c = coords(cw, ch, [0, 1], [0, 5]);
+  drawGrid(ctx, c, { xTicks: 5, yTicks: 5, xLabel: 'p(y=1)', yLabel: 'loss' });
+  drawFn(ctx, c, p => -Math.log(p + 1e-10), COLORS.red, 2);
+  drawFn(ctx, c, p => -Math.log(1 - p + 1e-10), COLORS.blue, 2);
+  drawAnnotation(ctx, c, prob, Math.min(ce, 5), ce.toFixed(2));
+
+  // Softmax viz
+  const { ctx: ctx2, w: sw, h: sh } = setupCanvas($('cvSoftmax'));
+  const labels = ['z₀', 'z₁', 'z₂', 'z₃'];
+  const colors = [COLORS.red, COLORS.orange, COLORS.blue, COLORS.purple];
+  const barW = sw / 10, gap = sw / 20;
+  const groupW = 4 * barW + 3 * gap;
+  const startX = (sw - groupW * 2 - 40) / 2;
+  const pad = { t: 20, b: 30 };
+  const barH = sh - pad.t - pad.b;
+
+  const maxLogit = Math.max(...logits.map(Math.abs), 1);
+  ctx2.fillStyle = COLORS.dim; ctx2.font = '9px JetBrains Mono, monospace';
+  ctx2.fillText('Logits', startX, 12);
+
+  logits.forEach((z, i) => {
+    const x = startX + i * (barW + gap);
+    const h = Math.abs(z) / (maxLogit * 1.2) * barH / 2;
+    const mid = pad.t + barH / 2;
+    ctx2.fillStyle = colors[i]; ctx2.globalAlpha = 0.7;
+    z >= 0 ? ctx2.fillRect(x, mid - h, barW, h) : ctx2.fillRect(x, mid, barW, h);
+    ctx2.globalAlpha = 1;
+    ctx2.fillStyle = COLORS.white; ctx2.font = '10px JetBrains Mono, monospace';
+    ctx2.fillText(z.toFixed(1), x + 2, sh - 5);
+    ctx2.fillStyle = COLORS.dim; ctx2.fillText(labels[i], x + 2, sh - 16);
+  });
+
+  const arrowX = startX + groupW + 20;
+  ctx2.strokeStyle = COLORS.dim; ctx2.lineWidth = 2;
+  ctx2.beginPath(); ctx2.moveTo(arrowX, sh / 2); ctx2.lineTo(arrowX + 30, sh / 2);
+  ctx2.lineTo(arrowX + 24, sh / 2 - 5); ctx2.moveTo(arrowX + 30, sh / 2);
+  ctx2.lineTo(arrowX + 24, sh / 2 + 5); ctx2.stroke();
+  ctx2.fillStyle = COLORS.dim; ctx2.font = '8px JetBrains Mono, monospace';
+  ctx2.fillText('softmax', arrowX - 2, sh / 2 - 10);
+  ctx2.fillText(`τ=${tau.toFixed(1)}`, arrowX + 5, sh / 2 + 18);
+
+  const probStartX = arrowX + 50;
+  ctx2.fillStyle = COLORS.dim; ctx2.font = '9px JetBrains Mono, monospace';
+  ctx2.fillText('Probabilities', probStartX, 12);
+  probs.forEach((p, i) => {
+    const x = probStartX + i * (barW + gap);
+    const h = p * barH * 0.9;
+    ctx2.fillStyle = colors[i]; ctx2.globalAlpha = 0.8;
+    ctx2.fillRect(x, pad.t + barH - h, barW, h);
+    ctx2.globalAlpha = 1;
+    ctx2.fillStyle = COLORS.white; ctx2.font = '10px JetBrains Mono, monospace';
+    ctx2.fillText(p.toFixed(2), x, sh - 5);
+  });
+}
+
+state.on('xent.*', drawXent);
+
+// ════════════════════════════════════════════════════
+// TAB 4: EEG FSK CLASSIFIER
+// ════════════════════════════════════════════════════
+const FS = 512;
+const EEG_BANDS = { delta: [0.5, 4], theta: [4, 8], alpha: [8, 13], beta: [13, 30], gamma: [30, 100] };
+const BAND_NAMES = Object.keys(EEG_BANDS);
+const STATES = ['relaxed', 'sleepy', 'active', 'agitated'];
+const ST_COLORS = ['#34d399', '#60a5fa', '#fbbf24', '#ef4444'];
+const STATE_BANDS = {
+  relaxed:  [0.10, 0.20, 0.80, 0.10, 0.05],
+  sleepy:   [0.70, 0.50, 0.20, 0.05, 0.02],
+  active:   [0.05, 0.10, 0.15, 0.70, 0.30],
+  agitated: [0.05, 0.05, 0.05, 0.50, 0.80],
+};
+
+let markovMatrix = [
+  [0.85, 0.07, 0.05, 0.03],
+  [0.08, 0.82, 0.04, 0.06],
+  [0.06, 0.04, 0.80, 0.10],
+  [0.03, 0.06, 0.11, 0.80],
+];
+
+let eegSignal = null, eegLabels = null;
+let trainHistory = [], trainRunning = false, trainAbort = false;
+
+// Markov matrix UI
+function buildMarkovUI() {
+  const grid = $('markovGrid');
+  grid.querySelectorAll('.mesa-mrow, input').forEach(e => e.remove());
+  STATES.forEach((from, i) => {
+    const label = document.createElement('div');
+    label.className = 'mesa-mrow'; label.textContent = from.slice(0, 4);
+    grid.appendChild(label);
+    STATES.forEach((to, j) => {
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.step = '0.01'; inp.min = '0'; inp.max = '1';
+      inp.value = markovMatrix[i][j].toFixed(2);
+      inp.onchange = () => {
+        markovMatrix[i][j] = parseFloat(inp.value) || 0;
+        const sum = markovMatrix[i].reduce((a, b) => a + b, 0);
+        if (sum > 0) markovMatrix[i] = markovMatrix[i].map(v => v / sum);
+        buildMarkovUI();
+      };
+      grid.appendChild(inp);
+    });
+  });
+}
+buildMarkovUI();
+
+function generateEEG() {
+  const dur = state.get('eeg.dur'), snrDB = state.get('eeg.snr');
+  const totalSamples = dur * FS;
+  const signal = new Float64Array(totalSamples);
+  const labels = new Int32Array(totalSamples);
+  let st = Math.floor(Math.random() * 4);
+  const segs = [];
+  let n = 0;
+
+  while (n < totalSamples) {
+    const selfP = markovMatrix[st][st];
+    const avgDwell = Math.max(FS * 0.5, 1 / (1 - selfP + 1e-6));
+    const dwell = Math.max(FS * 0.25, Math.floor(-avgDwell * Math.log(Math.random() + 1e-10)));
+    const end = Math.min(n + dwell, totalSamples);
+    for (let i = n; i < end; i++) labels[i] = st;
+    segs.push({ state: st, start: n, end });
+    n = end;
+    let r = Math.random(), cum = 0, next = st;
+    for (let j = 0; j < 4; j++) { cum += markovMatrix[st][j]; if (r < cum) { next = j; break; } }
+    st = next;
+  }
+
+  const noiseAmp = 1.0 / Math.sqrt(Math.pow(10, snrDB / 10));
+  segs.forEach(seg => {
+    const weights = STATE_BANDS[STATES[seg.state]];
+    BAND_NAMES.forEach((band, bi) => {
+      const [fLo, fHi] = EEG_BANDS[band];
+      const freq = fLo + Math.random() * (fHi - fLo);
+      const phase = Math.random() * TAU;
+      for (let i = seg.start; i < seg.end; i++)
+        signal[i] += weights[bi] * Math.sin(TAU * freq * i / FS + phase);
+    });
+    for (let i = seg.start; i < seg.end; i++) signal[i] += noiseAmp * randn();
+  });
+
+  eegSignal = signal; eegLabels = labels;
+  const statusEl = document.querySelector('mesa-status#trainStatus');
+  statusEl?.show(`Generated ${dur}s EEG (${totalSamples} samples, ${segs.length} segments)`, 'ok');
+  drawEEG();
+}
+
+function drawEEG() {
+  drawEEGSignal();
+  drawEEGSpectrogram();
+  drawTrainCurves();
+  drawConfusion();
+}
+
+function drawEEGSignal() {
+  if (!eegSignal) return;
+  const { ctx, w: cw, h: ch } = setupCanvas($('cvEEG'));
+  const pad = { l: 40, r: 10, t: 5, b: 20 };
+  const pw = cw - pad.l - pad.r, ph = ch - pad.t - pad.b;
+  const N = eegSignal.length;
+
+  // State background
+  for (let px = 0; px < pw; px++) {
+    const idx = Math.floor(px / pw * N);
+    ctx.fillStyle = ST_COLORS[eegLabels[idx]];
+    ctx.globalAlpha = 0.12;
+    ctx.fillRect(pad.l + px, pad.t, 1, ph);
+  }
+  ctx.globalAlpha = 1;
+
+  let yMin = Infinity, yMax = -Infinity;
+  const step = Math.max(1, Math.floor(N / pw));
+  for (let i = 0; i < N; i += step) {
+    if (eegSignal[i] < yMin) yMin = eegSignal[i];
+    if (eegSignal[i] > yMax) yMax = eegSignal[i];
+  }
+  const yRange = yMax - yMin || 1;
+  const toY = v => pad.t + ph - (v - yMin) / yRange * ph;
+
+  ctx.strokeStyle = COLORS.white; ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  for (let px = 0; px < pw; px++) {
+    const idx = Math.floor(px / pw * N);
+    const y = toY(eegSignal[idx]);
+    px === 0 ? ctx.moveTo(pad.l + px, y) : ctx.lineTo(pad.l + px, y);
+  }
+  ctx.stroke();
+
+  ctx.fillStyle = COLORS.dim; ctx.font = '9px JetBrains Mono, monospace';
+  const dur = N / FS;
+  for (let t = 0; t <= dur; t += Math.max(1, Math.floor(dur / 5)))
+    ctx.fillText(t + 's', pad.l + (t * FS / N) * pw - 4, ch - 3);
+}
+
+function drawEEGSpectrogram() {
+  if (!eegSignal) return;
+  const { ctx, w, h } = setupCanvas($('cvSpectrogram'));
+  drawSpectrogram(ctx, w, h, eegSignal, FS);
+}
+
+// ── Neural Network ──────────────────────────────
+function extractFeatures(signal, start, winSize) {
+  const features = new Float64Array(5);
+  const nBins = winSize / 2, deltaF = FS / winSize;
+  for (let k = 0; k < nBins; k++) {
+    let re = 0, im = 0;
+    for (let n = 0; n < winSize; n++) {
+      const w = 0.5 * (1 - Math.cos(TAU * n / (winSize - 1)));
+      const angle = -TAU * k * n / winSize;
+      const s = (signal[start + n] || 0) * w;
+      re += s * Math.cos(angle); im += s * Math.sin(angle);
+    }
+    const power = re * re + im * im;
+    const freq = k * deltaF;
+    BAND_NAMES.forEach((band, bi) => {
+      const [fLo, fHi] = EEG_BANDS[band];
+      if (freq >= fLo && freq <= fHi) features[bi] += power;
+    });
+  }
+  for (let i = 0; i < 5; i++) features[i] = Math.log(1 + features[i]);
+  return features;
+}
+
+function createNN(nI, nH, nO) {
+  return createNetwork([nI, nH, nO], {
+    activation: 'relu',
+    outputActivation: 'softmax',
+    initMethod: 'he',
+  });
+}
+
+function nnForward(nn, x) {
+  const { acts, pres } = nn.forward(x);
+  return { h: acts[1], z: pres[2], probs: acts[2], acts, pres };
+}
+
+function nnBackward(nn, acts, pres, probs, target, lr) {
+  const oneHot = new Array(probs.length).fill(0);
+  oneHot[target] = 1;
+  nn.backward(acts, pres, oneHot, lr);
+}
+
+async function trainModel() {
+  if (!eegSignal) { document.querySelector('mesa-status#trainStatus')?.show('Generate EEG data first', 'err'); return; }
+  if (trainRunning) return;
+  trainRunning = true; trainAbort = false; trainHistory = [];
+
+  const winSize = state.get('eeg.win'), nHidden = state.get('eeg.hidden');
+  const lr = state.get('eeg.lr'), nEpochs = state.get('eeg.epochs');
+
+  const samples = [];
+  const hop = winSize / 2;
+  for (let i = 0; i + winSize < eegSignal.length; i += hop) {
+    const feat = extractFeatures(eegSignal, i, winSize);
+    const counts = [0, 0, 0, 0];
+    for (let j = i; j < i + winSize; j++) counts[eegLabels[j]]++;
+    samples.push({ feat, label: argmax(counts) });
+  }
+
+  for (let i = samples.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [samples[i], samples[j]] = [samples[j], samples[i]];
+  }
+  const splitIdx = Math.floor(samples.length * 0.8);
+  const trainSet = samples.slice(0, splitIdx), testSet = samples.slice(splitIdx);
+
+  const means = new Float64Array(5), stds = new Float64Array(5);
+  trainSet.forEach(s => { for (let i = 0; i < 5; i++) means[i] += s.feat[i]; });
+  for (let i = 0; i < 5; i++) means[i] /= trainSet.length;
+  trainSet.forEach(s => { for (let i = 0; i < 5; i++) stds[i] += (s.feat[i] - means[i]) ** 2; });
+  for (let i = 0; i < 5; i++) stds[i] = Math.sqrt(stds[i] / trainSet.length) || 1;
+  const normalize = feat => feat.map((v, i) => (v - means[i]) / stds[i]);
+
+  const nn = createNN(5, nHidden, 4);
+
+  for (let epoch = 0; epoch < nEpochs && !trainAbort; epoch++) {
+    for (let i = trainSet.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [trainSet[i], trainSet[j]] = [trainSet[j], trainSet[i]];
+    }
+    let epochLoss = 0;
+    trainSet.forEach(s => {
+      const x = normalize(s.feat);
+      const { probs, acts, pres } = nnForward(nn, x);
+      epochLoss += crossEntropy(probs, s.label);
+      nnBackward(nn, acts, pres, probs, s.label, lr);
+    });
+    epochLoss /= trainSet.length;
+
+    let correct = 0;
+    const confMat = Array(4).fill(0).map(() => Array(4).fill(0));
+    testSet.forEach(s => {
+      const x = normalize(s.feat);
+      const { probs } = nnForward(nn, x);
+      const pred = argmax(probs);
+      confMat[s.label][pred]++;
+      if (pred === s.label) correct++;
+    });
+    const accuracy = testSet.length > 0 ? correct / testSet.length : 0;
+    trainHistory.push({ epoch, loss: epochLoss, accuracy, confMat });
+
+    state.batch({
+      'eeg.epoch': epoch + 1,
+      'eeg.loss': epochLoss,
+      'eeg.accuracy': accuracy,
+      'eeg.progress': (epoch + 1) / nEpochs,
+    });
+    drawTrainCurves();
+    drawConfusion();
+    if (epoch % 2 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+
+  trainRunning = false;
+  const statusEl = document.querySelector('mesa-status#trainStatus');
+  const lastAcc = trainHistory[trainHistory.length - 1]?.accuracy || 0;
+  statusEl?.show(trainAbort ? 'Stopped' : `Done — ${(lastAcc * 100).toFixed(1)}% accuracy`, trainAbort ? 'err' : 'ok');
+}
+
+function drawTrainCurves() {
+  if (trainHistory.length === 0) return;
+  const { ctx, w: cw, h: ch } = setupCanvas($('cvTrainLoss'));
+  const maxLoss = Math.max(0.5, ...trainHistory.map(h => h.loss));
+  const n = trainHistory.length;
+  const c = coords(cw, ch, [0, n - 1], [0, maxLoss], { r: 50 });
+  drawGrid(ctx, c, { xTicks: 5, yTicks: 4, xLabel: 'epoch' });
+
+  drawLine(ctx, c, trainHistory.map((h, i) => [i, h.loss]), COLORS.red);
+  // Accuracy on same chart (scaled to loss axis)
+  drawLine(ctx, c, trainHistory.map((h, i) => [i, h.accuracy * maxLoss]), COLORS.green);
+
+  // Right axis labels for accuracy
+  ctx.fillStyle = COLORS.green; ctx.font = '9px JetBrains Mono, monospace';
+  ctx.fillText('100%', cw - 45, c.pad.t + 4);
+  ctx.fillText('0%', cw - 45, c.pad.t + c.ph + 3);
+}
+
+function drawConfusion() {
+  const container = $('confMatrix');
+  container.innerHTML = '';
+  const last = trainHistory[trainHistory.length - 1];
+
+  const corner = document.createElement('div');
+  corner.className = 'cell'; corner.style.cssText = 'color:var(--mesa-dim);font-size:8px';
+  corner.textContent = 'T↓ P→'; container.appendChild(corner);
+  STATES.forEach((s, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.style.cssText = `color:${ST_COLORS[i]};font-size:9px;font-weight:600`;
+    cell.textContent = s.slice(0, 4); container.appendChild(cell);
+  });
+
+  STATES.forEach((s, i) => {
+    const label = document.createElement('div');
+    label.className = 'cell';
+    label.style.cssText = `color:${ST_COLORS[i]};font-size:9px;font-weight:600;text-align:right`;
+    label.textContent = s.slice(0, 4); container.appendChild(label);
+    for (let j = 0; j < 4; j++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell cell-val';
+      if (!last) {
+        cell.style.cssText = 'background:var(--mesa-surface-hover);color:var(--mesa-dim)';
+        cell.textContent = '—';
+      } else {
+        const maxVal = Math.max(1, ...last.confMat.flat());
+        const intensity = last.confMat[i][j] / maxVal;
+        const bg = i === j ? `rgba(52,211,153,${intensity * 0.5})` : `rgba(239,68,68,${intensity * 0.4})`;
+        cell.style.cssText = `background:${bg};color:var(--mesa-text)`;
+        cell.textContent = last.confMat[i][j];
+      }
+      container.appendChild(cell);
+    }
+  });
+}
+
+$('btnGenerate').onclick = generateEEG;
+$('btnTrain').onclick = trainModel;
+$('btnStop').onclick = () => { trainAbort = true; };
+
+// ════════════════════════════════════════════════════
+// TAB-AWARE REDRAW
+// ════════════════════════════════════════════════════
+state.on('_tab', (tab) => {
+  if (tab === 'bias') drawBias();
+  if (tab === 'norms') drawNorms();
+  if (tab === 'xent') drawXent();
+  if (tab === 'eeg') drawEEG();
+});
+
+window.addEventListener('resize', () => {
+  const tab = state.get('_tab') || 'bias';
+  state.set('_tab', tab);
+});
+
+// ── Initial draw ────────────────────────────────
+generateData();
+drawBias();
+drawConfusion();
+</script>
+</body>
+</html>
