@@ -3,7 +3,7 @@
  * Confusion matrix rendering for classification evaluation
  */
 
-import { argmax } from '../core/math-utils.js';
+import { argmax } from '/shared/math.js';
 
 /**
  * Compute confusion matrix

@@ -21,6 +21,12 @@
  *   dev.js            — Auto-reload during development (script tag, not ES module)
  *   help-panel.js     — Tabbed help web component
  *   info-sidebar.js   — Wikipedia search sidebar web component
+ *   nn.js             — Neural network primitives (create, forward, backward)
+ *   losses.js         — Loss functions (MSE, cross-entropy, L1/L2 penalties)
+ *   training.js       — Training loop orchestration
+ *   statistics.js     — Descriptive stats, confusion matrix, ROC, etc.
+ *   distributions.js  — PDF/CDF/quantile/sample for common distributions
+ *   complex.js        — Complex number arithmetic
  */
 
 // Math & data
@@ -45,3 +51,22 @@ export { Params } from './params.js';
 
 // Math rendering (async — use import() or direct import)
 export { loadKaTeX, renderMath, renderAllMath } from './math-renderer.js';
+
+// Neural networks & ML
+export { createNetwork, initWeights } from './nn.js';
+export { mse, crossEntropy, binaryCrossEntropy, l1Penalty, l2Penalty, huber } from './losses.js';
+export { createTrainer } from './training.js';
+
+// Statistics
+export { mean, variance, std, covariance, correlation,
+         covarianceMatrix, correlationMatrix,
+         confusionMatrix, accuracy, precision, recall, f1Score,
+         roc, gaussianPDF } from './statistics.js';
+
+// Distributions
+export { normal, exponential, uniform, beta, gamma, logNormal,
+         kde, erf, logGamma, betaFunction } from './distributions.js';
+
+// Complex arithmetic
+export { complexMul, complexAdd, complexSub, complexPow,
+         complexExp, complexMag, complexArg, complexConj, complexDiv } from './complex.js';

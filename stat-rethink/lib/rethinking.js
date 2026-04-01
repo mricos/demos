@@ -2,6 +2,13 @@
  * rethinking.js — Statistical Rethinking in JavaScript
  * Ported from R's rethinking package (Richard McElreath)
  * Provides: distributions, sampling, optimisation, quap, link, precis, DAG, KDE
+ *
+ * NOTE: Distribution primitives are also available as ES modules:
+ *   import { normal, exponential, kde } from '/shared/distributions.js';
+ *   import { mean, variance, correlation } from '/shared/statistics.js';
+ *
+ * For the full R.quap/link/precis API as ES modules, use:
+ *   import { dnorm, quap, precis } from './rethinking-es.js';
  */
 (function (global) {
   "use strict";

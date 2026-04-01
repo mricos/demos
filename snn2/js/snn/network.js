@@ -1,18 +1,23 @@
 /**
  * network.js
  * Neural network state and initialization for SNN demo
+ *
+ * Uses shared/nn.js for network creation and forward/backward passes.
+ * Maintains backward-compatible API (network.W1/b1/W2/b2, forwardSingle).
  */
 
-import { sigmoid, softmax } from '../core/math-utils.js';
+import { createNetwork } from '/shared/nn.js';
 
 /**
- * Network state object
+ * Network state — exposes W1/b1/W2/b2 as views into the shared network's layers.
+ * The _net property holds the shared network instance.
  */
 export const network = {
-  W1: null,  // Input to hidden weights
+  W1: null,  // Input to hidden weights (alias for _net.layers[0].W)
   b1: null,  // Hidden biases
   W2: null,  // Hidden to output weights
   b2: null,  // Output biases
+  _net: null, // Shared network instance
 };
 
 /**
@@ -22,57 +27,32 @@ export const network = {
  * @param {number} numOutput - Number of output neurons
  */
 export function initNetwork(numInput, numHidden, numOutput) {
-  network.W1 = new Array(numHidden);
-  network.b1 = new Array(numHidden);
-  network.W2 = new Array(numOutput);
-  network.b2 = new Array(numOutput);
-
-  for (let j = 0; j < numHidden; j++) {
-    network.W1[j] = new Array(numInput);
-    for (let i = 0; i < numInput; i++) {
-      network.W1[j][i] = (Math.random() - 0.5) * 0.5;
-    }
-    network.b1[j] = 0;
-  }
-
-  for (let k = 0; k < numOutput; k++) {
-    network.W2[k] = new Array(numHidden);
-    for (let j = 0; j < numHidden; j++) {
-      network.W2[k][j] = (Math.random() - 0.5) * 0.5;
-    }
-    network.b2[k] = 0;
-  }
+  const net = createNetwork([numInput, numHidden, numOutput], {
+    activation: 'sigmoid',
+    outputActivation: 'softmax',
+    initMethod: 'xavier',
+  });
+  network._net = net;
+  // Expose weight references for direct access (same underlying arrays)
+  network.W1 = net.layers[0].W;
+  network.b1 = net.layers[0].b;
+  network.W2 = net.layers[1].W;
+  network.b2 = net.layers[1].b;
 }
 
 /**
  * Forward pass through the network
  * @param {number[]} x - Input features
- * @param {number} numHidden - Number of hidden neurons
- * @param {number} numOutput - Number of output neurons
+ * @param {number} [numHidden] - (ignored, kept for API compat)
+ * @param {number} [numOutput] - (ignored, kept for API compat)
  * @returns {Object} { z1, h, z2, probs }
  */
 export function forwardSingle(x, numHidden, numOutput) {
-  const z1 = new Array(numHidden);
-  const h = new Array(numHidden);
-
-  for (let j = 0; j < numHidden; j++) {
-    let sum = network.b1[j];
-    for (let i = 0; i < x.length; i++) {
-      sum += network.W1[j][i] * x[i];
-    }
-    z1[j] = sum;
-    h[j] = sigmoid(sum);
-  }
-
-  const z2 = new Array(numOutput);
-  for (let k = 0; k < numOutput; k++) {
-    let sum = network.b2[k];
-    for (let j = 0; j < numHidden; j++) {
-      sum += network.W2[k][j] * h[j];
-    }
-    z2[k] = sum;
-  }
-
-  const probs = softmax(z2);
-  return { z1, h, z2, probs };
+  const { acts, pres } = network._net.forward(x);
+  return {
+    z1: pres[1],           // pre-activations of hidden layer
+    h: acts[1],            // hidden activations (sigmoid applied)
+    z2: pres[2],           // pre-activations of output layer
+    probs: acts[2],        // output probabilities (softmax applied)
+  };
 }

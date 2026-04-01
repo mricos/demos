@@ -1,8 +1,14 @@
 /**
  * statistics.js
- * Statistical computation utilities
- * Provides covariance, correlation, and distribution statistics
+ * Dataset-specific statistical utilities for the SNN demo.
+ * Generic stats (mean, variance, gaussianPDF, etc.) are in /shared/statistics.js.
+ *
+ * These functions operate on the demo's dataset format ({ features, class })
+ * and are kept local for that reason.
  */
+
+// Re-export gaussianPDF from shared for backward compatibility
+export { gaussianPDF } from '/shared/statistics.js';
 
 /**
  * Compute 2D covariance matrix for a specific class and feature dimensions
@@ -125,14 +131,4 @@ export function computeFeatureStats(data, classIdx, featureIdx) {
   return { mean, std };
 }
 
-/**
- * Gaussian probability density function
- * @param {number} x - Value to evaluate
- * @param {number} mu - Mean
- * @param {number} sigma - Standard deviation
- * @returns {number} PDF value
- */
-export function gaussianPDF(x, mu, sigma) {
-  const z = (x - mu) / sigma;
-  return Math.exp(-0.5 * z * z) / (sigma * Math.sqrt(2 * Math.PI));
-}
+// gaussianPDF is now re-exported from /shared/statistics.js (see top of file)

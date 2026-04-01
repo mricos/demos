@@ -10,7 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="../../charfun-base.js"></script>
+<script type="module" src="../../charfun-base.js"></script>
 
 <style>
 body{display:flex;justify-content:center;padding:40px 20px}
@@ -395,7 +395,7 @@ h1{font-size:20px;margin-bottom:4px;color:#ddd}
 </div>
 
 <script>
-(function(){
+document.addEventListener("DOMContentLoaded", function(){
   // ── Article data ────────────────────────────────────────────
   var articles = [
     {num:'001', title:'Probability Density Functions', file:'001_probability-density-functions.md'},
@@ -656,7 +656,7 @@ h1{font-size:20px;margin-bottom:4px;color:#ddd}
 
     content.scrollTop = 0;
   }
-})();
+});
 </script>
 
 </body>
