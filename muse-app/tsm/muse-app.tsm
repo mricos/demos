@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Generated from env.toml [local] - do not edit
+# Regenerate: tsm build local
+# Source: ./env.toml
+# Inheritance: local 
+
+TSM_NAME="muse-app"
+TSM_COMMAND="node index.js"
+TSM_PORT=3030
+TSM_CWD="/Users/mricos/src/muse-app/"
+TSM_DESCRIPTION="Muse EEG data acquisition via BrainFlow"
+
+# Environment variables
+export MUSE_APP_SRC="$HOME/src/muse-app"
+export MUSE_BOARD="MUSE_2_BOARD"
+export MUSE_POLL_INTERVAL="1000"
+export MUSE_SAMPLE_DURATION="5"
+export NODE_ENV="development"
+export PORT="3030"
+
