@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ising Model — Hopfield Energy Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────── -->
+<div class="hdr">
+  <div>
+    <h1>Ising Model &mdash; Hopfield Energy</h1>
+    <div class="sub">Interactive spin lattices, energy minimization &amp; the Hopfield analogy</div>
+  </div>
+  <div class="hdr-right">
+    <button class="btn btn-sm" id="btnCB" title="Color-blind mode">CB</button>
+    <button class="btn btn-sm" id="btnKbd" title="Keyboard shortcuts (?)">?</button>
+    <span style="font-size:10px;color:var(--td);font-family:'JetBrains Mono',monospace">Click any control for info &rarr;</span>
+  </div>
+</div>
+
+<!-- ── 3-column App ────────────────────────────── -->
+<div class="app">
+
+  <!-- LEFT: Controls -->
+  <div class="panel-left" id="panelLeft">
+    <div class="ph">Controls</div>
+
+    <div class="ctrl" data-help="ctrl-temp">
+      <label>Temperature (T): <span id="lblTemp">2.27</span></label>
+      <input type="range" id="sliderTemp" min="0.1" max="5" step="0.01" value="2.27">
+      <div class="ctrl-hint">T<sub>c</sub> &asymp; 2.269 (critical)</div>
+    </div>
+
+    <div class="ctrl" data-help="ctrl-size">
+      <label>Grid Size: <span id="lblSize">32</span></label>
+      <input type="range" id="sliderSize" min="8" max="64" step="8" value="32">
+    </div>
+
+    <div class="ctrl" data-help="ctrl-coupling">
+      <label>Coupling (J): <span id="lblJ">1.00</span></label>
+      <input type="range" id="sliderJ" min="-2" max="2" step="0.1" value="1">
+      <div class="ctrl-hint">J&gt;0 ferro, J&lt;0 antiferro</div>
+    </div>
+
+    <div class="ctrl" data-help="ctrl-speed">
+      <label>Speed: <span id="lblSpeed">1</span> sweeps/frame</label>
+      <input type="range" id="sliderSpeed" min="1" max="20" step="1" value="1">
+    </div>
+
+    <div class="ph" style="margin-top:12px">Simulation</div>
+    <div class="btn-row">
+      <button class="btn" id="btnRun" data-help="ctrl-run">&#9654; Run</button>
+      <button class="btn" id="btnStep" data-help="ctrl-step">Step</button>
+      <button class="btn" id="btnReset" data-help="ctrl-reset">Reset</button>
+    </div>
+
+    <div class="ph" style="margin-top:12px">Initial State</div>
+    <div class="btn-row">
+      <button class="btn" id="btnAllUp" data-help="ctrl-init">All Up</button>
+      <button class="btn" id="btnAllDn" data-help="ctrl-init">All Down</button>
+      <button class="btn" id="btnRand" data-help="ctrl-init">Random</button>
+    </div>
+
+    <div class="ph" style="margin-top:12px">Hopfield</div>
+    <div class="btn-row">
+      <button class="btn" id="btnStore" data-help="hop-store">Store</button>
+      <button class="btn" id="btnNoise" data-help="hop-noise">Noise</button>
+      <button class="btn" id="btnRecall" data-help="hop-recall">Recall</button>
+      <button class="btn" id="btnClearHop" data-help="hop-clear">Clear</button>
+    </div>
+    <div class="gallery-row">
+      <button class="btn btn-sm" data-pattern="L">L</button>
+      <button class="btn btn-sm" data-pattern="T">T</button>
+      <button class="btn btn-sm" data-pattern="X">X</button>
+      <button class="btn btn-sm" data-pattern="smiley">&#9786;</button>
+    </div>
+  </div>
+
+  <div class="drag-handle" id="dragLeft"></div>
+
+  <!-- CENTER: Visualization -->
+  <div class="main" id="mainCol">
+    <div class="tabs">
+      <button class="tab on" data-tab="lattice" data-help="tab-lattice">Lattice <span class="kbd">1</span></button>
+      <button class="tab" data-tab="energy" data-help="tab-energy">Energy <span class="kbd">2</span></button>
+      <button class="tab" data-tab="phase" data-help="tab-phase">Phase <span class="kbd">3</span></button>
+      <button class="tab" data-tab="hopfield" data-help="tab-hopfield">Hopfield <span class="kbd">4</span></button>
+    </div>
+
+    <!-- Lattice Tab -->
+    <div class="pane on" id="tab-lattice">
+      <div class="stats-row">
+        <div class="stat-box" data-help="stat-energy"><div class="stat-val" id="sEnergy">0</div><div class="stat-lbl">Energy</div></div>
+        <div class="stat-box" data-help="stat-mag"><div class="stat-val" id="sMag">0</div><div class="stat-lbl">Magnetization</div></div>
+        <div class="stat-box" data-help="stat-temp"><div class="stat-val" id="sTemp">2.27</div><div class="stat-lbl">Temperature</div></div>
+        <div class="stat-box" data-help="stat-sweep"><div class="stat-val" id="sSweep">0</div><div class="stat-lbl">Sweeps</div></div>
+      </div>
+      <div class="card">
+        <div class="grid-wrap">
+          <canvas id="latticeCanvas" data-help="tab-lattice"></canvas>
+        </div>
+        <div class="legend">
+          <span><div class="dot dot-grn"></div> Satisfied</span>
+          <span><div class="dot dot-red"></div> Unsatisfied</span>
+          <span><div class="dot dot-up"></div> +1 (up)</span>
+          <span><div class="dot dot-dn"></div> -1 (down)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Energy Tab -->
+    <div class="pane" id="tab-energy">
+      <div class="card">
+        <div class="card-title">Energy over Time</div>
+        <div class="card-sub">E = -&Sigma; J<sub>ij</sub> s<sub>i</sub> s<sub>j</sub></div>
+        <div class="chart-wrap"><canvas id="energyChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Magnetization over Time</div>
+        <div class="card-sub">M = (1/N) &Sigma; s<sub>i</sub></div>
+        <div class="chart-wrap"><canvas id="magChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Phase Diagram Tab -->
+    <div class="pane" id="tab-phase">
+      <div class="card">
+        <div class="card-title">Phase Transition</div>
+        <div class="card-sub">T<sub>c</sub> &asymp; 2.269 for 2D square lattice</div>
+        <div class="btn-row">
+          <button class="btn" id="btnSweep" data-help="ctrl-sweep">Run Temperature Sweep</button>
+        </div>
+        <div class="chart-wrap" style="height:200px"><canvas id="phaseChart"></canvas></div>
+        <div id="sweepStatus" style="font-size:10px;color:var(--td);font-family:'JetBrains Mono',monospace;margin-top:6px"></div>
+      </div>
+    </div>
+
+    <!-- Hopfield Tab -->
+    <div class="pane" id="tab-hopfield">
+      <div class="card">
+        <div class="card-title">Pattern Storage &amp; Recall</div>
+        <div class="card-sub">Draw/paint cells, then Store &rarr; Noise &rarr; Recall</div>
+        <div class="hop-stats" id="hopStats">Stored: <b>0</b> &nbsp; Energy: <b>0</b></div>
+        <div class="grid-wrap">
+          <div>
+            <div style="text-align:center;font-size:10px;color:var(--td);margin-bottom:3px;font-family:'JetBrains Mono',monospace">Input / Draw</div>
+            <canvas id="hopfieldCanvas" style="width:250px;height:250px" data-help="hop-draw"></canvas>
+          </div>
+          <div>
+            <div style="text-align:center;font-size:10px;color:var(--td);margin-bottom:3px;font-family:'JetBrains Mono',monospace">Recalled</div>
+            <canvas id="hopfieldOut" style="width:250px;height:250px"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Ising &harr; Hopfield</div>
+        <div class="eq" id="eqHamiltonian"></div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;color:var(--tm);margin-top:10px">
+          <tr style="border-bottom:1px solid var(--bd);font-weight:600">
+            <td style="padding:4px;color:var(--pur)">Hopfield</td>
+            <td style="padding:4px;color:var(--td);text-align:center">&harr;</td>
+            <td style="padding:4px;color:var(--grn)">Ising</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--bd)"><td style="padding:4px">neuron s<sub>i</sub></td><td style="padding:4px;color:var(--td);text-align:center">&harr;</td><td style="padding:4px">spin &sigma;<sub>i</sub></td></tr>
+          <tr style="border-bottom:1px solid var(--bd)"><td style="padding:4px">weights w<sub>ij</sub></td><td style="padding:4px;color:var(--td);text-align:center">&harr;</td><td style="padding:4px">couplings J<sub>ij</sub></td></tr>
+          <tr style="border-bottom:1px solid var(--bd)"><td style="padding:4px">bias b<sub>i</sub></td><td style="padding:4px;color:var(--td);text-align:center">&harr;</td><td style="padding:4px">external field H</td></tr>
+          <tr style="border-bottom:1px solid var(--bd)"><td style="padding:4px">memory (attractor)</td><td style="padding:4px;color:var(--td);text-align:center">&harr;</td><td style="padding:4px">ground state</td></tr>
+          <tr><td style="padding:4px">convergence</td><td style="padding:4px;color:var(--td);text-align:center">&harr;</td><td style="padding:4px">equilibrium</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="drag-handle" id="dragRight"></div>
+
+  <!-- RIGHT: Context-sensitive Info Panel -->
+  <div class="panel-right" id="panelRight">
+    <div class="help-crumb">
+      <span class="help-back" id="helpBack" style="visibility:hidden" title="Back">&larr;</span>
+      <span class="crumb-path" id="helpCrumb">Overview</span>
+    </div>
+    <div id="helpContent">
+
+      <!-- ═══ DEFAULT: Overview ═══ -->
+      <div class="help-topic on" id="help-overview">
+        <div class="ph">Overview</div>
+        <div class="eq" id="eqMain"></div>
+        <p>Imagine trying to remember a name at a party. Someone mentions a detail and suddenly the name clicks into place &mdash; the mind settling from a messy hint into a clear memory. A <strong>Hopfield network</strong> models exactly this.</p>
+        <p>At its center is a quantity called <strong>energy</strong> &mdash; not the energy that powers a light bulb, but a carefully engineered bookkeeping device. Think of it as a <em>score</em> or <em>altitude on a landscape</em> whose job is to guarantee the network&rsquo;s activity moves in a reliable direction.</p>
+        <p>The surprise is that it looks so much like real physical energy (the Ising Hamiltonian) that it&rsquo;s tempting to treat them as the same thing. The real insight is understanding why they&rsquo;re similar, why they&rsquo;re different, and why the resemblance is useful.</p>
+        <h4>This Demo</h4>
+        <p>The <strong>Lattice</strong> tab shows a 2D Ising model. The <strong>Hopfield</strong> tab lets you draw patterns, store them as memories, corrupt them, and watch the network recall. Click any control for detailed info.</p>
+        <h4>Keyboard Shortcuts</h4>
+        <p><kbd>Space</kbd> run/pause &middot; <kbd>S</kbd> step &middot; <kbd>R</kbd> reset &middot; <kbd>1-4</kbd> tabs &middot; <kbd>?</kbd> help</p>
+      </div>
+
+      <!-- ═══ CONTROLS ═══ -->
+      <div class="help-topic" id="help-ctrl-temp">
+        <div class="ph">Temperature (T)</div>
+        <div class="eq" id="eqBoltz"></div>
+        <p>Temperature controls the balance between <strong>order</strong> and <strong>exploration</strong>.</p>
+        <p>At <strong>low T</strong>, the system is greedy &mdash; almost never accepts a move that raises energy. Spins freeze into large ordered domains. At <strong>high T</strong>, thermal noise dominates and spins flip randomly.</p>
+        <p>The critical temperature <strong>T<sub>c</sub> &asymp; 2.269</strong> is the phase transition: below it, spontaneous magnetization; above, disorder.</p>
+        <h4>Physics Connection</h4>
+        <p>In Boltzmann machines, temperature is a control knob for exploration. High T lets the network escape shallow valleys; low T forces it to commit. This is <strong>simulated annealing</strong>.</p>
+        <h4>Try</h4>
+        <ul>
+          <li>T = 0.5 + Run &mdash; domains freeze</li>
+          <li>T = 4.0 &mdash; random static</li>
+          <li>T &asymp; 2.27 &mdash; critical fluctuations</li>
+        </ul>
+      </div>
+
+      <div class="help-topic" id="help-ctrl-size">
+        <div class="ph">Grid Size (N)</div>
+        <p>Sets the lattice to N&times;N spins. Larger grids show sharper phase transitions but run slower.</p>
+        <p>N=8: fluctuations dominate. N=64: clear domain walls, dramatic transition near T<sub>c</sub>.</p>
+        <h4>Finite-Size Effects</h4>
+        <p>The true phase transition only occurs in an infinite lattice. On finite grids, the transition is <em>rounded</em>. Larger N approaches the sharp ideal.</p>
+      </div>
+
+      <div class="help-topic" id="help-ctrl-coupling">
+        <div class="ph">Coupling Constant (J)</div>
+        <div class="eq" id="eqCoupling"></div>
+        <p>J is the connection strength between neighbors. It determines what the system <em>wants</em>.</p>
+        <p><strong>J &gt; 0 (ferro)</strong>: aligned neighbors lower E. System wants uniform regions.</p>
+        <p><strong>J &lt; 0 (antiferro)</strong>: opposite neighbors lower E. System wants a checkerboard.</p>
+        <p><strong>J = 0</strong>: no coupling. Spins independent.</p>
+        <h4>Hopfield Analogy</h4>
+        <p>In Hopfield, J<sub>ij</sub> &rarr; learned weights w<sub>ij</sub>. Positive = agree. Negative = disagree. The pattern of agreements encodes memory.</p>
+      </div>
+
+      <div class="help-topic" id="help-ctrl-speed">
+        <div class="ph">Speed (Sweeps/Frame)</div>
+        <p>Monte Carlo sweeps per animation frame. One sweep = N&sup2; random spin-flip attempts.</p>
+        <p>Low (1): watch domain dynamics. High (10-20): reach equilibrium quickly.</p>
+      </div>
+
+      <div class="help-topic" id="help-ctrl-run">
+        <div class="ph">Run / Pause <kbd>Space</kbd></div>
+        <p>Starts or pauses continuous Metropolis simulation. Each frame runs Speed sweeps.</p>
+        <p>The Metropolis-Hastings algorithm: pick random spin, compute &Delta;E, accept if &Delta;E &le; 0 or with probability exp(-&Delta;E/T).</p>
+      </div>
+
+      <div class="help-topic" id="help-ctrl-step">
+        <div class="ph">Step <kbd>S</kbd></div>
+        <p>One Monte Carlo sweep (N&sup2; flip attempts), then pause. Watch evolution step-by-step.</p>
+      </div>
+
+      <div class="help-topic" id="help-ctrl-reset">
+        <div class="ph">Reset <kbd>R</kbd></div>
+        <p>Stops simulation, re-randomizes lattice, clears history.</p>
+      </div>
+
+      <div class="help-topic" id="help-ctrl-init">
+        <div class="ph">Initial State</div>
+        <p><strong>All Up</strong>: every spin = +1. Minimum energy for J&gt;0.</p>
+        <p><strong>All Down</strong>: every spin = -1. Same energy (symmetry).</p>
+        <p><strong>Random</strong>: equal probability +1/-1. Maximally disordered.</p>
+        <h4>Why It Matters</h4>
+        <p>Ordered start at high T &rarr; watch <em>disordering</em>. Random start at low T &rarr; watch <em>ordering</em>, like Hopfield recalling from a noisy cue.</p>
+      </div>
+
+      <div class="help-topic" id="help-ctrl-sweep">
+        <div class="ph">Temperature Sweep</div>
+        <p>Automated experiment: T from 0.5 to 4.5, equilibrate (200 sweeps), measure |M| (100 sweeps). Now runs non-blocking with live chart updates.</p>
+        <p>Sharp drop near T<sub>c</sub> &asymp; 2.269 = <strong>second-order phase transition</strong>.</p>
+      </div>
+
+      <!-- ═══ STATS ═══ -->
+      <div class="help-topic" id="help-stat-energy">
+        <div class="ph">Energy (E/N&sup2;)</div>
+        <div class="eq" id="eqEnergyStat"></div>
+        <p>Energy <em>per spin</em>. Measures how well the network&rsquo;s &ldquo;desires&rdquo; are satisfied.</p>
+        <p>For J=1: min = -2.0 (perfect alignment), max = +2.0.</p>
+        <h4>Not &ldquo;Real&rdquo; Energy</h4>
+        <p>Hopfield energy doesn&rsquo;t power a toaster &mdash; it&rsquo;s a scoring function predicting where the system settles. Like a &ldquo;stress number&rdquo; for a group of friends.</p>
+      </div>
+
+      <div class="help-topic" id="help-stat-mag">
+        <div class="ph">Magnetization (M)</div>
+        <p>M = (1/N&sup2;) &Sigma; s<sub>i</sub>. Ranges -1 to +1. Near zero = disorder.</p>
+        <p>The <strong>order parameter</strong>. In Hopfield, it measures how strongly the network has committed to a memory.</p>
+      </div>
+
+      <div class="help-topic" id="help-stat-temp">
+        <div class="ph">Current Temperature</div>
+        <p>Mirrors the slider. T<sub>c</sub> = 2/ln(1+&radic;2) &asymp; 2.269, Onsager&rsquo;s exact result (1944).</p>
+      </div>
+
+      <div class="help-topic" id="help-stat-sweep">
+        <div class="ph">Sweep Count</div>
+        <p>Monte Carlo sweeps since reset. ~100 sweeps typically reaches equilibrium.</p>
+      </div>
+
+      <!-- ═══ TABS ═══ -->
+      <div class="help-topic" id="help-tab-lattice">
+        <div class="ph">Lattice Visualization</div>
+        <p><strong style="color:var(--spin-up)">Blue</strong> = +1 (up), <strong style="color:var(--spin-dn)">purple</strong> = -1 (down). Edges show satisfaction:</p>
+        <p><strong style="color:var(--edge-sat)">Satisfied</strong> = aligned, lowers E. <strong style="color:var(--edge-unsat)">Unsatisfied</strong> = anti-aligned, raises E.</p>
+        <p>Wrap-around edges are drawn at lattice boundaries (periodic boundary conditions).</p>
+        <h4>Click to Flip</h4>
+        <p>Click any spin to flip it manually. Watch edges change color &mdash; a direct view of &Delta;E.</p>
+        <h4>What to Watch</h4>
+        <ul>
+          <li><strong>Low T</strong>: large uniform domains, green interiors, red walls</li>
+          <li><strong>T &asymp; T<sub>c</sub></strong>: fractal-like clusters at all scales</li>
+          <li><strong>High T</strong>: random salt-and-pepper</li>
+        </ul>
+      </div>
+
+      <div class="help-topic" id="help-tab-energy">
+        <div class="ph">Energy &amp; Magnetization Charts</div>
+        <p>Time series over last 500 sweeps. Charts auto-resize with panel width.</p>
+        <h4>Patterns</h4>
+        <ul>
+          <li><strong>Smooth decay</strong>: relaxing to equilibrium</li>
+          <li><strong>Flat</strong>: equilibrium reached</li>
+          <li><strong>Large fluctuations</strong>: near T<sub>c</sub></li>
+          <li><strong>Noisy, no trend</strong>: high T exploration</li>
+        </ul>
+      </div>
+
+      <div class="help-topic" id="help-tab-phase">
+        <div class="ph">Phase Transition</div>
+        <p>|M| vs T. Sharp drop near T<sub>c</sub> = <strong>second-order phase transition</strong>.</p>
+        <p>Below T<sub>c</sub>: spontaneous symmetry breaking. Above T<sub>c</sub>: entropy wins.</p>
+        <p>Yellow dashed line = Onsager&rsquo;s T<sub>c</sub>. Try larger grids to sharpen the curve.</p>
+      </div>
+
+      <div class="help-topic" id="help-tab-hopfield">
+        <div class="ph">Hopfield Network</div>
+        <p>Memory isn&rsquo;t in a single neuron but <strong>in the connections</strong> &mdash; patterns reconstruct from partial cues. A <strong>synthetic magnet made of neuron-like bits</strong>.</p>
+        <h4>Energy Landscape</h4>
+        <p>Every on/off pattern = a location on a landscape. Updates go downhill. The final valley = the recalled memory. Energy measures <strong>internal consistency</strong>.</p>
+        <h4>Physics vs Hopfield</h4>
+        <p>Physical energy: conserved, measured in joules. Hopfield energy: a designed scoring function. Break symmetry and it may not exist. Yet the resemblance gives us powerful intuitions: landscapes, valleys, attractors.</p>
+        <h4>Spurious Memories</h4>
+        <p>Extra valleys form between stored patterns. Energy guarantees <em>settling</em>, not <em>perfection</em> &mdash; a local minimum, not the global one.</p>
+      </div>
+
+      <!-- ═══ HOPFIELD CONTROLS ═══ -->
+      <div class="help-topic" id="help-hop-draw">
+        <div class="ph">Drawing Patterns</div>
+        <p><strong>Click and drag</strong> to paint cells. Blue = +1, dark = -1. Or use the preset buttons: L, T, X, smiley.</p>
+        <p>Memories are spread across all connections. Your drawing defines the co-activation pattern that becomes a memory.</p>
+      </div>
+
+      <div class="help-topic" id="help-hop-store">
+        <div class="ph">Store (Hebbian Learning)</div>
+        <div class="eq" id="eqHebb"></div>
+        <p><strong>&ldquo;Cells that fire together wire together.&rdquo;</strong></p>
+        <p>Both on or both off &rarr; weight increases (agree). One on, one off &rarr; weight decreases (disagree). Each Store adds a valley to the energy landscape.</p>
+        <h4>Capacity</h4>
+        <p>10&times;10 grid stores ~<strong>14 patterns</strong> (0.14N). Beyond that: spurious states, blended memories.</p>
+      </div>
+
+      <div class="help-topic" id="help-hop-noise">
+        <div class="ph">Add Noise</div>
+        <p>Flips 30% of cells randomly &mdash; a <strong>partial cue</strong>. The noisy pattern is on the <em>slope</em> of a valley, not the bottom.</p>
+      </div>
+
+      <div class="help-topic" id="help-hop-recall">
+        <div class="ph">Recall (Animated)</div>
+        <p>Iterates asynchronously, one frame per iteration, so you can <strong>watch the pattern heal</strong>:</p>
+        <ol>
+          <li>h<sub>i</sub> = &Sigma;<sub>j</sub> w<sub>ij</sub> s<sub>j</sub></li>
+          <li>s<sub>i</sub> = sign(h<sub>i</sub>)</li>
+          <li>Repeat until stable</li>
+        </ol>
+        <p>Each step lowers energy. Guaranteed by symmetric weights (Lyapunov function). The network slides into the nearest valley.</p>
+        <h4>Analogy</h4>
+        <p>The update rule is gravity; energy is height. It doesn&rsquo;t power the network &mdash; it explains its direction.</p>
+      </div>
+
+      <div class="help-topic" id="help-hop-clear">
+        <div class="ph">Clear</div>
+        <p>Resets grid, erases all stored patterns and weights.</p>
+        <h4>Exercise</h4>
+        <ol>
+          <li>Click <strong>L</strong> preset &rarr; Store</li>
+          <li>Click <strong>T</strong> preset &rarr; Store</li>
+          <li>Click <strong>L</strong> again &rarr; Noise &rarr; Recall</li>
+          <li>Watch it recover the clean L</li>
+          <li>Store 3+ patterns and see when recall fails</li>
+        </ol>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── Keyboard Help Overlay ───────────────────── -->
+<div class="kbd-overlay" id="kbdOverlay">
+  <div class="kbd-box">
+    <h3>Keyboard Shortcuts</h3>
+    <table>
+      <tr><td><kbd>Space</kbd></td><td>Run / Pause simulation</td></tr>
+      <tr><td><kbd>S</kbd></td><td>Single step</td></tr>
+      <tr><td><kbd>R</kbd></td><td>Reset lattice</td></tr>
+      <tr><td><kbd>1</kbd></td><td>Lattice tab</td></tr>
+      <tr><td><kbd>2</kbd></td><td>Energy tab</td></tr>
+      <tr><td><kbd>3</kbd></td><td>Phase tab</td></tr>
+      <tr><td><kbd>4</kbd></td><td>Hopfield tab</td></tr>
+      <tr><td><kbd>?</kbd></td><td>Toggle this overlay</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Close overlay</td></tr>
+    </table>
+  </div>
+</div>
+
+<script type="module" src="help.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
