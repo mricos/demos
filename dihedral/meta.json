@@ -1,0 +1,8 @@
+{
+  "title": "Dihedral Groups",
+  "entry": "js/index.html",
+  "tags": ["geometry", "algebra"],
+  "section": 1,
+  "description": "Group theory symmetry operations and 3D rotations with WebGL.",
+  "sidebar": ["Dihedral_group", "Symmetry_group"]
+}

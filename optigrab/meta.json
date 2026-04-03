@@ -1,0 +1,8 @@
+{
+  "title": "Optimization Landscape",
+  "entry": "index.html",
+  "tags": ["ML", "optimization"],
+  "section": 4,
+  "description": "Gradient descent path visualization on loss surfaces.",
+  "sidebar": ["Gradient_descent", "Mathematical_optimization"]
+}

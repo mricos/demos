@@ -1,0 +1,8 @@
+{
+  "title": "Hilbert Curve",
+  "entry": "index.html",
+  "tags": ["geometry", "fractal"],
+  "section": 1,
+  "description": "Interactive space-filling Hilbert curve visualization.",
+  "sidebar": ["Hilbert_curve", "Space-filling_curve"]
+}

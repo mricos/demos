@@ -1,0 +1,8 @@
+{
+  "title": "Poincaré Disk",
+  "entry": "index.html",
+  "tags": ["geometry"],
+  "section": 1,
+  "description": "Hyperbolic geometry visualization on the Poincaré conformal disk model.",
+  "sidebar": ["Poincar%C3%A9_disk_model", "Hyperbolic_geometry"]
+}

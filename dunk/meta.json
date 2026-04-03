@@ -1,0 +1,8 @@
+{
+  "title": "Dunk — LED Calibrator",
+  "entry": "index.html",
+  "tags": ["hardware", "calibration"],
+  "section": 0,
+  "description": "LED array calibration with VMX8 device control, MIDI integration, spatial mapping.",
+  "sidebar": ["LED_display"]
+}

@@ -1,0 +1,8 @@
+{
+  "title": "Diffusion Generative Model",
+  "entry": "index.html",
+  "tags": ["ML", "generative"],
+  "section": 4,
+  "description": "Interactive diffusion process with custom proxy-based reactive state management.",
+  "sidebar": ["Diffusion_model", "Denoising_diffusion_probabilistic_model"]
+}

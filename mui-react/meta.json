@@ -1,0 +1,8 @@
+{
+  "title": "Material UI React",
+  "entry": "index.html",
+  "tags": ["framework"],
+  "section": 0,
+  "description": "React component framework integration with Material UI.",
+  "sidebar": ["React_(JavaScript_library)"]
+}

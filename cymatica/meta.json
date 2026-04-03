@@ -1,0 +1,8 @@
+{
+  "title": "Cymatica — Quadrascan Vector Art",
+  "entry": "index.html",
+  "tags": ["audio", "visualization"],
+  "section": 0,
+  "description": "CRT-aesthetic vector art with phosphor persistence, SVG filters, modular side panel UI.",
+  "sidebar": ["Cymatics", "Cathode-ray_tube"]
+}

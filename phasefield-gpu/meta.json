@@ -1,0 +1,8 @@
+{
+  "title": "Phase Field (GPU)",
+  "entry": "index.html",
+  "tags": ["physics", "WebGL", "simulation"],
+  "section": 3,
+  "description": "GPU-accelerated phase field via WebGL shaders with CPU fallback and virtual gamepad.",
+  "sidebar": ["Phase-field_model", "WebGL"]
+}

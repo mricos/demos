@@ -1,0 +1,8 @@
+{
+  "title": "Unit Circle",
+  "entry": "index.html",
+  "tags": ["geometry", "trigonometry"],
+  "section": 1,
+  "description": "Interactive unit circle with trigonometric function visualization.",
+  "sidebar": ["Unit_circle", "Trigonometric_functions"]
+}

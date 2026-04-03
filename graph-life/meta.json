@@ -1,0 +1,8 @@
+{
+  "title": "Graph Life",
+  "entry": "graph-life.html",
+  "tags": ["simulation", "cellular-automata"],
+  "section": 3,
+  "description": "Cellular automata on graph-based topologies.",
+  "sidebar": ["Cellular_automaton", "Conway%27s_Game_of_Life"]
+}

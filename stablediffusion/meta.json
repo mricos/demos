@@ -1,0 +1,8 @@
+{
+  "title": "Stable Diffusion Explorations",
+  "entry": "index-001.html",
+  "tags": ["ML", "generative"],
+  "section": 4,
+  "description": "Generative diffusion model output variations with cellular automata generator.",
+  "sidebar": ["Stable_Diffusion", "Diffusion_model"]
+}

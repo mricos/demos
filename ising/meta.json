@@ -1,0 +1,8 @@
+{
+  "title": "Ising Model & Hopfield Networks",
+  "entry": "index.html",
+  "tags": ["attractor", "neural-net", "physics"],
+  "section": 5,
+  "description": "Hopfield pattern storage and recall via Hebbian learning, energy minimization on spin lattices.",
+  "sidebar": ["Hopfield_network", "Ising_model", "Hebbian_theory"]
+}

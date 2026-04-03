@@ -1,0 +1,8 @@
+{
+  "title": "Ray Tracing",
+  "entry": "index.html",
+  "tags": ["graphics"],
+  "section": 0,
+  "description": "Ray tracing and light rendering visualization.",
+  "sidebar": ["Ray_tracing_(graphics)"]
+}

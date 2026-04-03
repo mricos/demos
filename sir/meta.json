@@ -1,0 +1,8 @@
+{
+  "title": "SIR Epidemic Model",
+  "entry": "sir.html",
+  "tags": ["simulation", "dynamics"],
+  "section": 3,
+  "description": "Susceptible-Infected-Recovered compartmental model simulation.",
+  "sidebar": ["Compartmental_models_in_epidemiology"]
+}

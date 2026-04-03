@@ -1,0 +1,8 @@
+{
+  "title": "EEG Lab",
+  "entry": "index.html",
+  "tags": ["signal", "neural-net"],
+  "section": 4,
+  "description": "EEG data acquisition and analysis workbench.",
+  "sidebar": ["Electroencephalography"]
+}

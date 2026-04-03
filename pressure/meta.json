@@ -1,0 +1,8 @@
+{
+  "title": "Pressure & Flow",
+  "entry": "index.html",
+  "tags": ["physics", "simulation"],
+  "section": 3,
+  "description": "Fluid dynamics pressure and flow field visualization.",
+  "sidebar": ["Fluid_dynamics", "Pressure"]
+}

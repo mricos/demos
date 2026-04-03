@@ -1,0 +1,8 @@
+{
+  "title": "Cell UI Framework",
+  "entry": "cell.html",
+  "tags": ["framework"],
+  "section": 0,
+  "description": "Redux-lite state management, tabs, FABs, terminal with CRT effects. Foundation for CUI apps.",
+  "sidebar": ["Redux_(JavaScript_library)", "Web_component"]
+}

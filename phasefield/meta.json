@@ -1,0 +1,8 @@
+{
+  "title": "Phase Field Simulation",
+  "entry": "index.html",
+  "tags": ["physics", "simulation"],
+  "section": 3,
+  "description": "Phase field PDE solver with canvas rendering, gamepad support, and multiple test modes.",
+  "sidebar": ["Phase-field_model", "Reaction%E2%80%93diffusion_system"]
+}

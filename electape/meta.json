@@ -1,0 +1,8 @@
+{
+  "title": "Electape — Cursive Stylizer",
+  "entry": "cursive-stylizer.html",
+  "tags": ["typography"],
+  "section": 0,
+  "description": "Cursive text rendering and typographic aesthetic tool.",
+  "sidebar": ["Cursive"]
+}

@@ -1,0 +1,8 @@
+{
+  "title": "Datastar",
+  "entry": "index.html",
+  "tags": ["framework", "data"],
+  "section": 0,
+  "description": "Declarative data binding and visualization framework.",
+  "sidebar": ["Data_binding"]
+}

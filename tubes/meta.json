@@ -1,0 +1,8 @@
+{
+  "title": "Tube Modeling",
+  "entry": "index.html",
+  "tags": ["geometry", "3D"],
+  "section": 1,
+  "description": "3D tube geometry visualization with WebGL support.",
+  "sidebar": ["Tube_(mathematics)"]
+}

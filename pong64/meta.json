@@ -1,0 +1,8 @@
+{
+  "title": "Pong 64",
+  "entry": "index.html",
+  "tags": ["game"],
+  "section": 0,
+  "description": "Canvas-based Pong with paddle physics and collision detection.",
+  "sidebar": ["Pong"]
+}

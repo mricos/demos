@@ -1,0 +1,8 @@
+{
+  "title": "Fingertips — Image & DFT",
+  "entry": "dft.html",
+  "tags": ["signal", "vision"],
+  "section": 1,
+  "description": "Image processing with OpenCV.js — DFT visualization, finger detection, grayscale transforms.",
+  "sidebar": ["Discrete_Fourier_transform", "OpenCV"]
+}

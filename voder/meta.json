@@ -1,0 +1,8 @@
+{
+  "title": "Voder — Voice Synthesis",
+  "entry": "index.html",
+  "tags": ["audio", "synthesis"],
+  "section": 0,
+  "description": "Voice synthesis with phoneme control, phase scrolling, and IPA keyboard.",
+  "sidebar": ["Voder", "Speech_synthesis"]
+}

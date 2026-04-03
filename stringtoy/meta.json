@@ -1,0 +1,8 @@
+{
+  "title": "String Simulation",
+  "entry": "stringtoy.1.html",
+  "tags": ["physics", "simulation"],
+  "section": 3,
+  "description": "Physical string vibration and wave dynamics simulation.",
+  "sidebar": ["Vibrating_string", "Wave_equation"]
+}

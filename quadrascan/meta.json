@@ -1,0 +1,8 @@
+{
+  "title": "Quadrascan",
+  "entry": "host.html",
+  "tags": ["visualization", "audio"],
+  "section": 0,
+  "description": "Quadrature vector rendering with CRT effects.",
+  "sidebar": ["Quadrature_phase"]
+}

@@ -1,0 +1,8 @@
+{
+  "title": "Bond Correlation Dashboard",
+  "entry": "correlation_dashboard.html",
+  "tags": ["finance", "data"],
+  "section": 0,
+  "description": "Financial correlation analysis and bond pricing dashboard.",
+  "sidebar": ["Bond_(finance)", "Correlation"]
+}

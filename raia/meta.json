@@ -1,0 +1,8 @@
+{
+  "title": "RAIA — Attention & NN Exploration",
+  "entry": "ann.1.html",
+  "tags": ["neural-net", "attention"],
+  "section": 4,
+  "description": "Iterative attention mechanism and neural network architecture visualizations.",
+  "sidebar": ["Attention_(machine_learning)", "Artificial_neural_network"]
+}
