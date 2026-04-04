@@ -1,0 +1,17 @@
+{
+  "name": "eeg-lab",
+  "version": "1.0.0",
+  "description": "EEG data acquisition lab — Muse 2, TGAM, Synthetic",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "start:tgam": "node index.js --tgam",
+    "start:synthetic": "node index.js --synthetic",
+    "start:relay": "node index.js --relay"
+  },
+  "dependencies": {
+    "brainflow": "^5.12.0",
+    "serialport": "^12.0.0",
+    "ws": "^8.16.0"
+  }
+}

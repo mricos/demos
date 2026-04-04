@@ -19,7 +19,7 @@ export { Bus, Store, bus, state } from './state.js';
 
 // Re-export visualization
 export {
-  COLORS, PALETTE, EEG_BAND_COLORS, STATE_COLORS,
+  TDS, COLORS, PALETTE, EEG_BAND_COLORS, STATE_COLORS, NODE_COLORS,
   setupCanvas, watchResize,
   coords, drawGrid, drawLine, drawFn, drawDots, drawBars,
   drawVLine, drawHLine, drawAnnotation, drawBands,

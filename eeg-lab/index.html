@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EEG Lab</title>
+<link rel="stylesheet" href="/mesa/mesa.css">
+<style>
+  /* ── Terrain Design Tokens (TDS) ────────────── */
+  :root {
+    --paper: #0a0a0a;
+    --paper-dark: #0a0a0a;
+    --paper-mid: #1a1a1a;
+    --paper-light: #2a2a2a;
+    --ink: #e0e0e0;
+    --ink-muted: #666;
+    --border: #333;
+    --one: #ff6b6b;
+    --two: #4ecdc4;
+    --three: #ffe66d;
+    --four: #6b5ce7;
+    --font-mono: 'SF Mono', 'Monaco', 'Consolas', monospace;
+
+    /* Bridge: mesa components expect dark-theme.css names */
+    --bg: var(--paper-dark);
+    --surface: var(--paper-mid);
+    --surface-hover: var(--paper-light);
+    --text: var(--ink);
+    --muted: var(--ink-muted);
+    --dim: var(--ink-muted);
+    --accent: var(--four);
+    --accent2: var(--two);
+    --accent3: var(--four);
+    --accent-glow: rgba(107,92,231,.15);
+    --red: var(--one);
+    --green: var(--two);
+    --yellow: var(--three);
+    --orange: #fb923c;
+    --purple: var(--four);
+    --blue: #4a9eff;
+    --radius: 2px;
+    --font-sans: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  }
+
+  /* ── Reset ──────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: var(--paper-dark);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  * { scrollbar-width: thin; scrollbar-color: var(--paper-mid) var(--paper-dark); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--paper-dark); }
+  ::-webkit-scrollbar-thumb { background: var(--paper-mid); border-radius: 2px; }
+  canvas { background: #000; display: block; width: 100%; border-radius: 2px; }
+
+  /* ── Layout ─────────────────────────────────── */
+  .app-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 12px; height: 24px;
+    background: var(--paper-mid); border-bottom: 1px solid var(--border);
+    font-size: 10px;
+  }
+  .app-header h1 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .app-header .subtitle { color: var(--ink-muted); }
+  .app-header .hdr-sep { color: var(--border); }
+  .app-header a { color: var(--two); text-decoration: none; }
+  .app-header a:hover { text-decoration: underline; }
+  .app-header .hdr-status { color: var(--two); }
+
+  .app-body { display: flex; height: calc(100vh - 24px); overflow: hidden; }
+
+  .side-left {
+    width: 240px; min-width: 160px; overflow-y: auto;
+    padding: 10px; border-right: 1px solid var(--border);
+    background: var(--paper-mid); flex-shrink: 0;
+  }
+  .side-right {
+    width: 280px; min-width: 160px; overflow-y: auto;
+    padding: 10px; border-left: 1px solid var(--border);
+    background: var(--paper-mid); flex-shrink: 0;
+  }
+  .main { flex: 1; overflow-y: auto; padding: 12px; background: var(--paper-dark); }
+
+  .ph {
+    font-size: 9px; color: var(--ink-muted);
+    text-transform: uppercase; letter-spacing: .5px;
+    margin-bottom: 6px; margin-top: 10px;
+  }
+  .ph:first-child { margin-top: 0; }
+
+  /* ── Waveforms ──────────────────────────────── */
+  .wave-row { display: flex; align-items: center; margin-bottom: 4px; }
+  .wave-label {
+    width: 44px; flex-shrink: 0;
+    font-size: 10px; color: var(--ink-muted);
+  }
+  .wave-row canvas { flex: 1; height: 72px; }
+
+  /* ── Band bars ──────────────────────────────── */
+  .band-container { display: flex; align-items: flex-end; gap: 6px; height: 140px; padding: 8px 0; }
+  .band-col { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; }
+  .band-bar { width: 100%; max-width: 48px; border-radius: 2px 2px 0 0; transition: height 0.15s; }
+  .band-name { font-size: 9px; color: var(--ink-muted); margin-top: 4px; text-align: center; }
+  .band-legend { display: flex; gap: 8px; font-size: 9px; color: var(--ink-muted); justify-content: center; margin: 4px 0; }
+  .band-legend span { display: flex; align-items: center; gap: 3px; }
+  .swatch { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+  /* ── Metrics ────────────────────────────────── */
+  .metric-big {
+    font-size: 42px; font-weight: 700;
+    text-align: center; line-height: 1;
+  }
+  .metric-big.attention { color: var(--three); }
+  .metric-big.meditation { color: var(--four); }
+
+  .signal-dot {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    margin-right: 6px; vertical-align: middle;
+  }
+
+  /* ── Card ────────────────────────────────────── */
+  .card {
+    background: var(--paper-mid); border: 1px solid var(--border);
+    border-radius: 3px; padding: 12px; margin-bottom: 10px;
+  }
+  .card-title {
+    font-size: 10px; font-weight: 600; margin-bottom: 8px; color: var(--two);
+    text-transform: uppercase; letter-spacing: .5px;
+  }
+
+  /* ── Help ────────────────────────────────────── */
+  .help h3 { font-size: 9px; color: var(--two); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .5px; }
+  .help p, .help li { font-size: 10px; color: var(--ink-muted); line-height: 1.5; }
+  .help ul { padding-left: 14px; margin-top: 4px; }
+
+  /* ── Buttons & Inputs ───────────────────────── */
+  .btn {
+    padding: 3px 10px; border-radius: 2px;
+    border: 1px solid var(--border); background: var(--paper-mid);
+    color: var(--ink); cursor: pointer; font-size: 10px; font-family: inherit;
+    transition: border-color .15s, color .15s;
+  }
+  .btn:hover { border-color: var(--four); color: var(--four); }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 4px;
+    background: var(--border); border-radius: 2px;
+    outline: none; cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px; border-radius: 2px;
+    background: var(--four); border: 2px solid var(--paper-dark); cursor: pointer;
+  }
+
+  /* ── Profile cards ──────────────────────────── */
+  .profile-card {
+    background: var(--paper-mid); border: 1px solid var(--border);
+    border-radius: 3px; padding: 8px 10px; margin-bottom: 6px;
+  }
+  .profile-card b { color: var(--ink); font-size: 11px; }
+  .ch-tag {
+    display: inline-block; background: var(--paper-dark); color: var(--two);
+    padding: 1px 5px; border-radius: 2px; margin-right: 3px; font-size: 9px;
+  }
+
+  @media (max-width: 900px) {
+    .app-body { flex-direction: column; height: auto; }
+    .side-left, .side-right { width: 100%; max-width: 100%; border: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <h1>EEG Lab</h1>
+  <span class="hdr-sep">|</span>
+  <span class="subtitle" id="subtitle">connecting...</span>
+  <span class="hdr-sep">|</span>
+  <a href="/" id="hdr-url"></a>
+  <span style="flex:1"></span>
+  <span class="hdr-status" id="hdr-conn">--</span>
+</div>
+
+<div class="app-body">
+  <!-- Left panel -->
+  <div class="side-left">
+    <div class="ph">Connection</div>
+    <mesa-status id="conn-status"></mesa-status>
+
+    <div class="ph">Display</div>
+    <mesa-slider bind="display.window" min="1" max="16" step="1" value="4" label="Window (s)"></mesa-slider>
+    <mesa-slider bind="display.scale" min="10" max="500" step="10" value="100" label="Scale (uV)"></mesa-slider>
+
+    <div class="ph">Signal</div>
+    <div style="font-size:10px; color:var(--ink-muted);">
+      <span class="signal-dot" id="signal-dot" style="background:var(--ink-muted)"></span>
+      <span id="signal-text">--</span>
+    </div>
+
+    <div class="ph">Remote</div>
+    <div style="display:flex; gap:4px; margin-bottom:4px;">
+      <input id="relay-url" placeholder="ws://host:port" style="flex:1; background:var(--paper-dark); color:var(--ink); border:1px solid var(--border); border-radius:2px; padding:3px 6px; font-family:var(--font-mono); font-size:10px;">
+      <button class="btn" id="relay-btn">Go</button>
+    </div>
+    <div id="relay-status" style="font-size:9px; color:var(--ink-muted);"></div>
+  </div>
+
+  <!-- Center -->
+  <div class="main">
+    <mesa-tabs active="waveform" id="main-tabs">
+      <mesa-tab name="waveform" key="1">Waveform</mesa-tab>
+      <mesa-tab name="bands" key="2">Bands</mesa-tab>
+      <mesa-tab name="metrics" key="3">Metrics</mesa-tab>
+    </mesa-tabs>
+
+    <mesa-pane tab="waveform">
+      <div id="waveforms"></div>
+    </mesa-pane>
+
+    <mesa-pane tab="bands">
+      <div class="card">
+        <div class="card-title">EEG Power Bands</div>
+        <div class="band-container" id="band-bars"></div>
+        <div class="band-legend" id="band-legend"></div>
+      </div>
+    </mesa-pane>
+
+    <mesa-pane tab="metrics">
+      <mesa-stats>
+        <mesa-stat bind="metrics.attention" label="Attention" fmt=".0f"></mesa-stat>
+        <mesa-stat bind="metrics.meditation" label="Meditation" fmt=".0f"></mesa-stat>
+        <mesa-stat bind="metrics.signal" label="Signal" fmt=".0f"></mesa-stat>
+      </mesa-stats>
+
+      <div style="display:flex; gap:24px; justify-content:center; padding:20px 0;">
+        <div>
+          <div class="ph" style="text-align:center">Attention</div>
+          <div class="metric-big attention" id="big-attention">--</div>
+        </div>
+        <div>
+          <div class="ph" style="text-align:center">Meditation</div>
+          <div class="metric-big meditation" id="big-meditation">--</div>
+        </div>
+      </div>
+    </mesa-pane>
+  </div>
+
+  <!-- Right panel -->
+  <div class="side-right">
+    <div class="help">
+      <h3>Device Info</h3>
+      <div id="device-info" style="font-size:10px; color:var(--ink-muted); line-height:1.8;">
+        Waiting for connection...
+      </div>
+
+      <h3 style="margin-top:12px">Profiles</h3>
+      <div class="profile-card">
+        <b>Muse 2</b>
+        <div style="font-size:10px; color:var(--ink-muted); margin-top:2px;">4ch EEG @ 256 Hz via BLE</div>
+        <div style="margin-top:4px;"><span class="ch-tag">TP9</span><span class="ch-tag">AF7</span><span class="ch-tag">AF8</span><span class="ch-tag">TP10</span></div>
+      </div>
+      <div class="profile-card">
+        <b>TGAM</b>
+        <div style="font-size:10px; color:var(--ink-muted); margin-top:2px;">1ch raw @ 512 Hz, 8 bands, attention/meditation</div>
+        <div style="margin-top:4px;"><span class="ch-tag">Raw</span></div>
+      </div>
+
+      <h3 style="margin-top:12px">TGAM Bands</h3>
+      <ul>
+        <li>Delta (0.5-2 Hz)</li>
+        <li>Theta (4-7 Hz)</li>
+        <li>Low/High Alpha (7-12 Hz)</li>
+        <li>Low/High Beta (12-30 Hz)</li>
+        <li>Low/Mid Gamma (30-50 Hz)</li>
+      </ul>
+
+      <h3 style="margin-top:12px">Keyboard</h3>
+      <p>1 = Waveform, 2 = Bands, 3 = Metrics</p>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { state, bus, setupCanvas, TDS, COLORS, PALETTE, EEG_BAND_COLORS } from '/mesa/mesa.js';
+
+// ── State defaults ─────────────────────────────────
+
+let channelCanvases = {};
+let channelBuffers = {};
+let bandBarEls = {};
+let deviceChannels = [];
+let deviceSamplingRate = 256;
+let deviceBands = [];
+
+state.set('display.window', 4);
+state.set('display.scale', 100);
+state.set('metrics.attention', 0);
+state.set('metrics.meditation', 0);
+state.set('metrics.signal', 0);
+
+// ── Waveforms ──────────────────────────────────────
+
+function buildWaveforms(channels) {
+    const container = document.getElementById('waveforms');
+    container.innerHTML = '';
+    channelCanvases = {};
+    channelBuffers = {};
+
+    channels.forEach((name) => {
+        channelBuffers[name] = [];
+        const row = document.createElement('div');
+        row.className = 'wave-row';
+        const label = document.createElement('div');
+        label.className = 'wave-label';
+        label.textContent = name;
+        const canvas = document.createElement('canvas');
+        canvas.style.height = '80px';
+        channelCanvases[name] = canvas;
+        row.appendChild(label);
+        row.appendChild(canvas);
+        container.appendChild(row);
+    });
+}
+
+function drawWaveforms() {
+    const windowSec = state.get('display.window');
+    const scale = state.get('display.scale');
+    const maxLen = deviceSamplingRate * windowSec;
+
+    Object.entries(channelCanvases).forEach(([name, canvas], idx) => {
+        const { ctx, w, h } = setupCanvas(canvas);
+        const buf = channelBuffers[name];
+        if (!buf) return;
+
+        ctx.fillStyle = TDS.paper;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.strokeStyle = TDS.border;
+        ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
+
+        if (buf.length < 2) return;
+
+        const color = PALETTE[idx % PALETTE.length];
+        const len = Math.min(buf.length, maxLen);
+        const start = buf.length - len;
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let i = 0; i < len; i++) {
+            const x = (i / (maxLen - 1)) * w;
+            const y = h / 2 - (buf[start + i] / scale) * (h / 2);
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    });
+}
+
+// ── Band bars ──────────────────────────────────────
+
+// Use PALETTE from mesa/viz.js (derived from TDS tokens)
+const BAND_COLORS = PALETTE;
+
+function buildBandBars(bands) {
+    const container = document.getElementById('band-bars');
+    const legend = document.getElementById('band-legend');
+    container.innerHTML = '';
+    legend.innerHTML = '';
+    bandBarEls = {};
+
+    bands.forEach((name, i) => {
+        const col = document.createElement('div');
+        col.className = 'band-col';
+        const bar = document.createElement('div');
+        bar.className = 'band-bar';
+        bar.style.background = BAND_COLORS[i % BAND_COLORS.length];
+        bar.style.height = '0%';
+        bandBarEls[name] = bar;
+        const label = document.createElement('div');
+        label.className = 'band-name';
+        label.textContent = name.replace(/([A-Z])/g, ' $1').trim();
+        col.appendChild(bar);
+        col.appendChild(label);
+        container.appendChild(col);
+
+        const span = document.createElement('span');
+        span.innerHTML = `<span class="swatch" style="background:${BAND_COLORS[i % BAND_COLORS.length]}"></span>${name}`;
+        legend.appendChild(span);
+    });
+}
+
+function updateBandBars(bands) {
+    if (!bands) return;
+    const maxPower = 15000;
+    Object.entries(bands).forEach(([name, power]) => {
+        if (bandBarEls[name]) {
+            bandBarEls[name].style.height = Math.min(100, (power / maxPower) * 100) + '%';
+        }
+    });
+}
+
+// ── Draw loop ──────────────────────────────────────
+
+function draw() {
+    drawWaveforms();
+    requestAnimationFrame(draw);
+}
+
+// ── WebSocket ──────────────────────────────────────
+
+function handleMessage(msg) {
+    if (msg.type === 'info') {
+        deviceSamplingRate = msg.samplingRate;
+        deviceChannels = msg.channels;
+        deviceBands = msg.bands || [];
+
+        document.getElementById('subtitle').textContent =
+            `${msg.board} | ${msg.samplingRate} Hz | ${msg.channels.join(', ')}`;
+
+        document.getElementById('device-info').innerHTML =
+            `Profile: ${msg.profile}<br>` +
+            `Board: ${msg.board}<br>` +
+            `Rate: ${msg.samplingRate} Hz<br>` +
+            `Channels: ${msg.channels.join(', ')}<br>` +
+            `Source: ${msg.sourceId}`;
+
+        buildWaveforms(msg.channels);
+        if (deviceBands.length) buildBandBars(deviceBands);
+
+        document.getElementById('conn-status').show(`${msg.board} connected`, 'ok');
+        return;
+    }
+
+    if (msg.type === 'eeg') {
+        const windowSec = state.get('display.window');
+        const maxLen = deviceSamplingRate * windowSec;
+        Object.entries(msg.data).forEach(([ch, samples]) => {
+            if (!channelBuffers[ch]) channelBuffers[ch] = [];
+            const buf = channelBuffers[ch];
+            for (let i = 0; i < samples.length; i++) buf.push(samples[i]);
+            if (buf.length > maxLen) channelBuffers[ch] = buf.slice(-maxLen);
+        });
+        return;
+    }
+
+    if (msg.type === 'metrics') {
+        state.batch({
+            'metrics.attention': msg.attention || 0,
+            'metrics.meditation': msg.meditation || 0,
+            'metrics.signal': msg.signal ?? 0,
+        });
+
+        document.getElementById('big-attention').textContent = msg.attention || '--';
+        document.getElementById('big-meditation').textContent = msg.meditation || '--';
+
+        const sig = msg.signal ?? 200;
+        const dot = document.getElementById('signal-dot');
+        const sigText = document.getElementById('signal-text');
+        if (sig === 0) {
+            dot.style.background = 'var(--two)';
+            sigText.textContent = 'Good (0)';
+        } else if (sig < 50) {
+            dot.style.background = 'var(--three)';
+            sigText.textContent = `Noisy (${sig})`;
+        } else {
+            dot.style.background = 'var(--one)';
+            sigText.textContent = sig >= 200 ? `Off head (${sig})` : `Poor (${sig})`;
+        }
+
+        updateBandBars(msg.bands);
+        return;
+    }
+
+    if (msg.type === 'source_leave') {
+        document.getElementById('conn-status').show('Source disconnected', 'err');
+    }
+}
+
+function connectLocal() {
+    const ws = new WebSocket(`ws://${location.host}`);
+    ws.onopen = () => {
+        document.getElementById('subtitle').textContent = 'connected';
+        document.getElementById('hdr-conn').textContent = 'Connected';
+        document.getElementById('hdr-url').textContent = location.href;
+        document.getElementById('hdr-url').href = location.href;
+    };
+    ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
+    ws.onclose = () => {
+        document.getElementById('subtitle').textContent = 'reconnecting...';
+        document.getElementById('hdr-conn').textContent = 'Disconnected';
+        document.getElementById('conn-status').show('Disconnected', 'err');
+        setTimeout(connectLocal, 2000);
+    };
+}
+
+document.getElementById('relay-btn').addEventListener('click', () => {
+    const url = document.getElementById('relay-url').value.trim();
+    if (!url) return;
+    const el = document.getElementById('relay-status');
+    el.textContent = 'Connecting...';
+    const ws = new WebSocket(url);
+    ws.onopen = () => { el.textContent = 'Connected'; };
+    ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
+    ws.onclose = () => { el.textContent = 'Disconnected'; };
+    ws.onerror = () => { el.textContent = 'Failed'; };
+});
+
+document.getElementById('hdr-url').textContent = location.origin;
+document.getElementById('hdr-url').href = location.origin;
+connectLocal();
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

@@ -3,23 +3,42 @@
  *
  * DPI-aware canvas setup, ResizeObserver integration,
  * reusable axes/gridlines, line/bar/scatter drawing helpers.
+ *
+ * All colors derive from Terrain Design System (TDS) tokens.
+ * Canvas 2D API can't read CSS vars, so we define the hex values
+ * here as the single source of truth for JS-side rendering.
+ * CSS-side tokens live in shared/dark-theme.css or inline :root.
  */
 
-// ── Color palettes ──────────────────────────────────
+// ── Terrain tokens (hex, for canvas use) ────────────
+export const TDS = {
+  paper:      '#0a0a0a',
+  paperMid:   '#1a1a1a',
+  paperLight: '#2a2a2a',
+  ink:        '#e0e0e0',
+  inkMuted:   '#666666',
+  border:     '#333333',
+  one:        '#ff6b6b',   // red — error, danger
+  two:        '#4ecdc4',   // teal — success, online
+  three:      '#ffe66d',   // yellow — warning
+  four:       '#6b5ce7',   // purple — accent, active
+};
+
+// ── Color palettes (derived from TDS) ───────────────
 export const COLORS = {
-  red:    '#ef4444',
+  red:    TDS.one,
   orange: '#fb923c',
-  yellow: '#fbbf24',
-  green:  '#34d399',
-  blue:   '#60a5fa',
-  purple: '#a78bfa',
-  cyan:   '#4af0c0',
-  white:  '#e2e8f0',
-  muted:  '#94a3b8',
-  dim:    '#64748b',
-  grid:   '#1e293b',
-  bg:     '#0a0f1a',
-  surface:'#111827',
+  yellow: TDS.three,
+  green:  TDS.two,
+  blue:   '#4a9eff',
+  purple: TDS.four,
+  cyan:   '#00ffaa',
+  white:  TDS.ink,
+  muted:  TDS.inkMuted,
+  dim:    TDS.inkMuted,
+  grid:   TDS.border,
+  bg:     TDS.paper,
+  surface:TDS.paperMid,
 };
 
 export const PALETTE = [
@@ -28,14 +47,23 @@ export const PALETTE = [
 ];
 
 export const EEG_BAND_COLORS = {
-  delta: '#ef4444',
+  delta: TDS.one,
   theta: '#fb923c',
-  alpha: '#fbbf24',
-  beta:  '#3b82f6',
-  gamma: '#a78bfa',
+  alpha: TDS.three,
+  beta:  '#4a9eff',
+  gamma: TDS.four,
 };
 
-export const STATE_COLORS = ['#34d399', '#60a5fa', '#fbbf24', '#ef4444'];
+export const STATE_COLORS = [TDS.two, '#4a9eff', TDS.three, TDS.one];
+
+// Node colors used by microsim, relay views, multi-source displays
+export const NODE_COLORS = {
+  A: TDS.one,      // red
+  B: TDS.two,      // teal
+  C: TDS.three,    // yellow
+  D: TDS.four,     // purple
+  NX: '#00ff88',   // nexus green
+};
 
 // ── Canvas setup ────────────────────────────────────
 
@@ -206,7 +234,7 @@ export function drawAnnotation(ctx, c, x, y, label, color = COLORS.yellow) {
   ctx.fillStyle = color;
   ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill();
   if (label) {
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = TDS.paper;
     ctx.font = 'bold 9px JetBrains Mono, monospace';
     ctx.textAlign = 'center';
     ctx.fillText(label, px, py + 3);
