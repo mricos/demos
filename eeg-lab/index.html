@@ -4,60 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EEG Lab</title>
+<link rel="stylesheet" href="/shared/terrain-mesa-bridge.css">
 <link rel="stylesheet" href="/mesa/mesa.css">
 <style>
-  /* ── Terrain Design Tokens (TDS) ────────────── */
-  :root {
-    --paper: #0a0a0a;
-    --paper-dark: #0a0a0a;
-    --paper-mid: #1a1a1a;
-    --paper-light: #2a2a2a;
-    --ink: #e0e0e0;
-    --ink-muted: #666;
-    --border: #333;
-    --one: #ff6b6b;
-    --two: #4ecdc4;
-    --three: #ffe66d;
-    --four: #6b5ce7;
-    --font-mono: 'SF Mono', 'Monaco', 'Consolas', monospace;
-
-    /* Bridge: mesa components expect dark-theme.css names */
-    --bg: var(--paper-dark);
-    --surface: var(--paper-mid);
-    --surface-hover: var(--paper-light);
-    --text: var(--ink);
-    --muted: var(--ink-muted);
-    --dim: var(--ink-muted);
-    --accent: var(--four);
-    --accent2: var(--two);
-    --accent3: var(--four);
-    --accent-glow: rgba(107,92,231,.15);
-    --red: var(--one);
-    --green: var(--two);
-    --yellow: var(--three);
-    --orange: #fb923c;
-    --purple: var(--four);
-    --blue: #4a9eff;
-    --radius: 2px;
-    --font-sans: -apple-system, 'Segoe UI', system-ui, sans-serif;
-  }
-
-  /* ── Reset ──────────────────────────────────── */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    min-height: 100vh;
-    background: var(--paper-dark);
-    color: var(--ink);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    line-height: 1.5;
-  }
-  * { scrollbar-width: thin; scrollbar-color: var(--paper-mid) var(--paper-dark); }
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: var(--paper-dark); }
-  ::-webkit-scrollbar-thumb { background: var(--paper-mid); border-radius: 2px; }
-  canvas { background: #000; display: block; width: 100%; border-radius: 2px; }
-
   /* ── Layout ─────────────────────────────────── */
   .app-header {
     display: flex; align-items: center; gap: 12px;

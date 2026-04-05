@@ -1,0 +1,89 @@
+/**
+ * terrain-mesa-bridge.css — Maps Terrain TDS tokens to dark-theme.css
+ * variable names so mesa components render correctly with Terrain's palette.
+ *
+ * Usage:
+ *   <link rel="stylesheet" href="/shared/terrain-mesa-bridge.css">
+ *   <link rel="stylesheet" href="/mesa/mesa.css">
+ *
+ * Terrain tokens (--paper-*, --ink-*, --one/two/three/four) are the
+ * source of truth. This file bridges them to the --bg, --surface,
+ * --accent, --text, --muted, --dim names that mesa.css expects.
+ *
+ * If no Terrain tokens are defined (:root doesn't set --paper-dark etc.),
+ * the fallback values here provide reasonable defaults.
+ */
+
+:root {
+  /* ── Terrain Design Tokens (TDS) ────────────── */
+  --paper: #0a0a0a;
+  --paper-dark: #0a0a0a;
+  --paper-mid: #1a1a1a;
+  --paper-light: #2a2a2a;
+  --ink: #e0e0e0;
+  --ink-muted: #666;
+  --border: #333;
+  --one: #ff6b6b;
+  --two: #4ecdc4;
+  --three: #ffe66d;
+  --four: #6b5ce7;
+  --font-mono: 'SF Mono', 'Monaco', 'Consolas', monospace;
+
+  /* ── Bridge: mesa/dark-theme names → TDS tokens ── */
+  --bg: var(--paper-dark);
+  --surface: var(--paper-mid);
+  --surface-hover: var(--paper-light);
+  --surface-raised: var(--paper-light);
+  --text: var(--ink);
+  --muted: var(--ink-muted);
+  --dim: var(--ink-muted);
+  --accent: var(--four);
+  --accent2: var(--two);
+  --accent3: var(--four);
+  --accent-glow: rgba(107,92,231,.15);
+  --red: var(--one);
+  --green: var(--two);
+  --yellow: var(--three);
+  --orange: #fb923c;
+  --purple: var(--four);
+  --blue: #4a9eff;
+  --radius: 2px;
+  --font-sans: -apple-system, 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ── Reset ──────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  min-height: 100vh;
+  background: var(--paper-dark);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+}
+* { scrollbar-width: thin; scrollbar-color: var(--paper-mid) var(--paper-dark); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--paper-dark); }
+::-webkit-scrollbar-thumb { background: var(--paper-mid); border-radius: 2px; }
+canvas { background: #000; display: block; width: 100%; border-radius: 2px; }
+
+/* ── Buttons ────────────────────────────────── */
+.btn {
+  padding: 3px 10px; border-radius: 2px;
+  border: 1px solid var(--border); background: var(--paper-mid);
+  color: var(--ink); cursor: pointer; font-size: 10px; font-family: inherit;
+  transition: border-color .15s, color .15s;
+}
+.btn:hover { border-color: var(--four); color: var(--four); }
+
+/* ── Sliders ────────────────────────────────── */
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 4px;
+  background: var(--border); border-radius: 2px;
+  outline: none; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px; border-radius: 2px;
+  background: var(--four); border: 2px solid var(--paper-dark); cursor: pointer;
+}

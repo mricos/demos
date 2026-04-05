@@ -5,9 +5,10 @@
  * reusable axes/gridlines, line/bar/scatter drawing helpers.
  *
  * All colors derive from Terrain Design System (TDS) tokens.
- * Canvas 2D API can't read CSS vars, so we define the hex values
- * here as the single source of truth for JS-side rendering.
- * CSS-side tokens live in shared/dark-theme.css or inline :root.
+ * Canonical values: tetra/dashboard/js/tds-tokens.json
+ * Dashboard counterpart: tetra/dashboard/js/tds-colors.js (classic scripts)
+ * Canvas 2D API can't read CSS vars, so hex values are duplicated here.
+ * CSS-side bridge: shared/terrain-mesa-bridge.css
  */
 
 // ── Terrain tokens (hex, for canvas use) ────────────
