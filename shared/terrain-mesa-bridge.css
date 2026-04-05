@@ -16,6 +16,7 @@
 
 :root {
   /* ── Terrain Design Tokens (TDS) ────────────── */
+  /* Canonical source: tetra/dashboard/js/tds-tokens.json */
   --paper: #0a0a0a;
   --paper-dark: #0a0a0a;
   --paper-mid: #1a1a1a;
