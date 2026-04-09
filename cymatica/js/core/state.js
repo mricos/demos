@@ -82,8 +82,12 @@
         ]
     };
 
+    // Fallback for undefined characters: simple square
+    const FALLBACK_PATH = ['M 15 15 L 85 15 L 85 85 L 15 85 L 15 15'];
+
     // Expose letter paths
     CYMATICA.LETTER_PATHS = LETTER_PATHS;
+    CYMATICA.FALLBACK_PATH = FALLBACK_PATH;
 
     // Default state values
     const defaultState = {

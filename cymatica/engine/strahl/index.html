@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Beam — Vector Beam Engine</title>
+    <style>
+        :root {
+            --font-mono: 'SF Mono', 'Monaco', 'Fira Code', 'Consolas', monospace;
+            --font-size-xs: 0.8rem;
+            --font-size-sm: 0.85rem;
+            --space-1: 0.25rem;
+            --space-2: 0.5rem;
+            --space-3: 0.75rem;
+            --space-4: 1rem;
+            --bg-primary: #0a0a12;
+            --bg-secondary: #12121e;
+            --bg-tertiary: #080810;
+            --bg-hover: rgba(0, 212, 255, 0.05);
+            --text-title: #eaeaea;
+            --text-primary: #c0c0d0;
+            --text-secondary: #8a8aa0;
+            --accent-primary: #00d4ff;
+            --accent-secondary: #ff00aa;
+            --border: #1a1a2e;
+            --border-subtle: #151528;
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg-primary); overflow: hidden; font-family: var(--font-mono); color: var(--text-primary); }
+
+        #app { width: 100vw; height: 100vh; display: flex; }
+        #viewport { flex: 1; position: relative; overflow: hidden; background: radial-gradient(ellipse at center, #0a0a1a 0%, #000008 100%); }
+        svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        #stats {
+            position: absolute; bottom: 10px; left: 10px;
+            color: var(--accent-primary); font-size: 11px; opacity: 0.6;
+        }
+
+        /* Side Panel — matches original cymatica/index.html */
+        #side-panel {
+            width: 320px;
+            min-width: 320px;
+            height: 100vh;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            transition: margin-right 0.3s cubic-bezier(0, 0, 0.2, 1);
+        }
+        #side-panel.hidden { margin-right: -320px; }
+
+        #panel-toggle {
+            position: absolute;
+            right: 320px;
+            top: var(--space-3);
+            width: 40px; height: 40px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-right: none;
+            border-radius: 6px 0 0 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+            z-index: 10;
+            transition: all 0.2s;
+        }
+        #panel-toggle:hover { background: var(--bg-hover); color: var(--accent-primary); }
+        #side-panel.hidden ~ #panel-toggle,
+        #side-panel.hidden + #panel-toggle { right: 0; }
+
+        .panel-header {
+            background: var(--bg-tertiary);
+            padding: var(--space-3) var(--space-4);
+            border-bottom: 1px solid var(--border);
+        }
+        .panel-header h1 {
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            color: var(--accent-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .panel-menu {
+            display: flex; gap: 8px;
+            padding: var(--space-2) var(--space-3);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+        .menu-btn {
+            padding: var(--space-1) var(--space-2);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .menu-btn:hover { background: var(--bg-primary); color: var(--accent-primary); border-color: var(--accent-primary); }
+        .menu-btn.active { background: var(--accent-primary); color: var(--bg-primary); border-color: var(--accent-primary); }
+
+        .panel-content { padding: var(--space-3); flex: 1; }
+
+        /* Control Sections (collapsible) */
+        .control-section { margin-bottom: var(--space-4); }
+        .section-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: var(--space-2) var(--space-3);
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: var(--space-2);
+            border: 1px solid var(--border-subtle);
+        }
+        .section-header:hover { border-color: var(--accent-primary); }
+        .section-header h3 {
+            font-size: var(--font-size-xs); font-weight: 600;
+            color: var(--text-title); text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .section-toggle { font-size: 10px; color: var(--text-secondary); transition: transform 0.1s; }
+        .section-header.collapsed .section-toggle { transform: rotate(-90deg); }
+        .section-content { padding: 0 var(--space-2); }
+        .section-header.collapsed + .section-content { display: none; }
+
+        /* Control Groups */
+        .control-group { margin-bottom: var(--space-3); }
+        .control-group label {
+            display: block; font-size: var(--font-size-xs);
+            color: var(--text-secondary); margin-bottom: var(--space-1);
+            text-transform: uppercase; letter-spacing: 0.03em;
+        }
+        .control-row { display: flex; align-items: center; gap: var(--space-2); }
+
+        input[type="range"] {
+            flex: 1; height: 4px;
+            -webkit-appearance: none; appearance: none;
+            background: var(--border); border-radius: 2px; outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px; height: 14px;
+            background: var(--accent-primary); border-radius: 50%;
+            cursor: pointer; border: 2px solid var(--bg-primary);
+        }
+        .value-display {
+            min-width: 40px; font-size: var(--font-size-xs);
+            font-family: var(--font-mono); color: var(--accent-primary); text-align: right;
+        }
+        input[type="color"] {
+            width: 32px; height: 24px;
+            border: 1px solid var(--border); border-radius: 2px;
+            cursor: pointer; background: transparent; padding: 0;
+        }
+
+        /* Toggle switches */
+        .toggle-wrapper { display: flex; align-items: center; justify-content: space-between; }
+        .toggle {
+            width: 36px; height: 18px;
+            background: var(--border); border-radius: 9px;
+            cursor: pointer; position: relative; transition: background 0.2s;
+        }
+        .toggle::after {
+            content: ''; position: absolute; top: 2px; left: 2px;
+            width: 14px; height: 14px; background: var(--text-secondary);
+            border-radius: 50%; transition: all 0.2s;
+        }
+        .toggle.active { background: var(--accent-primary); }
+        .toggle.active::after { left: 20px; background: var(--bg-primary); }
+
+        /* Preset grid */
+        .preset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+        .preset-btn {
+            padding: var(--space-2);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            font-size: var(--font-size-xs);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .preset-btn:hover { border-color: var(--accent-primary); color: var(--accent-primary); background: var(--bg-hover); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4a4a6a; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="viewport">
+            <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <filter id="glow-soft" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="2" result="blur"/>
+                        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <filter id="glow-medium" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="4" result="blur"/>
+                        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <filter id="glow-intense" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="8" result="blur1"/>
+                        <feGaussianBlur stdDeviation="3" result="blur2"/>
+                        <feMerge><feMergeNode in="blur1"/><feMergeNode in="blur2"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                </defs>
+                <g id="render-group"></g>
+            </svg>
+            <div id="stats"></div>
+        </div>
+
+        <div id="side-panel">
+            <div class="panel-header">
+                <h1>Beam Engine</h1>
+            </div>
+
+            <div class="panel-menu">
+                <button class="menu-btn" id="btn-collapse-all" title="Collapse All">&#9660;</button>
+                <button class="menu-btn" id="btn-expand-all" title="Expand All">&#9650;</button>
+                <button class="menu-btn" id="btn-play-pause" title="Play/Pause">&#9654;</button>
+                <button class="menu-btn" id="btn-reset" title="Reset View">&#8634;</button>
+            </div>
+
+            <div class="panel-content">
+                <!-- Text -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>Text</h3>
+                        <span class="section-toggle">&#9660;</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <label>Display Text</label>
+                            <div class="control-row">
+                                <input type="text" id="text-input" value="STRAHL" style="
+                                    flex:1; padding:var(--space-2); background:var(--bg-tertiary);
+                                    border:1px solid var(--border); color:var(--accent-primary);
+                                    border-radius:4px; font-family:var(--font-mono); font-size:var(--font-size-sm);
+                                    text-transform:uppercase; letter-spacing:0.1em;
+                                ">
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Letter Spacing</label>
+                            <div class="control-row">
+                                <input type="range" id="letter-spacing" min="40" max="200" step="5" value="110">
+                                <span class="value-display" id="letter-spacing-val">110</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Letter Scale</label>
+                            <div class="control-row">
+                                <input type="range" id="letter-scale" min="0.3" max="3" step="0.1" value="1">
+                                <span class="value-display" id="letter-scale-val">1.0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Animation -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>Animation</h3>
+                        <span class="section-toggle">&#9660;</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <div class="toggle-wrapper">
+                                <label>Play Animation</label>
+                                <div class="toggle active" id="toggle-animation"></div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Speed</label>
+                            <div class="control-row">
+                                <input type="range" id="anim-speed" min="0.1" max="5" step="0.1" value="1">
+                                <span class="value-display" id="anim-speed-val">1.0x</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Rotation X</label>
+                            <div class="control-row">
+                                <input type="range" id="rot-x-speed" min="-50" max="50" step="1" value="5">
+                                <span class="value-display" id="rot-x-val">5</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Rotation Y</label>
+                            <div class="control-row">
+                                <input type="range" id="rot-y-speed" min="-50" max="50" step="1" value="15">
+                                <span class="value-display" id="rot-y-val">15</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Rotation Z</label>
+                            <div class="control-row">
+                                <input type="range" id="rot-z-speed" min="-50" max="50" step="1" value="0">
+                                <span class="value-display" id="rot-z-val">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quadrascan Rendering -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>Quadrascan</h3>
+                        <span class="section-toggle">&#9660;</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <label>Concentric Layers</label>
+                            <div class="control-row">
+                                <input type="range" id="concentric-count" min="1" max="12" step="1" value="4">
+                                <span class="value-display" id="concentric-val">4</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Layer Offset</label>
+                            <div class="control-row">
+                                <input type="range" id="layer-offset" min="0.5" max="8" step="0.5" value="2">
+                                <span class="value-display" id="offset-val">2</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Stroke Width</label>
+                            <div class="control-row">
+                                <input type="range" id="stroke-width" min="0.5" max="6" step="0.25" value="1.5">
+                                <span class="value-display" id="stroke-val">1.5</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Glow Intensity</label>
+                            <div class="control-row">
+                                <input type="range" id="glow-intensity" min="0" max="100" step="5" value="60">
+                                <span class="value-display" id="glow-val">60</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Colors</label>
+                            <div class="control-row">
+                                <input type="color" id="color-primary" value="#00ffff">
+                                <input type="color" id="color-secondary" value="#ff00aa">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Perspective -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>Perspective</h3>
+                        <span class="section-toggle">&#9660;</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <label>FOV</label>
+                            <div class="control-row">
+                                <input type="range" id="fov" min="400" max="2000" step="50" value="1000">
+                                <span class="value-display" id="fov-val">1000</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Camera Z</label>
+                            <div class="control-row">
+                                <input type="range" id="cam-z" min="200" max="1500" step="50" value="600">
+                                <span class="value-display" id="cam-z-val">600</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Zoom</label>
+                            <div class="control-row">
+                                <input type="range" id="zoom" min="0.1" max="2" step="0.01" value="0.5">
+                                <span class="value-display" id="zoom-val">0.50</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Pan X</label>
+                            <div class="control-row">
+                                <input type="range" id="pan-x" min="-500" max="500" step="5" value="0">
+                                <span class="value-display" id="pan-x-val">0</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Pan Y</label>
+                            <div class="control-row">
+                                <input type="range" id="pan-y" min="-500" max="500" step="5" value="0">
+                                <span class="value-display" id="pan-y-val">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LFO Modulation -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>LFO — Spin</h3>
+                        <span class="section-toggle">&#9660;</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <label>Frequency</label>
+                            <div class="control-row">
+                                <input type="range" id="lfo-spin-freq" min="0.01" max="2" step="0.01" value="0.15">
+                                <span class="value-display" id="lfo-spin-freq-val">0.15</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Amplitude</label>
+                            <div class="control-row">
+                                <input type="range" id="lfo-spin-amp" min="0" max="2" step="0.05" value="1.0">
+                                <span class="value-display" id="lfo-spin-amp-val">1.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>LFO — Breathe</h3>
+                        <span class="section-toggle">&#9660;</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <label>Frequency</label>
+                            <div class="control-row">
+                                <input type="range" id="lfo-breathe-freq" min="0.01" max="2" step="0.01" value="0.3">
+                                <span class="value-display" id="lfo-breathe-freq-val">0.30</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Amplitude</label>
+                            <div class="control-row">
+                                <input type="range" id="lfo-breathe-amp" min="0" max="2" step="0.05" value="0.6">
+                                <span class="value-display" id="lfo-breathe-amp-val">0.60</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Presets -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>Presets</h3>
+                        <span class="section-toggle">&#9660;</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="preset-grid">
+                            <button class="preset-btn" data-preset="tempest">Tempest</button>
+                            <button class="preset-btn" data-preset="battlezone">Battlezone</button>
+                            <button class="preset-btn" data-preset="starwars">Star Wars</button>
+                            <button class="preset-btn" data-preset="asteroids">Asteroids</button>
+                            <button class="preset-btn" data-preset="neon">Neon Nights</button>
+                            <button class="preset-btn" data-preset="arcade">Arcade</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button id="panel-toggle">&#9664;</button>
+    </div>
+
+    <!-- Engine (load order matters) -->
+    <script src="strahl.js"></script>
+    <script src="math3d.js"></script>
+    <script src="events.js"></script>
+    <script src="state.js"></script>
+    <script src="scene.js"></script>
+    <script src="mod/mapper.js"></script>
+    <script src="mod/lfo.js"></script>
+    <script src="mod/asr.js"></script>
+    <script src="mod/hub.js"></script>
+    <script src="renderer-svg.js"></script>
+    <script src="loop.js"></script>
+
+    <script>
+    // ==========================================
+    // BEAM DEMO — Spinning "STRAHL" text
+    // ==========================================
+
+    // Letter path definitions (vector font — dual-stroke for depth)
+    const LETTERS = {
+        A: ['M 5 100 L 50 5 L 95 100', 'M 22 70 L 78 70', 'M 20 85 L 50 20 L 80 85', 'M 30 80 L 70 80'],
+        B: ['M 15 100 L 15 5 L 65 5 Q 88 5 88 27 Q 88 48 65 50 L 15 50 L 70 50 Q 92 50 92 75 Q 92 100 65 100 Z',
+            'M 25 15 L 60 15 Q 78 15 78 27 Q 78 40 60 42 L 25 42 L 62 58 Q 82 58 82 75 Q 82 90 62 90 L 25 90'],
+        C: ['M 85 25 Q 85 5 50 5 Q 15 5 15 50 Q 15 95 50 100 Q 85 100 85 80',
+            'M 75 20 Q 75 15 50 15 Q 28 15 25 50 Q 28 90 50 90 Q 75 90 75 82'],
+        D: ['M 15 100 L 15 5 L 55 5 Q 90 5 90 50 Q 90 100 55 100 Z',
+            'M 25 15 L 55 15 Q 78 15 78 50 Q 78 90 55 90 L 25 90'],
+        E: ['M 85 5 L 15 5 L 15 100 L 85 100', 'M 15 52 L 70 52', 'M 75 15 L 25 15 L 25 90 L 75 90', 'M 25 52 L 60 52'],
+        F: ['M 85 5 L 15 5 L 15 100', 'M 15 52 L 70 52', 'M 75 15 L 25 15 L 25 90', 'M 25 52 L 60 52'],
+        G: ['M 85 25 Q 85 5 50 5 Q 15 5 15 50 Q 15 95 50 100 Q 85 100 85 60 L 55 60',
+            'M 75 20 Q 75 15 50 15 Q 28 15 25 50 Q 28 90 50 90 Q 75 90 75 65 L 60 65'],
+        H: ['M 15 5 L 15 100', 'M 85 5 L 85 100', 'M 15 52 L 85 52',
+            'M 25 15 L 25 90', 'M 75 15 L 75 90', 'M 25 52 L 75 52'],
+        I: ['M 30 5 L 70 5', 'M 50 5 L 50 100', 'M 30 100 L 70 100',
+            'M 35 15 L 65 15', 'M 50 15 L 50 90', 'M 35 90 L 65 90'],
+        J: ['M 30 5 L 80 5', 'M 65 5 L 65 80 Q 65 100 45 100 Q 20 100 20 80',
+            'M 40 15 L 70 15', 'M 55 15 L 55 78 Q 55 90 45 90 Q 30 90 30 80'],
+        K: ['M 15 5 L 15 100', 'M 85 5 L 15 55 L 85 100',
+            'M 25 15 L 25 90', 'M 75 15 L 25 52 L 75 90'],
+        L: ['M 15 5 L 15 100 L 90 100', 'M 25 15 L 25 90 L 80 90'],
+        M: ['M 10 100 L 10 5 L 50 55 L 90 5 L 90 100',
+            'M 20 90 L 20 15 L 50 50 L 80 15 L 80 90'],
+        N: ['M 15 100 L 15 5 L 85 100 L 85 5',
+            'M 25 90 L 25 20 L 75 90 L 75 15'],
+        O: ['M 50 5 Q 15 5 15 50 Q 15 100 50 100 Q 85 100 85 50 Q 85 5 50 5',
+            'M 50 15 Q 28 15 25 50 Q 28 90 50 90 Q 72 90 75 50 Q 72 15 50 15'],
+        P: ['M 15 100 L 15 5 L 65 5 Q 90 5 90 30 Q 90 52 65 55 L 15 55',
+            'M 25 90 L 25 15 L 60 15 Q 78 15 78 30 Q 78 45 60 48 L 25 48'],
+        Q: ['M 50 5 Q 15 5 15 50 Q 15 100 50 100 Q 85 100 85 50 Q 85 5 50 5', 'M 60 75 L 90 105',
+            'M 50 15 Q 28 15 25 50 Q 28 90 50 90 Q 72 90 75 50 Q 72 15 50 15'],
+        R: ['M 15 100 L 15 5 L 65 5 Q 90 5 90 30 Q 90 50 65 55 L 15 55', 'M 55 55 L 90 100',
+            'M 25 15 L 60 15 Q 78 15 78 30 Q 78 45 60 48 L 25 48'],
+        S: ['M 80 25 Q 80 5 50 5 Q 20 5 15 25 Q 10 45 50 50 Q 85 55 85 75 Q 85 95 50 100 Q 15 100 15 80',
+            'M 70 20 Q 70 15 50 15 Q 30 15 28 30 Q 25 42 50 48 Q 75 53 78 70 Q 80 88 50 90 Q 25 90 25 78'],
+        T: ['M 5 5 L 95 5', 'M 50 5 L 50 100', 'M 15 15 L 85 15'],
+        U: ['M 15 5 L 15 75 Q 15 100 50 100 Q 85 100 85 75 L 85 5',
+            'M 25 15 L 25 72 Q 25 90 50 90 Q 75 90 75 72 L 75 15'],
+        V: ['M 5 5 L 50 100 L 95 5', 'M 20 15 L 50 85 L 80 15'],
+        W: ['M 5 5 L 25 100 L 50 40 L 75 100 L 95 5',
+            'M 15 15 L 30 85 L 50 45 L 70 85 L 85 15'],
+        X: ['M 10 5 L 90 100', 'M 90 5 L 10 100', 'M 20 15 L 80 90', 'M 80 15 L 20 90'],
+        Y: ['M 10 5 L 50 55 L 90 5', 'M 50 55 L 50 100', 'M 20 15 L 50 48 L 80 15'],
+        Z: ['M 10 5 L 90 5 L 10 100 L 90 100', 'M 20 15 L 80 15 L 20 90 L 80 90'],
+        ' ': []
+    };
+
+    // Create engine
+    const engine = Strahl.create();
+
+    // Set up initial state
+    engine.state.merge({
+        rotation: { x: 0, y: 0, z: 0 },
+        targetRotation: { x: 0, y: 0, z: 0 },
+        rotSpeedX: 5,
+        rotSpeedY: 15,
+        rotSpeedZ: 0,
+        fov: 1000,
+        cameraZ: 600,
+        zoom: 0.5,
+        panX: 0,
+        panY: 0,
+        animating: true,
+        animSpeed: 1
+    });
+
+    // Build word into scene
+    let currentWord = 'STRAHL';
+    let letterSpacing = 110;
+    let letterScale = 1;
+
+    function rebuildWord() {
+        engine.scene.clear();
+        renderer.clear();
+        const word = currentWord.toUpperCase();
+        const startX = -(word.length - 1) * letterSpacing / 2;
+        for (let i = 0; i < word.length; i++) {
+            const ch = word[i];
+            const paths = LETTERS[ch];
+            if (!paths) continue;  // skip unknown chars
+            engine.scene.add(Strahl.pathNode({
+                id: 'letter_' + i,
+                paths: paths,
+                x: startX + i * letterSpacing,
+                y: 0, z: 0, scale: letterScale,
+                data: { char: ch }
+            }));
+        }
+    }
+    rebuildWord();
+
+    // Add LFOs
+    engine.mod.lfo.add({ id: 'spin', waveform: 'sine', frequency: 0.15, amplitude: 1.0 });
+    engine.mod.lfo.add({ id: 'breathe', waveform: 'sine', frequency: 0.3, amplitude: 0.6 });
+    engine.mod.lfo.start();
+
+    // Route LFOs to scene
+    engine.mod.hub.route({
+        sourceType: 'lfo', sourceId: 'spin',
+        target: 'targetRotation.y', min: -30, max: 30
+    });
+    engine.mod.hub.route({
+        sourceType: 'lfo', sourceId: 'breathe',
+        target: 'zoom', min: 0.4, max: 0.7
+    });
+
+    // Create renderer
+    const svg = document.getElementById('canvas');
+    const group = document.getElementById('render-group');
+    const statsEl = document.getElementById('stats');
+    const renderer = Strahl.Renderer.SVG.create(svg, group, {
+        concentric: 4,
+        layerOffset: 2,
+        glowIntensity: 60,
+        colorPrimary: '#00ffff',
+        colorSecondary: '#ff00aa'
+    });
+
+    // Resize handler
+    function onResize() { renderer.resize(); }
+    window.addEventListener('resize', onResize);
+    onResize();
+
+    // Wire update: lerp rotation toward target
+    engine.loop.onUpdate((dt) => {
+        const s = engine.state.raw;
+        if (s.animating) {
+            s.targetRotation.x += s.rotSpeedX * dt * s.animSpeed;
+            s.targetRotation.y += s.rotSpeedY * dt * s.animSpeed;
+            s.targetRotation.z += s.rotSpeedZ * dt * s.animSpeed;
+        }
+        s.rotation.x += (s.targetRotation.x - s.rotation.x) * 0.12;
+        s.rotation.y += (s.targetRotation.y - s.rotation.y) * 0.12;
+        s.rotation.z += (s.targetRotation.z - s.rotation.z) * 0.12;
+    });
+
+    // Wire render
+    engine.loop.onRender((dt) => {
+        const s = engine.state.raw;
+        const pathCount = renderer.render(engine.scene, {
+            rotation: s.rotation,
+            fov: s.fov,
+            cameraZ: s.cameraZ,
+            zoom: s.zoom,
+            panX: s.panX,
+            panY: s.panY
+        });
+        statsEl.textContent = `Beam v${engine.version} | Paths: ${pathCount} | FPS: ${Math.round(engine.loop.fps)}`;
+    });
+
+    // ==========================================
+    // Side Panel Wiring
+    // ==========================================
+    const st = engine.state.raw;
+
+    // Helper: bind a range slider to a getter/setter
+    function bind(inputId, valId, getter, setter, fmt) {
+        const el = document.getElementById(inputId);
+        const valEl = document.getElementById(valId);
+        if (!el) return;
+        el.value = getter();
+        valEl.textContent = fmt ? fmt(getter()) : getter();
+        el.addEventListener('input', () => {
+            const v = parseFloat(el.value);
+            setter(v);
+            valEl.textContent = fmt ? fmt(v) : v;
+        });
+        return el;
+    }
+
+    // Text input
+    const textInput = document.getElementById('text-input');
+    textInput.addEventListener('input', () => {
+        currentWord = textInput.value || 'BEAM';
+        rebuildWord();
+    });
+
+    // Letter spacing
+    bind('letter-spacing', 'letter-spacing-val', () => letterSpacing, v => { letterSpacing = v; rebuildWord(); }, v => Math.round(v).toString());
+    // Letter scale
+    bind('letter-scale', 'letter-scale-val', () => letterScale, v => { letterScale = v; rebuildWord(); }, v => v.toFixed(1));
+
+    const fmtF1 = v => v.toFixed(1);
+    const fmtF2 = v => v.toFixed(2);
+    const fmtI  = v => Math.round(v).toString();
+
+    // Animation
+    bind('anim-speed', 'anim-speed-val', () => st.animSpeed, v => { st.animSpeed = v; }, v => v.toFixed(1) + 'x');
+    bind('rot-x-speed', 'rot-x-val', () => st.rotSpeedX, v => { st.rotSpeedX = v; }, fmtI);
+    bind('rot-y-speed', 'rot-y-val', () => st.rotSpeedY, v => { st.rotSpeedY = v; }, fmtI);
+    bind('rot-z-speed', 'rot-z-val', () => st.rotSpeedZ, v => { st.rotSpeedZ = v; }, fmtI);
+
+    const toggleAnim = document.getElementById('toggle-animation');
+    toggleAnim.addEventListener('click', () => {
+        st.animating = !st.animating;
+        toggleAnim.classList.toggle('active', st.animating);
+    });
+
+    // Quadrascan
+    bind('concentric-count', 'concentric-val', () => renderer.config.concentric, v => renderer.configure({ concentric: v }), fmtI);
+    bind('layer-offset', 'offset-val', () => renderer.config.layerOffset, v => renderer.configure({ layerOffset: v }), fmtF1);
+    bind('stroke-width', 'stroke-val', () => renderer.config.strokeWidth, v => renderer.configure({ strokeWidth: v }), fmtF2);
+    bind('glow-intensity', 'glow-val', () => renderer.config.glowIntensity, v => renderer.configure({ glowIntensity: v }), fmtI);
+
+    document.getElementById('color-primary').addEventListener('input', e => renderer.configure({ colorPrimary: e.target.value }));
+    document.getElementById('color-secondary').addEventListener('input', e => renderer.configure({ colorSecondary: e.target.value }));
+
+    // Perspective
+    bind('fov', 'fov-val', () => st.fov, v => { st.fov = v; }, fmtI);
+    bind('cam-z', 'cam-z-val', () => st.cameraZ, v => { st.cameraZ = v; }, fmtI);
+    bind('zoom', 'zoom-val', () => st.zoom, v => { st.zoom = v; }, fmtF2);
+    bind('pan-x', 'pan-x-val', () => st.panX, v => { st.panX = v; }, fmtI);
+    bind('pan-y', 'pan-y-val', () => st.panY, v => { st.panY = v; }, fmtI);
+
+    // LFO — Spin
+    const spinCfg = engine.mod.lfo.getConfig('spin');
+    bind('lfo-spin-freq', 'lfo-spin-freq-val', () => spinCfg.frequency, v => { spinCfg.frequency = v; }, fmtF2);
+    bind('lfo-spin-amp', 'lfo-spin-amp-val', () => spinCfg.amplitude, v => { spinCfg.amplitude = v; }, fmtF2);
+
+    // LFO — Breathe
+    const breatheCfg = engine.mod.lfo.getConfig('breathe');
+    bind('lfo-breathe-freq', 'lfo-breathe-freq-val', () => breatheCfg.frequency, v => { breatheCfg.frequency = v; }, fmtF2);
+    bind('lfo-breathe-amp', 'lfo-breathe-amp-val', () => breatheCfg.amplitude, v => { breatheCfg.amplitude = v; }, fmtF2);
+
+    // Sync LFO-driven values back to sliders
+    setInterval(() => {
+        const zoomEl = document.getElementById('zoom');
+        if (zoomEl && document.activeElement !== zoomEl) {
+            zoomEl.value = st.zoom;
+            document.getElementById('zoom-val').textContent = st.zoom.toFixed(2);
+        }
+    }, 200);
+
+    // Collapsible sections
+    document.querySelectorAll('.section-header').forEach(header => {
+        header.addEventListener('click', () => {
+            header.classList.toggle('collapsed');
+        });
+    });
+
+    // Panel toggle
+    const panel = document.getElementById('side-panel');
+    const toggleBtn = document.getElementById('panel-toggle');
+    toggleBtn.addEventListener('click', () => {
+        panel.classList.toggle('hidden');
+        toggleBtn.textContent = panel.classList.contains('hidden') ? '\u25B6' : '\u25C4';
+    });
+
+    // Menu buttons
+    document.getElementById('btn-collapse-all').addEventListener('click', () => {
+        document.querySelectorAll('.section-header').forEach(h => h.classList.add('collapsed'));
+    });
+    document.getElementById('btn-expand-all').addEventListener('click', () => {
+        document.querySelectorAll('.section-header').forEach(h => h.classList.remove('collapsed'));
+    });
+    document.getElementById('btn-play-pause').addEventListener('click', () => {
+        st.animating = !st.animating;
+        toggleAnim.classList.toggle('active', st.animating);
+    });
+    document.getElementById('btn-reset').addEventListener('click', () => {
+        st.rotation = { x: 0, y: 0, z: 0 };
+        st.targetRotation = { x: 0, y: 0, z: 0 };
+        st.fov = 1000; st.cameraZ = 600; st.zoom = 0.5;
+        st.panX = 0; st.panY = 0; st.animSpeed = 1;
+        st.rotSpeedX = 5; st.rotSpeedY = 15; st.rotSpeedZ = 0;
+        renderer.configure({ concentric: 4, layerOffset: 2, strokeWidth: 1.5, glowIntensity: 60, colorPrimary: '#00ffff', colorSecondary: '#ff00aa' });
+        // Re-sync all sliders
+        document.querySelectorAll('input[type="range"], input[type="color"]').forEach(el => el.dispatchEvent(new Event('input')));
+        location.reload();
+    });
+
+    // Presets
+    const PRESETS = {
+        tempest:     { concentric: 8, layerOffset: 3, glowIntensity: 80, colorPrimary: '#00ff88', colorSecondary: '#0088ff', rotSpeedX: 0, rotSpeedY: 25, rotSpeedZ: 0 },
+        battlezone:  { concentric: 2, layerOffset: 1, glowIntensity: 40, colorPrimary: '#00ff00', colorSecondary: '#008800', rotSpeedX: 3, rotSpeedY: 8, rotSpeedZ: 0 },
+        starwars:    { concentric: 5, layerOffset: 4, glowIntensity: 70, colorPrimary: '#ffdd00', colorSecondary: '#ff4400', rotSpeedX: 2, rotSpeedY: 0, rotSpeedZ: 5 },
+        asteroids:   { concentric: 1, layerOffset: 0, glowIntensity: 20, colorPrimary: '#ffffff', colorSecondary: '#aaaaaa', rotSpeedX: 10, rotSpeedY: 10, rotSpeedZ: 0 },
+        neon:        { concentric: 6, layerOffset: 2.5, glowIntensity: 100, colorPrimary: '#ff00ff', colorSecondary: '#00ffff', rotSpeedX: 5, rotSpeedY: 15, rotSpeedZ: 3 },
+        arcade:      { concentric: 4, layerOffset: 2, glowIntensity: 60, colorPrimary: '#00ffff', colorSecondary: '#ff00aa', rotSpeedX: 5, rotSpeedY: 15, rotSpeedZ: 0 }
+    };
+
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const p = PRESETS[btn.dataset.preset];
+            if (!p) return;
+            renderer.configure({ concentric: p.concentric, layerOffset: p.layerOffset, glowIntensity: p.glowIntensity, colorPrimary: p.colorPrimary, colorSecondary: p.colorSecondary });
+            st.rotSpeedX = p.rotSpeedX; st.rotSpeedY = p.rotSpeedY; st.rotSpeedZ = p.rotSpeedZ;
+            document.getElementById('color-primary').value = p.colorPrimary;
+            document.getElementById('color-secondary').value = p.colorSecondary;
+            // Reload slider displays
+            document.getElementById('concentric-count').value = p.concentric;
+            document.getElementById('concentric-val').textContent = p.concentric;
+            document.getElementById('layer-offset').value = p.layerOffset;
+            document.getElementById('offset-val').textContent = p.layerOffset.toFixed(1);
+            document.getElementById('glow-intensity').value = p.glowIntensity;
+            document.getElementById('glow-val').textContent = p.glowIntensity;
+            document.getElementById('rot-x-speed').value = p.rotSpeedX;
+            document.getElementById('rot-x-val').textContent = p.rotSpeedX;
+            document.getElementById('rot-y-speed').value = p.rotSpeedY;
+            document.getElementById('rot-y-val').textContent = p.rotSpeedY;
+            document.getElementById('rot-z-speed').value = p.rotSpeedZ;
+            document.getElementById('rot-z-val').textContent = p.rotSpeedZ;
+        });
+    });
+
+    // Go
+    engine.start();
+    console.log('Beam engine running', engine);
+    </script>
+</body>
+</html>

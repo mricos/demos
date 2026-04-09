@@ -42,6 +42,7 @@ export class Store {
     this._listeners = new Map();  // path pattern → Set<fn>
     this._batching = false;
     this._pendingPaths = new Set();
+    this._notifying = false;      // re-entry guard: prevent cascade
 
     if (Object.keys(initial).length) this.merge(initial);
   }
@@ -128,6 +129,28 @@ export class Store {
 
   // ── internal ──────────────────────────────────────
   _notify(path, value, old) {
+    if (this._notifying) {
+      // Re-entrant: a listener called set() during notification.
+      // Queue it — will be flushed after current notification pass.
+      this._pendingPaths.add(path);
+      return;
+    }
+
+    this._notifying = true;
+    this._fire(path, value, old);
+
+    // Flush any paths queued by re-entrant set() calls
+    while (this._pendingPaths.size > 0) {
+      const queued = [...this._pendingPaths];
+      this._pendingPaths.clear();
+      for (const p of queued) {
+        this._fire(p, this.get(p));
+      }
+    }
+    this._notifying = false;
+  }
+
+  _fire(path, value, old) {
     for (const [pattern, fns] of this._listeners) {
       if (this._matches(pattern, path)) {
         for (const fn of fns) fn(value, path, old);
@@ -160,3 +183,9 @@ export class Store {
 // ── Singleton instances ─────────────────────────────
 export const bus = new Bus();
 export const state = new Store();
+
+// Expose for terrain bridge (terrain/js/modules/mesa.js)
+if (typeof window !== 'undefined') {
+  window.__mesaState = state;
+  window.__mesaBus = bus;
+}

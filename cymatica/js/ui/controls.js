@@ -8,11 +8,60 @@
 
     function updatePositionInputs() {
         const letter = state.letters[state.selectedLetter];
+        if (!letter) return;
         $('#pos-x').value = Math.round(letter.x);
         $('#pos-y').value = Math.round(letter.y);
         $('#pos-z').value = Math.round(letter.z);
         $('#letter-scale').value = letter.scale;
         $('#scale-val').textContent = letter.scale.toFixed(1);
+    }
+
+    /**
+     * Rebuild the letters array and letter-grid from a text string.
+     * Preserves existing letter positions where indices overlap.
+     */
+    function setText(text) {
+        if (!text) text = 'cymatica';
+        const spacing = 100;
+        const startX = -(text.length - 1) * spacing / 2;
+
+        // Build new letters array
+        const newLetters = [];
+        for (let i = 0; i < text.length; i++) {
+            const ch = text[i];
+            // Reuse existing position if same index existed
+            const existing = state.letters[i];
+            newLetters.push({
+                char: ch,
+                x: existing ? existing.x : startX + i * spacing,
+                y: existing ? existing.y : 0,
+                z: existing ? existing.z : 0,
+                scale: existing ? existing.scale : 1
+            });
+        }
+        state.letters = newLetters;
+        state.selectedLetter = Math.min(state.selectedLetter, newLetters.length - 1);
+
+        // Rebuild the letter grid
+        const grid = $('#letter-grid');
+        if (grid) {
+            grid.innerHTML = '';
+            for (let i = 0; i < text.length; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'letter-cell' + (i === state.selectedLetter ? ' selected' : '');
+                cell.dataset.index = i;
+                cell.textContent = text[i];
+                cell.addEventListener('click', () => {
+                    $$('.letter-cell').forEach(c => c.classList.remove('selected'));
+                    cell.classList.add('selected');
+                    state.selectedLetter = i;
+                    updatePositionInputs();
+                });
+                grid.appendChild(cell);
+            }
+        }
+
+        updatePositionInputs();
     }
 
     function bindControls() {
@@ -138,6 +187,11 @@
             state.colorSecondary = e.target.value;
         });
 
+        // Text input
+        $('#text-input')?.addEventListener('input', (e) => {
+            setText(e.target.value);
+        });
+
         // Letter selection
         $$('.letter-cell').forEach(cell => {
             cell.addEventListener('click', () => {
@@ -239,5 +293,5 @@
         updatePositionInputs();
     }
 
-    CYMATICA.ui = { init, updatePositionInputs };
+    CYMATICA.ui = { init, updatePositionInputs, setText };
 })(window.CYMATICA);

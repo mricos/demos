@@ -9,24 +9,51 @@
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
   onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]})"></script>
+<link rel="stylesheet" href="../shared/dark-theme.css">
 <link rel="stylesheet" href="../mesa/mesa.css">
+<style>
+  /* Page layout — this demo's job, not mesa's */
+  .app{display:flex;height:calc(100vh - 52px);overflow:hidden}
+  .left{width:280px;min-width:180px;overflow-y:auto;padding:12px;border-right:1px solid var(--border);background:var(--surface);flex-shrink:0}
+  .center{flex:1;overflow-y:auto;padding:16px}
+  .right{width:320px;min-width:180px;overflow-y:auto;padding:12px;border-left:1px solid var(--border);background:var(--surface);flex-shrink:0}
+  .hdr{display:flex;align-items:center;padding:10px 20px;background:var(--surface);border-bottom:1px solid var(--border)}
+  .hdr h1{font-family:'Fraunces',serif;font-size:20px;font-weight:700}
+  .hdr .sub{font-size:11px;color:var(--dim);font-family:var(--font-mono)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px}
+  .card-title{font-family:'Fraunces',serif;font-size:15px;font-weight:600;margin-bottom:8px;color:var(--accent2)}
+  .ph{font-size:10px;color:var(--dim);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;margin-top:8px}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:6px}
+  .legend .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
+  .math-block{background:#080c14;border:1px solid var(--border);border-radius:6px;padding:10px;margin:8px 0;overflow-x:auto}
+  .help h3{font-family:'Fraunces',serif;font-size:14px;color:var(--accent2);margin-bottom:4px}
+  .help p,.help li{font-size:12px;color:var(--muted);line-height:1.5}
+  .help ul{padding-left:16px;margin-top:4px}
+  .band-legend{display:flex;gap:8px;font-size:10px;font-family:var(--font-mono);color:var(--muted);justify-content:center;margin:4px 0}
+  .band-legend span{display:flex;align-items:center;gap:3px}
+  .swatch{width:8px;height:8px;border-radius:2px;display:inline-block}
+  .confusion{display:grid;grid-template-columns:auto repeat(4,1fr);gap:1px;font-family:var(--font-mono);font-size:10px;margin:8px 0}
+  .confusion .cell{padding:6px;text-align:center;border-radius:3px}
+  .matrix-grid{display:grid;grid-template-columns:auto repeat(4,1fr);gap:2px;font-family:var(--font-mono);font-size:11px;margin:8px 0}
+  .matrix-grid .mhdr{color:var(--dim);font-size:9px;text-align:center;padding:4px}
+  .matrix-grid .mrow{color:var(--dim);font-size:9px;text-align:right;padding:4px}
+  .matrix-grid input{width:100%;background:var(--surface-hover);color:var(--text);border:1px solid var(--border);border-radius:3px;padding:3px;text-align:center;font-family:var(--font-mono);font-size:11px}
+  @media(max-width:900px){.app{flex-direction:column;height:auto}.left,.right{width:100%;border:none;border-bottom:1px solid var(--border)}}
+</style>
 </head>
 <body>
 
 <!-- ── Header ──────────────────────────────────── -->
-<div class="mesa-header">
+<div class="hdr">
   <div>
     <h1>Loss Functions &mdash; Bias, Variance &amp; EEG Classification</h1>
-    <div class="mesa-subtitle">From norms to cross-entropy to training on synthetic brainwaves</div>
+    <div class="sub">From norms to cross-entropy to training on synthetic brainwaves</div>
   </div>
 </div>
 
-<!-- ── 3-column App ────────────────────────────── -->
-<div class="mesa-app">
-
-  <!-- LEFT: Controls -->
-  <div class="mesa-left" id="panelLeft">
-    <div class="mesa-ph">Navigation</div>
+<div class="app">
+  <div class="left" id="panelLeft">
+    <div class="ph">Navigation</div>
     <mesa-tabs active="bias" id="navTabs">
       <mesa-tab name="bias" key="1">Bias/Var</mesa-tab>
       <mesa-tab name="norms" key="2">Norms</mesa-tab>
@@ -36,22 +63,22 @@
 
     <!-- Bias/Variance controls -->
     <mesa-pane tab="bias">
-      <div class="mesa-ph">Model Complexity</div>
+      <div class="ph">Model Complexity</div>
       <mesa-slider bind="bv.deg" min="1" max="15" step="1" value="3" label="Polynomial Degree" fmt=".0f"></mesa-slider>
       <mesa-slider bind="bv.noise" min="0.01" max="1.0" step="0.01" value="0.30" label="Noise &sigma;" fmt=".2f"></mesa-slider>
       <mesa-slider bind="bv.samples" min="10" max="200" step="5" value="30" label="Samples" fmt=".0f"></mesa-slider>
       <mesa-slider bind="bv.lambda" min="0" max="2" step="0.01" value="0" label="Regularization &lambda;" fmt=".2f"></mesa-slider>
-      <div class="mesa-ph">Regularization Type</div>
-      <mesa-btn-group bind="bv.reg" options="none,l1,l2" labels="None,L1,L2"></mesa-btn-group>
-      <div class="mesa-btn-row mesa-mt-8">
-        <button class="mesa-btn" id="btnResample">Resample</button>
-        <button class="mesa-btn" id="btnAnimate">Animate</button>
+      <div class="ph">Regularization Type</div>
+      <btn-group bind="bv.reg" options="none,l1,l2" labels="None,L1,L2"></btn-group>
+      <div class="btn-group mt-8">
+        <button class="btn" id="btnResample">Resample</button>
+        <button class="btn" id="btnAnimate">Animate</button>
       </div>
     </mesa-pane>
 
     <!-- Norms controls -->
     <mesa-pane tab="norms">
-      <div class="mesa-ph">Norm Visualization</div>
+      <div class="ph">Norm Visualization</div>
       <mesa-slider bind="norm.p" min="0.5" max="20" step="0.1" value="2.0" label="p-value" fmt=".1f"></mesa-slider>
       <mesa-slider bind="norm.vx" min="-1" max="1" step="0.01" value="0.6" label="Vector x" fmt=".2f"></mesa-slider>
       <mesa-slider bind="norm.vy" min="-1" max="1" step="0.01" value="0.8" label="Vector y" fmt=".2f"></mesa-slider>
@@ -60,12 +87,12 @@
 
     <!-- Cross-Entropy controls -->
     <mesa-pane tab="xent">
-      <div class="mesa-ph">Predicted Probability</div>
+      <div class="ph">Predicted Probability</div>
       <mesa-slider bind="xent.prob" min="0.001" max="0.999" step="0.001" value="0.5" label="p(y=1)" fmt=".3f"></mesa-slider>
       <mesa-slider bind="xent.true" min="0" max="1" step="1" value="1" label="True class" fmt=".0f"></mesa-slider>
-      <div class="mesa-ph">Softmax Temperature</div>
+      <div class="ph">Softmax Temperature</div>
       <mesa-slider bind="xent.tau" min="0.1" max="5" step="0.05" value="1.0" label="&tau;" fmt=".2f"></mesa-slider>
-      <div class="mesa-ph">Logits (4-class)</div>
+      <div class="ph">Logits (4-class)</div>
       <mesa-slider bind="xent.z0" min="-5" max="5" step="0.1" value="2.0" label="z&#x2080;" fmt=".1f"></mesa-slider>
       <mesa-slider bind="xent.z1" min="-5" max="5" step="0.1" value="1.0" label="z&#x2081;" fmt=".1f"></mesa-slider>
       <mesa-slider bind="xent.z2" min="-5" max="5" step="0.1" value="-1.0" label="z&#x2082;" fmt=".1f"></mesa-slider>
@@ -74,34 +101,33 @@
 
     <!-- EEG controls -->
     <mesa-pane tab="eeg">
-      <div class="mesa-ph">EEG Generator</div>
+      <div class="ph">EEG Generator</div>
       <mesa-slider bind="eeg.dur" min="2" max="30" step="1" value="10" label="Duration (s)" fmt=".0f"></mesa-slider>
       <mesa-slider bind="eeg.snr" min="0" max="20" step="1" value="6" label="SNR (dB)" fmt=".0f"></mesa-slider>
-      <div class="mesa-ph">Markov Transition Matrix</div>
-      <div class="mesa-matrix" id="markovGrid" style="grid-template-columns:auto repeat(4,1fr)">
-        <div class="mesa-mhdr"></div>
-        <div class="mesa-mhdr">Relax</div><div class="mesa-mhdr">Sleep</div>
-        <div class="mesa-mhdr">Active</div><div class="mesa-mhdr">Agit</div>
+      <div class="ph">Markov Transition Matrix</div>
+      <div class="matrix-grid" id="markovGrid" style="grid-template-columns:auto repeat(4,1fr)">
+        <div class="mhdr"></div>
+        <div class="mhdr">Relax</div><div class="mhdr">Sleep</div>
+        <div class="mhdr">Active</div><div class="mhdr">Agit</div>
       </div>
-      <div class="mesa-ph">Training</div>
+      <div class="ph">Training</div>
       <mesa-slider bind="eeg.hidden" min="8" max="128" step="8" value="32" label="Hidden units" fmt=".0f"></mesa-slider>
       <mesa-slider bind="eeg.lr" min="0.001" max="0.1" step="0.001" value="0.01" label="Learning rate" fmt=".3f"></mesa-slider>
       <mesa-slider bind="eeg.epochs" min="10" max="200" step="10" value="50" label="Epochs" fmt=".0f"></mesa-slider>
       <mesa-slider bind="eeg.win" min="32" max="512" step="32" value="128" label="Window (samples)" fmt=".0f"></mesa-slider>
-      <div class="mesa-btn-row mesa-mt-8">
-        <button class="mesa-btn" id="btnGenerate">Generate</button>
-        <button class="mesa-btn" id="btnTrain">Train</button>
-        <button class="mesa-btn" id="btnStop">Stop</button>
+      <div class="btn-group mt-8">
+        <button class="btn" id="btnGenerate">Generate</button>
+        <button class="btn" id="btnTrain">Train</button>
+        <button class="btn" id="btnStop">Stop</button>
       </div>
       <mesa-progress bind="eeg.progress"></mesa-progress>
       <mesa-status id="trainStatus"></mesa-status>
     </mesa-pane>
   </div>
 
-  <mesa-drag target=".mesa-left" side="left"></mesa-drag>
+  <mesa-drag target=".left" side="left"></mesa-drag>
 
-  <!-- CENTER: Visualization -->
-  <div class="mesa-center">
+  <div class="center">
 
     <!-- ── Tab 1: Bias / Variance ──────────────── -->
     <mesa-pane tab="bias">
@@ -111,22 +137,22 @@
         <mesa-stat bind="bv.mse" label="Test MSE" fmt=".3f"></mesa-stat>
         <mesa-stat bind="bv.deg" label="Degree" fmt=".0f"></mesa-stat>
       </mesa-stats>
-      <div class="mesa-card">
-        <div class="mesa-card-title">Bias–Variance Tradeoff</div>
+      <div class="card">
+        <div class="card-title">Bias–Variance Tradeoff</div>
         <canvas id="cvBias" height="350"></canvas>
-        <div class="mesa-legend">
-          <span><div class="mesa-dot" style="background:var(--mesa-blue)"></div> True fn</span>
-          <span><div class="mesa-dot" style="background:var(--mesa-red)"></div> Fit</span>
-          <span><div class="mesa-dot" style="background:var(--mesa-muted)"></div> Data</span>
+        <div class="legend">
+          <span><div class="dot" style="background:var(--blue)"></div> True fn</span>
+          <span><div class="dot" style="background:var(--red)"></div> Fit</span>
+          <span><div class="dot" style="background:var(--muted)"></div> Data</span>
         </div>
       </div>
-      <div class="mesa-card">
-        <div class="mesa-card-title">Error Decomposition vs Complexity</div>
+      <div class="card">
+        <div class="card-title">Error Decomposition vs Complexity</div>
         <canvas id="cvDecomp" height="250"></canvas>
-        <div class="mesa-legend">
-          <span><div class="mesa-dot" style="background:var(--mesa-blue)"></div> Bias²</span>
-          <span><div class="mesa-dot" style="background:var(--mesa-orange)"></div> Variance</span>
-          <span><div class="mesa-dot" style="background:var(--mesa-red)"></div> Total</span>
+        <div class="legend">
+          <span><div class="dot" style="background:var(--blue)"></div> Bias²</span>
+          <span><div class="dot" style="background:var(--orange)"></div> Variance</span>
+          <span><div class="dot" style="background:var(--red)"></div> Total</span>
         </div>
       </div>
     </mesa-pane>
@@ -139,24 +165,24 @@
         <mesa-stat bind="norm.linf" label="L∞" fmt=".2f"></mesa-stat>
         <mesa-stat bind="norm.lp" label="Lp" fmt=".2f"></mesa-stat>
       </mesa-stats>
-      <div class="mesa-card">
-        <div class="mesa-card-title">Unit Balls: $\{x : \|x\|_p \leq 1\}$</div>
+      <div class="card">
+        <div class="card-title">Unit Balls: $\{x : \|x\|_p \leq 1\}$</div>
         <canvas id="cvNorms" height="350"></canvas>
-        <div class="mesa-legend">
-          <span><div class="mesa-dot" style="background:var(--mesa-red)"></div> L1 (diamond)</span>
-          <span><div class="mesa-dot" style="background:var(--mesa-blue)"></div> L2 (circle)</span>
-          <span><div class="mesa-dot" style="background:var(--mesa-green)"></div> L∞ (square)</span>
-          <span><div class="mesa-dot" style="background:var(--mesa-yellow)"></div> Lp</span>
+        <div class="legend">
+          <span><div class="dot" style="background:var(--red)"></div> L1 (diamond)</span>
+          <span><div class="dot" style="background:var(--blue)"></div> L2 (circle)</span>
+          <span><div class="dot" style="background:var(--green)"></div> L∞ (square)</span>
+          <span><div class="dot" style="background:var(--yellow)"></div> Lp</span>
         </div>
       </div>
-      <div class="mesa-card">
-        <div class="mesa-card-title">Penalty Landscape: $\lambda\|w\|_p$</div>
+      <div class="card">
+        <div class="card-title">Penalty Landscape: $\lambda\|w\|_p$</div>
         <canvas id="cvPenalty" height="250"></canvas>
       </div>
-      <div class="mesa-card">
-        <div class="mesa-card-title">Why Norms Matter for Regularization</div>
-        <div class="mesa-math-block">$$\|x\|_p = \left(\sum_i |x_i|^p\right)^{1/p}$$</div>
-        <p style="font-size:12px;color:var(--mesa-muted);margin-top:8px">
+      <div class="card">
+        <div class="card-title">Why Norms Matter for Regularization</div>
+        <div class="math-block">$$\|x\|_p = \left(\sum_i |x_i|^p\right)^{1/p}$$</div>
+        <p style="font-size:12px;color:var(--muted);margin-top:8px">
           <b>L1 (Lasso)</b>: Produces sparse weights — drives coefficients to exactly zero. The diamond-shaped constraint makes solutions "snap" to axes.<br><br>
           <b>L2 (Ridge)</b>: Shrinks all weights uniformly toward zero. The circular constraint distributes penalty smoothly.<br><br>
           <b>L∞ (Max-norm)</b>: Penalizes only the largest component. Rarely used alone but important in adversarial robustness — adversarial perturbations are bounded in L∞.
@@ -172,27 +198,27 @@
         <mesa-stat bind="xent.maxprob" label="max(softmax)" fmt=".3f"></mesa-stat>
         <mesa-stat bind="xent.entropy" label="Entropy" fmt=".3f"></mesa-stat>
       </mesa-stats>
-      <div class="mesa-card">
-        <div class="mesa-card-title">Binary Cross-Entropy: $-[y\log p + (1-y)\log(1-p)]$</div>
+      <div class="card">
+        <div class="card-title">Binary Cross-Entropy: $-[y\log p + (1-y)\log(1-p)]$</div>
         <canvas id="cvXent" height="300"></canvas>
-        <div class="mesa-legend">
-          <span><div class="mesa-dot" style="background:var(--mesa-red)"></div> Loss (y=1)</span>
-          <span><div class="mesa-dot" style="background:var(--mesa-blue)"></div> Loss (y=0)</span>
-          <span><div class="mesa-dot" style="background:var(--mesa-yellow)"></div> Current</span>
+        <div class="legend">
+          <span><div class="dot" style="background:var(--red)"></div> Loss (y=1)</span>
+          <span><div class="dot" style="background:var(--blue)"></div> Loss (y=0)</span>
+          <span><div class="dot" style="background:var(--yellow)"></div> Current</span>
         </div>
       </div>
-      <div class="mesa-card">
-        <div class="mesa-card-title">Logits → Softmax → Probabilities</div>
+      <div class="card">
+        <div class="card-title">Logits → Softmax → Probabilities</div>
         <canvas id="cvSoftmax" height="200"></canvas>
-        <div class="mesa-legend">
-          <span><div class="mesa-dot" style="background:var(--mesa-red)"></div> Logits</span>
-          <span><div class="mesa-dot" style="background:var(--mesa-green)"></div> Softmax</span>
+        <div class="legend">
+          <span><div class="dot" style="background:var(--red)"></div> Logits</span>
+          <span><div class="dot" style="background:var(--green)"></div> Softmax</span>
         </div>
       </div>
-      <div class="mesa-card">
-        <div class="mesa-card-title">Why Logits? Why $\log$?</div>
-        <div class="mesa-math-block">$$\text{softmax}(z_i) = \frac{e^{z_i / \tau}}{\sum_j e^{z_j / \tau}}$$</div>
-        <p style="font-size:12px;color:var(--mesa-muted);margin:8px 0">
+      <div class="card">
+        <div class="card-title">Why Logits? Why $\log$?</div>
+        <div class="math-block">$$\text{softmax}(z_i) = \frac{e^{z_i / \tau}}{\sum_j e^{z_j / \tau}}$$</div>
+        <p style="font-size:12px;color:var(--muted);margin:8px 0">
           A neural network's final layer outputs <b>logits</b> $z$ — unbounded real numbers. We need probabilities (positive, sum to 1).
           The softmax function accomplishes this via exponentiation (makes positive) and normalization (makes sum to 1).<br><br>
           <b>Why take the log in cross-entropy?</b> The loss $-\log p(\text{true class})$ has crucial properties:<br>
@@ -203,8 +229,8 @@
           Cross-entropy loss between predicted distribution and one-hot target drives training.
           The $\log$ in cross-entropy <i>cancels</i> the $\exp$ in softmax, giving numerically stable gradients:
         </p>
-        <div class="mesa-math-block">$$\frac{\partial \mathcal{L}}{\partial z_i} = p_i - \mathbb{1}[i = y_{\text{true}}]$$</div>
-        <p style="font-size:12px;color:var(--mesa-muted)">
+        <div class="math-block">$$\frac{\partial \mathcal{L}}{\partial z_i} = p_i - \mathbb{1}[i = y_{\text{true}}]$$</div>
+        <p style="font-size:12px;color:var(--muted)">
           The gradient is simply "predicted minus actual" — elegant, bounded, and stable. This is why we work in log-space.
         </p>
       </div>
@@ -218,43 +244,43 @@
         <mesa-stat bind="eeg.epoch" label="Epoch" fmt=".0f"></mesa-stat>
         <mesa-stat bind="eeg.loss" label="Loss" fmt=".3f"></mesa-stat>
       </mesa-stats>
-      <div class="mesa-card">
-        <div class="mesa-card-title">Synthetic EEG — Markov FSK (512 Hz)</div>
+      <div class="card">
+        <div class="card-title">Synthetic EEG — Markov FSK (512 Hz)</div>
         <canvas id="cvEEG" height="200"></canvas>
-        <div class="mesa-band-legend">
-          <span><div class="mesa-swatch" style="background:#ef4444"></div>&delta; 0.5–4</span>
-          <span><div class="mesa-swatch" style="background:#fb923c"></div>&theta; 4–8</span>
-          <span><div class="mesa-swatch" style="background:#fbbf24"></div>&alpha; 8–13</span>
-          <span><div class="mesa-swatch" style="background:#3b82f6"></div>&beta; 13–30</span>
-          <span><div class="mesa-swatch" style="background:#a78bfa"></div>&gamma; 30–100</span>
+        <div class="band-legend">
+          <span><div class="swatch" style="background:#ef4444"></div>&delta; 0.5–4</span>
+          <span><div class="swatch" style="background:#fb923c"></div>&theta; 4–8</span>
+          <span><div class="swatch" style="background:#fbbf24"></div>&alpha; 8–13</span>
+          <span><div class="swatch" style="background:#3b82f6"></div>&beta; 13–30</span>
+          <span><div class="swatch" style="background:#a78bfa"></div>&gamma; 30–100</span>
         </div>
         <canvas id="cvSpectrogram" height="120"></canvas>
       </div>
-      <div class="mesa-card">
-        <div class="mesa-card-title">Training Loss &amp; Accuracy</div>
+      <div class="card">
+        <div class="card-title">Training Loss &amp; Accuracy</div>
         <canvas id="cvTrainLoss" height="180"></canvas>
-        <div class="mesa-legend">
-          <span><div class="mesa-dot" style="background:var(--mesa-red)"></div> Loss</span>
-          <span><div class="mesa-dot" style="background:var(--mesa-green)"></div> Accuracy</span>
+        <div class="legend">
+          <span><div class="dot" style="background:var(--red)"></div> Loss</span>
+          <span><div class="dot" style="background:var(--green)"></div> Accuracy</span>
         </div>
       </div>
-      <div class="mesa-card">
-        <div class="mesa-card-title">Confusion Matrix</div>
-        <div class="mesa-confusion" id="confMatrix" style="grid-template-columns:auto repeat(4,1fr)"></div>
+      <div class="card">
+        <div class="card-title">Confusion Matrix</div>
+        <div class="confusion" id="confMatrix" style="grid-template-columns:auto repeat(4,1fr)"></div>
       </div>
-      <div class="mesa-card">
-        <div class="mesa-card-title">Disposition → EEG Band Model</div>
-        <p style="font-size:12px;color:var(--mesa-muted);margin-bottom:8px">
+      <div class="card">
+        <div class="card-title">Disposition → EEG Band Model</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:8px">
           Each mental state modulates dominant EEG frequency bands via <b>Frequency Shift Keying</b>:
         </p>
-        <table class="mesa-table">
+        <table class="tbl">
           <tr><th>State</th><th class="center">&delta;</th><th class="center">&theta;</th><th class="center">&alpha;</th><th class="center">&beta;</th><th class="center">&gamma;</th></tr>
-          <tr><td style="color:var(--mesa-green)">Relaxed</td><td class="center">0.1</td><td class="center">0.2</td><td class="center bold">0.8</td><td class="center">0.1</td><td class="center">0.05</td></tr>
-          <tr><td style="color:var(--mesa-blue)">Sleepy</td><td class="center bold">0.7</td><td class="center bold">0.5</td><td class="center">0.2</td><td class="center">0.05</td><td class="center">0.02</td></tr>
-          <tr><td style="color:var(--mesa-yellow)">Active</td><td class="center">0.05</td><td class="center">0.1</td><td class="center">0.15</td><td class="center bold">0.7</td><td class="center">0.3</td></tr>
-          <tr><td style="color:var(--mesa-red)">Agitated</td><td class="center">0.05</td><td class="center">0.05</td><td class="center">0.05</td><td class="center bold">0.5</td><td class="center bold">0.8</td></tr>
+          <tr><td style="color:var(--green)">Relaxed</td><td class="center">0.1</td><td class="center">0.2</td><td class="center bold">0.8</td><td class="center">0.1</td><td class="center">0.05</td></tr>
+          <tr><td style="color:var(--blue)">Sleepy</td><td class="center bold">0.7</td><td class="center bold">0.5</td><td class="center">0.2</td><td class="center">0.05</td><td class="center">0.02</td></tr>
+          <tr><td style="color:var(--yellow)">Active</td><td class="center">0.05</td><td class="center">0.1</td><td class="center">0.15</td><td class="center bold">0.7</td><td class="center">0.3</td></tr>
+          <tr><td style="color:var(--red)">Agitated</td><td class="center">0.05</td><td class="center">0.05</td><td class="center">0.05</td><td class="center bold">0.5</td><td class="center bold">0.8</td></tr>
         </table>
-        <p style="font-size:11px;color:var(--mesa-dim);margin-top:8px">
+        <p style="font-size:11px;color:var(--dim);margin-top:8px">
           Bold = dominant band. Amplitudes are relative power weights mixed into the signal at 512 Hz sample rate.
           The Markov process determines state transitions and dwell times.
         </p>
@@ -262,15 +288,14 @@
     </mesa-pane>
   </div>
 
-  <mesa-drag target=".mesa-right" side="right"></mesa-drag>
+  <mesa-drag target=".right" side="right"></mesa-drag>
 
-  <!-- RIGHT: Context Help -->
-  <div class="mesa-right" id="panelRight">
-    <div class="mesa-ph">Context</div>
+  <div class="right" id="panelRight">
+    <div class="ph">Context</div>
 
-    <div class="mesa-help">
+    <div class="help">
       <h3>Bias–Variance Tradeoff</h3>
-      <div class="mesa-math-block">$$\text{MSE} = \text{Bias}^2 + \text{Variance} + \sigma^2$$</div>
+      <div class="math-block">$$\text{MSE} = \text{Bias}^2 + \text{Variance} + \sigma^2$$</div>
       <p>The expected prediction error decomposes into three terms:</p>
       <ul>
         <li><b>Bias²</b> — error from wrong assumptions (underfitting). High for simple models.</li>
@@ -280,7 +305,7 @@
       <p style="margin-top:8px">The <b>sweet spot</b> minimizes total error. Regularization shifts this sweet spot rightward, allowing more complex models without overfitting.</p>
 
       <h3 style="margin-top:16px">Lp Norms</h3>
-      <div class="mesa-math-block">$$\|x\|_p = \left(\sum_i |x_i|^p\right)^{1/p}$$</div>
+      <div class="math-block">$$\|x\|_p = \left(\sum_i |x_i|^p\right)^{1/p}$$</div>
       <ul>
         <li>$p=1$: Manhattan distance $|x_1|+|x_2|$</li>
         <li>$p=2$: Euclidean distance $\sqrt{x_1^2+x_2^2}$</li>
@@ -288,7 +313,7 @@
       </ul>
 
       <h3 style="margin-top:16px">Cross-Entropy</h3>
-      <div class="mesa-math-block">$$H(p,q) = -\sum_x p(x)\log q(x)$$</div>
+      <div class="math-block">$$H(p,q) = -\sum_x p(x)\log q(x)$$</div>
       <p>Measures how well distribution $q$ (model) approximates $p$ (truth). For classification with one-hot $p$, simplifies to $-\log q(y_{\text{true}})$.</p>
 
       <h3 style="margin-top:16px">EEG Frequency Bands</h3>
@@ -310,9 +335,6 @@
 <script type="module">
 import { state, bus, setupCanvas, coords, drawGrid, drawLine, drawFn, drawDots,
          drawVLine, drawAnnotation, COLORS, drawSpectrogram } from '../mesa/mesa.js';
-import { createNetwork } from '/shared/nn.js';
-import { crossEntropy } from '/shared/losses.js';
-import { softmax, argmax } from '/shared/math.js';
 
 const TAU = 2 * Math.PI;
 const $ = id => document.getElementById(id);
@@ -324,9 +346,18 @@ function randn() {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v);
 }
 
-// softmax with temperature (shared softmax doesn't support tau)
-function softmaxT(logits, tau = 1) {
-  return softmax(logits.map(z => z / tau));
+function softmax(logits, tau = 1) {
+  const scaled = logits.map(z => z / tau);
+  const max = Math.max(...scaled);
+  const exps = scaled.map(z => Math.exp(z - max));
+  const sum = exps.reduce((a, b) => a + b, 0);
+  return exps.map(e => e / sum);
+}
+
+function argmax(arr) {
+  let b = 0;
+  for (let i = 1; i < arr.length; i++) if (arr[i] > arr[b]) b = i;
+  return b;
 }
 
 // ════════════════════════════════════════════════════
@@ -581,7 +612,7 @@ function drawXent() {
   const prob = state.get('xent.prob'), trueY = state.get('xent.true');
   const tau = state.get('xent.tau');
   const logits = [state.get('xent.z0'), state.get('xent.z1'), state.get('xent.z2'), state.get('xent.z3')];
-  const probs = softmaxT(logits, tau);
+  const probs = softmax(logits, tau);
 
   const ce = -(trueY * Math.log(prob + 1e-15) + (1 - trueY) * Math.log(1 - prob + 1e-15));
   const H = -probs.reduce((s, pi) => s + (pi > 0 ? pi * Math.log(pi) : 0), 0);
@@ -679,10 +710,10 @@ let trainHistory = [], trainRunning = false, trainAbort = false;
 // Markov matrix UI
 function buildMarkovUI() {
   const grid = $('markovGrid');
-  grid.querySelectorAll('.mesa-mrow, input').forEach(e => e.remove());
+  grid.querySelectorAll('.mrow, input').forEach(e => e.remove());
   STATES.forEach((from, i) => {
     const label = document.createElement('div');
-    label.className = 'mesa-mrow'; label.textContent = from.slice(0, 4);
+    label.className = 'mrow'; label.textContent = from.slice(0, 4);
     grid.appendChild(label);
     STATES.forEach((to, j) => {
       const inp = document.createElement('input');
@@ -818,22 +849,48 @@ function extractFeatures(signal, start, winSize) {
 }
 
 function createNN(nI, nH, nO) {
-  return createNetwork([nI, nH, nO], {
-    activation: 'relu',
-    outputActivation: 'softmax',
-    initMethod: 'he',
-  });
+  const s1 = Math.sqrt(2 / nI), s2 = Math.sqrt(2 / nH);
+  return {
+    w1: Array.from({ length: nH }, () => Array.from({ length: nI }, () => randn() * s1)),
+    b1: new Float64Array(nH),
+    w2: Array.from({ length: nO }, () => Array.from({ length: nH }, () => randn() * s2)),
+    b2: new Float64Array(nO),
+  };
 }
 
 function nnForward(nn, x) {
-  const { acts, pres } = nn.forward(x);
-  return { h: acts[1], z: pres[2], probs: acts[2], acts, pres };
+  const nH = nn.b1.length, nO = nn.b2.length;
+  const h = new Float64Array(nH);
+  for (let j = 0; j < nH; j++) {
+    let sum = nn.b1[j];
+    for (let i = 0; i < x.length; i++) sum += nn.w1[j][i] * x[i];
+    h[j] = sum > 0 ? sum : 0;
+  }
+  const z = new Float64Array(nO);
+  for (let k = 0; k < nO; k++) {
+    let sum = nn.b2[k];
+    for (let j = 0; j < nH; j++) sum += nn.w2[k][j] * h[j];
+    z[k] = sum;
+  }
+  return { h, z, probs: softmax(Array.from(z)) };
 }
 
-function nnBackward(nn, acts, pres, probs, target, lr) {
-  const oneHot = new Array(probs.length).fill(0);
-  oneHot[target] = 1;
-  nn.backward(acts, pres, oneHot, lr);
+function nnBackward(nn, x, h, probs, target, lr) {
+  const nH = nn.b1.length, nO = nn.b2.length;
+  const dz = probs.map((p, k) => p - (k === target ? 1 : 0));
+  for (let k = 0; k < nO; k++) {
+    nn.b2[k] -= lr * dz[k];
+    for (let j = 0; j < nH; j++) nn.w2[k][j] -= lr * dz[k] * h[j];
+  }
+  const dh = new Float64Array(nH);
+  for (let j = 0; j < nH; j++) {
+    for (let k = 0; k < nO; k++) dh[j] += dz[k] * nn.w2[k][j];
+    dh[j] *= h[j] > 0 ? 1 : 0;
+  }
+  for (let j = 0; j < nH; j++) {
+    nn.b1[j] -= lr * dh[j];
+    for (let i = 0; i < x.length; i++) nn.w1[j][i] -= lr * dh[j] * x[i];
+  }
 }
 
 async function trainModel() {
@@ -877,9 +934,9 @@ async function trainModel() {
     let epochLoss = 0;
     trainSet.forEach(s => {
       const x = normalize(s.feat);
-      const { probs, acts, pres } = nnForward(nn, x);
-      epochLoss += crossEntropy(probs, s.label);
-      nnBackward(nn, acts, pres, probs, s.label, lr);
+      const { h, probs } = nnForward(nn, x);
+      epochLoss += -Math.log(probs[s.label] + 1e-10);
+      nnBackward(nn, x, h, probs, s.label, lr);
     });
     epochLoss /= trainSet.length;
 
@@ -936,7 +993,7 @@ function drawConfusion() {
   const last = trainHistory[trainHistory.length - 1];
 
   const corner = document.createElement('div');
-  corner.className = 'cell'; corner.style.cssText = 'color:var(--mesa-dim);font-size:8px';
+  corner.className = 'cell'; corner.style.cssText = 'color:var(--dim);font-size:8px';
   corner.textContent = 'T↓ P→'; container.appendChild(corner);
   STATES.forEach((s, i) => {
     const cell = document.createElement('div');
@@ -954,13 +1011,13 @@ function drawConfusion() {
       const cell = document.createElement('div');
       cell.className = 'cell cell-val';
       if (!last) {
-        cell.style.cssText = 'background:var(--mesa-surface-hover);color:var(--mesa-dim)';
+        cell.style.cssText = 'background:var(--surface-hover);color:var(--dim)';
         cell.textContent = '—';
       } else {
         const maxVal = Math.max(1, ...last.confMat.flat());
         const intensity = last.confMat[i][j] / maxVal;
         const bg = i === j ? `rgba(52,211,153,${intensity * 0.5})` : `rgba(239,68,68,${intensity * 0.4})`;
-        cell.style.cssText = `background:${bg};color:var(--mesa-text)`;
+        cell.style.cssText = `background:${bg};color:var(--text)`;
         cell.textContent = last.confMat[i][j];
       }
       container.appendChild(cell);

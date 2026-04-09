@@ -179,7 +179,7 @@
 
         // Process each letter
         state.letters.forEach((letter, letterIndex) => {
-            const paths = LETTER_PATHS[letter.char] || LETTER_PATHS['C'];
+            const paths = LETTER_PATHS[letter.char] || CYMATICA.FALLBACK_PATH;
 
             // Calculate letter center depth for sorting
             const centerProj = project3D(letter.x, letter.y, letter.z,
